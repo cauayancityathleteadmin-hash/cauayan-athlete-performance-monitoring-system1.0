@@ -1,0 +1,1306 @@
+:root {
+  --bg: #041f18;
+  --panel: #0a3228;
+  --border: #1a5c4a;
+  --text: #f0fdf4;
+  --muted: #86efac;
+  --accent: #2dd4a8;
+  --accent-hover: #5eead4;
+  --danger: #f87171;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --info: #60a5fa;
+  --radius: 10px;
+  --font: "Trebuchet MS", "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text);
+  background-color: #041f18;
+  background-image: url('../../cauayan_city_map.png');
+  background-size: cover;
+  background-position: center center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  min-height: 100vh;
+}
+
+/* Light overlay so the map stays visible */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 31, 24, 0.28);
+  z-index: -1;
+  pointer-events: none;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+a:hover {
+  color: var(--accent-hover);
+}
+
+/* ========== Login ========== */
+.login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.login-box {
+  background: rgba(10, 50, 40, 0.93);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+}
+
+.registration-page {
+  align-items: flex-start;
+  padding: 2rem 1rem;
+}
+
+.registration-box {
+  max-width: 760px;
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+}
+
+.registration-box form > .btn {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.registration-form-grid {
+  align-items: start;
+}
+
+.login-box h1 {
+  font-size: 1.55rem;
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+  color: var(--text);
+}
+
+.login-box .small {
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+}
+
+/* Centered full-width login button */
+.login-box .btn,
+.login-box button[type="submit"] {
+  display: block;
+  width: 100%;
+  margin: 1.25rem auto 0;
+  text-align: center;
+}
+
+/* Smaller "Are you a coach? Register." text */
+.login-register {
+  margin-top: 1.1rem;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.login-register a {
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+/* ========== Layout ========== */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 1.5rem;
+  background: rgba(10, 50, 40, 0.95);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.brand a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--text);
+}
+
+.brand img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.auth-logo {
+  display: block;
+  width: 84px;
+  height: 84px;
+  object-fit: contain;
+  margin: 0 auto 1rem;
+}
+
+.user-area {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 0.95rem;
+}
+
+.role-badge {
+  background: var(--accent);
+  color: #041f18;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
+.logout-link {
+  color: var(--muted);
+}
+.logout-link:hover {
+  color: var(--danger);
+}
+
+.layout {
+  display: flex;
+  min-height: calc(100vh - 54px);
+}
+
+.sidebar {
+  width: 220px;
+  background: rgba(10, 50, 40, 0.95);
+  border-right: 1px solid var(--border);
+  padding: 1rem 0;
+  flex-shrink: 0;
+}
+
+.sidebar a {
+  display: block;
+  padding: 0.6rem 1.3rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+.sidebar a:hover {
+  background: rgba(45, 212, 168, 0.12);
+  color: var(--text);
+}
+
+.nav-heading {
+  padding: 1rem 1.3rem 0.35rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding: 1.6rem;
+  overflow-x: auto;
+}
+
+/* ========== Components ========== */
+.page-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.3rem;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+
+.page-title h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.panel {
+  background: rgba(10, 50, 40, 0.93);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.3rem;
+  margin-bottom: 1.3rem;
+}
+
+.panel h2 {
+  font-size: 1.1rem;
+  font-weight: 650;
+  margin-bottom: 1rem;
+  color: var(--text);
+}
+
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.section-heading h2 {
+  margin-bottom: 0.2rem;
+}
+
+.count-badge {
+  min-width: 2rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--accent);
+  font-weight: 700;
+  text-align: center;
+}
+
+.button-count {
+  display: inline-block;
+  min-width: 1.25rem;
+  margin-left: 0.25rem;
+  padding: 0 0.3rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.75em;
+  text-align: center;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+  gap: 1rem;
+  margin-bottom: 1.3rem;
+}
+
+.card {
+  background: rgba(10, 50, 40, 0.93);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+}
+
+.card h3 {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 0.35rem;
+}
+
+.metric-number {
+  font-size: 1.85rem;
+  font-weight: 750;
+  color: var(--accent);
+}
+
+.analytics-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 1rem;
+}
+
+.chart-panel { min-width: 0; }
+
+.bar-chart {
+  height: 220px;
+  display: flex;
+  align-items: end;
+  gap: 0.55rem;
+  padding: 1.25rem 0.5rem 0;
+  overflow-x: auto;
+}
+
+.bar-column {
+  height: 100%;
+  min-width: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: end;
+  gap: 0.25rem;
+}
+
+.bar {
+  width: 28px;
+  min-height: 8px;
+  background: var(--accent);
+  border-radius: 4px 4px 0 0;
+}
+
+.bar-value, .bar-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.horizontal-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.horizontal-bar-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.horizontal-bar-label strong {
+  color: var(--accent);
+}
+
+.horizontal-bar-track {
+  height: 10px;
+  background: rgba(4, 31, 24, 0.5);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.horizontal-bar {
+  height: 100%;
+  min-width: 4px;
+  background: var(--success);
+  border-radius: 5px;
+}
+
+.status-bar {
+  background: var(--info);
+}
+
+.metric-bar {
+  background: var(--accent-hover);
+}
+
+/* Forms */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.form-group.full {
+  grid-column: 1 / -1;
+}
+
+.form-group label {
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  background: rgba(4, 31, 24, 0.65);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.55rem 0.75rem;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(45, 212, 168, 0.25);
+}
+
+.form-group textarea {
+  min-height: 85px;
+  resize: vertical;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  background: var(--accent);
+  color: #041f18;
+  border: none;
+  border-radius: 6px;
+  padding: 0.55rem 1.1rem;
+  font: inherit;
+  font-weight: 650;
+  font-size: 0.95rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:hover {
+  background: var(--accent-hover);
+  color: #041f18;
+}
+
+.btn.secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.btn.secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(45, 212, 168, 0.1);
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.athlete-row-actions {
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0.35rem;
+  width: max-content;
+  max-width: 100%;
+}
+
+.athlete-row-actions > a,
+.athlete-row-actions > form {
+  flex: 0 0 auto;
+}
+
+.athlete-row-actions > form {
+  display: flex;
+}
+
+.athlete-row-actions .btn {
+  width: auto;
+  min-height: 2.35rem;
+  padding: 0.55rem 0.7rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-align: center;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.panel > table {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+th, td {
+  padding: 0.65rem 0.8rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  vertical-align: top;
+}
+
+th {
+  color: var(--muted);
+  font-weight: 650;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+tr:hover td {
+  background: rgba(45, 212, 168, 0.06);
+}
+
+.table-wrap {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.badge.active {
+  background: rgba(52, 211, 153, 0.2);
+  color: var(--success);
+}
+
+.badge.inactive {
+  background: rgba(248, 113, 113, 0.2);
+  color: var(--danger);
+}
+
+.badge.pending {
+  background: rgba(251, 191, 36, 0.2);
+  color: var(--warning);
+}
+
+.badge.approved,
+.badge.active {
+  background: rgba(52, 211, 153, 0.2);
+  color: var(--success);
+}
+
+.badge.rejected,
+.badge.cancelled {
+  background: rgba(248, 113, 113, 0.2);
+  color: var(--danger);
+}
+
+details.panel > summary,
+details > summary {
+  cursor: pointer;
+}
+
+details.panel > summary h2 {
+  display: inline;
+}
+
+.event-plan-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 1rem;
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.event-plan-meta div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.event-plan-meta strong {
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.program-flow {
+  width: 100%;
+  min-height: 150px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  background: rgba(4, 31, 24, 0.55);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font: inherit;
+}
+
+.event-participant-form {
+  padding: 0.2rem 0;
+}
+
+.event-participant-form summary {
+  color: var(--accent);
+  cursor: pointer;
+  font-weight: 650;
+}
+
+/* Alerts */
+.alert {
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+.alert.success {
+  background: rgba(52, 211, 153, 0.15);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  color: var(--success);
+}
+
+.alert.danger {
+  background: rgba(248, 113, 113, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  color: var(--danger);
+}
+
+.alert.warning {
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  color: var(--warning);
+}
+
+.alert.info {
+  background: rgba(96, 165, 250, 0.15);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  color: var(--info);
+}
+
+.small {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 1.5rem !important;
+}
+
+.search-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  align-items: center; /* Align items vertically */
+}
+
+.list-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.list-toolbar label {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.list-toolbar select {
+  width: 100%;
+  min-width: 0;
+  background: rgba(4, 31, 24, 0.65);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.55rem 0.75rem;
+  color: var(--text);
+  font: inherit;
+}
+
+.search-bar input {
+  flex: 1;
+  min-width: min(180px, 100%);
+  max-width: 100%;
+  background: rgba(4, 31, 24, 0.65);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.55rem 0.75rem;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.search-bar input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(45, 212, 168, 0.25);
+}
+
+.analytics-filters select,
+.search-bar select, /* Combined styling for select within search-bar */
+.analytics-filters input, /* Apply to date inputs in analytics filters */
+.report-controls .date-inputs input, /* Apply to date inputs in report controls */
+.report-controls .athlete-select-group select[multiple] { /* Apply to multi-select in report controls */
+  background: rgba(4, 31, 24, 0.65);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.55rem 0.75rem;
+  color: var(--text);
+  font: inherit;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #041f18;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.report-controls select {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  background: rgba(4, 31, 24, 0.65);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.55rem 0.75rem;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.report-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
+}
+
+.report-kicker {
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.report-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  padding: 1rem 0;
+  margin-bottom: 1.25rem;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.report-summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.report-summary strong {
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  font-weight: 650;
+}
+
+/* Specific styling for the remove button in dynamic input groups */
+.btn-remove-sport {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+/* Specific adjustments for report controls form */
+.report-controls .report-filter-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  position: relative; /* For watermark positioning */
+}
+
+.report-form-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-top: 0.25rem;
+}
+
+.report-form-header,
+.import-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.date-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.date-filters input {
+  width: min(170px, 100%);
+  min-width: 0;
+}
+
+.import-instructions {
+  margin: 1rem 0 1.25rem;
+  padding: 1rem;
+  background: rgba(4, 31, 24, 0.35);
+  border-left: 3px solid var(--accent);
+}
+
+.import-instructions ol {
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+
+.import-instructions p {
+  overflow-wrap: anywhere;
+}
+
+.report-controls .report-form-main-area {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.report-controls .athlete-select-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.report-controls .athlete-select-group select {
+  flex-grow: 1;
+  width: 100%; /* Ensure select takes full width */
+  min-height: 220px; /* Taller listbox */
+}
+
+.checkbox-list {
+  flex-grow: 1;
+  min-height: 220px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  height: auto; /* Allow height to be determined by flex-grow */
+  width: 100%; /* Ensure checkbox list takes full width */
+  padding: 0.5rem;
+  overflow-y: auto;
+  background: rgba(4, 31, 24, 0.65);
+}
+
+.checkbox-list-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 4px;
+}
+.checkbox-list-item:hover {
+  background: rgba(45, 212, 168, 0.1);
+}
+.checkbox-list-item input {
+  flex-shrink: 0;
+}
+
+.sport-input-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.sport-input-group:not(:last-child) {
+  margin-bottom: 0.5rem;
+}
+.sport-input-group input {
+  flex: 1;
+}
+
+/* Adjust btn-add-more to be a small secondary button */
+.btn-add-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem; /* Slightly smaller padding */
+  font-size: 0.8rem; /* Smaller font size */
+  font-weight: 650;
+  color: var(--text);
+  cursor: pointer;
+  margin-top: 0.5rem; /* Consistent spacing, moved from inline */
+}
+.btn-add-more:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(45, 212, 168, 0.1);
+}
+
+.confirmation-summary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem 1.5rem;
+  font-size: 0.95rem;
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  background: rgba(4, 31, 24, 0.5);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.confirmation-summary dt {
+  font-weight: 600;
+  color: var(--muted);
+  text-align: right;
+}
+.confirmation-summary dd { font-weight: 500; }
+.confirmation-summary dd ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+/* Ensure confirmation summary actions are consistent */
+.confirmation-summary + form .actions {
+    justify-content: center;
+}
+
+.report-assessment {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.report-assessment-heading {
+  margin-bottom: 0.75rem;
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.report-certification {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+.signature-line {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2rem;
+  margin-top: 3rem;
+  text-align: center;
+}
+
+.signature-line span {
+  padding-top: 0.4rem;
+  border-top: 1px solid currentColor;
+  font-size: 0.8rem;
+}
+
+/* Watermark is now inside the panel, not the form */
+.report-header-print {
+  display: none; /* Only for print */
+}
+
+.report-footer-print {
+  display: none; /* Only for print */
+}
+
+/* ========== Print ========== */
+@media print {
+  :root {
+    --bg: #ffffff;
+    --panel: #ffffff;
+    --border: #dddddd;
+    --text: #000000;
+    --muted: #555555;
+    --accent: #0d5c45;
+  }
+
+  @page {
+    size: A4;
+    margin: 1in;
+  }
+
+  body {
+    font-family: Georgia, serif;
+    background: #fff !important;
+    color: #000 !important;
+    background-image: none !important;
+    font-size: 11pt;
+  }
+
+  body::before {
+    display: none !important;
+  }
+
+  .topbar, .sidebar, .report-controls, .page-title .actions, footer, .search-bar, .actions, .btn, .login-box, .alert, form[data-confirm] button, form[method="post"] button, .btn-add-more {
+    display: none !important;
+  }
+
+  .layout, .content {
+    display: block;
+    min-height: 0;
+    padding: 0;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: #000;
+    page-break-after: avoid;
+  }
+  h1 { font-size: 22pt; }
+  h2 { font-size: 16pt; }
+  h3 { font-size: 13pt; }
+
+  .panel, .card {
+    background: #fff !important;
+    color: #000 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .report-print-document {
+    width: 100%;
+    max-width: none;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .report-sheet {
+    page-break-before: auto;
+    page-break-after: auto;
+    break-before: auto;
+    break-after: auto;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .report-sheet-next {
+    page-break-before: always;
+    break-before: page;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10pt;
+    page-break-inside: auto;
+  }
+  tr { page-break-inside: avoid; page-break-after: auto; }
+  thead { display: table-header-group; }
+  th, td { border: 1px solid #ccc; padding: 0.4rem; }
+  th { background-color: #f2f2f2; font-weight: bold; }
+  .table-wrap { overflow: visible; }
+
+  .badge { border: 1px solid #ccc; background: none; color: #000; }
+
+  .report-header-print {
+    display: flex !important;
+    justify-content: center;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #000;
+  }
+
+  .report-header-print .header-seal {
+    width: 80px;
+    height: auto;
+  }
+
+  .report-header-print .header-text {
+    text-align: center;
+  }
+
+  .report-header-print .header-text h3 {
+    font-size: 1.6rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .report-government,
+  .report-title-print,
+  .report-date-print {
+    margin: 0.1rem 0;
+  }
+
+  .report-kicker {
+    color: #000;
+    font-size: 9pt;
+  }
+
+  .report-government {
+    font-size: 12pt;
+    font-weight: 600;
+    color: #000;
+  }
+
+  .report-title-print {
+    font-size: 15pt;
+    font-weight: 700;
+    color: #000;
+  }
+
+  .report-date-print {
+    font-size: 11pt;
+    color: #333;
+  }
+
+  .report-footer-print {
+    display: block !important;
+    text-align: center;
+    margin-top: 2rem;
+    font-size: 9pt;
+    color: #555;
+    display: flex !important;
+    justify-content: space-between;
+    border-top: 1px solid #ccc;
+    padding-top: 0.5rem;
+  }
+
+  .report-certification {
+    margin-top: 1.5rem;
+    border-top-color: #ccc;
+  }
+
+  .signature-line span {
+    border-top-color: #000;
+  }
+
+}
+
+/* ========== Mobile ========== */
+@media (max-width: 768px) {
+  .topbar {
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+  }
+  .brand {
+    min-width: 0;
+  }
+  .brand a {
+    display: block;
+    font-size: 1rem;
+    overflow-wrap: anywhere;
+  }
+  .user-area {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.55rem;
+    font-size: 0.82rem;
+  }
+  .sidebar {
+    display: none;
+  }
+  .content {
+    padding: 0.85rem;
+  }
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .login-box {
+    margin: 1rem;
+    padding: 1.8rem;
+  }
+  .registration-page {
+    align-items: flex-start;
+    padding: 0.75rem;
+  }
+  .registration-box {
+    max-height: calc(100vh - 1.5rem);
+    margin: 0;
+    padding: 1rem;
+  }
+  .page-title h1 {
+    font-size: 1.3rem;
+  }
+  .panel {
+    padding: 0.9rem;
+  }
+  .section-heading {
+    align-items: flex-start;
+  }
+  .actions,
+  .search-bar,
+  .date-filters {
+    align-items: stretch;
+  }
+  .actions .btn,
+  .search-bar .btn,
+  .search-bar input,
+  .search-bar select {
+    width: 100%;
+  }
+  .athlete-row-actions .btn {
+    width: auto;
+  }
+  .search-bar select {
+    min-width: 0;
+  }
+  .list-toolbar {
+    grid-template-columns: 1fr;
+  }
+  .list-toolbar .btn {
+    width: 100%;
+  }
+  .report-controls .athlete-select-group select,
+  .checkbox-list {
+    min-height: 170px;
+  }
+  .report-form-actions {
+    flex-direction: column;
+  }
+  .report-form-actions .actions {
+    width: 100%;
+  }
+  .date-filters label,
+  .date-filters input {
+    width: 100%;
+  }
+  .table-wrap {
+    margin: 0 -0.25rem;
+  }
+}

@@ -1,0 +1,13 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/functions.php';
+require_coach();
+$planId = (int)($_GET['id'] ?? 0);
+$stmt = db()->prepare("SELECT ep.*, GROUP_CONCAT(DISTINCT s.sport_name ORDER BY s.sport_name SEPARATOR ', ') sports FROM event_plans ep JOIN event_plan_sports eps ON eps.event_plan_id=ep.id JOIN sports s ON s.id=eps.sport_id WHERE ep.id=? GROUP BY ep.id");
+$stmt->execute([$planId]); $plan = $stmt->fetch();
+if (!$plan) { http_response_code(404); exit('Event plan not found.'); }
+$participants = db()->prepare("SELECT CASE WHEN p.participant_type='coach' THEN CONCAT(c.coach_code, ' — ', c.first_name, ' ', c.last_name) ELSE CONCAT(a.athlete_code, ' — ', a.first_name, ' ', a.last_name) END participant_name, s.sport_name, p.participant_type FROM event_participants p LEFT JOIN athletes a ON a.id=p.athlete_id LEFT JOIN coaches c ON c.id=p.coach_id JOIN sports s ON s.id=p.sport_id WHERE p.event_plan_id=? AND p.status='active' ORDER BY p.participant_type, participant_name");
+$participants->execute([$planId]); $participants=$participants->fetchAll();
+$pageTitle='Event Plan'; require __DIR__ . '/../includes/header.php';
+?><div class="page-title"><h1><?= e($plan['event_name']) ?></h1><a class="btn secondary" href="<?= BASE_URL ?>/coach/events.php">Back to Events</a></div><div class="panel event-plan-detail"><div class="event-plan-meta"><div><strong>Date</strong><span><?= e(format_date($plan['start_date'])) ?><?= $plan['end_date']?' to '.e(format_date($plan['end_date'])):'' ?></span></div><div><strong>Time</strong><span><?= e(format_time($plan['start_time'] ?? null)) ?> to <?= e(format_time($plan['end_time'] ?? null)) ?></span></div><div><strong>Venue</strong><span><?= e($plan['venue']) ?></span></div><div><strong>Sports</strong><span><?= e($plan['sports']) ?></span></div></div><h2>Program Flow</h2><pre class="program-flow"><?= e($plan['program_flow'] ?? 'No program flow added.') ?></pre><h2>Participants</h2><div class="table-wrap"><table><thead><tr><th>Participant</th><th>Type</th><th>Sport</th></tr></thead><tbody><?php foreach($participants as $participant): ?><tr><td><?= e($participant['participant_name']) ?></td><td><?= e(ucfirst($participant['participant_type'])) ?></td><td><?= e($participant['sport_name']) ?></td></tr><?php endforeach; ?><?php if(!$participants): ?><tr><td colspan="3" class="empty">No participants listed yet.</td></tr><?php endif; ?></tbody></table></div></div><?php require __DIR__ . '/../includes/footer.php'; ?>
