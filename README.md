@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Event plans
 
 Upcoming Cauayan City events are managed from `admin/events.php`. Apply the migration in `database/migrations/002_add_event_plans.sql` first. Coaches use `coach/events.php` to view plans, apply, and add athletes assigned to their account. A sample event import is available at `assets/templates/event_plan_import_template.csv`; detailed format and security guidance is in `docs/event-plans-and-security.md`.
@@ -89,3 +90,7 @@ When an Admin creates a coach, the system sends the coach ID, login email, and i
 - Achievements list (view)
 - Audit logging
 - CSRF protection on all POST actions
+=======
+# cauayan-city-athlete-performance-monitoring-system
+Cauayan City Athlete Performance Monitoring System.  A web-based system designed for tracking and managing athlete performance in Cauayan City. It allows coaches and administrators to monitor progress, record performance data, generate reports, and analyze results through an easy-to-use dashboard.
+>>>>>>> 036264ef31403fa116872e42c7c73f98aa6ed6e2
