@@ -17,9 +17,14 @@ body {
 }
 
 body {
+  position: relative;
   color: var(--foreground);
   background-color: var(--background);
-  background-image: radial-gradient(circle at 15% 15%, rgba(45, 212, 168, .13), transparent 28%), linear-gradient(135deg, #041f18, #0a3228 55%, #041f18);
+  background-image: linear-gradient(rgba(4, 31, 24, .72), rgba(4, 31, 24, .72)), url("/cauayan_city_map.png");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   font-family: var(--font);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
