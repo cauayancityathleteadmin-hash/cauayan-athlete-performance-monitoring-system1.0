@@ -1,13 +1,13 @@
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #041f18;
+  --foreground: #f0fdf4;
+  --panel: #0a3228;
+  --border: #1a5c4a;
+  --accent: #2dd4a8;
+  --accent-hover: #5eead4;
+  --muted: #86efac;
+  --danger: #f87171;
+  --font: "Trebuchet MS", "Segoe UI", sans-serif;
 }
 
 html,
@@ -18,8 +18,10 @@ body {
 
 body {
   color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--background);
+  background-image: radial-gradient(circle at 15% 15%, rgba(45, 212, 168, .13), transparent 28%), linear-gradient(135deg, #041f18, #0a3228 55%, #041f18);
+  font-family: var(--font);
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -31,12 +33,64 @@ body {
 }
 
 a {
-  color: inherit;
+  color: var(--accent);
   text-decoration: none;
 }
+a:hover { color: var(--accent-hover); }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+main:not(.app) {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: min(100% - 32px, 420px);
+  margin: auto;
+  padding: 32px;
+  background: rgba(10, 50, 40, .93);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, .5);
 }
+
+main:not(.app) h1 {
+  margin-bottom: 8px;
+  font-size: 25px;
+}
+
+main:not(.app) form {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+main:not(.app) label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+main:not(.app) input,
+main:not(.app) button {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+}
+
+main:not(.app) input {
+  margin-bottom: 6px;
+  background: #06261e;
+  color: var(--foreground);
+}
+
+main:not(.app) button {
+  margin-top: 10px;
+  background: var(--accent);
+  color: #041f18;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+main:not(.app) button:disabled { opacity: .65; cursor: wait; }
+main:not(.app) [role="alert"] { color: var(--danger); font-size: 13px; }
