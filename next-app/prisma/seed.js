@@ -138,7 +138,7 @@ async function main() {
       update: {},
       create: { athleteId: athlete.id, recordedBy: coaches.coachOne.userId, assessmentDate: new Date("2026-02-15"), remarks: "Seed assessment for analytics testing" },
     });
-    await prisma.assessmentResult.create({
+    await prisma.assessmentResult.upsert({
       where: { assessmentId_metricId: { assessmentId: assessment.id, metricId: metrics[eventName].id } },
       update: {},
       create: { assessmentId: assessment.id, metricId: metrics[eventName].id, valueDecimal: eventName.includes("Basketball") || eventName.includes("Volleyball") ? 18 : 12.45 },
