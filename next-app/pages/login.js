@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/router";
+import Link from "next/link";
 
 export default function Login() {
   const router = useRouter();
@@ -14,5 +15,5 @@ export default function Login() {
     else router.push("/dashboard");
     setBusy(false);
   }
-  return <main className="login-page"><p className="auth-kicker">Cauayan City</p><h1>Athlete Performance</h1><p className="auth-subtitle">Secure monitoring system</p><form onSubmit={submit} noValidate><label htmlFor="identifier">Username, email, or coach code</label><input id="identifier" name="identifier" required autoComplete="username" maxLength="191" /><label htmlFor="password">Password</label><input id="password" name="password" type="password" required autoComplete="current-password" maxLength="200" /><button disabled={busy}>{busy ? "Signing in..." : "Sign in"}</button>{error && <p role="alert">{error}</p>}</form></main>;
+  return <main className="login-page"><p className="auth-kicker">Cauayan City</p><h1>Athlete Performance</h1><p className="auth-subtitle">Secure monitoring system</p><form onSubmit={submit} noValidate><label htmlFor="identifier">Username, email, or coach code</label><input id="identifier" name="identifier" required autoComplete="username" maxLength="191" /><label htmlFor="password">Password</label><input id="password" name="password" type="password" required autoComplete="current-password" maxLength="200" /><button disabled={busy}>{busy ? "Signing in..." : "Sign in"}</button>{error && <p role="alert">{error}</p>}</form><p className="auth-register"><Link href="/coach-register">Register as a coach</Link></p></main>;
 }
