@@ -29,6 +29,15 @@ export default function AdminCoaches({ coaches, session }) {
     setBusy(false);
   }
 
+  async function reviewCoach(coachId, decision) {
+    setBusy(true);
+    setMessage("");
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    const result = await fetch("/api/admin/coaches/review", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ coachId, decision }) }).then((r) => r.json());
+    setMessage(result.error || `Coach ${decision}. Refresh to update the list.`);
+    setBusy(false);
+  }
+
   return (
     <>
       <Head>
@@ -56,7 +65,7 @@ export default function AdminCoaches({ coaches, session }) {
                 <p className={styles.eyebrow}>Team</p>
                 <h2>Coaches</h2>
               </div>
-              <strong>{coaches.length} coaches</strong>
+              <strong>{coaches.length} coaches · {coaches.filter((coach) => coach.user.status === "pending").length} pending</strong>
             </div>
             {message && <p role="status" style={{ color: message.startsWith("Coach") ? "#365448" : "#8b3a3a", marginBottom: "14px" }}>{message}</p>}
             <div className={styles.tableWrap}>
@@ -79,13 +88,11 @@ export default function AdminCoaches({ coaches, session }) {
                       <td>{coach.school?.schoolName || "Not assigned"}</td>
                       <td>{coach.user.status === "active" ? "Active" : "Inactive"} {coach.user.mustChangePassword && <small>(Must change password)</small>}</td>
                       <td>
-                        <button
+                        {coach.user.status === "pending" ? <><button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} style={{ padding: "6px 12px", fontSize: "12px", background: "#2dd4a8", border: 0, cursor: "pointer", fontWeight: 700 }}>Approve</button> <button onClick={() => reviewCoach(coach.id, "rejected")} disabled={busy} style={{ padding: "6px 12px", fontSize: "12px", background: "transparent", color: "#f87171", border: "1px solid #f87171", cursor: "pointer", fontWeight: 700 }}>Reject</button></> : <button
                           onClick={() => resetCoach(coach.id)}
                           disabled={busy}
                           style={{ padding: "6px 12px", fontSize: "12px", background: "#cae47a", border: 0, cursor: "pointer", fontWeight: 700 }}
-                        >
-                          Reset password
-                        </button>
+                        >Reset password</button>}
                       </td>
                     </tr>
                   ))}

@@ -37,7 +37,7 @@ export default async function handler(req, res) {
         data: {
           userId: session.user.id,
           action: "coach_password_reset",
-          details: JSON.stringify({ coachId, coachEmail: coach.user.email }),
+          description: `Reset password requirement for coach ${coachId}`,
         },
       }),
     ]);
