@@ -6,10 +6,10 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 const passwords = {
-  admin: "$2y$10$5nzjD44CFvY4EBa69xgsW.t8VlolkA6oADZsfvZkWqtJfKFEiHiqW",
-  coachOne: "$2y$10$orzuvyM/0fGA1mdKPVmdSOcSwtuEM9ih342sdRUliV275JRdDBBsy",
-  coachTwo: "$2y$10$UltEy0QAEyketZzvDy.T7OQfcyIo/vaXdkM.SPQz.ub2xEDPILLei",
-  coachThree: "$2y$10$fq.wy08NDHSMfYEuiMhXLOAIltqEDiO9ATzorCHsKht5gtJoa4gYm",
+  admin: "$2b$12$nqhFfdEmHB.7.cfwpBvmfOrrSrN3D113tSih7tyzqMjOuMWc9fv2O",
+  coachOne: "$2b$12$ZOK8PXOrt6glV.ue21Jc5uM.tkKYfCrWCM5TP6xJR33yZjx18XMPK",
+  coachTwo: "$2b$12$5.pWGB5vXC94SEYh8tAyPeJ9lTIfyd4WODbUG7tzyJviQLRCMTNQ.",
+  coachThree: "$2b$12$E0PWVvz0m5xsxFF1OhMwsePhcjmn9nvCEmG0w96tpCoXG8APnknXC",
 };
 
 async function main() {
