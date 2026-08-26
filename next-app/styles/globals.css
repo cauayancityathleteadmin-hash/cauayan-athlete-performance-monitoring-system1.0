@@ -38,7 +38,7 @@ a {
 }
 a:hover { color: var(--accent-hover); }
 
-main:not(.app) {
+.login-page {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -52,25 +52,25 @@ main:not(.app) {
   box-shadow: 0 20px 40px rgba(0, 0, 0, .5);
 }
 
-main:not(.app) h1 {
+.login-page h1 {
   margin-bottom: 8px;
   font-size: 25px;
 }
 
-main:not(.app) form {
+.login-page form {
   display: flex;
   flex-direction: column;
   gap: 9px;
 }
 
-main:not(.app) label {
+.login-page label {
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
 }
 
-main:not(.app) input,
-main:not(.app) button {
+.login-page input,
+.login-page button {
   width: 100%;
   padding: 12px;
   border: 1px solid var(--border);
@@ -78,13 +78,13 @@ main:not(.app) button {
   font: inherit;
 }
 
-main:not(.app) input {
+.login-page input {
   margin-bottom: 6px;
   background: #06261e;
   color: var(--foreground);
 }
 
-main:not(.app) button {
+.login-page button {
   margin-top: 10px;
   background: var(--accent);
   color: #041f18;
@@ -92,5 +92,5 @@ main:not(.app) button {
   font-weight: 800;
 }
 
-main:not(.app) button:disabled { opacity: .65; cursor: wait; }
-main:not(.app) [role="alert"] { color: var(--danger); font-size: 13px; }
+.login-page button:disabled { opacity: .65; cursor: wait; }
+.login-page [role="alert"] { color: var(--danger); font-size: 13px; }
