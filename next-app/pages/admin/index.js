@@ -15,5 +15,67 @@ export async function getServerSideProps(context) {
 }
 
 export default function Admin({ stats }) {
-  return <><Head><title>Administration | Cauayan Athlete Performance</title></Head><div className={styles.app}><header className={styles.header}><div><p className={styles.eyebrow}>Control centre</p><h1>Administration</h1></div><Link className={styles.account} href="/dashboard">Back to dashboard</Link></header><nav className={styles.nav} aria-label="Administration navigation"><Link href="/dashboard">Dashboard</Link><Link href="/athletes">Athletes</Link><Link href="/assessments">Assessments</Link><Link href="/analytics">Analytics</Link><Link href="/event-plans">Event plans</Link><Link href="/admin" aria-current="page">Administration</Link></nav><main className={styles.main}><section className={styles.cards}>{[["Sports", stats.sports], ["Events", stats.events], ["Coaches", stats.coaches], ["Audit entries", stats.logs]].map(([label, value]) => <div className={styles.card} key={label}><span>{label}</span><strong>{value}</strong><small>Manage in the catalog</small></div>)}</section><section className={styles.grid}><div className={styles.panel}><p className={styles.eyebrow}>Management</p><h2>Catalog and records</h2><p>Admin-only management workflows are being brought over with the same role boundaries as the original system.</p><p><Link className={styles.secondary} href="/athletes">Manage athletes</Link></p></div><div className={styles.panel}><p className={styles.eyebrow}>Security</p><h2>Audit trail</h2><p>{stats.logs} meaningful actions are recorded in the database.</p><Link className={styles.secondary} href="/dashboard">Review dashboard</Link></div></section></main></div></>;
+  return (
+    <>
+      <Head>
+        <title>Administration | Cauayan Athlete Performance</title>
+      </Head>
+      <div className={styles.app}>
+        <header className={styles.header}>
+          <div>
+            <p className={styles.eyebrow}>Control centre</p>
+            <h1>Administration</h1>
+          </div>
+          <Link className={styles.account} href="/dashboard">
+            Back to dashboard
+          </Link>
+        </header>
+        <nav className={styles.nav} aria-label="Administration navigation">
+          <Link href="/dashboard">Dashboard</Link>
+          <Link href="/athletes">Athletes</Link>
+          <Link href="/assessments">Assessments</Link>
+          <Link href="/analytics">Analytics</Link>
+          <Link href="/event-plans">Event plans</Link>
+          <Link href="/admin" aria-current="page">Administration</Link>
+        </nav>
+        <main className={styles.main}>
+          <section className={styles.cards}>
+            {[["Sports", stats.sports], ["Events", stats.events], ["Coaches", stats.coaches], ["Audit entries", stats.logs]].map(([label, value]) => (
+              <div className={styles.card} key={label}>
+                <span>{label}</span>
+                <strong>{value}</strong>
+                <small>Active in system</small>
+              </div>
+            ))}
+          </section>
+          <section className={styles.grid}>
+            <div className={styles.panel}>
+              <p className={styles.eyebrow}>People management</p>
+              <h2>Coaches and athletes</h2>
+              <p>Manage team coaches, assign athletes, and control account access.</p>
+              <Link className={styles.secondary} href="/admin/coaches">
+                Manage coaches
+              </Link>
+            </div>
+            <div className={styles.panel}>
+              <p className={styles.eyebrow}>System catalog</p>
+              <h2>Sports and events</h2>
+              <p>Define sports, events, and performance metrics for your program.</p>
+              <Link className={styles.secondary} href="/athletes">
+                View catalog
+              </Link>
+            </div>
+            <div className={styles.panel}>
+              <p className={styles.eyebrow}>Data governance</p>
+              <h2>Audit trail</h2>
+              <p>{stats.logs} meaningful actions recorded in the database.</p>
+              <Link className={styles.secondary} href="/dashboard">
+                Review logs
+              </Link>
+            </div>
+          </section>
+        </main>
+      </div>
+    </>
+  );
 }
