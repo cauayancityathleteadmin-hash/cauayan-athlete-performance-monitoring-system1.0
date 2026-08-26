@@ -1,0 +1,2 @@
+# Local database exports may contain credentials and personal data.
+/database/legacy-backup.sql

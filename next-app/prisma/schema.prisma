@@ -1,0 +1,368 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  admin
+  coach
+}
+
+enum UserStatus {
+  pending
+  active
+  inactive
+  rejected
+}
+
+enum ActiveStatus {
+  active
+  inactive
+}
+
+enum AthleteGender {
+  male
+  female
+  other
+  prefer_not_to_say
+}
+
+enum MetricDataType {
+  decimal
+  integer
+  text
+}
+
+enum BetterDirection {
+  higher
+  lower
+  neutral
+}
+
+enum EventPlanStatus {
+  draft
+  open
+  closed
+  cancelled
+}
+
+enum ApplicationStatus {
+  pending
+  approved
+  rejected
+}
+
+enum ParticipantType {
+  coach
+  athlete
+}
+
+enum ParticipantStatus {
+  active
+  removed
+}
+
+model User {
+  id                    Int                    @id @default(autoincrement())
+  username              String?                @unique
+  email                 String                 @unique
+  passwordHash          String                 @map("password_hash")
+  role                  UserRole
+  status                UserStatus             @default(pending)
+  mustChangePassword    Boolean                @default(true) @map("must_change_password")
+  passwordChangedAt     DateTime?              @map("password_changed_at")
+  lastLoginAt           DateTime?              @map("last_login_at")
+  createdAt             DateTime               @default(now()) @map("created_at")
+  updatedAt             DateTime               @updatedAt @map("updated_at")
+  coach                 Coach?
+  assessments           Assessment[]
+  auditLogs             AuditLog[]
+  eventPlans            EventPlan[]
+  assignedCoachHistory  AthleteCoachHistory[]  @relation("HistoryAssigner")
+  changedStatusHistory  AthleteStatusHistory[] @relation("StatusChanger")
+  reviewedApplications  EventApplication[]     @relation("ApplicationReviewer")
+  addedParticipants     EventParticipant[]
+  @@map("users")
+  @@index([role, status])
+}
+
+model School {
+  id         Int           @id @default(autoincrement())
+  schoolName String        @unique @map("school_name")
+  status     ActiveStatus  @default(active)
+  createdAt  DateTime      @default(now()) @map("created_at")
+  coaches    Coach[]
+  athletes   Athlete[]
+  @@map("schools")
+}
+
+model Coach {
+  id             Int          @id @default(autoincrement())
+  userId         Int          @unique @map("user_id")
+  coachCode      String       @unique @map("coach_code")
+  firstName      String       @map("first_name")
+  middleName     String?      @map("middle_name")
+  lastName       String       @map("last_name")
+  suffix         String?
+  birthdate      DateTime
+  email          String
+  schoolId       Int?         @map("school_id")
+  status         ActiveStatus @default(active)
+  dateRegistered DateTime     @map("date_registered")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school         School?      @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  sports         CoachSport[]
+  athletes       Athlete[]
+  coachHistory   AthleteCoachHistory[]
+  applications   EventApplication[]
+  participants   EventParticipant[]
+  @@map("coaches")
+  @@index([schoolId, status])
+}
+
+model Sport {
+  id          Int           @id @default(autoincrement())
+  sportName   String        @unique @map("sport_name")
+  description String?
+  status      ActiveStatus  @default(active)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  events      Event[]
+  coaches     CoachSport[]
+  planSports  EventPlanSport[]
+  athletes    Athlete[]
+  participants EventParticipant[]
+  @@map("sports")
+}
+
+model Event {
+  id          Int          @id @default(autoincrement())
+  sportId     Int          @map("sport_id")
+  eventName   String       @map("event_name")
+  description String?
+  status      ActiveStatus @default(active)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  sport       Sport        @relation(fields: [sportId], references: [id], onDelete: Cascade)
+  metrics     PerformanceMetric[]
+  athletes    Athlete[]
+  @@unique([sportId, eventName])
+  @@map("events")
+  @@index([sportId, status])
+}
+
+model CoachSport {
+  coachId Int @map("coach_id")
+  sportId Int @map("sport_id")
+  coach   Coach @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  sport   Sport @relation(fields: [sportId], references: [id], onDelete: Cascade)
+  @@id([coachId, sportId])
+  @@map("coach_sports")
+}
+
+model Athlete {
+  id             Int           @id @default(autoincrement())
+  athleteCode    String        @unique @map("athlete_code")
+  firstName      String        @map("first_name")
+  middleName     String?       @map("middle_name")
+  lastName       String        @map("last_name")
+  suffix         String?
+  birthdate      DateTime
+  gender         AthleteGender
+  contactNumber  String?       @map("contact_number")
+  email          String?
+  address        String?
+  schoolId       Int?          @map("school_id")
+  sportId        Int           @map("sport_id")
+  eventId        Int?          @map("event_id")
+  coachId        Int           @map("coach_id")
+  status         ActiveStatus  @default(active)
+  dateRegistered DateTime      @map("date_registered")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  school         School?       @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  sport          Sport         @relation(fields: [sportId], references: [id])
+  event          Event?        @relation(fields: [eventId], references: [id])
+  coach          Coach         @relation(fields: [coachId], references: [id])
+  coachHistory   AthleteCoachHistory[]
+  statusHistory  AthleteStatusHistory[]
+  assessments    Assessment[]
+  achievements   Achievement[]
+  participants   EventParticipant[]
+  @@map("athletes")
+  @@index([coachId, status])
+  @@index([sportId, eventId])
+}
+
+model AthleteCoachHistory {
+  id         Int       @id @default(autoincrement())
+  athleteId  Int       @map("athlete_id")
+  coachId    Int       @map("coach_id")
+  assignedBy Int?      @map("assigned_by")
+  reason     String?
+  startedAt  DateTime  @default(now()) @map("started_at")
+  endedAt    DateTime? @map("ended_at")
+  athlete    Athlete   @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  coach      Coach     @relation(fields: [coachId], references: [id])
+  assigner   User?     @relation("HistoryAssigner", fields: [assignedBy], references: [id], onDelete: SetNull)
+  @@map("athlete_coach_history")
+  @@index([athleteId, startedAt])
+}
+
+model AthleteStatusHistory {
+  id        Int       @id @default(autoincrement())
+  athleteId Int       @map("athlete_id")
+  oldStatus String?   @map("old_status")
+  newStatus String    @map("new_status")
+  changedBy Int?      @map("changed_by")
+  reason    String?
+  changedAt DateTime  @default(now()) @map("changed_at")
+  athlete   Athlete   @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  changer   User?     @relation("StatusChanger", fields: [changedBy], references: [id], onDelete: SetNull)
+  @@map("athlete_status_history")
+  @@index([athleteId, changedAt])
+}
+
+model PerformanceMetric {
+  id              Int             @id @default(autoincrement())
+  eventId         Int             @map("event_id")
+  metricName      String          @map("metric_name")
+  unit            String?
+  dataType        MetricDataType  @default(decimal) @map("data_type")
+  betterDirection BetterDirection @default(neutral) @map("better_direction")
+  decimalPlaces   Int             @default(2) @map("decimal_places")
+  minimumValue    Decimal?        @map("minimum_value")
+  maximumValue    Decimal?        @map("maximum_value")
+  isRequired      Boolean         @default(false) @map("is_required")
+  status          ActiveStatus    @default(active)
+  createdAt       DateTime        @default(now()) @map("created_at")
+  event           Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  results         AssessmentResult[]
+  @@unique([eventId, metricName])
+  @@map("performance_metrics")
+}
+
+model Assessment {
+  id             Int      @id @default(autoincrement())
+  athleteId      Int      @map("athlete_id")
+  recordedBy     Int      @map("recorded_by")
+  assessmentDate DateTime @map("assessment_date")
+  assessmentType String   @default("Regular Assessment") @map("assessment_type")
+  remarks        String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  athlete        Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  recorder       User     @relation(fields: [recordedBy], references: [id])
+  results        AssessmentResult[]
+  @@map("assessments")
+  @@index([athleteId, assessmentDate])
+}
+
+model AssessmentResult {
+  id           Int      @id @default(autoincrement())
+  assessmentId Int      @map("assessment_id")
+  metricId     Int      @map("metric_id")
+  valueDecimal Decimal? @map("value_decimal")
+  valueText    String?  @map("value_text")
+  notes        String?
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  metric       PerformanceMetric @relation(fields: [metricId], references: [id])
+  @@unique([assessmentId, metricId])
+  @@map("assessment_results")
+}
+
+model Achievement {
+  id               Int       @id @default(autoincrement())
+  athleteId        Int       @map("athlete_id")
+  achievementTitle String    @map("achievement_title")
+  achievementType  String?   @map("achievement_type")
+  achievementDate  DateTime? @map("achievement_date")
+  organization     String?
+  description      String?
+  createdAt        DateTime  @default(now()) @map("created_at")
+  athlete          Athlete   @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  @@map("achievements")
+}
+
+model AuditLog {
+  id          BigInt   @id @default(autoincrement())
+  userId      Int?     @map("user_id")
+  action      String
+  entityType  String?  @map("entity_type")
+  entityId    Int?     @map("entity_id")
+  description String?
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@map("audit_logs")
+  @@index([userId, createdAt])
+}
+
+model EventPlan {
+  id          Int             @id @default(autoincrement())
+  eventName   String          @map("event_name")
+  description String?
+  startDate   DateTime        @map("start_date")
+  startTime   DateTime?       @map("start_time")
+  endDate     DateTime?       @map("end_date")
+  endTime     DateTime?       @map("end_time")
+  venue       String
+  status      EventPlanStatus @default(draft)
+  programFlow String?         @map("program_flow")
+  createdBy   Int?            @map("created_by")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  creator     User?           @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  sports      EventPlanSport[]
+  applications EventApplication[]
+  participants EventParticipant[]
+  @@map("event_plans")
+  @@index([status, startDate])
+}
+
+model EventPlanSport {
+  eventPlanId Int @map("event_plan_id")
+  sportId     Int @map("sport_id")
+  eventPlan   EventPlan @relation(fields: [eventPlanId], references: [id], onDelete: Cascade)
+  sport       Sport @relation(fields: [sportId], references: [id], onDelete: Cascade)
+  @@id([eventPlanId, sportId])
+  @@map("event_plan_sports")
+}
+
+model EventApplication {
+  id          Int               @id @default(autoincrement())
+  eventPlanId Int               @map("event_plan_id")
+  coachId     Int               @map("coach_id")
+  status      ApplicationStatus @default(pending)
+  reason      String?
+  appliedAt   DateTime          @default(now()) @map("applied_at")
+  reviewedAt  DateTime?         @map("reviewed_at")
+  reviewedBy  Int?              @map("reviewed_by")
+  eventPlan   EventPlan         @relation(fields: [eventPlanId], references: [id], onDelete: Cascade)
+  coach       Coach             @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  reviewer    User?             @relation("ApplicationReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+  @@unique([eventPlanId, coachId])
+  @@map("event_applications")
+}
+
+model EventParticipant {
+  id              Int               @id @default(autoincrement())
+  eventPlanId     Int               @map("event_plan_id")
+  coachId         Int               @map("coach_id")
+  athleteId       Int?              @map("athlete_id")
+  sportId         Int               @map("sport_id")
+  participantType ParticipantType    @map("participant_type")
+  status          ParticipantStatus @default(active)
+  addedBy         Int?              @map("added_by")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  eventPlan       EventPlan         @relation(fields: [eventPlanId], references: [id], onDelete: Cascade)
+  coach           Coach             @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  athlete         Athlete?          @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  sport           Sport             @relation(fields: [sportId], references: [id], onDelete: Cascade)
+  adder           User?             @relation(fields: [addedBy], references: [id], onDelete: SetNull)
+  @@unique([eventPlanId, coachId, athleteId, sportId])
+  @@map("event_participants")
+}
