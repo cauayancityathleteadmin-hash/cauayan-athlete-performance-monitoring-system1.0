@@ -1,5 +1,5 @@
 import { prisma } from "../../../../lib/prisma";
-import { requireSession, requireRole, requireCsrf, text } from "../../../../lib/api-security";
+import { requireSession, requireRole, requireCsrf } from "../../../../lib/api-security";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();

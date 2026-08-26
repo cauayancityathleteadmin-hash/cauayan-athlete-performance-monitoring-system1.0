@@ -10,8 +10,8 @@ export async function getServerSideProps(context) {
   if (!session) return { redirect: { destination: "/login", permanent: false } };
   const [assessments, athletes, metrics] = await Promise.all([
     prisma.assessment.findMany({ orderBy: { assessmentDate: "desc" }, include: { athlete: true, recorder: { select: { email: true } }, results: { include: { metric: true } } } }),
-    prisma.athlete.findMany({ where: { status: "active" }, include: { event: true, coach: true }, orderBy: { lastName: "asc" } }),
-    prisma.performanceMetric.findMany({ where: { status: "active" }, include: { event: true }, orderBy: { metricName: "asc" } }),
+    prisma.athlete.findMany({ where: { status: "active" }, select: { id: true, athleteCode: true, firstName: true, lastName: true, eventId: true, coach: { select: { userId: true } } }, orderBy: { lastName: "asc" } }),
+    prisma.performanceMetric.findMany({ where: { status: "active" }, select: { id: true, eventId: true, metricName: true, dataType: true, isRequired: true }, orderBy: { metricName: "asc" } }),
   ]);
   return { props: { session, catalog: { athletes, metrics }, assessments: assessments.map((item) => ({ ...item, assessmentDate: item.assessmentDate.toISOString(), createdAt: item.createdAt.toISOString(), results: item.results.map((result) => ({ ...result, valueDecimal: result.valueDecimal?.toString() || null })) })) } };
 }
