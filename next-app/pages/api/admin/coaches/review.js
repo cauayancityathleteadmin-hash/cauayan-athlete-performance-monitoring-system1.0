@@ -1,9 +1,16 @@
 import { prisma } from "../../../../lib/prisma";
-import { requireCsrf, requireRole, requireSession, text, validId } from "../../../../lib/api-security";
+import { requireCsrf, requireRole, requireSession, text, validId, setSecurityHeaders } from "../../../../lib/api-security";
+import { rateLimiters } from "../../../lib/rate-limit";
 
 export default async function handler(req, res) {
+  setSecurityHeaders(res);
   const session = await requireSession(req, res);
   if (!session) return;
+
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || "unknown";
+  const rate = rateLimiters.api(`api:${ip}:${req.method}`);
+  if (!rate.allowed) return res.status(429).json({ error: "Too many requests. Please try again later." });
+
   if (!requireRole(session, "admin", res)) return;
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
   if (!requireCsrf(req, res)) return;

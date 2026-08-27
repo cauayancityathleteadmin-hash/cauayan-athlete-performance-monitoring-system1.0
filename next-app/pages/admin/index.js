@@ -22,9 +22,8 @@ export default function Admin({ stats }) {
       </Head>
       <div className={styles.app}>
         <header className={styles.header}>
-          <div>
-            <p className={styles.eyebrow}>Control centre</p>
-            <h1>Administration</h1>
+          <div style={{display:"flex",alignItems:"center",gap:"16px"}}>
+            <img src="/cauayan logo.png" alt="Cauayan City" className="logo" style={{height:"48px",width:"auto"}}/><div><p className={styles.eyebrow}>Control centre</p><h1>Administration</h1></div>
           </div>
           <Link className={styles.account} href="/dashboard">
             Back to dashboard

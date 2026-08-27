@@ -24,9 +24,8 @@ export default function Assessments({ assessments, catalog, session }) {
       </Head>
       <div className={styles.app}>
         <header className={styles.header}>
-          <div>
-            <p className={styles.eyebrow}>Performance records</p>
-            <h1>Assessments</h1>
+          <div style={{display:"flex",alignItems:"center",gap:"16px"}}>
+            <img src="/cauayan logo.png" alt="Cauayan City" className="logo" style={{height:"48px",width:"auto"}}/><div><p className={styles.eyebrow}>Performance records</p><h1>Assessments</h1></div>
           </div>
           <Link className={styles.account} href="/dashboard">
             Back to dashboard

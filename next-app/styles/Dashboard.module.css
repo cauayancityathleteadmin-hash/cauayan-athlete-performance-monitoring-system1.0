@@ -1,19 +1,473 @@
-.app { min-height: 100vh; background: rgba(4, 31, 24, .88); color: #f0fdf4; }
-.header { display: flex; justify-content: space-between; gap: 24px; align-items: center; padding: 30px max(24px, calc((100vw - 1180px) / 2)); background: rgba(10, 50, 40, .95); color: #f0fdf4; border-bottom: 1px solid #1a5c4a; }
-.header h1 { font-size: 25px; letter-spacing: 0; }
-.eyebrow { margin: 0 0 7px; color: #cae47a; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-.account { display: flex; align-items: center; gap: 12px; font-size: 14px; }
-.role { border: 1px solid #82aa8f; padding: 4px 8px; font-size: 11px; text-transform: uppercase; }
-.account button, .primary, .secondary { border: 0; background: #cae47a; color: #173f35; padding: 11px 15px; font-weight: 800; cursor: pointer; }
-.nav { display: flex; flex-wrap: wrap; gap: 20px; padding: 14px max(24px, calc((100vw - 1180px) / 2)); background: #06261e; border-bottom: 1px solid #1a5c4a; }
-.nav a { color: #86efac; font-size: 14px; font-weight: 700; }
-.main { max-width: 1180px; margin: 0 auto; padding: 42px 24px 70px; }
-.intro { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 28px; }
-.intro h2, .panel h2 { margin: 0 0 8px; font-size: 25px; letter-spacing: 0; }
-.intro p:not(.eyebrow) { margin: 0; color: #5b6e62; }
-.cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
-.card { display: flex; flex-direction: column; gap: 9px; padding: 22px; background: rgba(10, 50, 40, .93); border: 1px solid #1a5c4a; color: inherit; border-radius: 10px; }.card span { color: #86efac; font-size: 14px; font-weight: 700; }.card strong { font-size: 38px; line-height: 1; }.card small { color: #2dd4a8; font-weight: 700; }
-.actionRow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 16px; }.actionRow button { font: inherit; }.dangerButton { border: 1px solid #f87171; background: transparent; color: #f87171; padding: 10px 14px; cursor: pointer; font-weight: 800; }
-.grid { display: grid; grid-template-columns: 2fr 1fr; gap: 22px; }.panel { background: rgba(10, 50, 40, .93); border: 1px solid #1a5c4a; padding: 24px; border-radius: 10px; }.panelHeader { display: flex; justify-content: space-between; gap: 14px; align-items: start; margin-bottom: 18px; }.panelHeader a { color: #2dd4a8; font-weight: 800; font-size: 13px; }.tableWrap { overflow-x: auto; }.tableWrap table { width: 100%; border-collapse: collapse; text-align: left; }.tableWrap th, .tableWrap td { padding: 13px 8px; border-bottom: 1px solid #1a5c4a; font-size: 14px; }.tableWrap th { color: #86efac; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }.tableWrap td small { display: block; color: #86efac; margin-top: 4px; }.empty { color: #86efac; }.coverage { margin: 24px 0; }.coverage div { display: flex; justify-content: space-between; border-bottom: 1px solid #1a5c4a; padding: 14px 0; }.coverage dt { color: #86efac; }.coverage dd { margin: 0; font-size: 22px; font-weight: 800; }.secondary { display: inline-block; background: rgba(45, 212, 168, .16); color: #2dd4a8; }.loading { padding: 40px; }.formGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }.formGrid label { display: flex; flex-direction: column; gap: 6px; color: #86efac; font-size: 13px; font-weight: 700; }.formGrid input, .formGrid select, .formGrid textarea { border: 1px solid #1a5c4a; background: #06261e; color: #f0fdf4; padding: 11px; font: inherit; font-weight: 400; }.formGrid textarea { min-height: 80px; resize: vertical; }.formGrid button { justify-self: start; }.fullField { grid-column: 1 / -1; }
-@media (max-width: 760px) { .header, .intro { align-items: start; flex-direction: column; }.account { flex-wrap: wrap; }.cards { grid-template-columns: repeat(2, 1fr); }.grid { grid-template-columns: 1fr; }.formGrid { grid-template-columns: 1fr 1fr; }.main { padding-top: 30px; } }
-@media (max-width: 420px) { .cards { grid-template-columns: 1fr; }.nav { gap: 12px; } }.metricsGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; margin: 14px 0; } .metricField { display: flex; flex-direction: column; gap: 12px; padding: 12px; background: #f9fbf8; border: 1px solid #e0e8e0; border-radius: 3px; } .metricField label { margin: 0; display: flex; flex-direction: column; gap: 4px; } .metricField input, .metricField textarea { border: 1px solid #cbd8cc; background: #fbfdf9; color: #17211b; padding: 8px; font: inherit; font-weight: 400; }
+.app {
+  min-height: 100vh;
+  background: rgba(4, 31, 24, .88);
+  color: #f0fdf4;
+  font-family: var(--font);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: center;
+  padding: 20px clamp(20px, 5vw, 60px);
+  background: rgba(10, 50, 40, .95);
+  color: #f0fdf4;
+  border-bottom: 1px solid #1a5c4a;
+  flex-wrap: wrap;
+  min-height: var(--header-height);
+}
+
+.header h1 {
+  font-size: clamp(22px, 3vw, 28px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.header .logo {
+  height: 48px;
+  width: auto;
+  max-width: 180px;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: #cae47a;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 14px;
+  flex-wrap: wrap;
+}
+
+.role {
+  border: 1px solid #82aa8f;
+  padding: 4px 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.account button,
+.primary,
+.secondary {
+  border: 0;
+  background: #cae47a;
+  color: #173f35;
+  padding: 12px 18px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.account button:hover,
+.primary:hover,
+.secondary:hover {
+  background: var(--accent-hover);
+}
+
+.account button:active,
+.primary:active,
+.secondary:active {
+  transform: scale(0.98);
+}
+
+.secondary {
+  background: rgba(45, 212, 168, .16);
+  color: #2dd4a8;
+  border: 1px solid rgba(45, 212, 168, .3);
+}
+
+.secondary:hover {
+  background: rgba(45, 212, 168, .25);
+  color: var(--accent-hover);
+}
+
+.dangerButton,
+.danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+.dangerButton:hover,
+.danger:hover {
+  background: rgba(248, 113, 113, .1);
+  color: #fca5a5;
+}
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 12px clamp(20px, 5vw, 60px);
+  background: #06261e;
+  border-bottom: 1px solid #1a5c4a;
+}
+
+.nav a {
+  color: #86efac;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: color 0.2s, background 0.2s;
+}
+
+.nav a:hover,
+.nav a[aria-current="page"] {
+  color: var(--accent);
+  background: rgba(45, 212, 168, .1);
+}
+
+.main {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 32px clamp(20px, 5vw, 60px) 60px;
+}
+
+.intro {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.intro h2,
+.panel h2 {
+  margin: 0 0 8px;
+  font-size: clamp(22px, 3vw, 28px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.intro p:not(.eyebrow) {
+  margin: 0;
+  color: #5b6e62;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 24px;
+  background: rgba(10, 50, 40, .93);
+  border: 1px solid #1a5c4a;
+  color: inherit;
+  border-radius: 12px;
+  text-decoration: none;
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .3);
+}
+
+.card span {
+  color: #86efac;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.card strong {
+  font-size: clamp(32px, 4vw, 42px);
+  line-height: 1;
+  font-weight: 800;
+}
+
+.card small {
+  color: #2dd4a8;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.actionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.actionRow button {
+  font: inherit;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 22px;
+}
+
+@media (min-width: 900px) {
+  .grid {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+.panel {
+  background: rgba(10, 50, 40, .93);
+  border: 1px solid #1a5c4a;
+  padding: 24px;
+  border-radius: 12px;
+}
+
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.panelHeader a {
+  color: #2dd4a8;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border-radius: 8px;
+}
+
+.tableWrap table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+}
+
+.tableWrap th,
+.tableWrap td {
+  padding: 14px 12px;
+  border-bottom: 1px solid #1a5c4a;
+}
+
+.tableWrap th {
+  color: #86efac;
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  background: rgba(6, 38, 30, .5);
+}
+
+.tableWrap td small {
+  display: block;
+  color: #86efac;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.tableWrap tr:last-child td {
+  border-bottom: none;
+}
+
+.tableWrap tr:hover td {
+  background: rgba(45, 212, 168, .03);
+}
+
+.empty {
+  color: #86efac;
+  padding: 24px;
+  text-align: center;
+}
+
+.coverage {
+  margin: 24px 0;
+}
+
+.coverage div {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #1a5c4a;
+  padding: 14px 0;
+}
+
+.coverage dt {
+  color: #86efac;
+  font-size: 14px;
+}
+
+.coverage dd {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.loading {
+  padding: 60px 24px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.formGrid label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #86efac;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.formGrid input,
+.formGrid select,
+.formGrid textarea {
+  border: 1px solid #1a5c4a;
+  background: #06261e;
+  color: #f0fdf4;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 400;
+  border-radius: 8px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.formGrid input:focus,
+.formGrid select:focus,
+.formGrid textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(45, 212, 168, 0.2);
+}
+
+.formGrid textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.formGrid button {
+  justify-self: start;
+}
+
+.fullField {
+  grid-column: 1 / -1;
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.metricField {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(10, 50, 40, .93);
+  border: 1px solid #1a5c4a;
+  border-radius: 10px;
+}
+
+.metricField label {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #86efac;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.metricField input,
+.metricField textarea {
+  border: 1px solid #1a5c4a;
+  background: #06261e;
+  color: #f0fdf4;
+  padding: 10px 12px;
+  font: inherit;
+  font-weight: 400;
+  border-radius: 6px;
+}
+
+@media (max-width: 760px) {
+  .header,
+  .intro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .account {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .formGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .main {
+    padding-top: 24px;
+  }
+
+  .header {
+    padding: 16px 20px;
+  }
+
+  .nav {
+    padding: 10px 20px;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .cards {
+    grid-template-columns: 1fr;
+  }
+
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .nav {
+    gap: 8px;
+  }
+
+  .nav a {
+    font-size: 13px;
+    padding: 6px 8px;
+  }
+
+  .panel {
+    padding: 20px;
+  }
+}

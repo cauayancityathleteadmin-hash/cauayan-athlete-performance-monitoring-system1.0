@@ -8,13 +8,22 @@ import styles from "../../styles/Dashboard.module.css";
 export async function getServerSideProps(context) {
   const session = await getSession(context);
   if (!session || session.user.role !== "admin") return { redirect: { destination: "/dashboard", permanent: false } };
-  const coaches = await prisma.coach.findMany({ include: { user: { select: { id: true, email: true, status: true, mustChangePassword: true } }, school: { select: { schoolName: true } } }, orderBy: { user: { email: "asc" } } });
-  return { props: { session, coaches: coaches.map((c) => ({ ...c, user: { ...c.user } })) } };
+  const coaches = await prisma.coach.findMany({
+    include: {
+      user: { select: { id: true, email: true, status: true, mustChangePassword: true, createdAt: true, lastLoginAt: true } },
+      school: { select: { schoolName: true } },
+      sports: { include: { sport: { select: { sportName: true } } } },
+      athletes: { select: { id: true } },
+    },
+    orderBy: { user: { email: "asc" } }
+  });
+  return { props: { session, coaches: coaches.map((c) => ({ ...c, user: { ...c.user, createdAt: c.user.createdAt.toISOString() }, sports: c.sports.map(cs => ({ ...cs, sport: cs.sport })), athletesCount: c.athletes.length })) } };
 }
 
 export default function AdminCoaches({ coaches, session }) {
   const [message, setMessage] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  const [selectedCoach, setSelectedCoach] = React.useState(null);
 
   async function resetCoach(coachId) {
     setBusy(true);
@@ -38,6 +47,16 @@ export default function AdminCoaches({ coaches, session }) {
     setBusy(false);
   }
 
+  function formatDate(dateString) {
+    if (!dateString) return "Never";
+    return new Date(dateString).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  }
+
+  function formatDateTime(dateString) {
+    if (!dateString) return "Never";
+    return new Date(dateString).toLocaleString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+
   return (
     <>
       <Head>
@@ -45,9 +64,8 @@ export default function AdminCoaches({ coaches, session }) {
       </Head>
       <div className={styles.app}>
         <header className={styles.header}>
-          <div>
-            <p className={styles.eyebrow}>Administration</p>
-            <h1>Coaches</h1>
+          <div style={{display:"flex",alignItems:"center",gap:"16px"}}>
+            <img src="/cauayan logo.png" alt="Cauayan City" className="logo" style={{height:"48px",width:"auto"}}/><div><p className={styles.eyebrow}>Administration</p><h1>Coaches</h1></div>
           </div>
           <Link className={styles.account} href="/admin">
             Back to admin
@@ -67,14 +85,19 @@ export default function AdminCoaches({ coaches, session }) {
               </div>
               <strong>{coaches.length} coaches · {coaches.filter((coach) => coach.user.status === "pending").length} pending</strong>
             </div>
-            {message && <p role="status" style={{ color: message.startsWith("Coach") ? "#365448" : "#8b3a3a", marginBottom: "14px" }}>{message}</p>}
+            {message && <p role="status" style={{ color: message.startsWith("Coach") ? "#365448" : "#8b3a3a", marginBottom: "14px", padding: "12px", background: message.startsWith("Coach") ? "rgba(45, 212, 168, .16)" : "rgba(248, 113, 113, .16)", borderRadius: "6px", border: message.startsWith("Coach") ? "1px solid var(--accent)" : "1px solid var(--danger)" }}>{message}</p>}
             <div className={styles.tableWrap}>
               <table>
                 <thead>
                   <tr>
+                    <th>Coach</th>
                     <th>Email</th>
                     <th>School</th>
+                    <th>Sports</th>
+                    <th>Athletes</th>
                     <th>Status</th>
+                    <th>Registered</th>
+                    <th>Last Login</th>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -82,17 +105,42 @@ export default function AdminCoaches({ coaches, session }) {
                   {coaches.map((coach) => (
                     <tr key={coach.id}>
                       <td>
-                        <strong>{coach.user.email}</strong>
+                        <strong>{coach.firstName} {coach.middleName ? coach.middleName[0] + ". " : ""}{coach.lastName}{coach.suffix ? " " + coach.suffix : ""}</strong>
                         <small>{coach.coachCode || "No code"}</small>
                       </td>
+                      <td>{coach.user.email}</td>
                       <td>{coach.school?.schoolName || "Not assigned"}</td>
-                      <td>{coach.user.status === "active" ? "Active" : "Inactive"} {coach.user.mustChangePassword && <small>(Must change password)</small>}</td>
                       <td>
-                        {coach.user.status === "pending" ? <><button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} style={{ padding: "6px 12px", fontSize: "12px", background: "#2dd4a8", border: 0, cursor: "pointer", fontWeight: 700 }}>Approve</button> <button onClick={() => reviewCoach(coach.id, "rejected")} disabled={busy} style={{ padding: "6px 12px", fontSize: "12px", background: "transparent", color: "#f87171", border: "1px solid #f87171", cursor: "pointer", fontWeight: 700 }}>Reject</button></> : <button
-                          onClick={() => resetCoach(coach.id)}
-                          disabled={busy}
-                          style={{ padding: "6px 12px", fontSize: "12px", background: "#cae47a", border: 0, cursor: "pointer", fontWeight: 700 }}
-                        >Reset password</button>}
+                        {coach.sports.length > 0 ? (
+                          coach.sports.map((cs) => <span key={cs.sportId} style={{display:"inline-block",background:"rgba(45,212,168,.16)",color:"var(--accent)",padding:"2px 8px",borderRadius:"12px",fontSize:"11px",fontWeight:700,margin:"2px 4px 2px 0"}}>{cs.sport.sportName}</span>)
+                        ) : (
+                          <span style={{color:"var(--muted)",fontSize:"13px"}}>No sports</span>
+                        )}
+                      </td>
+                      <td>{coach.athletesCount}</td>
+                      <td>
+                        {coach.user.status === "active" ? (
+                          <span style={{color:"var(--accent)",fontWeight:700}}>Active</span>
+                        ) : coach.user.status === "pending" ? (
+                          <span style={{color:"#fbbf24",fontWeight:700}}>Pending</span>
+                        ) : coach.user.status === "rejected" ? (
+                          <span style={{color:"var(--danger)",fontWeight:700}}>Rejected</span>
+                        ) : (
+                          <span style={{color:"var(--muted)",fontWeight:700}}>Inactive</span>
+                        )}
+                        {coach.user.mustChangePassword && <small style={{display:"block",color:"#fbbf24",marginTop:"4px"}}>(Must change password)</small>}
+                      </td>
+                      <td>{formatDate(coach.user.createdAt)}</td>
+                      <td>{formatDateTime(coach.user.lastLoginAt)}</td>
+                      <td>
+                        {coach.user.status === "pending" ? (
+                          <>
+                            <button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} className={styles.primary} style={{padding:"8px 14px",fontSize:"13px",marginRight:"8px"}}>Approve</button>
+                            <button onClick={() => reviewCoach(coach.id, "rejected")} disabled={busy} className={styles.danger} style={{padding:"8px 14px",fontSize:"13px"}}>Reject</button>
+                          </>
+                        ) : (
+                          <button onClick={() => resetCoach(coach.id)} disabled={busy} className={styles.secondary} style={{padding:"8px 14px",fontSize:"13px"}}>Reset password</button>
+                        )}
                       </td>
                     </tr>
                   ))}

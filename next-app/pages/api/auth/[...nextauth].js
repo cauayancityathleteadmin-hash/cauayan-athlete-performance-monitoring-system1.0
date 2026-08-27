@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "../../../lib/prisma";
-import { checkRateLimit } from "../../../lib/rate-limit";
+import { rateLimiters } from "../../../lib/rate-limit";
 
 function normalizeHash(hash) {
   return hash?.replace(/^\$2y\$/, "$2b$");
@@ -18,7 +18,7 @@ export const authOptions = {
       if (!identifier || !password || identifier.length > 191 || password.length > 200) return null;
       const forwarded = request?.headers?.["x-forwarded-for"] ?? "unknown";
       const ip = String(forwarded).split(",")[0].trim();
-      const rate = checkRateLimit(`login:${ip}:${identifier}`);
+      const rate = rateLimiters.login(`login:${ip}:${identifier}`);
       if (!rate.allowed) return null;
       const user = await prisma.user.findFirst({
         where: { OR: [{ email: identifier }, { username: identifier }, { coach: { coachCode: identifier.toUpperCase() } }] },
@@ -33,7 +33,7 @@ export const authOptions = {
   pages: { signIn: "/login" },
   callbacks: {
     async jwt({ token, user, trigger, session }) { if (user) Object.assign(token, user); if (trigger === "update" && session?.mustChangePassword !== undefined) token.mustChangePassword = session.mustChangePassword; return token; },
-    async session({ session, token }) { session.user = { id: token.id, name: token.name, email: token.email, role: token.role, mustChangePassword: token.mustChangePassword }; return session; },
+    async session({ session, token }) { session.user = { id: token.id, name: token.name, email: token.email, role: token.role, mustChangePassword: token.mustChangePassword }; return token; },
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
