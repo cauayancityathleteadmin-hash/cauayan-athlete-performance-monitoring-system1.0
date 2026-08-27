@@ -1,6 +1,17 @@
 import { prisma } from "../../../../lib/prisma";
 import { requireCsrf, requireRole, requireSession, text, validId, setSecurityHeaders } from "../../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
+import bcrypt from "bcryptjs";
+import { sendCoachApprovalEmail, sendCoachRejectionEmail } from "../../../../lib/email";
+
+function generateTempPassword() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
+  let password = "";
+  for (let i = 0; i < 16; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
 
 export default async function handler(req, res) {
   setSecurityHeaders(res);
@@ -23,10 +34,39 @@ export default async function handler(req, res) {
   if (!coach || coach.user.status !== "pending") return res.status(409).json({ error: "Pending coach application not found." });
 
   const status = decision === "approved" ? "active" : "rejected";
+
+  if (decision === "approved") {
+    const tempPassword = generateTempPassword();
+    const passwordHash = await bcrypt.hash(tempPassword, 12);
+
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: coach.userId }, data: { status, passwordHash, mustChangePassword: true, passwordChangedAt: null } }),
+      prisma.coach.update({ where: { id: coachId }, data: { status: "active" } }),
+      prisma.auditLog.create({ data: { userId: Number(session.user.id), action: decision, entityType: "coach", entityId: coachId, description: `${decision} coach application ${coach.coachCode}${reason ? `: ${reason}` : ""}` } }),
+    ]);
+
+    await sendCoachApprovalEmail({
+      email: coach.email,
+      name: `${coach.firstName} ${coach.lastName}`,
+      coachCode: coach.coachCode,
+      temporaryPassword: tempPassword,
+    });
+
+    return res.status(200).json({ success: true, status, message: "Coach approved. Temporary password sent via email." });
+  }
+
   await prisma.$transaction([
     prisma.user.update({ where: { id: coach.userId }, data: { status } }),
-    prisma.coach.update({ where: { id: coachId }, data: { status: decision === "approved" ? "active" : "inactive" } }),
+    prisma.coach.update({ where: { id: coachId }, data: { status: "inactive" } }),
     prisma.auditLog.create({ data: { userId: Number(session.user.id), action: decision, entityType: "coach", entityId: coachId, description: `${decision} coach application ${coach.coachCode}${reason ? `: ${reason}` : ""}` } }),
   ]);
-  return res.status(200).json({ success: true, status });
+
+  await sendCoachRejectionEmail({
+    email: coach.email,
+    name: `${coach.firstName} ${coach.lastName}`,
+    coachCode: coach.coachCode,
+    reason,
+  });
+
+  return res.status(200).json({ success: true, status, message: "Coach rejected. Notification sent via email." });
 }
