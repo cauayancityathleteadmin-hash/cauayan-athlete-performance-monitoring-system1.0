@@ -668,6 +668,108 @@
   grid-column: 1 / -1;
 }
 
+.formHint {
+  color: var(--muted);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.formActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  grid-column: 1 / -1;
+}
+
+.formSuccess {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.formError {
+  color: var(--danger);
+}
+
+/* ===== Page actions (old local-system page-title actions) ===== */
+.pageActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+  align-items: center;
+}
+
+/* ===== Import panel (old local-system bulk import logic) ===== */
+.importBox {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  background: rgba(6, 38, 30, 0.5);
+  margin-bottom: 18px;
+}
+
+.importBox h3 {
+  margin: 0 0 10px;
+  color: #86efac;
+}
+
+.importSteps {
+  margin: 0 0 12px 20px;
+  padding: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.importSteps li {
+  margin-bottom: 4px;
+}
+
+.importCols {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.importHead {
+  margin: 4px 0 12px;
+  color: #86efac;
+}
+
+.importFileLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #86efac;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+.importFileLabel input[type="file"] {
+  border: 1px dashed var(--border);
+  background: #06261e;
+  color: #f0fdf4;
+  padding: 12px 14px;
+  font: inherit;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 560px;
+}
+
+.importFileLabel input[type="file"]::file-selector-button {
+  background: var(--accent);
+  color: #041f18;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  margin-right: 12px;
+}
+
 .metricsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));

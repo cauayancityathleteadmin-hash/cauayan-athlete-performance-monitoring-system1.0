@@ -29,7 +29,6 @@ export default async function handler(req, res) {
   if (!requireCsrf(req, res)) return;
 
   const body = req.body || {};
-  const athleteCode = text(body.athleteCode, 20, true);
   const firstName = text(body.firstName, 100, true);
   const lastName = text(body.lastName, 100, true);
   const birthdate = text(body.birthdate, 10, true);
@@ -38,7 +37,7 @@ export default async function handler(req, res) {
   const eventId = body.eventId ? Number(body.eventId) : null;
   const schoolName = text(body.school, 191);
 
-  if (!athleteCode || !firstName || !lastName || !birthdate || !["male", "female", "other", "prefer_not_to_say"].includes(gender) || !Number.isInteger(sportId) || (eventId !== null && !Number.isInteger(eventId))) {
+  if (!firstName || !lastName || !birthdate || !["male", "female", "other", "prefer_not_to_say"].includes(gender) || !Number.isInteger(sportId) || (eventId !== null && !Number.isInteger(eventId))) {
     return res.status(400).json({ error: "Complete the required athlete fields with valid values." });
   }
 
@@ -67,8 +66,17 @@ export default async function handler(req, res) {
     schoolId = newSchool.id;
   }
 
+  if (birthdate.length !== 10 || Number.isNaN(Date.parse(birthdate))) {
+    return res.status(400).json({ error: "Provide a valid birthdate (YYYY-MM-DD)." });
+  }
+
   try {
     const athlete = await prisma.$transaction(async (tx) => {
+      const last = await tx.athlete.findFirst({ where: { athleteCode: { startsWith: "ATH-" } }, orderBy: { athleteCode: "desc" }, select: { athleteCode: true } });
+      let nextNumber = 1;
+      const match = last && last.athleteCode.match(/^ATH-(\d+)$/);
+      if (match) nextNumber = Number(match[1]) + 1;
+      const athleteCode = "ATH-" + String(nextNumber).padStart(6, "0");
       const created = await tx.athlete.create({
         data: {
           athleteCode,
