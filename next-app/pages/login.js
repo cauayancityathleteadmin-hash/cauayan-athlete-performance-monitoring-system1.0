@@ -58,6 +58,7 @@ export default function Login() {
             required
             autoComplete="current-password"
             maxLength="200"
+            style={{ paddingLeft: "52px" }}
           />
           <button
             type="button"
@@ -65,7 +66,7 @@ export default function Login() {
             disabled={busy}
             style={{
               position: "absolute",
-              right: "12px",
+              left: "12px",
               top: "50%",
               transform: "translateY(-50%)",
               background: "transparent",

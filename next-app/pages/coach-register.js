@@ -16,6 +16,8 @@ export async function getServerSideProps() {
 export default function CoachRegister({ sports }) {
   const [message, setMessage] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  const [reviewing, setReviewing] = React.useState(false);
+  const [submitted, setSubmitted] = React.useState(false);
   const [formData, setFormData] = React.useState({
     firstName: "",
     middleName: "",
@@ -93,18 +95,9 @@ export default function CoachRegister({ sports }) {
         if (result.field) setErrors((prev) => ({ ...prev, [result.field]: result.error }));
       } else if (response.ok && result.success) {
         setMessage(result.message);
-        event.currentTarget.reset();
-        setFormData({
-          firstName: "",
-          middleName: "",
-          lastName: "",
-          birthdate: "",
-          email: "",
-          password: "",
-          school: "",
-          sportIds: [],
-        });
-        setPasswordStrength(null);
+        setSubmitted(true);
+        setReviewing(false);
+        resetForm();
       } else {
         setMessage("Registration could not be completed. Please try again.");
       }
@@ -114,122 +107,234 @@ export default function CoachRegister({ sports }) {
     setBusy(false);
   }
 
+  function review(event) {
+    event.preventDefault();
+    if (!validateForm()) return;
+    setMessage("");
+    setReviewing(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function edit() {
+    setReviewing(false);
+    setMessage("");
+  }
+
+  function resetForm() {
+    setFormData({
+      firstName: "",
+      middleName: "",
+      lastName: "",
+      birthdate: "",
+      email: "",
+      password: "",
+      school: "",
+      sportIds: [],
+    });
+    setPasswordStrength(null);
+  }
+
+  const sportNameOf = (id) => (sports.find((s) => s.id === id)?.sportName) || null;
+
+  const fullName = [formData.firstName, formData.middleName, formData.lastName].filter(Boolean).join(" ").trim();
+
+  const formattedBirthdate =
+    formData.birthdate
+      ? new Date(`${formData.birthdate}T00:00:00Z`).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })
+      : "";
+
+  const selectedSports = formData.sportIds.map(sportNameOf).filter(Boolean);
+
+  function reviewRow(label, value) {
+    return (
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", padding: "12px 0", borderBottom: "1px solid var(--border)", flexWrap: "wrap" }}>
+        <dt style={{ color: "var(--muted)", fontSize: "14px", fontWeight: 600, flex: "0 0 40%" }}>{label}</dt>
+        <dd style={{ margin: 0, textAlign: "right", fontSize: "15px", fontWeight: 600, wordBreak: "break-word", flex: "1 1 auto" }}>{value || <span style={{ color: "var(--muted)", fontWeight: 400 }}>—</span>}</dd>
+      </div>
+    );
+  }
+
   return (
     <>
       <Head>
         <title>Coach registration | Cauayan Athlete Performance</title>
       </Head>
-      <main className="login-page">
+      <main className="login-page register-box">
         <img src="/cauayan logo.png" alt="Cauayan City" className="logo" />
         <p className="auth-kicker">Cauayan City</p>
         <h1>Coach registration</h1>
         <p className="auth-subtitle">Request access to the athlete performance system</p>
-        <form onSubmit={submit} noValidate>
-          <label>
-            First name
-            <input
-              name="firstName"
-              value={formData.firstName}
-              onChange={(e) => handleChange("firstName", e.target.value)}
-              required
-              maxLength="100"
-              style={{ borderColor: errors.firstName ? "var(--danger)" : "var(--border)" }}
-            />
-            {errors.firstName && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.firstName}</span>}
-          </label>
-          <label>
-            Middle name
-            <input
-              name="middleName"
-              value={formData.middleName}
-              onChange={(e) => handleChange("middleName", e.target.value)}
-              maxLength="100"
-            />
-          </label>
-          <label>
-            Last name
-            <input
-              name="lastName"
-              value={formData.lastName}
-              onChange={(e) => handleChange("lastName", e.target.value)}
-              required
-              maxLength="100"
-              style={{ borderColor: errors.lastName ? "var(--danger)" : "var(--border)" }}
-            />
-            {errors.lastName && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.lastName}</span>}
-          </label>
-          <label>
-            Birthdate
-            <input
-              name="birthdate"
-              type="date"
-              value={formData.birthdate}
-              onChange={(e) => handleChange("birthdate", e.target.value)}
-              required
-              style={{ borderColor: errors.birthdate ? "var(--danger)" : "var(--border)" }}
-            />
-            {errors.birthdate && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.birthdate}</span>}
-          </label>
-          <label>
-            Email
-            <input
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => handleChange("email", e.target.value)}
-              required
-              maxLength="191"
-              style={{ borderColor: errors.email ? "var(--danger)" : "var(--border)" }}
-            />
-            {errors.email && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.email}</span>}
-          </label>
-          <PasswordInput
-            name="password"
-            label="Password"
-            value={formData.password}
-            onChange={handleChange}
-            required
-            minLength="12"
-            maxLength="200"
-            autoComplete="new-password"
-            showStrength={true}
-            placeholder="At least 12 characters"
-            error={errors.password}
-          />
-          <label>
-            School
-            <input
-              name="school"
-              value={formData.school}
-              onChange={(e) => handleChange("school", e.target.value)}
-              required
-              maxLength="191"
-              placeholder="Enter your school name"
-              style={{ borderColor: errors.school ? "var(--danger)" : "var(--border)" }}
-            />
-            {errors.school && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.school}</span>}
-          </label>
-          <fieldset style={{ display: "grid", gap: "6px", margin: "4px 0", padding: "10px", border: "1px solid var(--border)", color: "var(--muted)", borderRadius: "8px" }}>
-            <legend style={{ fontSize: "13px", fontWeight: 700, marginBottom: "8px" }}>Sports coached</legend>
-            {sports.map((sport) => (
-              <label key={sport.id} style={{ display: "flex", alignItems: "center", gap: "8px", margin: "6px 0", cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  name="sportIds"
-                  value={sport.id}
-                  checked={formData.sportIds.includes(sport.id)}
-                  onChange={(e) => handleSportChange(sport.id, e.target.checked)}
-                  style={{ width: "18px", height: "18px", accentColor: "var(--accent)", flexShrink: 0 }}
-                />
-                <span>{sport.sportName}</span>
-              </label>
-            ))}
-            {errors.sports && <span style={{ color: "var(--danger)", fontSize: "12px", marginTop: "4px" }}>{errors.sports}</span>}
-          </fieldset>
-          <button disabled={busy} style={{ marginTop: "10px" }}>{busy ? "Submitting..." : "Submit registration"}</button>
-          {message && <p role="status" style={{ color: message.startsWith("Registration") ? "var(--accent)" : "var(--danger)", marginTop: "12px", padding: "10px", borderRadius: "6px", background: message.startsWith("Registration") ? "rgba(45,212,168,.16)" : "rgba(248,113,113,.16)", border: message.startsWith("Registration") ? "1px solid var(--accent)" : "1px solid var(--danger)" }}>{message}</p>}
-        </form>
-        <p><Link href="/login">Back to sign in</Link></p>
+
+        {reviewing ? (
+          <div style={{ width: "100%" }}>
+            <section
+              style={{
+                padding: "20px",
+                border: "1px solid var(--border)",
+                borderRadius: "10px",
+                background: "rgba(6, 38, 30, .5)",
+              }}
+            >
+              <p style={{ color: "var(--accent)", fontWeight: 700, margin: "0 0 14px" }}>Review your registration details</p>
+              <p style={{ color: "var(--muted)", fontSize: "14px", margin: "0 0 8px" }}>
+                Please double-check that all information below is correct before submitting.
+              </p>
+              <dl style={{ margin: 0 }}>
+                {reviewRow("Full name", fullName)}
+                {reviewRow("Birthdate", formattedBirthdate)}
+                {reviewRow("Email", formData.email)}
+                {reviewRow("School", formData.school)}
+                {reviewRow("Sports coached", selectedSports.join(", "))}
+              </dl>
+            </section>
+            <div style={{ display: "flex", gap: "12px", marginTop: "18px", flexWrap: "wrap" }}>
+              <button type="button" onClick={edit} disabled={busy} style={{
+                flex: "1 1 auto",
+                background: "rgba(45,212,168,.16)",
+                color: "var(--accent)",
+                border: "1px solid var(--border)",
+              }}>
+                Edit information
+              </button>
+              <button
+                type="button"
+                onClick={submit}
+                disabled={busy}
+                style={{ flex: "1 1 auto", background: "var(--accent)", color: "#041f18" }}
+              >
+                {busy ? "Submitting..." : "Confirm & submit registration"}
+              </button>
+            </div>
+            {message && (
+              <p
+                role="status"
+                style={{
+                  color: message.startsWith("Registration") ? "var(--accent)" : "var(--danger)",
+                  marginTop: "12px",
+                  padding: "10px",
+                  borderRadius: "6px",
+                  background: message.startsWith("Registration") ? "rgba(45,212,168,.16)" : "rgba(248,113,113,.16)",
+                  border: message.startsWith("Registration") ? "1px solid var(--accent)" : "1px solid var(--danger)",
+                }}
+              >
+                {message}
+              </p>
+            )}
+          </div>
+        ) : (
+          <form onSubmit={review} noValidate className="register-fields" style={{ width: "100%" }}>
+            <label>
+              First name
+              <input
+                name="firstName"
+                value={formData.firstName}
+                onChange={(e) => handleChange("firstName", e.target.value)}
+                required
+                maxLength="100"
+                style={{ borderColor: errors.firstName ? "var(--danger)" : "var(--border)" }}
+              />
+              {errors.firstName && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.firstName}</span>}
+            </label>
+            <label>
+              Middle name
+              <input
+                name="middleName"
+                value={formData.middleName}
+                onChange={(e) => handleChange("middleName", e.target.value)}
+                maxLength="100"
+              />
+            </label>
+            <label>
+              Last name
+              <input
+                name="lastName"
+                value={formData.lastName}
+                onChange={(e) => handleChange("lastName", e.target.value)}
+                required
+                maxLength="100"
+                style={{ borderColor: errors.lastName ? "var(--danger)" : "var(--border)" }}
+              />
+              {errors.lastName && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.lastName}</span>}
+            </label>
+            <label>
+              Birthdate
+              <input
+                name="birthdate"
+                type="date"
+                value={formData.birthdate}
+                onChange={(e) => handleChange("birthdate", e.target.value)}
+                required
+                style={{ borderColor: errors.birthdate ? "var(--danger)" : "var(--border)" }}
+              />
+              {errors.birthdate && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.birthdate}</span>}
+            </label>
+            <label className="span-2">
+              Email
+              <input
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => handleChange("email", e.target.value)}
+                required
+                maxLength="191"
+                style={{ borderColor: errors.email ? "var(--danger)" : "var(--border)" }}
+              />
+              {errors.email && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.email}</span>}
+            </label>
+            <div className="span-2">
+              <PasswordInput
+                name="password"
+                label="Password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                minLength="12"
+                maxLength="200"
+                autoComplete="new-password"
+                showStrength={true}
+                placeholder="At least 12 characters"
+                error={errors.password}
+              />
+            </div>
+            <label className="span-2">
+              School
+              <input
+                name="school"
+                value={formData.school}
+                onChange={(e) => handleChange("school", e.target.value)}
+                required
+                maxLength="191"
+                placeholder="Enter your school name"
+                style={{ borderColor: errors.school ? "var(--danger)" : "var(--border)" }}
+              />
+              {errors.school && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.school}</span>}
+            </label>
+            <fieldset className="span-2" style={{ display: "grid", gap: "6px", margin: "4px 0", padding: "10px", border: "1px solid var(--border)", color: "var(--muted)", borderRadius: "8px" }}>
+              <legend style={{ fontSize: "13px", fontWeight: 700, marginBottom: "8px" }}>Sports coached</legend>
+              {sports.map((sport) => (
+                <label key={sport.id} style={{ display: "flex", alignItems: "center", gap: "8px", margin: "6px 0", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    name="sportIds"
+                    value={sport.id}
+                    checked={formData.sportIds.includes(sport.id)}
+                    onChange={(e) => handleSportChange(sport.id, e.target.checked)}
+                    style={{ width: "18px", height: "18px", accentColor: "var(--accent)", flexShrink: 0 }}
+                  />
+                  <span>{sport.sportName}</span>
+                </label>
+              ))}
+              {errors.sports && <span style={{ color: "var(--danger)", fontSize: "12px", marginTop: "4px" }}>{errors.sports}</span>}
+            </fieldset>
+            <button type="submit" disabled={busy} className="span-2" style={{ marginTop: "10px" }}>
+              Review registration
+            </button>
+          </form>
+        )}
+
+        {!reviewing && (
+          <p style={{ margin: "0 0 0" }}><Link href="/login">Back to sign in</Link></p>
+        )}
       </main>
     </>
   );

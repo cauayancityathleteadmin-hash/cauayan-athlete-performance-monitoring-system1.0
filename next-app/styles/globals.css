@@ -30,9 +30,10 @@ body {
 
 body {
   position: relative;
+  min-height: 100vh;
   color: var(--foreground);
   background-color: var(--background);
-  background-image: linear-gradient(rgba(4, 31, 24, .85), rgba(4, 31, 24, .85)), url("/cauayan_city_map.png");
+  background-image: linear-gradient(rgba(4, 31, 24, .72), rgba(4, 31, 24, .72)), url("/cauayan_city_map.png");
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
@@ -42,6 +43,12 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-size: 16px;
+}
+
+@media (max-width: 640px) {
+  body {
+    background-attachment: scroll;
+  }
 }
 
 * {
@@ -71,19 +78,33 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   width: min(100% - 32px, 480px);
   margin: auto;
-  padding: 40px 32px;
-  background: rgba(10, 50, 40, .95);
+  padding: 32px 32px;
+  background: rgba(10, 50, 40, .88);
   border: 1px solid var(--border);
   border-radius: 16px;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, .55);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, .45);
+}
+
+@media (max-width: 480px) {
+  .login-page {
+    padding: 24px 18px;
+    width: min(100% - 16px, 480px);
+  }
 }
 
 .login-page .logo {
-  width: 100%;
-  max-width: 220px;
-  height: auto;
-  margin-bottom: 16px;
+  width: auto;
+  height: 64px;
+  max-width: 100%;
+  object-fit: contain;
+  margin-bottom: 12px;
   filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
+}
+
+@media (max-width: 480px) {
+  .login-page .logo {
+    height: 52px;
+  }
 }
 
 .login-page h1 {
@@ -124,8 +145,31 @@ h1, h2, h3, h4, h5, h6 {
 
 .login-page input,
 .login-page select {
-  background: #06261e;
+  background: rgba(6, 38, 30, .92);
   color: var(--foreground);
+}
+
+.login-page input::placeholder {
+  color: rgba(134, 239, 172, .6);
+}
+
+.login-page .register-box {
+  width: min(100% - 32px, 760px);
+}
+
+.login-page .register-fields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 560px) {
+  .login-page .register-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+  .login-page .register-fields .span-2 {
+    grid-column: 1 / -1;
+  }
 }
 
 .login-page input:focus,

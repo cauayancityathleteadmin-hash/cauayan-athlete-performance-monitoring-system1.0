@@ -48,10 +48,10 @@ export default function PasswordInput({
           disabled={disabled}
           style={{
             width: "100%",
-            padding: "14px 50px 14px 16px",
+            padding: "14px 16px 14px 50px",
             border: error ? "1px solid var(--danger)" : "1px solid var(--border)",
             borderRadius: "8px",
-            background: "#06261e",
+            background: "rgba(6, 38, 30, .92)",
             color: "var(--foreground)",
             font: "inherit",
             fontSize: "16px",
@@ -67,7 +67,7 @@ export default function PasswordInput({
           disabled={disabled}
           style={{
             position: "absolute",
-            right: "12px",
+            left: "12px",
             top: "50%",
             transform: "translateY(-50%)",
             background: "transparent",
