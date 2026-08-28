@@ -1,6 +1,6 @@
 .app {
   min-height: 100vh;
-  background: rgba(4, 31, 24, .88);
+  background: rgba(4, 31, 24, .8);
   color: #f0fdf4;
   font-family: var(--font);
 }
@@ -156,6 +156,14 @@
   max-width: var(--max-width);
   margin: 0 auto;
   padding: 32px clamp(20px, 5vw, 60px) 60px;
+}
+
+@media (min-width: 1500px) {
+  .main {
+    max-width: min(var(--max-width), 92vw);
+    width: 92%;
+    max-width: 1680px;
+  }
 }
 
 .intro {

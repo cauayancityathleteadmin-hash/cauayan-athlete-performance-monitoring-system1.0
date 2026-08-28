@@ -76,19 +76,27 @@ h1, h2, h3, h4, h5, h6 {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  width: min(100% - 32px, 480px);
+  width: min(100% - clamp(24px, 5vw, 80px), 560px);
   margin: auto;
-  padding: 32px 32px;
-  background: rgba(10, 50, 40, .88);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, .45);
+  padding: clamp(24px, 4vw, 56px) clamp(20px, 4vw, 48px);
+  background: rgba(6, 32, 25, .72);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(26, 92, 74, .9);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .5);
 }
 
 @media (max-width: 480px) {
   .login-page {
     padding: 24px 18px;
-    width: min(100% - 16px, 480px);
+    width: min(100% - 16px, 560px);
+  }
+}
+
+@media (min-width: 1280px) {
+  .login-page {
+    width: min(100% - 96px, 600px);
   }
 }
 
@@ -109,10 +117,11 @@ h1, h2, h3, h4, h5, h6 {
 
 .login-page h1 {
   margin-bottom: 8px;
-  font-size: clamp(24px, 5vw, 32px);
+  font-size: clamp(26px, 5vw, 34px);
   text-align: center;
   font-weight: 800;
   letter-spacing: -0.02em;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, .7);
 }
 
 .login-page form {
@@ -124,11 +133,12 @@ h1, h2, h3, h4, h5, h6 {
 
 .login-page label {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .6);
 }
 
 .login-page input,
@@ -145,16 +155,18 @@ h1, h2, h3, h4, h5, h6 {
 
 .login-page input,
 .login-page select {
-  background: rgba(6, 38, 30, .92);
+  background: rgba(6, 38, 30, .9);
   color: var(--foreground);
 }
 
 .login-page input::placeholder {
-  color: rgba(134, 239, 172, .6);
+  color: rgba(190, 242, 214, .85);
 }
 
-.login-page .register-box {
-  width: min(100% - 32px, 760px);
+.login-page.register-box {
+  width: min(100% - clamp(24px, 5vw, 96px), 1280px);
+  max-width: 92vw;
+  background: rgba(6, 32, 25, .72);
 }
 
 .login-page .register-fields {
@@ -200,9 +212,9 @@ h1, h2, h3, h4, h5, h6 {
 .login-page button:disabled { opacity: .65; cursor: wait; }
 .login-page [role="alert"] { color: var(--danger); font-size: 14px; }
 .login-page [role="status"] { color: var(--accent); font-size: 14px; }
-.auth-kicker { margin: 0; color: var(--accent); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-.auth-subtitle { margin: 0 0 20px; color: var(--muted); font-size: 15px; text-align: center; }
-.auth-register { margin: 20px 0 0; text-align: center; font-size: 14px; }
+.auth-kicker { margin: 0; color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; text-shadow: 0 1px 3px rgba(0, 0, 0, .7); }
+.auth-subtitle { margin: 0 0 20px; color: var(--muted); font-size: 16px; text-align: center; text-shadow: 0 1px 3px rgba(0, 0, 0, .7); }
+.auth-register { margin: 20px 0 0; text-align: center; font-size: 15px; }
 .login-page fieldset { display: grid; gap: 10px; margin: 8px 0; padding: 14px; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); }
 .login-page fieldset label { font-weight: 400; font-size: 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
 .login-page fieldset input { width: auto; margin: 0; padding: 0; }
