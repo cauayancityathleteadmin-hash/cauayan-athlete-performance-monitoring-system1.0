@@ -258,6 +258,7 @@ model Assessment {
   results        AssessmentResult[]
   @@map("assessments")
   @@index([athleteId, assessmentDate])
+  @@index([recordedBy, assessmentDate])
 }
 
 model AssessmentResult {
@@ -271,6 +272,7 @@ model AssessmentResult {
   metric       PerformanceMetric @relation(fields: [metricId], references: [id])
   @@unique([assessmentId, metricId])
   @@map("assessment_results")
+  @@index([metricId])
 }
 
 model Achievement {
@@ -284,6 +286,7 @@ model Achievement {
   createdAt        DateTime  @default(now()) @map("created_at")
   athlete          Athlete   @relation(fields: [athleteId], references: [id], onDelete: Cascade)
   @@map("achievements")
+  @@index([athleteId, achievementDate])
 }
 
 model AuditLog {
@@ -346,6 +349,7 @@ model EventApplication {
   reviewer    User?             @relation("ApplicationReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
   @@unique([eventPlanId, coachId])
   @@map("event_applications")
+  @@index([eventPlanId, status])
 }
 
 model EventParticipant {
@@ -365,4 +369,5 @@ model EventParticipant {
   adder           User?             @relation(fields: [addedBy], references: [id], onDelete: SetNull)
   @@unique([eventPlanId, coachId, athleteId, sportId])
   @@map("event_participants")
+  @@index([eventPlanId, athleteId])
 }

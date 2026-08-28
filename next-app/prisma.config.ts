@@ -7,6 +7,8 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: env("DATABASE_URL"),
+    // Migrations must run against the DIRECT (non-pooled) connection.
+    // PgBouncer/PgPooler transaction mode does not support DDL/advisory locks.
+    url: env("DIRECT_URL"),
   },
 });

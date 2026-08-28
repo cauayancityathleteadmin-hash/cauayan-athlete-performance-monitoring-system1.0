@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "../../../lib/prisma";
 import { rateLimiters } from "../../../lib/rate-limit";
+import { isLocked, recordFailure, recordSuccess } from "../../../lib/login-protection";
 
 function normalizeHash(hash) {
   return hash?.replace(/^\$2y\$/, "$2b$");
@@ -25,11 +26,17 @@ export const authOptions = {
       const ip = String(forwarded).split(",")[0].trim();
       const rate = rateLimiters.login(`login:${ip}:${identifier}`);
       if (!rate.allowed) return null;
+      const lock = isLocked(identifier);
+      if (lock.locked) return null;
       const user = await prisma.user.findFirst({
         where: { OR: [{ email: identifier }, { username: identifier }, { coach: { coachCode: identifier.toUpperCase() } }] },
         include: { coach: true },
       });
-      if (!user || user.status !== "active" || !(await bcrypt.compare(password, normalizeHash(user.passwordHash)))) return null;
+      if (!user || user.status !== "active" || !(await bcrypt.compare(password, normalizeHash(user.passwordHash)))) {
+        recordFailure(identifier);
+        return null;
+      }
+      recordSuccess(identifier);
       return { id: String(user.id), role: user.role, email: user.email, name: user.coach ? `${user.coach.firstName} ${user.coach.lastName}` : user.username, mustChangePassword: user.mustChangePassword };
     },
   })],

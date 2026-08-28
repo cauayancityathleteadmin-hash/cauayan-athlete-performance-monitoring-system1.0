@@ -3,21 +3,25 @@ import Link from "next/link";
 import React from "react";
 import { getSession } from "next-auth/react";
 import { prisma } from "../lib/prisma";
+import { paginatePrisma } from "../lib/pagination";
+import Pagination from "../components/Pagination";
 import styles from "../styles/Dashboard.module.css";
 
 export async function getServerSideProps(context) {
   const session = await getSession(context);
   if (!session) return { redirect: { destination: "/login", permanent: false } };
-  const [athletes, sports, events] = await Promise.all([
-    prisma.athlete.findMany({ orderBy: [{ status: "asc" }, { lastName: "asc" }], include: { school: true, sport: true, event: true, coach: true } }),
+  const page = Number(context.query.page) || 1;
+  const [athleteResult, sports, events] = await Promise.all([
+    paginatePrisma(prisma.athlete, page, { orderBy: [{ status: "asc" }, { lastName: "asc" }], include: { school: true, sport: true, event: true, coach: true } }),
     prisma.sport.findMany({ where: { status: "active" }, orderBy: { sportName: "asc" } }),
     prisma.event.findMany({ where: { status: "active" }, include: { sport: true }, orderBy: { eventName: "asc" } }),
   ]);
-  return { props: { session, catalog: { sports, events }, athletes: athletes.map((athlete) => ({ ...athlete, birthdate: athlete.birthdate.toISOString(), dateRegistered: athlete.dateRegistered.toISOString() })) } };
+  const athletes = athleteResult.items.map((athlete) => ({ ...athlete, birthdate: athlete.birthdate.toISOString(), dateRegistered: athlete.dateRegistered.toISOString() }));
+  return { props: { session, catalog: { sports, events }, athletes, page: athleteResult.page, totalPages: athleteResult.totalPages, total: athleteResult.total } };
 }
 
-export default function Athletes({ athletes, catalog }) {
-  return <><Head><title>Athletes | Cauayan Athlete Performance</title></Head><div className={styles.app}><header className={styles.header}><div style={{display:"flex",alignItems:"center",gap:"16px"}}><img src="/cauayan logo.png" alt="Cauayan City" className="logo" style={{height:"48px",width:"auto"}}/><div><p className={styles.eyebrow}>Directory</p><h1>Athletes</h1></div></div><Link className={styles.account} href="/dashboard">Back to dashboard</Link></header><nav className={styles.nav} aria-label="Primary navigation"><Link href="/dashboard">Dashboard</Link><Link href="/athletes" aria-current="page">Athletes</Link><Link href="/assessments">Assessments</Link><Link href="/analytics">Analytics</Link><Link href="/event-plans">Event plans</Link></nav><main className={styles.main}><section className={styles.panel}><div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registration</p><h2>Add athlete</h2></div></div><AthleteForm catalog={catalog} /></section><section className={styles.panel}><div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registered athletes</p><h2>All athletes</h2></div><strong>{athletes.length} records</strong></div><div className={styles.tableWrap}><table><thead><tr><th>Code</th><th>Athlete</th><th>Sport / event</th><th>School</th><th>Coach</th><th>Status</th></tr></thead><tbody>{athletes.map((athlete) => <tr key={athlete.id}><td>{athlete.athleteCode}</td><td><strong>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</strong><small>{athlete.gender}</small></td><td>{athlete.sport.sportName}<small>{athlete.event?.eventName || "No event"}</small></td><td>{athlete.school?.schoolName || "Unassigned"}</td><td>{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td><td>{athlete.status}</td></tr>)}</tbody></table></div></section></main></div></>;
+export default function Athletes({ athletes, catalog, page, totalPages, total }) {
+  return <><Head><title>Athletes | Cauayan Athlete Performance</title></Head><div className={styles.app}><header className={styles.header}><div style={{display:"flex",alignItems:"center",gap:"16px"}}><img src="/cauayan logo.png" alt="Cauayan City" className="logo" style={{height:"48px",width:"auto"}}/><div><p className={styles.eyebrow}>Directory</p><h1>Athletes</h1></div></div><Link className={styles.account} href="/dashboard">Back to dashboard</Link></header><nav className={styles.nav} aria-label="Primary navigation"><Link href="/dashboard">Dashboard</Link><Link href="/athletes" aria-current="page">Athletes</Link><Link href="/assessments">Assessments</Link><Link href="/analytics">Analytics</Link><Link href="/event-plans">Event plans</Link></nav><main className={styles.main}><section className={styles.panel}><div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registration</p><h2>Add athlete</h2></div></div><AthleteForm catalog={catalog} /></section><section className={styles.panel}><div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registered athletes</p><h2>All athletes</h2></div><strong>{total} records</strong></div><div className={styles.tableWrap}><table><thead><tr><th>Code</th><th>Athlete</th><th>Sport / event</th><th>School</th><th>Coach</th><th>Status</th></tr></thead><tbody>{athletes.map((athlete) => <tr key={athlete.id}><td>{athlete.athleteCode}</td><td><strong>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</strong><small>{athlete.gender}</small></td><td>{athlete.sport.sportName}<small>{athlete.event?.eventName || "No event"}</small></td><td>{athlete.school?.schoolName || "Unassigned"}</td><td>{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td><td>{athlete.status}</td></tr>)}</tbody></table></div><Pagination page={page} totalPages={totalPages} /></section></main></div></>;
 }
 
 function AthleteForm({ catalog }) {

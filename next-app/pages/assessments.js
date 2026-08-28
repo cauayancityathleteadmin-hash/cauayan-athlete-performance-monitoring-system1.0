@@ -3,20 +3,24 @@ import Link from "next/link";
 import React from "react";
 import { getSession } from "next-auth/react";
 import { prisma } from "../lib/prisma";
+import { paginatePrisma } from "../lib/pagination";
+import Pagination from "../components/Pagination";
 import styles from "../styles/Dashboard.module.css";
 
 export async function getServerSideProps(context) {
   const session = await getSession(context);
   if (!session) return { redirect: { destination: "/login", permanent: false } };
-  const [assessments, athletes, metrics] = await Promise.all([
-    prisma.assessment.findMany({ orderBy: { assessmentDate: "desc" }, include: { athlete: true, recorder: { select: { email: true } }, results: { include: { metric: true } } } }),
+  const page = Number(context.query.page) || 1;
+  const [assessmentResult, athletes, metrics] = await Promise.all([
+    paginatePrisma(prisma.assessment, page, { orderBy: { assessmentDate: "desc" }, include: { athlete: true, recorder: { select: { email: true } }, results: { include: { metric: true } } } }),
     prisma.athlete.findMany({ where: { status: "active" }, select: { id: true, athleteCode: true, firstName: true, lastName: true, eventId: true, coach: { select: { userId: true } } }, orderBy: { lastName: "asc" } }),
     prisma.performanceMetric.findMany({ where: { status: "active" }, select: { id: true, eventId: true, metricName: true, dataType: true, isRequired: true }, orderBy: { metricName: "asc" } }),
   ]);
-  return { props: { session, catalog: { athletes, metrics }, assessments: assessments.map((item) => ({ ...item, assessmentDate: item.assessmentDate.toISOString(), createdAt: item.createdAt.toISOString(), results: item.results.map((result) => ({ ...result, valueDecimal: result.valueDecimal?.toString() || null })) })) } };
+  const assessments = assessmentResult.items.map((item) => ({ ...item, assessmentDate: item.assessmentDate.toISOString(), createdAt: item.createdAt.toISOString(), results: item.results.map((result) => ({ ...result, valueDecimal: result.valueDecimal?.toString() || null })) }));
+  return { props: { session, catalog: { athletes, metrics }, assessments, page: assessmentResult.page, totalPages: assessmentResult.totalPages, total: assessmentResult.total } };
 }
 
-export default function Assessments({ assessments, catalog, session }) {
+export default function Assessments({ assessments, catalog, session, page, totalPages, total }) {
   return (
     <>
       <Head>
@@ -54,7 +58,7 @@ export default function Assessments({ assessments, catalog, session }) {
                 <p className={styles.eyebrow}>Recorded measurements</p>
                 <h2>Assessment history</h2>
               </div>
-              <strong>{assessments.length} records</strong>
+              <strong>{total} records</strong>
             </div>
             <div className={styles.tableWrap}>
               <table>
@@ -83,6 +87,7 @@ export default function Assessments({ assessments, catalog, session }) {
                 </tbody>
               </table>
             </div>
+            <Pagination page={page} totalPages={totalPages} />
           </section>
         </main>
       </div>

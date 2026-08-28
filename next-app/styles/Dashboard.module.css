@@ -94,6 +94,27 @@
   color: var(--accent-hover);
 }
 
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 16px;
+}
+
+.pagination span {
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.pagination a {
+  text-decoration: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .dangerButton,
 .danger {
   background: transparent;
