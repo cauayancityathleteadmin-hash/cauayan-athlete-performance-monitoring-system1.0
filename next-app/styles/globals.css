@@ -7,8 +7,8 @@
   --accent-hover: #5eead4;
   --muted: #86efac;
   --danger: #f87171;
-  --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-heading: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font: "Trebuchet MS", "Segoe UI", sans-serif;
+  --font-heading: "Trebuchet MS", "Segoe UI", sans-serif;
   --max-width: 1280px;
   --header-height: 80px;
 }
@@ -33,13 +33,13 @@ body {
   min-height: 100vh;
   color: var(--foreground);
   background-color: var(--background);
-  background-image: linear-gradient(rgba(4, 31, 24, .72), rgba(4, 31, 24, .72)), url("/cauayan_city_map.png");
+  background-image: linear-gradient(rgba(4, 31, 24, .28), rgba(4, 31, 24, .28)), url("/cauayan_city_map.png");
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
   background-repeat: no-repeat;
   font-family: var(--font);
-  line-height: 1.7;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-size: 16px;
@@ -76,52 +76,43 @@ h1, h2, h3, h4, h5, h6 {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  width: min(100% - clamp(24px, 5vw, 80px), 560px);
+  width: min(100% - 32px, 420px);
   margin: auto;
-  padding: clamp(24px, 4vw, 56px) clamp(20px, 4vw, 48px);
-  background: rgba(6, 32, 25, .72);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(26, 92, 74, .9);
-  border-radius: 18px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, .5);
+  padding: 40px;
+  background: rgba(10, 50, 40, .93);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, .5);
 }
 
 @media (max-width: 480px) {
   .login-page {
-    padding: 24px 18px;
-    width: min(100% - 16px, 560px);
-  }
-}
-
-@media (min-width: 1280px) {
-  .login-page {
-    width: min(100% - 96px, 600px);
+    padding: 28px 20px;
+    width: calc(100% - 32px);
   }
 }
 
 .login-page .logo {
   width: auto;
-  height: 88px;
+  height: 84px;
   max-width: 100%;
   object-fit: contain;
-  margin-bottom: 12px;
+  margin: 0 auto 14px;
   filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
 }
 
 @media (max-width: 480px) {
   .login-page .logo {
-    height: 70px;
+    height: 64px;
   }
 }
 
 .login-page h1 {
   margin-bottom: 8px;
-  font-size: clamp(26px, 5vw, 34px);
+  font-size: 25px;
   text-align: center;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, .7);
+  font-weight: 700;
+  color: var(--foreground);
 }
 
 .login-page form {
@@ -133,23 +124,22 @@ h1, h2, h3, h4, h5, h6 {
 
 .login-page label {
   color: var(--muted);
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, .6);
 }
 
 .login-page input,
 .login-page button,
 .login-page select {
   width: 100%;
-  padding: 14px 16px;
+  padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 6px;
   font: inherit;
-  font-size: 16px;
+  font-size: 15px;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -164,9 +154,12 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .login-page.register-box {
-  width: min(100% - clamp(24px, 5vw, 96px), 1280px);
-  max-width: 92vw;
-  background: rgba(6, 32, 25, .72);
+  width: min(100% - 32px, 760px);
+  background: rgba(10, 50, 40, .93);
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 32px;
+  overflow-y: auto;
 }
 
 .login-page .register-fields {
@@ -192,12 +185,12 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .login-page button {
-  margin-top: 8px;
+  margin-top: 10px;
   background: var(--accent);
   color: #041f18;
   cursor: pointer;
   font-weight: 700;
-  font-size: 16px;
+  font-size: 14px;
   transition: background 0.2s, transform 0.1s;
 }
 
@@ -212,8 +205,8 @@ h1, h2, h3, h4, h5, h6 {
 .login-page button:disabled { opacity: .65; cursor: wait; }
 .login-page [role="alert"] { color: var(--danger); font-size: 14px; }
 .login-page [role="status"] { color: var(--accent); font-size: 14px; }
-.auth-kicker { margin: 0; color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; text-shadow: 0 1px 3px rgba(0, 0, 0, .7); }
-.auth-subtitle { margin: 0 0 20px; color: var(--muted); font-size: 16px; text-align: center; text-shadow: 0 1px 3px rgba(0, 0, 0, .7); }
+.auth-kicker { margin: 0; color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.auth-subtitle { margin: 0 0 20px; color: var(--muted); font-size: 13px; text-align: center; }
 .auth-register { margin: 20px 0 0; text-align: center; font-size: 15px; }
 .login-page fieldset { display: grid; gap: 10px; margin: 8px 0; padding: 14px; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); }
 .login-page fieldset label { font-weight: 400; font-size: 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
