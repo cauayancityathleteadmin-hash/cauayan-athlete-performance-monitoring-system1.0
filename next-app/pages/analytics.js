@@ -9,10 +9,16 @@ import styles from "../styles/Dashboard.module.css";
 export async function getServerSideProps(context) {
   const session = await getSession(context);
   if (!session) return { redirect: { destination: "/login", permanent: false } };
+  const isAdmin = session.user.role === "admin";
+  const athleteWhere = isAdmin ? {} : { coach: { userId: Number(session.user.id) } };
+  const resultWhere = isAdmin ? { valueDecimal: { not: null } } : {
+    valueDecimal: { not: null },
+    assessment: { athlete: { coach: { userId: Number(session.user.id) } } },
+  };
   const [bySport, byStatus, results] = await Promise.all([
-    prisma.athlete.groupBy({ by: ["sportId"], _count: { _all: true } }),
-    prisma.athlete.groupBy({ by: ["status"], _count: { _all: true } }),
-    prisma.assessmentResult.findMany({ where: { valueDecimal: { not: null } }, include: { metric: { include: { event: { include: { sport: true } } } }, assessment: { include: { athlete: true } } } }),
+    prisma.athlete.groupBy({ by: ["sportId"], where: athleteWhere, _count: { _all: true } }),
+    prisma.athlete.groupBy({ by: ["status"], where: athleteWhere, _count: { _all: true } }),
+    prisma.assessmentResult.findMany({ where: resultWhere, include: { metric: { include: { event: { include: { sport: true } } } }, assessment: { include: { athlete: true } } } }),
   ]);
   const sports = await prisma.sport.findMany({ where: { id: { in: bySport.map((item) => item.sportId) } }, select: { id: true, sportName: true } });
   const averages = {};

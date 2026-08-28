@@ -9,12 +9,17 @@ const NAV_LINKS = [
   { href: "/athletes", label: "Athletes" },
   { href: "/assessments", label: "Assessments" },
   { href: "/analytics", label: "Analytics" },
-  { href: "/event-plans", label: "Event plans" },
+  { href: "/event-plans", label: "Sports event plans" },
+  { href: "/reports", label: "Athlete reports" },
 ];
 
 const ADMIN_LINKS = [
-  { href: "/admin", label: "Admin home" },
+  { href: "/admin", label: "Admin Dashboard" },
   { href: "/admin/coaches", label: "Coaches" },
+  { href: "/admin/catalog", label: "Sports & Events" },
+  { href: "/admin/metrics", label: "Performance Metrics" },
+  { href: "/admin/audit-logs", label: "Audit Logs" },
+  { href: "/admin/backup", label: "Database Backup" },
 ];
 
 export default function AppShell({

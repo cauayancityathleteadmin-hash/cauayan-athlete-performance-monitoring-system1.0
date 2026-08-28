@@ -864,3 +864,377 @@
     padding: 20px;
   }
 }
+
+/* ===== Old-system page-title action bar ===== */
+.pageTitle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.pageTitle h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.pageTitle .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+/* ===== Profile / account header (old athlete-profile pattern) ===== */
+.profileHeader {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #041f18;
+  font-weight: 800;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.profileMeta small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ===== Section heading (h2 + subtitle + count badge) ===== */
+.sectionHeading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.sectionHeading h2 {
+  margin: 0;
+}
+
+.sectionHeading .small {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.countBadge {
+  display: inline-block;
+  padding: 0.2rem 0.7rem;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ===== Toolbars (search/sort) ===== */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+
+.toolbar label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.toolbar input,
+.toolbar select {
+  border: 1px solid var(--border);
+  background: #06261e;
+  color: var(--foreground);
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  border-radius: 8px;
+}
+
+.toolbar input[type="text"] {
+  min-width: 220px;
+}
+
+.toolbar input:focus,
+.toolbar select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(45, 212, 168, 0.2);
+}
+
+/* ===== Label/value info table (profile details) ===== */
+.infoList {
+  max-width: 560px;
+}
+
+.infoList > div {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(26, 92, 74, 0.5);
+}
+
+.infoList dt {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.infoList dd {
+  color: var(--foreground);
+  font-size: 14px;
+}
+
+/* ===== Checklist (multi-select athletes / features) ===== */
+.checkboxList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(6, 38, 30, 0.5);
+}
+
+.checkboxList label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--foreground);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.checkboxList input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* ===== Alert / callout box ===== */
+.alertBox {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: rgba(6, 38, 30, 0.5);
+  margin-bottom: 16px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.alertBox.danger {
+  border-left-color: var(--danger);
+  color: var(--danger);
+}
+
+.alertBox.warning {
+  border-left-color: var(--warning);
+  color: var(--warning);
+}
+
+/* ===== Stacked form (old-system form-grid.freeform) ===== */
+.formStack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 560px;
+}
+
+.formStack label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.formStack input,
+.formStack select,
+.formStack textarea {
+  border: 1px solid var(--border);
+  background: #06261e;
+  color: var(--foreground);
+  padding: 11px 13px;
+  font: inherit;
+  border-radius: 8px;
+}
+
+.formStack textarea {
+  resize: vertical;
+}
+
+.stackedActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+/* ===== Report sheet (official printable report) ===== */
+.reportSheet {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(6, 38, 30, 0.55);
+  padding: 18px;
+  margin: 14px 0;
+  page-break-inside: avoid;
+}
+
+.reportKicker {
+  margin: 0 0 4px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.reportSummary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.reportSummary > div {
+  border: 1px solid rgba(26, 92, 74, 0.6);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(10, 50, 40, 0.6);
+}
+
+.reportSummary dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.reportSummary dd {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.reportAssessment {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: rgba(10, 50, 40, 0.5);
+}
+
+.reportCertification {
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 13px;
+  font-style: italic;
+}
+
+@media print {
+  .reportSheet {
+    background: #fff;
+    color: #111;
+    border-color: #333;
+  }
+  .reportSheet * {
+    color: #111;
+    background: transparent !important;
+  }
+}
+
+/* ===== Account / profile tab row ===== */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.tabBtn {
+  border: 1px solid rgba(45, 212, 168, 0.35);
+  background: rgba(45, 212, 168, 0.12);
+  color: var(--accent);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tabBtn.active {
+  background: var(--accent);
+  color: #041f18;
+  border-color: var(--accent);
+}
+
+.tabBtn.dangerTab {
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(248, 113, 113, 0.12);
+  color: var(--danger);
+}
+
+.tabBtn.dangerTab.active {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+.fieldControl {
+  border: 1px solid var(--border);
+  background: #06261e;
+  color: var(--foreground);
+  padding: 13px 14px;
+  font: inherit;
+  border-radius: 8px;
+  width: 100%;
+}
+
+.dangerBox {
+  padding: 16px;
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  margin-bottom: 14px;
+}
+
+.dangerBox h3 {
+  margin: 0 0 8px;
+  color: var(--danger);
+}
+
+.dangerBox p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}

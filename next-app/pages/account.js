@@ -46,6 +46,8 @@ export default function Account({ user, sports, session }) {
 
   const isCoach = user.role === "coach";
   const coach = user.coach;
+  const initials = ((coach?.firstName?.[0] || "") + (coach?.lastName?.[0] || "")).toUpperCase() || (user.email ? user.email[0].toUpperCase() : "A");
+  const profileName = coach ? [coach.firstName, coach.middleName, coach.lastName].filter(Boolean).join(" ") : user.name || user.email;
 
   const handlePasswordChange = (name, value) => {
     setPasswordData((prev) => ({ ...prev, [name]: value }));
@@ -143,231 +145,77 @@ export default function Account({ user, sports, session }) {
         <title>My Account | Cauayan Athlete Performance</title>
       </Head>
       <AppShell session={session} isAdmin={session?.user?.role === "admin"} eyebrow="Cauayan City" title="My Account" active="/account">
-          <div className={styles.grid}>
-            <section className={styles.panel}>
-              <div className={styles.panelHeader}>
-                <div>
-                  <p className={styles.eyebrow}>Settings</p>
-                  <h2>Account Settings</h2>
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: "12px", marginBottom: "24px", flexWrap: "wrap" }}>
-                <button
-                  className={`${styles.secondary} ${tab === "profile" ? styles.primary : ""}`}
-                  onClick={() => setTab("profile")}
-                  style={{
-                    background: tab === "profile" ? "var(--accent)" : "rgba(45, 212, 168, .16)",
-                    color: tab === "profile" ? "#041f18" : "var(--accent)",
-                  }}
-                >
-                  Profile
-                </button>
-                <button
-                  className={`${styles.secondary} ${tab === "password" ? styles.primary : ""}`}
-                  onClick={() => setTab("password")}
-                  style={{
-                    background: tab === "password" ? "var(--accent)" : "rgba(45, 212, 168, .16)",
-                    color: tab === "password" ? "#041f18" : "var(--accent)",
-                  }}
-                >
-                  Password
-                </button>
-                <button
-                  className={`${styles.secondary} ${tab === "delete" ? styles.primary : ""}`}
-                  onClick={() => setTab("delete")}
-                  style={{
-                    background: tab === "delete" ? "var(--danger)" : "rgba(248, 113, 113, .16)",
-                    color: tab === "delete" ? "#fff" : "var(--danger)",
-                    border: tab === "delete" ? "none" : "1px solid var(--danger)",
-                  }}
-                >
-                  Delete Account
-                </button>
-              </div>
-
-              {message && (
-                <p
-                  role="status"
-                  style={{
-                    color: message.startsWith("Password") || message.startsWith("Profile") || message.startsWith("Account") ? "#365448" : "#8b3a3a",
-                    marginBottom: "14px",
-                    padding: "12px",
-                    background: message.startsWith("Password") || message.startsWith("Profile") || message.startsWith("Account") ? "rgba(45, 212, 168, .16)" : "rgba(248, 113, 113, .16)",
-                    borderRadius: "6px",
-                    border: message.startsWith("Password") || message.startsWith("Profile") || message.startsWith("Account") ? "1px solid var(--accent)" : "1px solid var(--danger)",
-                  }}
-                >
-                  {message}
-                </p>
-              )}
-
-              {tab === "profile" && (
-                <form onSubmit={submitProfile} className={styles.formGrid}>
-                  <label>First name<input name="firstName" required maxLength="100" defaultValue={coach?.firstName || ""} /></label>
-                  <label>Middle name<input name="middleName" maxLength="100" defaultValue={coach?.middleName || ""} /></label>
-                  <label>Last name<input name="lastName" required maxLength="100" defaultValue={coach?.lastName || ""} /></label>
-                  <label>Email<input name="email" type="email" required maxLength="191" defaultValue={user.email} /></label>
-                  <label>Birthdate<input name="birthdate" type="date" required defaultValue={coach?.birthdate?.split("T")[0] || ""} /></label>
-{isCoach && (
-                      <>
-                        <label>
-                          School
-                          <input
-                            name="school"
-                            defaultValue={coach?.school?.schoolName || ""}
-                            required
-                            maxLength="191"
-                            placeholder="Enter your school name"
-                          />
-                        </label>
-                        <fieldset className={styles.fullField} style={{ border: "1px solid var(--border)", padding: "14px", borderRadius: "6px" }}>
-                        <legend style={{ color: "var(--muted)", fontSize: "13px", fontWeight: 700, marginBottom: "8px" }}>Sports coached</legend>
-                        {sports.map((sport) => (
-                          <label key={sport.id} style={{ display: "flex", alignItems: "center", gap: "8px", margin: "6px 0" }}>
-                            <input type="checkbox" name="sportIds" value={sport.id} defaultChecked={coach?.sports?.some((cs) => cs.sportId === sport.id)} />
-                            <span>{sport.sportName}</span>
-                          </label>
-                        ))}
-                      </fieldset>
-                    </>
-                  )}
-                  <button className={styles.primary} disabled={busy} style={{ justifySelf: "start" }}>
-                    {busy ? "Saving..." : "Save changes"}
-                  </button>
-                </form>
-              )}
-
-              {tab === "password" && (
-                <form onSubmit={submitPassword} style={{ display: "flex", flexDirection: "column", gap: "14px", maxWidth: "420px" }}>
-                  <div style={{ position: "relative" }}>
-                    <label htmlFor="currentPassword" style={{ color: "var(--muted)", fontSize: "13px", fontWeight: 700, display: "block", marginBottom: "6px" }}>
-                      Current password
-                    </label>
-                    <input
-                      id="currentPassword"
-                      name="currentPassword"
-                      type="password"
-                      value={passwordData.currentPassword}
-                      onChange={(e) => handlePasswordChange("currentPassword", e.target.value)}
-                      required
-                      autoComplete="current-password"
-                      style={{
-                        width: "100%",
-                        padding: "14px 16px",
-                        border: "1px solid var(--border)",
-                        borderRadius: "8px",
-                        background: "#06261e",
-                        color: "var(--foreground)",
-                        font: "inherit",
-                        fontSize: "16px",
-                      }}
-                    />
-                  </div>
-                  <PasswordInput
-                    name="newPassword"
-                    label="New password (min 12 characters)"
-                    value={passwordData.newPassword}
-                    onChange={handlePasswordChange}
-                    required
-                    minLength={12}
-                    maxLength={200}
-                    autoComplete="new-password"
-                    showStrength={true}
-                    placeholder="At least 12 characters"
-                  />
-                  <div style={{ position: "relative" }}>
-                    <label htmlFor="confirmPassword" style={{ color: "var(--muted)", fontSize: "13px", fontWeight: 700, display: "block", marginBottom: "6px" }}>
-                      Confirm new password
-                    </label>
-                    <input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type="password"
-                      value={passwordData.confirmPassword}
-                      onChange={(e) => handlePasswordChange("confirmPassword", e.target.value)}
-                      required
-                      autoComplete="new-password"
-                      minLength={12}
-                      maxLength={200}
-                      style={{
-                        width: "100%",
-                        padding: "14px 16px",
-                        border: "1px solid var(--border)",
-                        borderRadius: "8px",
-                        background: "#06261e",
-                        color: "var(--foreground)",
-                        font: "inherit",
-                        fontSize: "16px",
-                      }}
-                    />
-                  </div>
-                  <button disabled={busy} className={styles.primary} style={{ alignSelf: "flex-start" }}>
-                    {busy ? "Updating..." : "Update password"}
-                  </button>
-                </form>
-              )}
-
-              {tab === "delete" && (
-                <form onSubmit={handleDeleteAccount} style={{ display: "flex", flexDirection: "column", gap: "14px", maxWidth: "420px" }}>
-                  <div style={{ padding: "16px", background: "rgba(248, 113, 113, .1)", border: "1px solid var(--danger)", borderRadius: "8px" }}>
-                    <h3 style={{ margin: "0 0 8px", color: "var(--danger)" }}>Delete your account</h3>
-                    <p style={{ margin: 0, color: "var(--muted)", fontSize: "14px" }}>
-                      This action is irreversible. All your data will be permanently removed.
-                      Type <strong>{'"'}DELETE{'"'}</strong> to confirm.
-                    </p>
-                  </div>
-                  <div style={{ position: "relative" }}>
-                    <label htmlFor="deletePassword" style={{ color: "var(--muted)", fontSize: "13px", fontWeight: 700, display: "block", marginBottom: "6px" }}>
-                      Password
-                    </label>
-                    <input
-                      id="deletePassword"
-                      name="password"
-                      type="password"
-                      required
-                      autoComplete="current-password"
-                      style={{
-                        width: "100%",
-                        padding: "14px 16px",
-                        border: "1px solid var(--border)",
-                        borderRadius: "8px",
-                        background: "#06261e",
-                        color: "var(--foreground)",
-                        font: "inherit",
-                        fontSize: "16px",
-                      }}
-                    />
-                  </div>
-                  <div style={{ position: "relative" }}>
-                    <label htmlFor="deleteConfirm" style={{ color: "var(--muted)", fontSize: "13px", fontWeight: 700, display: "block", marginBottom: "6px" }}>
-Type {"'"}DELETE{"'"} to confirm
-                    </label>
-                    <input
-                      id="deleteConfirm"
-                      name="confirm"
-                      type="text"
-                      value={confirmDelete}
-                      onChange={(e) => setConfirmDelete(e.target.value)}
-                      required
-                      style={{
-                        width: "100%",
-                        padding: "14px 16px",
-                        border: "1px solid var(--border)",
-                        borderRadius: "8px",
-                        background: "#06261e",
-                        color: "var(--foreground)",
-                        font: "inherit",
-                        fontSize: "16px",
-                      }}
-                    />
-                  </div>
-                  <button disabled={busy} className={styles.danger} style={{ alignSelf: "flex-start" }}>
-                    {busy ? "Deleting..." : "Delete my account"}
-                  </button>
-                </form>
-              )}
-            </section>
+        <div className={styles.profileHeader}>
+          <span className={styles.avatar}>{initials}</span>
+          <div className={styles.profileMeta}>
+            <h2>{profileName}</h2>
+            <small>{user.email} · {user.role}</small>
           </div>
+        </div>
+
+        <div className={styles.tabs}>
+          <button type="button" className={`${styles.tabBtn} ${tab === "profile" ? styles.active : ""}`} onClick={() => setTab("profile")}>Profile</button>
+          <button type="button" className={`${styles.tabBtn} ${tab === "password" ? styles.active : ""}`} onClick={() => setTab("password")}>Password</button>
+          <button type="button" className={`${styles.tabBtn} ${styles.dangerTab} ${tab === "delete" ? styles.active : ""}`} onClick={() => setTab("delete")}>Delete Account</button>
+        </div>
+
+        {message && <p role="status" className={message.startsWith("Password") || message.startsWith("Profile") || message.startsWith("Account") ? `${styles.formSuccess} ${styles.fullField}` : `${styles.formError} ${styles.fullField}`}>{message}</p>}
+
+        {tab === "profile" && (
+          <section className={styles.panel}>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Settings</p><h2>Profile information</h2></div></div>
+            <dl className={styles.infoList}>
+              <div><dt>Role</dt><dd>{user.role}</dd></div>
+              {isCoach && <><div><dt>Coach code</dt><dd>{coach.coachCode}</dd></div><div><dt>School</dt><dd>{coach.school?.schoolName || "—"}</dd></div><div><dt>Sports coached</dt><dd>{coach.sports.map((cs) => cs.sport.sportName).join(", ") || "—"}</dd></div></>}
+            </dl>
+            <form onSubmit={submitProfile} className={styles.formGrid} style={{ marginTop: 16 }}>
+              <label>First name<input name="firstName" className={styles.fieldControl} required maxLength="100" defaultValue={coach?.firstName || ""} /></label>
+              <label>Middle name<input name="middleName" className={styles.fieldControl} maxLength="100" defaultValue={coach?.middleName || ""} /></label>
+              <label>Last name<input name="lastName" className={styles.fieldControl} required maxLength="100" defaultValue={coach?.lastName || ""} /></label>
+              <label>Email<input name="email" className={styles.fieldControl} type="email" required maxLength="191" defaultValue={user.email} /></label>
+              <label>Birthdate<input name="birthdate" className={styles.fieldControl} type="date" required defaultValue={coach?.birthdate?.split("T")[0] || ""} /></label>
+              {isCoach && (
+                <>
+                  <label>School<input name="school" className={styles.fieldControl} defaultValue={coach?.school?.schoolName || ""} required maxLength="191" placeholder="Enter your school name" /></label>
+                  <fieldset className={styles.fullField} style={{ border: "1px solid var(--border)", padding: "14px", borderRadius: "6px" }}>
+                    <legend style={{ color: "var(--muted)", fontSize: "13px", fontWeight: 700, marginBottom: "8px" }}>Sports coached</legend>
+                    <div className={styles.checkboxList}>{sports.map((sport) => (
+                      <label key={sport.id}><input type="checkbox" name="sportIds" value={sport.id} defaultChecked={coach?.sports?.some((cs) => cs.sportId === sport.id)} /><span>{sport.sportName}</span></label>
+                    ))}</div>
+                  </fieldset>
+                </>
+              )}
+              <button className={styles.primary} disabled={busy} style={{ justifySelf: "start" }}>{busy ? "Saving..." : "Save changes"}</button>
+            </form>
+          </section>
+        )}
+
+        {tab === "password" && (
+          <section className={styles.panel}>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Security</p><h2>Change password</h2></div></div>
+            <form onSubmit={submitPassword} className={styles.formStack}>
+              <label>Current password<input name="currentPassword" className={styles.fieldControl} type="password" value={passwordData.currentPassword} onChange={(e) => handlePasswordChange("currentPassword", e.target.value)} required autoComplete="current-password" /></label>
+              <PasswordInput name="newPassword" label="New password (min 12 characters)" value={passwordData.newPassword} onChange={handlePasswordChange} required minLength={12} maxLength={200} autoComplete="new-password" showStrength={true} placeholder="At least 12 characters" />
+              <label>Confirm new password<input name="confirmPassword" className={styles.fieldControl} type="password" value={passwordData.confirmPassword} onChange={(e) => handlePasswordChange("confirmPassword", e.target.value)} required autoComplete="new-password" minLength={12} maxLength={200} /></label>
+              <div className={styles.stackedActions}><button disabled={busy} className={styles.primary}>{busy ? "Updating..." : "Update password"}</button></div>
+            </form>
+          </section>
+        )}
+
+        {tab === "delete" && (
+          <section className={styles.panel}>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Danger zone</p><h2>Delete account</h2></div></div>
+            <div className={styles.dangerBox}>
+              <h3>Delete your account</h3>
+              <p>This action is irreversible. All your data will be permanently removed. Type <strong>{'"'}DELETE{'"'}</strong> to confirm.</p>
+            </div>
+            <form onSubmit={handleDeleteAccount} className={styles.formStack}>
+              <label>Password<input name="password" className={styles.fieldControl} type="password" required autoComplete="current-password" /></label>
+              <label>Type {'"'}{"DELETE"}{'"'} to confirm<input name="confirm" className={styles.fieldControl} type="text" value={confirmDelete} onChange={(e) => setConfirmDelete(e.target.value)} required /></label>
+              <div className={styles.stackedActions}><button disabled={busy} className={styles.danger}>{busy ? "Deleting..." : "Delete my account"}</button></div>
+            </form>
+          </section>
+        )}
       </AppShell>
     </>
   );

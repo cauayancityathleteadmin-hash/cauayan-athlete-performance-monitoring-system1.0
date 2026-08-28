@@ -34,27 +34,39 @@ export default function Admin({ stats, session }) {
           <section className={styles.grid}>
             <div className={styles.panel}>
               <p className={styles.eyebrow}>People management</p>
-              <h2>Coaches and athletes</h2>
-              <p>Manage team coaches, assign athletes, and control account access.</p>
-              <Link className={styles.secondary} href="/admin/coaches">
-                Manage coaches
-              </Link>
+              <h2>Coaches</h2>
+              <p>Approve coaches, inspect their files, and control account access.</p>
+              <Link className={styles.secondary} href="/admin/coaches">Manage coaches</Link>
             </div>
             <div className={styles.panel}>
               <p className={styles.eyebrow}>System catalog</p>
-              <h2>Sports and events</h2>
-              <p>Define sports, events, and performance metrics for your program.</p>
-              <Link className={styles.secondary} href="/athletes">
-                View catalog
-              </Link>
+              <h2>Sports &amp; Events</h2>
+              <p>Maintain the sports and event taxonomy used across the system.</p>
+              <Link className={styles.secondary} href="/admin/catalog">Manage catalog</Link>
+            </div>
+            <div className={styles.panel}>
+              <p className={styles.eyebrow}>Measurements</p>
+              <h2>Performance metrics</h2>
+              <p>Configure the quantifiable metrics that define each event.</p>
+              <Link className={styles.secondary} href="/admin/metrics">Configure metrics</Link>
+            </div>
+            <div className={styles.panel}>
+              <p className={styles.eyebrow}>Analytics</p>
+              <h2>Evidence at a glance</h2>
+              <p>Review population, status and trends in athlete data.</p>
+              <Link className={styles.secondary} href="/analytics">Open analytics</Link>
             </div>
             <div className={styles.panel}>
               <p className={styles.eyebrow}>Data governance</p>
               <h2>Audit trail</h2>
               <p>{stats.logs} meaningful actions recorded in the database.</p>
-              <Link className={styles.secondary} href="/dashboard">
-                Review logs
-              </Link>
+              <Link className={styles.secondary} href="/admin/audit-logs">Review logs</Link>
+            </div>
+            <div className={styles.panel}>
+              <p className={styles.eyebrow}>Maintenance</p>
+              <h2>Database backup</h2>
+              <p>Record backup requests and plan off-site snapshots.</p>
+              <Link className={styles.secondary} href="/admin/backup">Backup</Link>
             </div>
           </section>
       </AppShell>

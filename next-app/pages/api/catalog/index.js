@@ -50,5 +50,40 @@ export default async function handler(req, res) {
       throw error;
     }
   }
+  if (kind === "metric") {
+    const eventId = validId(req.body?.eventId);
+    const metricName = text(req.body?.metricName, 150, true);
+    if (!eventId || !metricName) return res.status(400).json({ error: "Event and metric name are required." });
+    const dataType = ["decimal", "integer", "text"].includes(req.body?.dataType) ? req.body.dataType : "decimal";
+    const betterDirection = ["higher", "lower", "neutral"].includes(req.body?.betterDirection) ? req.body.betterDirection : "neutral";
+    const unit = text(req.body?.unit, 50) || null;
+    const decimalPlaces = Math.max(0, Math.min(6, Number(req.body?.decimalPlaces) || 0));
+    const isRequired = req.body?.isRequired === true || req.body?.isRequired === "true";
+    const minimumValue = req.body?.minimumValue !== "" && req.body?.minimumValue !== undefined && req.body?.minimumValue !== null ? Number(req.body.minimumValue) : null;
+    const maximumValue = req.body?.maximumValue !== "" && req.body?.maximumValue !== undefined && req.body?.maximumValue !== null ? Number(req.body.maximumValue) : null;
+    const event = await prisma.event.findUnique({ where: { id: eventId }, select: { id: true } });
+    if (!event) return res.status(400).json({ error: "The selected event is invalid." });
+    try {
+      const metric = await prisma.performanceMetric.create({
+        data: {
+          eventId,
+          metricName,
+          unit,
+          dataType,
+          betterDirection,
+          decimalPlaces,
+          minimumValue: Number.isFinite(minimumValue) ? minimumValue : null,
+          maximumValue: Number.isFinite(maximumValue) ? maximumValue : null,
+          isRequired,
+          status: "active",
+        },
+      });
+      await prisma.auditLog.create({ data: { userId: Number(session.user.id), action: "create", entityType: "metric", entityId: metric.id, description: `Created performance metric ${metric.metricName}` } });
+      return res.status(201).json(metric);
+    } catch (error) {
+      if (error.code === "P2002") return res.status(409).json({ error: "That metric already exists for the event." });
+      throw error;
+    }
+  }
   return res.status(400).json({ error: "Unsupported catalog item." });
 }
