@@ -246,41 +246,127 @@
   font-weight: 700;
 }
 
-.account button,
+/* ===== Unified minimal button system (local-system styling) ===== */
+.btn,
 .primary,
-.secondary {
-  border: 0;
-  background: #cae47a;
-  color: #173f35;
-  padding: 12px 18px;
+.secondary,
+.danger,
+.dangerButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem 1.15rem;
+  font: inherit;
   font-weight: 700;
+  font-size: 0.9rem;
+  line-height: 1.2;
   cursor: pointer;
-  border-radius: 8px;
-  font-size: 14px;
-  transition: background 0.2s, transform 0.1s;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.18s, transform 0.1s, border-color 0.18s, color 0.18s, box-shadow 0.18s;
 }
 
-.account button:hover,
-.primary:hover,
-.secondary:hover {
+.btn,
+.primary {
+  background: var(--accent);
+  color: #041f18;
+}
+.btn:hover,
+.primary:hover {
   background: var(--accent-hover);
+  color: #041f18;
 }
 
-.account button:active,
-.primary:active,
-.secondary:active {
+.secondary {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+.secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(45, 212, 168, .08);
+}
+
+.danger,
+.dangerButton {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  cursor: pointer;
+}
+.danger:hover,
+.dangerButton:hover {
+  background: rgba(248, 113, 113, .12);
+  color: #fca5a5;
+}
+
+.btn:disabled,
+.primary:disabled,
+.secondary:disabled,
+.danger:disabled,
+.dangerButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn:active:not(:disabled),
+.primary:active:not(:disabled),
+.secondary:active:not(:disabled),
+.danger:active:not(:disabled),
+.dangerButton:active:not(:disabled) {
   transform: scale(0.98);
 }
 
-.secondary {
-  background: rgba(45, 212, 168, .16);
-  color: #2dd4a8;
-  border: 1px solid rgba(45, 212, 168, .3);
+/* Size variants */
+.btnSm,
+.btn--sm {
+  padding: 0.34rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  border-radius: 6px;
 }
 
-.secondary:hover {
-  background: rgba(45, 212, 168, .25);
-  color: var(--accent-hover);
+.btnLg,
+.btn--lg {
+  padding: 0.72rem 1.35rem;
+  font-size: 0.98rem;
+}
+
+.btnBlock,
+.btn--block {
+  width: 100%;
+}
+
+/* ===== Status badges (local-system pill style) ===== */
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.badgePending {
+  background: rgba(251, 191, 36, .18);
+  color: var(--warning);
+}
+.badgeRejected {
+  background: rgba(248, 113, 113, .18);
+  color: var(--danger);
+}
+.badgeActive {
+  background: rgba(52, 211, 153, .18);
+  color: var(--success);
+}
+.badgeMuted {
+  background: rgba(148, 163, 184, .16);
+  color: #94a3b8;
 }
 
 .pagination {
@@ -302,19 +388,6 @@
   border-radius: 6px;
   font-size: 13px;
   font-weight: 600;
-}
-
-.dangerButton,
-.danger {
-  background: transparent;
-  color: var(--danger);
-  border: 1px solid var(--danger);
-}
-
-.dangerButton:hover,
-.danger:hover {
-  background: rgba(248, 113, 113, .1);
-  color: #fca5a5;
 }
 
 .nav {

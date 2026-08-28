@@ -301,7 +301,7 @@ export default function Account({ user, sports, session }) {
                       }}
                     />
                   </div>
-                  <button disabled={busy} style={{ padding: "12px 16px", background: "var(--accent)", color: "#041f18", border: "none", borderRadius: "6px", fontWeight: 800, cursor: "pointer", font: "inherit", alignSelf: "flex-start" }}>
+                  <button disabled={busy} className={styles.primary} style={{ alignSelf: "flex-start" }}>
                     {busy ? "Updating..." : "Update password"}
                   </button>
                 </form>
@@ -361,7 +361,7 @@ Type {"'"}DELETE{"'"} to confirm
                       }}
                     />
                   </div>
-                  <button disabled={busy} style={{ padding: "12px 16px", background: "var(--danger)", color: "#fff", border: "none", borderRadius: "6px", fontWeight: 800, cursor: "pointer", font: "inherit", alignSelf: "flex-start" }}>
+                  <button disabled={busy} className={styles.danger} style={{ alignSelf: "flex-start" }}>
                     {busy ? "Deleting..." : "Delete my account"}
                   </button>
                 </form>

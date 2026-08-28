@@ -117,13 +117,13 @@ export default function AdminCoaches({ coaches, session }) {
                       <td>{coach.athletesCount}</td>
                       <td>
                         {coach.user.status === "active" ? (
-                          <span style={{color:"var(--accent)",fontWeight:700}}>Active</span>
+                          <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span>
                         ) : coach.user.status === "pending" ? (
-                          <span style={{color:"#fbbf24",fontWeight:700}}>Pending</span>
+                          <span className={`${styles.badge} ${styles.badgePending}`}>Pending</span>
                         ) : coach.user.status === "rejected" ? (
-                          <span style={{color:"var(--danger)",fontWeight:700}}>Rejected</span>
+                          <span className={`${styles.badge} ${styles.badgeRejected}`}>Rejected</span>
                         ) : (
-                          <span style={{color:"var(--muted)",fontWeight:700}}>Inactive</span>
+                          <span className={`${styles.badge} ${styles.badgeMuted}`}>Inactive</span>
                         )}
                         {coach.user.mustChangePassword && <small style={{display:"block",color:"#fbbf24",marginTop:"4px"}}>(Must change password)</small>}
                       </td>
@@ -132,11 +132,11 @@ export default function AdminCoaches({ coaches, session }) {
                       <td>
                         {coach.user.status === "pending" ? (
                           <>
-                            <button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} className={styles.primary} style={{padding:"8px 14px",fontSize:"13px",marginRight:"8px"}}>Approve</button>
-                            <button onClick={() => reviewCoach(coach.id, "rejected")} disabled={busy} className={styles.danger} style={{padding:"8px 14px",fontSize:"13px"}}>Reject</button>
+                            <button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`} style={{marginRight:"8px"}}>Approve</button>
+                            <button onClick={() => reviewCoach(coach.id, "rejected")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Reject</button>
                           </>
                         ) : (
-                          <button onClick={() => resetCoach(coach.id)} disabled={busy} className={styles.secondary} style={{padding:"8px 14px",fontSize:"13px"}}>Reset password</button>
+                          <button onClick={() => resetCoach(coach.id)} disabled={busy} className={`${styles.secondary} ${styles.btnSm}`}>Reset password</button>
                         )}
                       </td>
                     </tr>
