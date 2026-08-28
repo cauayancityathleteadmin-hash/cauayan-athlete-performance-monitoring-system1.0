@@ -66,17 +66,20 @@ export default function Login() {
             disabled={busy}
             style={{
               position: "absolute",
-              right: "12px",
+              right: "8px",
               top: "50%",
               transform: "translateY(-50%)",
               background: "transparent",
               border: "none",
               cursor: busy ? "not-allowed" : "pointer",
               color: busy ? "var(--muted)" : "var(--foreground)",
-              padding: "4px",
+              padding: "6px",
+              width: "40px",
+              height: "40px",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              borderRadius: "8px",
               opacity: busy ? 0.5 : 1,
             }}
             aria-label={showPassword ? "Hide password" : "Show password"}

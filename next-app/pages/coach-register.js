@@ -309,22 +309,22 @@ export default function CoachRegister({ sports }) {
               />
               {errors.school && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.school}</span>}
             </label>
-            <fieldset className="span-2" style={{ display: "grid", gap: "6px", margin: "4px 0", padding: "10px", border: "1px solid var(--border)", color: "var(--muted)", borderRadius: "8px" }}>
-              <legend style={{ fontSize: "13px", fontWeight: 700, marginBottom: "8px" }}>Sports coached</legend>
+            <fieldset className="span-2" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px", margin: "4px 0", padding: "16px", border: "1px solid var(--border)", color: "var(--muted)", borderRadius: "8px" }}>
+              <legend style={{ fontSize: "13px", fontWeight: 700, marginBottom: "8px", padding: "0 6px" }}>Sports coached</legend>
               {sports.map((sport) => (
-                <label key={sport.id} style={{ display: "flex", alignItems: "center", gap: "8px", margin: "6px 0", cursor: "pointer" }}>
+                <label key={sport.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 12px", background: "rgba(6, 38, 30, .55)", border: "1px solid var(--border)", borderRadius: "8px", cursor: "pointer", color: "var(--foreground)", transition: "border-color 0.2s, background 0.2s" }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.background = "rgba(6, 38, 30, .8)" }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "rgba(6, 38, 30, .55)" }}>
                   <input
                     type="checkbox"
                     name="sportIds"
                     value={sport.id}
                     checked={formData.sportIds.includes(sport.id)}
                     onChange={(e) => handleSportChange(sport.id, e.target.checked)}
-                    style={{ width: "18px", height: "18px", accentColor: "var(--accent)", flexShrink: 0 }}
+                    style={{ width: "18px", height: "18px", accentColor: "var(--accent)", flexShrink: 0, margin: 0 }}
                   />
-                  <span>{sport.sportName}</span>
+                  <span style={{ fontWeight: 600 }}>{sport.sportName}</span>
                 </label>
               ))}
-              {errors.sports && <span style={{ color: "var(--danger)", fontSize: "12px", marginTop: "4px" }}>{errors.sports}</span>}
+              {errors.sports && <span style={{ color: "var(--danger)", fontSize: "12px", marginTop: "4px", gridColumn: "1 / -1" }}>{errors.sports}</span>}
             </fieldset>
             <button type="submit" disabled={busy} className="span-2" style={{ marginTop: "10px" }}>
               Review registration
