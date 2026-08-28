@@ -335,7 +335,7 @@ export default function CoachRegister({ sports }) {
         )}
 
         {!reviewing && (
-          <p style={{ margin: "0 0 0" }}><Link href="/login">Back to sign in</Link></p>
+          <p className="auth-register" style={{ margin: "22px 0 0" }}><Link href="/login">Back to sign in</Link></p>
         )}
       </main>
     </>

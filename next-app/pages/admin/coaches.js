@@ -1,8 +1,8 @@
 import Head from "next/head";
-import Link from "next/link";
 import React from "react";
 import { getSession } from "next-auth/react";
 import { prisma } from "../../lib/prisma";
+import AppShell from "../../components/AppShell";
 import styles from "../../styles/Dashboard.module.css";
 
 export async function getServerSideProps(context) {
@@ -73,21 +73,7 @@ export default function AdminCoaches({ coaches, session }) {
       <Head>
         <title>Manage Coaches | Cauayan Athlete Performance</title>
       </Head>
-      <div className={styles.app}>
-        <header className={styles.header}>
-          <div style={{display:"flex",alignItems:"center",gap:"16px"}}>
-            <img src="/cauayan logo.png" alt="Cauayan City" className="logo" style={{height:"48px",width:"auto"}}/><div><p className={styles.eyebrow}>Administration</p><h1>Coaches</h1></div>
-          </div>
-          <Link className={styles.account} href="/admin">
-            Back to admin
-          </Link>
-        </header>
-        <nav className={styles.nav} aria-label="Primary navigation">
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/admin">Admin</Link>
-          <Link href="/admin/coaches" aria-current="page">Coaches</Link>
-        </nav>
-        <main className={styles.main}>
+      <AppShell session={session} isAdmin eyebrow="Administration" title="Coaches" active="/admin/coaches" showAdminNav>
           <section className={styles.panel}>
             <div className={styles.panelHeader}>
               <div>
@@ -159,8 +145,7 @@ export default function AdminCoaches({ coaches, session }) {
               </table>
             </div>
           </section>
-        </main>
-      </div>
+      </AppShell>
     </>
   );
 }

@@ -1,10 +1,10 @@
 ﻿import Head from "next/head";
-import Link from "next/link";
 import React from "react";
 import { getSession } from "next-auth/react";
 import { prisma } from "../lib/prisma";
 import { paginatePrisma } from "../lib/pagination";
 import Pagination from "../components/Pagination";
+import AppShell from "../components/AppShell";
 import styles from "../styles/Dashboard.module.css";
 
 export async function getServerSideProps(context) {
@@ -21,28 +21,13 @@ export async function getServerSideProps(context) {
 }
 
 export default function Assessments({ assessments, catalog, session, page, totalPages, total }) {
+  const isAdmin = session?.user?.role === "admin";
   return (
     <>
       <Head>
         <title>Assessments | Cauayan Athlete Performance</title>
       </Head>
-      <div className={styles.app}>
-        <header className={styles.header}>
-          <div style={{display:"flex",alignItems:"center",gap:"16px"}}>
-            <img src="/cauayan logo.png" alt="Cauayan City" className="logo" style={{height:"48px",width:"auto"}}/><div><p className={styles.eyebrow}>Performance records</p><h1>Assessments</h1></div>
-          </div>
-          <Link className={styles.account} href="/dashboard">
-            Back to dashboard
-          </Link>
-        </header>
-        <nav className={styles.nav} aria-label="Primary navigation">
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/athletes">Athletes</Link>
-          <Link href="/assessments" aria-current="page">Assessments</Link>
-          <Link href="/analytics">Analytics</Link>
-          <Link href="/event-plans">Event plans</Link>
-        </nav>
-        <main className={styles.main}>
+      <AppShell session={session} isAdmin={isAdmin} eyebrow="Performance records" title="Assessments" active="/assessments">
           <section className={styles.panel}>
             <div className={styles.panelHeader}>
               <div>
@@ -89,8 +74,7 @@ export default function Assessments({ assessments, catalog, session, page, total
             </div>
             <Pagination page={page} totalPages={totalPages} />
           </section>
-        </main>
-      </div>
+      </AppShell>
     </>
   );
 }

@@ -1,11 +1,11 @@
 import Head from "next/head";
-import Link from "next/link";
 import React from "react";
 import { getSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { prisma } from "../lib/prisma";
 import styles from "../styles/Dashboard.module.css";
 import PasswordInput from "../components/PasswordInput";
+import AppShell from "../components/AppShell";
 import { checkPasswordStrength } from "../lib/password";
 
 export async function getServerSideProps(context) {
@@ -31,7 +31,7 @@ export async function getServerSideProps(context) {
   };
 }
 
-export default function Account({ user, sports }) {
+export default function Account({ user, sports, session }) {
   const router = useRouter();
   const [tab, setTab] = React.useState("profile");
   const [message, setMessage] = React.useState("");
@@ -142,27 +142,7 @@ export default function Account({ user, sports }) {
       <Head>
         <title>My Account | Cauayan Athlete Performance</title>
       </Head>
-      <div className={styles.app}>
-        <header className={styles.header}>
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <img src="/cauayan logo.png" alt="Cauayan City" className="logo" style={{ height: "48px", width: "auto" }} />
-            <div>
-              <p className={styles.eyebrow}>Cauayan City</p>
-              <h1>My Account</h1>
-            </div>
-          </div>
-          <Link className={styles.account} href="/dashboard">
-            Back to dashboard
-          </Link>
-        </header>
-        <nav className={styles.nav} aria-label="Primary navigation">
-          <Link href="/dashboard">Dashboard</Link>
-          <Link href="/athletes">Athletes</Link>
-          <Link href="/assessments">Assessments</Link>
-          <Link href="/analytics">Analytics</Link>
-          <Link href="/event-plans">Event plans</Link>
-        </nav>
-        <main className={styles.main}>
+      <AppShell session={session} isAdmin={session?.user?.role === "admin"} eyebrow="Cauayan City" title="My Account" active="/account">
           <div className={styles.grid}>
             <section className={styles.panel}>
               <div className={styles.panelHeader}>
@@ -388,8 +368,7 @@ Type {"'"}DELETE{"'"} to confirm
               )}
             </section>
           </div>
-        </main>
-      </div>
+      </AppShell>
     </>
   );
 }

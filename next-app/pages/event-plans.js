@@ -1,10 +1,10 @@
 import Head from "next/head";
-import Link from "next/link";
 import React from "react";
 import { getSession } from "next-auth/react";
 import { prisma } from "../lib/prisma";
 import { paginatePrisma } from "../lib/pagination";
 import Pagination from "../components/Pagination";
+import AppShell from "../components/AppShell";
 import styles from "../styles/Dashboard.module.css";
 
 export async function getServerSideProps(context) {
@@ -17,7 +17,8 @@ export async function getServerSideProps(context) {
 }
 
 export default function EventPlans({ plans, session, page, totalPages }) {
-  return <><Head><title>Event plans | Cauayan Athlete Performance</title></Head><div className={styles.app}><header className={styles.header}><div style={{display:"flex",alignItems:"center",gap:"16px"}}><img src="/cauayan logo.png" alt="Cauayan City" className="logo" style={{height:"48px",width:"auto"}}/><div><p className={styles.eyebrow}>Participation</p><h1>Event plans</h1></div></div><Link className={styles.account} href="/dashboard">Back to dashboard</Link></header><nav className={styles.nav} aria-label="Primary navigation"><Link href="/dashboard">Dashboard</Link><Link href="/athletes">Athletes</Link><Link href="/assessments">Assessments</Link><Link href="/analytics">Analytics</Link><Link href="/event-plans" aria-current="page">Event plans</Link></nav><main className={styles.main}><section className={styles.grid}>{plans.map((plan) => <article className={styles.panel} key={plan.id}><p className={styles.eyebrow}>{plan.status}</p><h2>{plan.eventName}</h2><p>{plan.description}</p><p><strong>{new Date(plan.startDate).toLocaleDateString()}</strong>{plan.endDate && ` - ${new Date(plan.endDate).toLocaleDateString()}`}<br />{plan.venue}</p><p>{plan.sports.map((item) => item.sport.sportName).join(", ")}</p><small>{plan.participants.length} active participants · {plan.applications.length} applications</small><EventPlanActions plan={plan} session={session} /></article>)}</section><Pagination page={page} totalPages={totalPages} /></main></div></>;
+  const isAdmin = session?.user?.role === "admin";
+  return <><Head><title>Event plans | Cauayan Athlete Performance</title></Head><AppShell session={session} isAdmin={isAdmin} eyebrow="Participation" title="Event plans" active="/event-plans"><section className={styles.grid}>{plans.map((plan) => <article className={styles.panel} key={plan.id}><p className={styles.eyebrow}>{plan.status}</p><h2>{plan.eventName}</h2><p>{plan.description}</p><p><strong>{new Date(plan.startDate).toLocaleDateString()}</strong>{plan.endDate && ` - ${new Date(plan.endDate).toLocaleDateString()}`}<br />{plan.venue}</p><p>{plan.sports.map((item) => item.sport.sportName).join(", ")}</p><small>{plan.participants.length} active participants · {plan.applications.length} applications</small><EventPlanActions plan={plan} session={session} /></article>)}</section><Pagination page={page} totalPages={totalPages} /></AppShell></>;
 }
 
 function EventPlanActions({ plan, session }) {

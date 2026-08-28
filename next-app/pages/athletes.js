@@ -1,10 +1,10 @@
 import Head from "next/head";
-import Link from "next/link";
 import React from "react";
 import { getSession } from "next-auth/react";
 import { prisma } from "../lib/prisma";
 import { paginatePrisma } from "../lib/pagination";
 import Pagination from "../components/Pagination";
+import AppShell from "../components/AppShell";
 import styles from "../styles/Dashboard.module.css";
 
 export async function getServerSideProps(context) {
@@ -20,8 +20,9 @@ export async function getServerSideProps(context) {
   return { props: { session, catalog: { sports, events }, athletes, page: athleteResult.page, totalPages: athleteResult.totalPages, total: athleteResult.total } };
 }
 
-export default function Athletes({ athletes, catalog, page, totalPages, total }) {
-  return <><Head><title>Athletes | Cauayan Athlete Performance</title></Head><div className={styles.app}><header className={styles.header}><div style={{display:"flex",alignItems:"center",gap:"16px"}}><img src="/cauayan logo.png" alt="Cauayan City" className="logo" style={{height:"48px",width:"auto"}}/><div><p className={styles.eyebrow}>Directory</p><h1>Athletes</h1></div></div><Link className={styles.account} href="/dashboard">Back to dashboard</Link></header><nav className={styles.nav} aria-label="Primary navigation"><Link href="/dashboard">Dashboard</Link><Link href="/athletes" aria-current="page">Athletes</Link><Link href="/assessments">Assessments</Link><Link href="/analytics">Analytics</Link><Link href="/event-plans">Event plans</Link></nav><main className={styles.main}><section className={styles.panel}><div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registration</p><h2>Add athlete</h2></div></div><AthleteForm catalog={catalog} /></section><section className={styles.panel}><div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registered athletes</p><h2>All athletes</h2></div><strong>{total} records</strong></div><div className={styles.tableWrap}><table><thead><tr><th>Code</th><th>Athlete</th><th>Sport / event</th><th>School</th><th>Coach</th><th>Status</th></tr></thead><tbody>{athletes.map((athlete) => <tr key={athlete.id}><td>{athlete.athleteCode}</td><td><strong>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</strong><small>{athlete.gender}</small></td><td>{athlete.sport.sportName}<small>{athlete.event?.eventName || "No event"}</small></td><td>{athlete.school?.schoolName || "Unassigned"}</td><td>{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td><td>{athlete.status}</td></tr>)}</tbody></table></div><Pagination page={page} totalPages={totalPages} /></section></main></div></>;
+export default function Athletes({ session, athletes, catalog, page, totalPages, total }) {
+  const isAdmin = session?.user?.role === "admin";
+  return <><Head><title>Athletes | Cauayan Athlete Performance</title></Head><AppShell session={session} isAdmin={isAdmin} eyebrow="Directory" title="Athletes" active="/athletes"><section className={styles.panel}><div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registration</p><h2>Add athlete</h2></div></div><AthleteForm catalog={catalog} /></section><section className={styles.panel}><div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registered athletes</p><h2>All athletes</h2></div><strong>{total} records</strong></div><div className={styles.tableWrap}><table><thead><tr><th>Code</th><th>Athlete</th><th>Sport / event</th><th>School</th><th>Coach</th><th>Status</th></tr></thead><tbody>{athletes.map((athlete) => <tr key={athlete.id}><td>{athlete.athleteCode}</td><td><strong>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</strong><small>{athlete.gender}</small></td><td>{athlete.sport.sportName}<small>{athlete.event?.eventName || "No event"}</small></td><td>{athlete.school?.schoolName || "Unassigned"}</td><td>{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td><td>{athlete.status}</td></tr>)}</tbody></table></div><Pagination page={page} totalPages={totalPages} /></section></AppShell></>;
 }
 
 function AthleteForm({ catalog }) {

@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { getSession, useSession } from "next-auth/react";
 import { useRouter } from "next/router";
-import Link from "next/link";
 import styles from "../styles/Dashboard.module.css";
 import PasswordInput from "../components/PasswordInput";
+import AppShell from "../components/AppShell";
 import { checkPasswordStrength } from "../lib/password";
 
 export async function getServerSideProps(context) {
@@ -75,24 +75,8 @@ export default function ChangePassword() {
     );
 
   return (
-    <div className={styles.app}>
-      <header className={styles.header}>
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <img src="/cauayan logo.png" alt="Cauayan City" className="logo" style={{ height: "48px", width: "auto" }} />
-        </div>
-        <Link className={styles.account} href="/dashboard">
-          Back to dashboard
-        </Link>
-      </header>
-      <nav className={styles.nav} aria-label="Primary navigation">
-        <Link href="/dashboard">Dashboard</Link>
-        <Link href="/athletes">Athletes</Link>
-        <Link href="/assessments">Assessments</Link>
-        <Link href="/analytics">Analytics</Link>
-        <Link href="/event-plans">Event plans</Link>
-      </nav>
-      <main className={styles.main}>
-        <section className={styles.panel} style={{ maxWidth: "480px", margin: "0 auto" }}>
+    <AppShell session={session} isAdmin={session?.user?.role === "admin"} eyebrow="Cauayan City" title="Change password" active="/change-password">
+      <section className={styles.panel} style={{ maxWidth: "480px", margin: "0 auto" }}>
           <h2>Change your password</h2>
           <p style={{ color: "var(--muted)", marginBottom: "24px" }}>Your temporary password must be replaced before continuing.</p>
           <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -190,7 +174,6 @@ export default function ChangePassword() {
             )}
           </form>
         </section>
-      </main>
-    </div>
+    </AppShell>
   );
 }
