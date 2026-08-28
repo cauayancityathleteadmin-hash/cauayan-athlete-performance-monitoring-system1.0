@@ -1,5 +1,5 @@
-import { prisma } from "../../../../lib/prisma";
-import { requireSession, requireCsrf, setSecurityHeaders } from "../../../../lib/api-security";
+import { prisma } from "../../../lib/prisma";
+import { requireSession, requireCsrf, setSecurityHeaders } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
 import bcrypt from "bcryptjs";
 
@@ -28,7 +28,7 @@ export default async function handler(req, res) {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { passwordHash: true, role: true },
+    select: { email: true, passwordHash: true, role: true },
   });
 
   if (!user) return res.status(404).json({ error: "User not found." });
@@ -47,7 +47,7 @@ export default async function handler(req, res) {
         action: "delete_account",
         entityType: "user",
         entityId: userId,
-        description: `Account deleted by user`,
+        description: `Account deleted: ${user.email}`,
       },
     }),
     prisma.user.delete({ where: { id: userId } }),

@@ -1,5 +1,7 @@
 import Head from "next/head";
 import Link from "next/link";
+import { useEffect } from "react";
+import { useRouter } from "next/router";
 import { getSession, signOut, useSession } from "next-auth/react";
 import { prisma } from "../lib/prisma";
 import styles from "../styles/Dashboard.module.css";
@@ -19,12 +21,17 @@ export async function getServerSideProps(context) {
 }
 
 export default function Dashboard({ stats, recentAssessments }) {
+  const router = useRouter();
   const { data: session } = useSession();
-  if (!session || session.user.mustChangePassword) return <main className={styles.loading}><p>Loading secure account...</p></main>;
+  useEffect(() => {
+    if (session?.user?.mustChangePassword) router.replace("/change-password");
+  }, [session, router]);
+  if (!session) return <main className={styles.loading}><p>Loading secure account...</p></main>;
+  if (session.user.mustChangePassword) return <main className={styles.loading}><p>Redirecting to secure password change...</p></main>;
   const isAdmin = session.user.role === "admin";
   const cards = isAdmin
-    ? [["Athletes", stats.athletes, "/athletes"], ["Coaches", stats.coaches, "/coaches"], ["Assessments", stats.assessments, "/assessments"], ["Open event plans", stats.plans, "/event-plans"]]
-    : [["All athletes", stats.athletes, "/athletes"], ["My sport catalog", stats.sports, "/sports"], ["Assessments", stats.assessments, "/assessments"], ["Open event plans", stats.plans, "/event-plans"]];
+    ? [["Athletes", stats.athletes, "/athletes"], ["Coaches", stats.coaches, "/admin/coaches"], ["Assessments", stats.assessments, "/assessments"], ["Open event plans", stats.plans, "/event-plans"]]
+    : [["All athletes", stats.athletes, "/athletes"], ["My sport catalog", stats.sports, "/athletes"], ["Assessments", stats.assessments, "/assessments"], ["Open event plans", stats.plans, "/event-plans"]];
   return <>
     <Head><title>Dashboard | Cauayan Athlete Performance</title><meta name="description" content="Athlete performance monitoring dashboard" /></Head>
     <div className={styles.app}><header className={styles.header}><div style={{display:"flex",alignItems:"center",gap:"16px"}}><img src="/cauayan logo.png" alt="Cauayan City" className="logo" style={{height:"48px",width:"auto"}}/><div><p className={styles.eyebrow}>Cauayan City</p><h1>Athlete performance</h1></div></div><div className={styles.account}><span>{session.user.name || session.user.email}</span><span className={styles.role}>{session.user.role}</span><Link className={styles.secondary} href="/account" style={{marginRight:"12px",padding:"10px 16px",textDecoration:"none"}}><button type="button" style={{border:"none",background:"transparent",padding:"0",font:"inherit",color:"inherit",cursor:"pointer"}}>My Account</button></Link><button type="button" onClick={() => signOut({ callbackUrl: "/login" })}>Sign out</button></div></header>

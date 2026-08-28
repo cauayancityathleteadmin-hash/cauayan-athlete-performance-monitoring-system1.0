@@ -8,6 +8,11 @@ function normalizeHash(hash) {
   return hash?.replace(/^\$2y\$/, "$2b$");
 }
 
+const nextAuthSecret = process.env.NEXTAUTH_SECRET;
+if (!nextAuthSecret && process.env.NODE_ENV === "production") {
+  throw new Error("NEXTAUTH_SECRET must be set in production.");
+}
+
 export const authOptions = {
   providers: [CredentialsProvider({
     name: "Credentials",
@@ -33,9 +38,20 @@ export const authOptions = {
   pages: { signIn: "/login" },
   callbacks: {
     async jwt({ token, user, trigger, session }) { if (user) Object.assign(token, user); if (trigger === "update" && session?.mustChangePassword !== undefined) token.mustChangePassword = session.mustChangePassword; return token; },
-    async session({ session, token }) { session.user = { id: token.id, name: token.name, email: token.email, role: token.role, mustChangePassword: token.mustChangePassword }; return token; },
+    async session({ session, token }) { session.user = { id: token.id, name: token.name, email: token.email, role: token.role, mustChangePassword: token.mustChangePassword }; return session; },
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: nextAuthSecret,
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.session-token" : "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+  },
 };
 
 export default NextAuth(authOptions);

@@ -21,9 +21,15 @@ function EventPlanActions({ plan, session }) {
   const [busy, setBusy] = React.useState(false);
   async function request(url, body) {
     setBusy(true); setMessage("");
-    const csrf = await fetch("/api/csrf").then((r) => r.json());
-    const result = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify(body) }).then((r) => r.json());
-    setMessage(result.error || "Saved successfully."); setBusy(false);
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify(body) });
+      const result = await response.json().catch(() => ({}));
+      setMessage(result.error || (response.ok ? "Saved successfully." : "Save failed."));
+    } catch (err) {
+      setMessage("Unable to reach the server. Please try again later.");
+    }
+    setBusy(false);
   }
   if (session.user.role === "coach") return plan.status === "open" ? <div className={styles.actionRow}><button className={styles.secondary} disabled={busy} onClick={() => request("/api/event-plans/applications", { eventPlanId: plan.id })}>Apply to participate</button>{message && <small role="status">{message}</small>}</div> : null;
   const pending = plan.applications.filter((application) => application.status === "pending");

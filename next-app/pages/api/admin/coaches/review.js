@@ -1,14 +1,15 @@
 import { prisma } from "../../../../lib/prisma";
 import { requireCsrf, requireRole, requireSession, text, validId, setSecurityHeaders } from "../../../../lib/api-security";
-import { rateLimiters } from "../../../lib/rate-limit";
+import { rateLimiters } from "../../../../lib/rate-limit";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { sendCoachApprovalEmail, sendCoachRejectionEmail } from "../../../../lib/email";
 
 function generateTempPassword() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
   let password = "";
   for (let i = 0; i < 16; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
+    password += chars.charAt(crypto.randomInt(chars.length));
   }
   return password;
 }
@@ -45,14 +46,14 @@ export default async function handler(req, res) {
       prisma.auditLog.create({ data: { userId: Number(session.user.id), action: decision, entityType: "coach", entityId: coachId, description: `${decision} coach application ${coach.coachCode}${reason ? `: ${reason}` : ""}` } }),
     ]);
 
-    await sendCoachApprovalEmail({
+    const emailed = await sendCoachApprovalEmail({
       email: coach.email,
       name: `${coach.firstName} ${coach.lastName}`,
       coachCode: coach.coachCode,
       temporaryPassword: tempPassword,
     });
 
-    return res.status(200).json({ success: true, status, message: "Coach approved. Temporary password sent via email." });
+    return res.status(200).json({ success: true, status, message: emailed ? "Coach approved. Temporary password sent via email." : "Coach approved, but the temporary password could not be emailed (email not configured). Contact the coach directly." });
   }
 
   await prisma.$transaction([

@@ -15,9 +15,18 @@ export default function Login() {
     event.preventDefault();
     setBusy(true);
     setError("");
-    const result = await signIn("credentials", { identifier, password, redirect: false });
-    if (result?.error) setError("Login failed. Check your credentials or try again later.");
-    else router.push("/dashboard");
+    try {
+      const result = await signIn("credentials", { identifier, password, redirect: false });
+      if (!result || result.error) {
+        setError("Login failed. Check your credentials or try again later.");
+      } else if (result.ok) {
+        router.push("/dashboard");
+      } else {
+        setError("Login failed. Check your credentials or try again later.");
+      }
+    } catch (err) {
+      setError("Unable to sign in. Please try again later.");
+    }
     setBusy(false);
   }
 

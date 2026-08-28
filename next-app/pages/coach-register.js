@@ -79,30 +79,37 @@ export default function CoachRegister({ sports }) {
     setMessage("");
 
     const body = { ...formData, sportIds: formData.sportIds.map(Number) };
-    const csrf = await fetch("/api/csrf").then((r) => r.json());
-    const result = await fetch("/api/coach-register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
-      body: JSON.stringify(body),
-    }).then((r) => r.json());
-
-    if (result.error) {
-      setMessage(result.error);
-      if (result.field) setErrors((prev) => ({ ...prev, [result.field]: result.error }));
-    } else {
-      setMessage(result.message);
-      event.currentTarget.reset();
-      setFormData({
-        firstName: "",
-        middleName: "",
-        lastName: "",
-        birthdate: "",
-        email: "",
-        password: "",
-        school: "",
-        sportIds: [],
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/coach-register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify(body),
       });
-      setPasswordStrength(null);
+      const result = await response.json().catch(() => ({}));
+
+      if (result.error) {
+        setMessage(result.error);
+        if (result.field) setErrors((prev) => ({ ...prev, [result.field]: result.error }));
+      } else if (response.ok && result.success) {
+        setMessage(result.message);
+        event.currentTarget.reset();
+        setFormData({
+          firstName: "",
+          middleName: "",
+          lastName: "",
+          birthdate: "",
+          email: "",
+          password: "",
+          school: "",
+          sportIds: [],
+        });
+        setPasswordStrength(null);
+      } else {
+        setMessage("Registration could not be completed. Please try again.");
+      }
+    } catch (err) {
+      setMessage("Unable to reach the server. Please try again later.");
     }
     setBusy(false);
   }

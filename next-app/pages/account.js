@@ -42,7 +42,7 @@ export default function Account({ user, sports }) {
     newPassword: "",
     confirmPassword: "",
   });
-  const [newPasswordStrength, setNewPasswordStrength] = useState(null);
+  const [newPasswordStrength, setNewPasswordStrength] = React.useState(null);
 
   const isCoach = user.role === "coach";
   const coach = user.coach;
@@ -61,13 +61,18 @@ export default function Account({ user, sports }) {
     const form = new FormData(event.currentTarget);
     const body = Object.fromEntries(form.entries());
     if (isCoach) body.sportIds = form.getAll("sportIds").map(Number);
-    const csrf = await fetch("/api/csrf").then((r) => r.json());
-    const result = await fetch("/api/account/update-profile", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
-      body: JSON.stringify(body),
-    }).then((r) => r.json());
-    setMessage(result.error || result.message);
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/account/update-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify(body),
+      });
+      const result = await response.json().catch(() => ({}));
+      setMessage(result.error || (response.ok ? result.message : "Failed to update profile."));
+    } catch (err) {
+      setMessage("Unable to reach the server. Please try again later.");
+    }
     setBusy(false);
   }
 
@@ -88,16 +93,21 @@ export default function Account({ user, sports }) {
       return;
     }
 
-    const csrf = await fetch("/api/csrf").then((r) => r.json());
-    const result = await fetch("/api/account/change-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
-      body: JSON.stringify({ currentPassword: passwordData.currentPassword, newPassword: passwordData.newPassword }),
-    }).then((r) => r.json());
-    setMessage(result.error || "Password updated successfully.");
-    if (!result.error) {
-      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      setNewPasswordStrength(null);
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/account/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify({ currentPassword: passwordData.currentPassword, newPassword: passwordData.newPassword }),
+      });
+      const result = await response.json().catch(() => ({}));
+      setMessage(result.error || (response.ok ? "Password updated successfully." : "Password update failed."));
+      if (response.ok && !result.error) {
+        setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        setNewPasswordStrength(null);
+      }
+    } catch (err) {
+      setMessage("Unable to reach the server. Please try again later.");
     }
     setBusy(false);
   }
@@ -110,15 +120,20 @@ export default function Account({ user, sports }) {
     }
     setBusy(true);
     setMessage("");
-    const form = new FormData(event.currentTarget);
-    const csrf = await fetch("/api/csrf").then((r) => r.json());
-    const result = await fetch("/api/account/delete-account", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
-      body: JSON.stringify({ password: form.get("password"), confirm: form.get("confirm") }),
-    }).then((r) => r.json());
-    if (result.error) setMessage(result.error);
-    else router.push("/login");
+    try {
+      const form = new FormData(event.currentTarget);
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/account/delete-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify({ password: form.get("password"), confirm: form.get("confirm") }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok && !result.error) router.push("/login");
+      else setMessage(result.error || "Could not delete the account.");
+    } catch (err) {
+      setMessage("Unable to reach the server. Please try again later.");
+    }
     setBusy(false);
   }
 

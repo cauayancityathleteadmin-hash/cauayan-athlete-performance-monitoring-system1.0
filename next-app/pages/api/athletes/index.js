@@ -11,7 +11,20 @@ export default async function handler(req, res) {
   const rate = rateLimiters.api(`api:${ip}:${req.method}`);
   if (!rate.allowed) return res.status(429).json({ error: "Too many requests. Please try again later." });
 
-  if (req.method === "GET") return res.status(200).json(await prisma.athlete.findMany({ orderBy: { lastName: "asc" }, include: { school: true, sport: true, event: true, coach: true } }));
+  if (req.method === "GET") {
+    try {
+      let whereClause = undefined;
+      if (session.user.role === "coach") {
+        const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
+        if (coach) whereClause = { coachId: coach.id };
+      }
+      const athletes = await prisma.athlete.findMany({ where: whereClause, orderBy: { lastName: "asc" }, include: { school: true, sport: true, event: true, coach: true } });
+      return res.status(200).json(athletes);
+    } catch (error) {
+      console.error("Athletes GET error:", error);
+      return res.status(500).json({ error: "Could not load athletes." });
+    }
+  }
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
   if (!requireCsrf(req, res)) return;
 

@@ -3,10 +3,16 @@ import { prisma } from "../../lib/prisma";
 import { sendCoachRegistrationNotice } from "../../lib/email";
 import { requireCsrf, text, validId } from "../../lib/api-security";
 import { checkPasswordStrength } from "../../lib/password";
+import { rateLimiters } from "../../lib/rate-limit";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
   if (!requireCsrf(req, res)) return;
+
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || "unknown";
+  if (!rateLimiters.register(`register:${ip}`).allowed) {
+    return res.status(429).json({ error: "Too many registration attempts. Please try again later." });
+  }
 
   const body = req.body || {};
   const firstName = text(body.firstName, 100, true);

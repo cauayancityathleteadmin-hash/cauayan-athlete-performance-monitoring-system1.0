@@ -1,6 +1,6 @@
 import { prisma } from "../../../../lib/prisma";
 import { requireCsrf, requireRole, requireSession, text, validId, setSecurityHeaders } from "../../../../lib/api-security";
-import { rateLimiters } from "../../../lib/rate-limit";
+import { rateLimiters } from "../../../../lib/rate-limit";
 
 export default async function handler(req, res) {
   setSecurityHeaders(res);

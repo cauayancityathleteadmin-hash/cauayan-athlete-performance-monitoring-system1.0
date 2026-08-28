@@ -112,25 +112,30 @@ function AssessmentForm({ catalog, session }) {
     event.preventDefault();
     setBusy(true);
     setMessage("");
-    const form = new FormData(event.currentTarget);
-    const csrf = await fetch("/api/csrf").then((r) => r.json());
-    const results = metrics
-      .map((m) => ({ metricId: m.id, value: form.get(`metric_${m.id}`), notes: form.get(`notes_${m.id}`) }))
-      .filter((r) => r.value);
-    const body = {
-      athleteId: Number(athleteId),
-      assessmentDate: form.get("assessmentDate"),
-      assessmentType: form.get("assessmentType") || "Regular Assessment",
-      remarks: form.get("remarks"),
-      results,
-    };
-    const result = await fetch("/api/assessments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
-      body: JSON.stringify(body),
-    }).then((r) => r.json());
-    setMessage(result.error || "Assessment recorded.");
-    if (!result.error) event.currentTarget.reset();
+    try {
+      const form = new FormData(event.currentTarget);
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const results = metrics
+        .map((m) => ({ metricId: m.id, value: form.get(`metric_${m.id}`), notes: form.get(`notes_${m.id}`) }))
+        .filter((r) => r.value);
+      const body = {
+        athleteId: Number(athleteId),
+        assessmentDate: form.get("assessmentDate"),
+        assessmentType: form.get("assessmentType") || "Regular Assessment",
+        remarks: form.get("remarks"),
+        results,
+      };
+      const response = await fetch("/api/assessments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify(body),
+      });
+      const result = await response.json().catch(() => ({}));
+      setMessage(result.error || (response.ok ? "Assessment recorded." : "Could not record assessment."));
+      if (response.ok && !result.error) { event.currentTarget.reset(); setAthleteId(""); setMetrics([]); }
+    } catch (err) {
+      setMessage("Unable to reach the server. Please try again later.");
+    }
     setBusy(false);
   }
 
@@ -141,7 +146,7 @@ function AssessmentForm({ catalog, session }) {
         <select value={athleteId} onChange={handleAthleteChange} required>
           <option value="">Select an athlete</option>
           {catalog.athletes
-            .filter((a) => session.user.role === "admin" || a.coach.userId === Number(session.user.id))
+            .filter((a) => session.user.role === "admin" || a.coach?.userId === Number(session.user.id))
             .map((a) => (
               <option value={a.id} key={a.id}>
                 {a.athleteCode} - {a.firstName} {a.lastName}

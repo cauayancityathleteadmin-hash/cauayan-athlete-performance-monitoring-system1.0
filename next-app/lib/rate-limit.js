@@ -1,4 +1,5 @@
 const attempts = new Map();
+let sweepCounter = 0;
 
 export function checkRateLimit(key, limit = 5, windowMs = 15 * 60 * 1000) {
   const now = Date.now();
@@ -6,6 +7,17 @@ export function checkRateLimit(key, limit = 5, windowMs = 15 * 60 * 1000) {
   if (recent.length >= limit) return { allowed: false, retryAfter: Math.ceil((windowMs - (now - recent[0])) / 1000) };
   recent.push(now);
   attempts.set(key, recent);
+
+  // Occasionally prune expired buckets to avoid unbounded memory growth.
+  sweepCounter += 1;
+  if (sweepCounter % 1000 === 0) {
+    for (const [bucketKey, times] of attempts) {
+      const active = times.filter((time) => now - time < windowMs);
+      if (active.length === 0) attempts.delete(bucketKey);
+      else attempts.set(bucketKey, active);
+    }
+  }
+
   return { allowed: true, retryAfter: 0 };
 }
 

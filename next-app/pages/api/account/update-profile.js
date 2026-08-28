@@ -1,5 +1,5 @@
-import { prisma } from "../../../../lib/prisma";
-import { requireSession, requireCsrf, text, validId, validateEmail } from "../../../../lib/api-security";
+import { prisma } from "../../../lib/prisma";
+import { requireSession, requireCsrf, text, validId, validateEmail } from "../../../lib/api-security";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });

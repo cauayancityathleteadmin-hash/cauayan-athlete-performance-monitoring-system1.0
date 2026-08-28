@@ -11,7 +11,8 @@ export default async function handler(req, res) {
   const rate = rateLimiters.api(`api:${ip}:${req.method}`);
   if (!rate.allowed) return res.status(429).json({ error: "Too many requests. Please try again later." });
 
-  if (req.method !== "POST" || session.user.role !== "coach") return res.status(405).json({ error: "Coach application method not allowed." });
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
+  if (session.user.role !== "coach") return res.status(403).json({ error: "Only coaches can apply to event plans." });
   if (!requireCsrf(req, res)) return;
 
   const eventPlanId = validId(req.body?.eventPlanId);

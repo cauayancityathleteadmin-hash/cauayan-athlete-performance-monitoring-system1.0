@@ -22,7 +22,7 @@ export default function ChangePassword() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [newPasswordStrength, setNewPasswordStrength] = useState(null);
 
-  const handleNewPasswordChange = (value) => {
+  const handleNewPasswordChange = (name, value) => {
     setNewPassword(value);
     setNewPasswordStrength(checkPasswordStrength(value));
   };

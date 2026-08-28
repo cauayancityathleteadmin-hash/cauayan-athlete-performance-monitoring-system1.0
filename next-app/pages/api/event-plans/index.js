@@ -16,7 +16,8 @@ export default async function handler(req, res) {
       await prisma.eventPlan.findMany({ orderBy: { startDate: "asc" }, include: { sports: { include: { sport: true } }, applications: true, participants: { where: { status: "active" } } } })
     );
   }
-  if (req.method !== "POST" || !requireRole(session, "admin", res)) return;
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
+  if (!requireRole(session, "admin", res)) return;
   if (!requireCsrf(req, res)) return;
 
   const body = req.body || {};

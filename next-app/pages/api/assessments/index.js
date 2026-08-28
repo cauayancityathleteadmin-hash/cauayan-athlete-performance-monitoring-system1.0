@@ -41,18 +41,18 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "One or more metrics do not belong to this athlete's sport." });
   }
 
-  const resultData = results.map((result) => {
-    const metric = metrics.find((item) => item.id === Number(result.metricId));
-    const raw = result.value;
-    if (metric.dataType === "text") return { metricId: metric.id, valueText: text(raw, 255, metric.isRequired) || null, valueDecimal: null, notes: text(result.notes, 255) || null };
-    const numeric = Number(raw);
-    if (!Number.isFinite(numeric) || (metric.minimumValue !== null && numeric < Number(metric.minimumValue)) || (metric.maximumValue !== null && numeric > Number(metric.maximumValue))) {
-      throw new Error(`Invalid value for ${metric.metricName}.`);
-    }
-    return { metricId: metric.id, valueDecimal: numeric, valueText: null, notes: text(result.notes, 255) || null };
-  });
-
   try {
+    const resultData = results.map((result) => {
+      const metric = metrics.find((item) => item.id === Number(result.metricId));
+      const raw = result.value;
+      if (metric.dataType === "text") return { metricId: metric.id, valueText: text(raw, 255, metric.isRequired) || null, valueDecimal: null, notes: text(result.notes, 255) || null };
+      const numeric = Number(raw);
+      if (!Number.isFinite(numeric) || (metric.minimumValue !== null && numeric < Number(metric.minimumValue)) || (metric.maximumValue !== null && numeric > Number(metric.maximumValue))) {
+        throw new Error(`Invalid value for ${metric.metricName}.`);
+      }
+      return { metricId: metric.id, valueDecimal: numeric, valueText: null, notes: text(result.notes, 255) || null };
+    });
+
     const assessment = await prisma.$transaction(async (tx) => {
       const created = await tx.assessment.create({
         data: { athleteId, recordedBy: recorder, assessmentDate: new Date(assessmentDate), assessmentType, remarks: text(req.body?.remarks, 2000) || null, results: { create: resultData } },
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
     });
     return res.status(201).json(assessment);
   } catch (error) {
-    if (error.message.startsWith("Invalid value")) return res.status(400).json({ error: error.message });
+    if (error.message?.startsWith("Invalid value")) return res.status(400).json({ error: error.message });
     throw error;
   }
 }

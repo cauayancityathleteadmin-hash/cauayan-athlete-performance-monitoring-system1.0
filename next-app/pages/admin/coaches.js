@@ -23,27 +23,38 @@ export async function getServerSideProps(context) {
 export default function AdminCoaches({ coaches, session }) {
   const [message, setMessage] = React.useState("");
   const [busy, setBusy] = React.useState(false);
-  const [selectedCoach, setSelectedCoach] = React.useState(null);
 
   async function resetCoach(coachId) {
     setBusy(true);
     setMessage("");
-    const csrf = await fetch("/api/csrf").then((r) => r.json());
-    const result = await fetch("/api/admin/coaches/reset-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
-      body: JSON.stringify({ coachId }),
-    }).then((r) => r.json());
-    setMessage(result.error || "Coach password reset. They must change it on next login.");
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/admin/coaches/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify({ coachId }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (result.error) setMessage(result.error);
+      else if (result.temporaryPassword) setMessage("Temporary password: " + result.temporaryPassword + " — share it securely.");
+      else setMessage(result.message || "Coach password reset.");
+    } catch (err) {
+      setMessage("Unable to reach the server. Please try again later.");
+    }
     setBusy(false);
   }
 
   async function reviewCoach(coachId, decision) {
     setBusy(true);
     setMessage("");
-    const csrf = await fetch("/api/csrf").then((r) => r.json());
-    const result = await fetch("/api/admin/coaches/review", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ coachId, decision }) }).then((r) => r.json());
-    setMessage(result.error || `Coach ${decision}. Refresh to update the list.`);
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/admin/coaches/review", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ coachId, decision }) });
+      const result = await response.json().catch(() => ({}));
+      setMessage(result.error || (response.ok ? `Coach ${decision}. Refresh to update the list.` : "Action failed."));
+    } catch (err) {
+      setMessage("Unable to reach the server. Please try again later.");
+    }
     setBusy(false);
   }
 
