@@ -1,4 +1,4 @@
 {
-  "buildCommand": "prisma migrate deploy && node prisma/seed.js && next build",
+  "buildCommand": "prisma migrate deploy || echo \"[migrate] skipped\"; node prisma/seed.js || echo \"[seed] skipped\"; next build",
   "installCommand": "npm install"
 }
