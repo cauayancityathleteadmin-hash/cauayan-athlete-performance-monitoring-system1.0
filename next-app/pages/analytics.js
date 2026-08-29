@@ -27,6 +27,22 @@ export async function getServerSideProps(context) {
   const userId = Number(session.user.id);
   const debug = context.query.debug === "1";
 
+  if (debug && context.query.nodb === "1") {
+    return {
+      props: {
+        session,
+        data: {
+          kpi: { totalAthletes: 0, activeAthletes: 0, totalAssessments: 0, totalResults: 0, avgPerAthlete: "0", achievements: 0 },
+          sportDist: [{ label: "Sample", value: 2 }], statusDist: [], genderDist: [], schoolDist: [], eventDist: [], coachDist: [], roster: {}, monthly: [],
+          assessmentTypeDist: [], achievementTypeDist: [], coachSchoolDist: [], averages: [], metricRanges: [], recentAssessments: [],
+          eventPlans: { total: 0, byStatus: [] }, applications: { total: 0, byStatus: [] }, participants: { total: 0, byType: [] },
+          isAdmin,
+        },
+        insights: [], csv: "", debugPing: "no-db ok",
+      },
+    };
+  }
+
   try {
     const result = await buildAnalytics(session, isAdmin, userId);
     return { props: { session, ...result } };
