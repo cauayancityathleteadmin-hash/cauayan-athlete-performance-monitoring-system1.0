@@ -28,7 +28,6 @@ export default function AppShell({
   eyebrow = "Cauayan City",
   title = "Athlete performance",
   active,
-  showAdminNav = false,
   children,
 }) {
   const router = useRouter();
@@ -46,11 +45,6 @@ export default function AppShell({
         </Link>
       ))}
       {isAdmin && (
-        <Link href="/admin" className={isActive("/admin")} onClick={() => setOpen(false)}>
-          Administration
-        </Link>
-      )}
-      {showAdminNav && (
         <>
           <p className={styles.navHeading}>Administration</p>
           {ADMIN_LINKS.map((link) => (

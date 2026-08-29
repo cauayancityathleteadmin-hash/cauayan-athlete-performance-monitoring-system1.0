@@ -52,7 +52,7 @@ export default function AuditLogs({ session }) {
   return (
     <>
       <Head><title>Audit Logs | Administration</title></Head>
-      <AppShell session={session} isAdmin eyebrow="Activity trail" title="Audit Logs" active="/admin" showAdminNav>
+      <AppShell session={session} isAdmin eyebrow="Activity trail" title="Audit Logs" active="/admin/audit-logs">
         <div className={styles.pageTitle}>
           <div><p className={styles.eyebrow}>System</p><h2>Audit log</h2></div>
           <span className={styles.countBadge}>{total} entries</span>

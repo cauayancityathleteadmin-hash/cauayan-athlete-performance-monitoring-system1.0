@@ -55,7 +55,7 @@ export default function Metrics({ session, events, metrics }) {
   return (
     <>
       <Head><title>Performance Metrics | Administration</title></Head>
-      <AppShell session={session} isAdmin eyebrow="Measurements" title="Performance Metrics" active="/admin" showAdminNav>
+      <AppShell session={session} isAdmin eyebrow="Measurements" title="Performance Metrics" active="/admin/metrics">
         <section className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Configuration</p><h2>Add performance metric</h2></div></div>
           <form onSubmit={addMetric} className={styles.formGrid}>

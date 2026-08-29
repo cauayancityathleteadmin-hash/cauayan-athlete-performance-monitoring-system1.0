@@ -53,7 +53,7 @@ export default function Catalog({ session, sports, events }) {
   return (
     <>
       <Head><title>Sports &amp; Events | Administration</title></Head>
-      <AppShell session={session} isAdmin eyebrow="System catalog" title="Sports & Events" active="/admin" showAdminNav>
+      <AppShell session={session} isAdmin eyebrow="System catalog" title="Sports & Events" active="/admin/catalog">
         <section className={styles.grid}>
           <div className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Taxonomy</p><h2>Add sport</h2></div></div>

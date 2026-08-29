@@ -21,7 +21,7 @@ export default function Admin({ stats, session }) {
       <Head>
         <title>Administration | Cauayan Athlete Performance</title>
       </Head>
-      <AppShell session={session} isAdmin eyebrow="Control centre" title="Administration" active="/admin" showAdminNav>
+      <AppShell session={session} isAdmin eyebrow="Control centre" title="Administration" active="/admin">
           <section className={styles.cards}>
             {[["Sports", stats.sports], ["Events", stats.events], ["Coaches", stats.coaches], ["Audit entries", stats.logs]].map(([label, value]) => (
               <div className={styles.card} key={label}>

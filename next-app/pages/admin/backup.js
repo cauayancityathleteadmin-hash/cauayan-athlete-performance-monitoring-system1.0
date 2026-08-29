@@ -39,7 +39,7 @@ export default function Backup({ session, ranAt }) {
   return (
     <>
       <Head><title>Database Backup | Administration</title></Head>
-      <AppShell session={session} isAdmin eyebrow="Maintenance" title="Database Backup" active="/admin" showAdminNav>
+      <AppShell session={session} isAdmin eyebrow="Maintenance" title="Database Backup" active="/admin/backup">
       <div className={styles.pageTitle}>
         <div>
           <p className={styles.eyebrow}>Snapshot</p>

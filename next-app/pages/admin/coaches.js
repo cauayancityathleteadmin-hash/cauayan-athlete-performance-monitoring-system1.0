@@ -73,7 +73,7 @@ export default function AdminCoaches({ coaches, session }) {
       <Head>
         <title>Manage Coaches | Cauayan Athlete Performance</title>
       </Head>
-      <AppShell session={session} isAdmin eyebrow="Administration" title="Coaches" active="/admin/coaches" showAdminNav>
+      <AppShell session={session} isAdmin eyebrow="Administration" title="Coaches" active="/admin/coaches">
           <section className={styles.panel}>
             <div className={styles.panelHeader}>
               <div>
