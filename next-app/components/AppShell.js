@@ -1,22 +1,38 @@
+import React from "react";
 import { useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import styles from "../styles/Dashboard.module.css";
 
-const ALL_LINKS = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/athletes", label: "Athletes" },
-  { href: "/reports", label: "Athlete reports" },
-  { href: "/admin/coaches", label: "Coaches", adminOnly: true },
-  { href: "/assessments", label: "Assessments" },
-  { href: "/analytics", label: "Analytics" },
-  { href: "/event-plans", label: "Sports event plans" },
-  { href: "/account", label: "My account" },
-  { href: "/admin/catalog", label: "Sports & Events", adminOnly: true },
-  { href: "/admin/metrics", label: "Performance Metrics", adminOnly: true },
-  { href: "/admin/audit-logs", label: "Audit Logs", adminOnly: true },
-  { href: "/admin/backup", label: "Database Backup", adminOnly: true },
+const NAV_GROUPS = [
+  {
+    label: "Overview",
+    links: [
+      { href: "/dashboard", label: "Dashboard" },
+      { href: "/athletes", label: "Athletes" },
+      { href: "/reports", label: "Athlete reports" },
+      { href: "/admin/coaches", label: "Coaches", adminOnly: true },
+      { href: "/assessments", label: "Assessments" },
+      { href: "/analytics", label: "Analytics" },
+      { href: "/event-plans", label: "Sports event plans" },
+    ],
+  },
+  {
+    label: "Administration",
+    links: [
+      { href: "/admin/catalog", label: "Sports & Events", adminOnly: true },
+      { href: "/admin/metrics", label: "Performance Metrics", adminOnly: true },
+    ],
+  },
+  {
+    label: "Account & System",
+    links: [
+      { href: "/account", label: "My account" },
+      { href: "/admin/audit-logs", label: "Audit Logs", adminOnly: true },
+      { href: "/admin/backup", label: "Database Backup", adminOnly: true },
+    ],
+  },
 ];
 
 export default function AppShell({
@@ -36,11 +52,20 @@ export default function AppShell({
 
   const nav = (
     <nav className={styles.sidebar} aria-label="Primary navigation">
-      {ALL_LINKS.filter((link) => !link.adminOnly || isAdmin).map((link) => (
-        <Link key={link.href} href={link.href} className={isActive(link.href)} onClick={() => setOpen(false)}>
-          {link.label}
-        </Link>
-      ))}
+      {NAV_GROUPS.map((group) => {
+        const links = group.links.filter((link) => !link.adminOnly || isAdmin);
+        if (!links.length) return null;
+        return (
+          <React.Fragment key={group.label}>
+            <p className={styles.navHeading}>{group.label}</p>
+            {links.map((link) => (
+              <Link key={link.href} href={link.href} className={isActive(link.href)} onClick={() => setOpen(false)}>
+                {link.label}
+              </Link>
+            ))}
+          </React.Fragment>
+        );
+      })}
     </nav>
   );
 
