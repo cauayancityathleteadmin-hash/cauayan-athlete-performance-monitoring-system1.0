@@ -294,6 +294,30 @@ function KPI({ label, value, sub }) {
   );
 }
 
+class AnalyticsErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null, info: "" };
+  }
+  static getDerivedStateFromError(error) {
+    return { error: String((error && error.message) || error) };
+  }
+  componentDidCatch(error, info) {
+    this.setState({ info: String(info && info.componentStack) });
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className={styles.errorBox}>
+          <strong>Analytics render error</strong>
+          <pre>{this.state.error}{this.state.info ? `\n\n${this.state.info}` : ""}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function Analytics({ data, insights, csv, session, debugError = "", debugStack = "" }) {
   const { isAdmin } = data;
   const [openStatus, setOpenStatus] = React.useState(() => ({ active: true }));
@@ -328,21 +352,21 @@ export default function Analytics({ data, insights, csv, session, debugError = "
     <>
       <Head><title>Analytics | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Evidence at a glance" title="Analytics" active="/analytics">
-        <section className={styles.kpiRow}>
+        <AnalyticsErrorBoundary>
           {debugError ? (
             <div className={styles.errorBox}>
               <strong>Analytics data error</strong>
               <pre>{debugError}{debugStack ? `\n\n${debugStack}` : ""}</pre>
             </div>
-          ) : (<>
-          <KPI label="Total athletes" value={data.kpi.totalAthletes} />
-          <KPI label="Active athletes" value={data.kpi.activeAthletes} />
-          <KPI label="Total assessments" value={data.kpi.totalAssessments} />
-          <KPI label="Avg assessments / athlete" value={data.kpi.avgPerAthlete} />
-          <KPI label="Numeric results" value={data.kpi.totalResults} />
-          <KPI label="Achievements" value={data.kpi.achievements} />
-          </>)}
-        </section>
+          ) : null}
+          <section className={styles.kpiRow}>
+            <KPI label="Total athletes" value={data.kpi.totalAthletes} />
+            <KPI label="Active athletes" value={data.kpi.activeAthletes} />
+            <KPI label="Total assessments" value={data.kpi.totalAssessments} />
+            <KPI label="Avg assessments / athlete" value={data.kpi.avgPerAthlete} />
+            <KPI label="Numeric results" value={data.kpi.totalResults} />
+            <KPI label="Achievements" value={data.kpi.achievements} />
+          </section>
 
         <section className={styles.grid}>
           <div className={styles.panel}>
@@ -479,6 +503,7 @@ export default function Analytics({ data, insights, csv, session, debugError = "
             </section>
           </>
         )}
+        </AnalyticsErrorBoundary>
       </AppShell>
     </>
   );
