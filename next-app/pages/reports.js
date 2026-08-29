@@ -21,6 +21,8 @@ export async function getServerSideProps(context) {
       school: true,
       sport: true,
       event: true,
+      coach: { select: { firstName: true, lastName: true } },
+      _count: { select: { assessments: true } },
       assessments: { orderBy: { assessmentDate: "desc" }, include: { recorder: { select: { email: true } }, results: { include: { metric: true } } } },
     },
   });
@@ -35,6 +37,8 @@ export async function getServerSideProps(context) {
     school: athlete.school?.schoolName || null,
     sport: athlete.sport.sportName,
     event: athlete.event?.eventName || null,
+    coach: athlete.coach ? `${athlete.coach.lastName}, ${athlete.coach.firstName}` : null,
+    assessmentCount: athlete._count.assessments,
     dateRegistered: athlete.dateRegistered?.toISOString() || null,
     assessments: athlete.assessments.map((assessment) => ({
       id: assessment.id,
@@ -54,18 +58,57 @@ function formatDate(value) {
 
 const GENDER_LABEL = { male: "Male", female: "Female", other: "Other", prefer_not_to_say: "Prefer not to say" };
 
+const SORT_COLS = {
+  name: (a) => `${a.lastName}, ${a.firstName}`.toLowerCase(),
+  code: (a) => a.athleteCode.toLowerCase(),
+  sport: (a) => (a.sport || "").toLowerCase(),
+  event: (a) => (a.event || "").toLowerCase(),
+  coach: (a) => (a.coach || "").toLowerCase(),
+  school: (a) => (a.school || "").toLowerCase(),
+  gender: (a) => (GENDER_LABEL[a.gender] || a.gender || "").toLowerCase(),
+  registered: (a) => (a.dateRegistered || ""),
+  assessments: (a) => a.assessmentCount,
+};
+
 export default function Reports({ session, athletes }) {
   const [selected, setSelected] = React.useState([]);
   const [from, setFrom] = React.useState("");
   const [to, setTo] = React.useState("");
+  const [search, setSearch] = React.useState("");
+  const [sortKey, setSortKey] = React.useState("name");
+  const [sortDir, setSortDir] = React.useState("asc");
   const isAdmin = session.user.role === "admin";
 
   function toggle(id) {
     setSelected((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
   }
 
-  function toggleAll() {
-    setSelected((current) => (current.length === athletes.length ? [] : athletes.map((a) => a.id)));
+  function setSort(key) {
+    if (sortKey === key) setSortDir((dir) => (dir === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
+
+  const query = search.trim().toLowerCase();
+  const visible = athletes
+    .filter((athlete) =>
+      !query ||
+      [athlete.lastName, athlete.firstName, athlete.athleteCode, athlete.sport, athlete.event, athlete.coach, athlete.school]
+        .some((value) => (value || "").toLowerCase().includes(query))
+    )
+    .slice()
+    .sort((x, y) => {
+      const xv = SORT_COLS[sortKey](x);
+      const yv = SORT_COLS[sortKey](y);
+      const cmp = xv < yv ? -1 : xv > yv ? 1 : 0;
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  const allVisibleSelected = visible.length > 0 && visible.every((a) => selected.includes(a.id));
+
+  function toggleVisible() {
+    setSelected((current) => (allVisibleSelected ? current.filter((id) => !visible.some((a) => a.id === id)) : [...new Set([...current, ...visible.map((a) => a.id)])]));
   }
 
   const count = selected.length;
@@ -74,25 +117,77 @@ export default function Reports({ session, athletes }) {
   const filteredAthletes = athletes.filter((athlete) => selected.includes(athlete.id));
   const withPrint = new URLSearchParams({ from, to }).toString();
 
+  function sortHeader(key, label) {
+    const active = sortKey === key;
+    return (
+      <th key={key}>
+        <button type="button" className={`${styles.thBtn} ${active ? styles.thBtnActive : ""}`} onClick={() => setSort(key)}>
+          {label}
+          <span className={styles.thDir}>{active ? (sortDir === "asc" ? "▲" : "▼") : "↕"}</span>
+        </button>
+      </th>
+    );
+  }
+
   return (
     <>
       <Head><title>Athlete Reports | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Official &amp; performance records" title="Athlete Reports" active="/reports">
-        <section className={styles.intro}><div><p className={styles.eyebrow}>Generate</p><h2>Official performance reports</h2><p>Select one or more athletes and a date window to produce printable reports with their full assessment history.</p></div></section>
+        <section className={styles.intro}><div><p className={styles.eyebrow}>Generate</p><h2>Official performance reports</h2><p>Select one or more athletes and a date window to produce printable reports with their full assessment history. Search the roster and sort by any column to find athletes faster.</p></div></section>
 
         <section className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Selection</p><h2>Athletes</h2></div>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--muted)", fontSize: 13, fontWeight: 600 }}><input type="checkbox" style={{ width: 17, height: 17, accentColor: "var(--accent)" }} checked={count === athletes.length && athletes.length > 0} onChange={toggleAll} />Select all</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--muted)", fontSize: 13, fontWeight: 600 }}><input type="checkbox" style={{ width: 17, height: 17, accentColor: "var(--accent)" }} checked={allVisibleSelected} onChange={toggleVisible} disabled={!visible.length} />Select visible</label>
           </div>
-          {athletes.length ? <div className={styles.checkboxList}>{athletes.map((athlete) => <label key={athlete.id}><input type="checkbox" checked={selected.includes(athlete.id)} onChange={() => toggle(athlete.id)} /><span><strong>{athlete.lastName}, {athlete.firstName}</strong> <small>{athlete.athleteCode}</small></span></label>)}</div> : <p className={styles.empty}>No athletes found.</p>}
+
           <div className={styles.toolbar} style={{ marginTop: 16 }}>
+            <label>Search athletes<input type="text" placeholder="Name, code, sport, event, coach, school…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
             <label>From date<input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>
             <label>To date<input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>
+            {count > 0 && <p className={styles.selectionSummary}>{count > 1 ? `${count} athletes selected` : "1 athlete selected"}<button type="button" onClick={() => setSelected([])}>Clear</button></p>}
             <div className={styles.stackedActions}>
               <button className={styles.primary} disabled={!count} onClick={() => scrollRef.current?.scrollIntoView({ behavior: "smooth" })}>Show {count ? `${count} report${count > 1 ? "s" : ""}` : "reports"}</button>
               <button className={styles.secondary} disabled={!count} onClick={() => window.print()}>Print</button>
             </div>
           </div>
+
+          {athletes.length ? (
+            <div className={styles.reportTableScroll}>
+              <table>
+                <thead>
+                  <tr>
+                    <th className={styles.checkCell}><input type="checkbox" style={{ width: 16, height: 16, accentColor: "var(--accent)" }} checked={allVisibleSelected} onChange={toggleVisible} disabled={!visible.length} /></th>
+                    {sortHeader("name", "Athlete")}
+                    {sortHeader("code", "Code")}
+                    {sortHeader("sport", "Sport")}
+                    {sortHeader("event", "Event")}
+                    {sortHeader("coach", "Coach")}
+                    {sortHeader("school", "School")}
+                    {sortHeader("gender", "Gender")}
+                    {sortHeader("registered", "Registered")}
+                    {sortHeader("assessments", "Assessments")}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.map((athlete) => (
+                    <tr key={athlete.id} className={selected.includes(athlete.id) ? styles.rowSelected : undefined}>
+                      <td className={styles.checkCell}><input type="checkbox" style={{ width: 16, height: 16, accentColor: "var(--accent)" }} checked={selected.includes(athlete.id)} onChange={() => toggle(athlete.id)} /></td>
+                      <td><strong>{athlete.lastName}, {athlete.firstName}</strong>{athlete.middleName ? ` ${athlete.middleName}` : ""}</td>
+                      <td>{athlete.athleteCode}</td>
+                      <td>{athlete.sport}</td>
+                      <td>{athlete.event || "—"}</td>
+                      <td>{athlete.coach || "—"}</td>
+                      <td>{athlete.school || "—"}</td>
+                      <td>{GENDER_LABEL[athlete.gender] || athlete.gender}</td>
+                      <td>{athlete.dateRegistered ? formatDate(athlete.dateRegistered) : "—"}</td>
+                      <td className={styles.numCell}><span className={styles.countBadge}>{athlete.assessmentCount}</span></td>
+                    </tr>
+                  ))}
+                  {!visible.length && <tr><td colSpan="10" className={styles.empty}>No athletes match your search.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          ) : <p className={styles.empty}>No athletes found.</p>}
         </section>
 
         <div ref={scrollRef} />
