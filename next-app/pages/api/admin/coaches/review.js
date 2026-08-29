@@ -30,13 +30,31 @@ export default async function handler(req, res) {
   const coachId = validId(req.body?.coachId);
   const decision = req.body?.decision;
   const reason = text(req.body?.reason, 500) || null;
-  if (!coachId || !["approved", "rejected"].includes(decision)) return res.status(400).json({ error: "Coach and decision are required." });
-  const coach = await prisma.coach.findUnique({ where: { id: coachId }, include: { user: true } });
-  if (!coach || coach.user.status !== "pending") return res.status(409).json({ error: "Pending coach application not found." });
+  if (!coachId || !["approved", "rejected", "delete"].includes(decision)) return res.status(400).json({ error: "Coach and decision are required." });
+  const coach = await prisma.coach.findUnique({ where: { id: coachId }, include: { user: true, athletes: { select: { id: true } } } });
+  if (!coach) return res.status(404).json({ error: "Coach account not found." });
+
+  if (decision === "delete") {
+    if (coach.athletes.length > 0) {
+      return res.status(409).json({ error: `Coach still has ${coach.athletes.length} assigned athlete${coach.athletes.length === 1 ? "" : "s"}. Reassign or remove their athletes before deleting the account.` });
+    }
+    await prisma.$transaction(async (tx) => {
+      await tx.athleteCoachHistory.deleteMany({ where: { coachId } });
+      await tx.user.delete({ where: { id: coach.userId } });
+      await tx.auditLog.create({ data: { userId: Number(session.user.id), action: "delete", entityType: "coach", entityId: coachId, description: `deleted coach account ${coach.coachCode}${reason ? `: ${reason}` : ""}` } });
+    });
+    return res.status(200).json({ success: true, status: "deleted", message: "Coach account deleted." });
+  }
+
+  const isPending = coach.user.status === "pending";
+  const isRejected = coach.user.status === "rejected";
+
+  if (decision === "rejected" && !isPending) return res.status(409).json({ error: "Only pending coach applications can be rejected here." });
+  if (decision === "approved" && !isPending && !isRejected) return res.status(409).json({ error: "Coach account is not awaiting action." });
 
   const status = decision === "approved" ? "active" : "rejected";
 
-  if (decision === "approved") {
+  if (decision === "approved" && isPending) {
     const tempPassword = generateTempPassword();
     const passwordHash = await bcrypt.hash(tempPassword, 12);
 
@@ -53,7 +71,23 @@ export default async function handler(req, res) {
       temporaryPassword: tempPassword,
     });
 
-    return res.status(200).json({ success: true, status, message: emailed ? "Coach approved. Temporary password sent via email." : "Coach approved, but the temporary password could not be emailed (email not configured). Contact the coach directly." });
+    return res.status(200).json({ success: true, status, message: emailed ? "Coach approved. Temporary password sent via email." : "Coach approved, but the temporary password could not be emailed (email not configured). Share the temporary password securely with the coach." });
+  }
+
+  if (decision === "approved" && isRejected) {
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: coach.userId }, data: { status: "active", mustChangePassword: true } }),
+      prisma.coach.update({ where: { id: coachId }, data: { status: "active" } }),
+      prisma.auditLog.create({ data: { userId: Number(session.user.id), action: "reapprove", entityType: "coach", entityId: coachId, description: `reapproved coach ${coach.coachCode}${reason ? `: ${reason}` : ""}` } }),
+    ]);
+
+    const emailed = await sendCoachApprovalEmail({
+      email: coach.email,
+      name: `${coach.firstName} ${coach.lastName}`,
+      coachCode: coach.coachCode,
+    });
+
+    return res.status(200).json({ success: true, status: "active", message: emailed ? "Coach reapproved. Approval notice sent via email." : "Coach reapproved." });
   }
 
   await prisma.$transaction([

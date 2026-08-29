@@ -43,7 +43,6 @@ export default function Assessments({ assessments, catalog, session, page, total
                 <p className={styles.eyebrow}>Recorded measurements</p>
                 <h2>Assessment history</h2>
               </div>
-              <strong>{total} records</strong>
             </div>
             <div className={styles.tableWrap}>
               <table>

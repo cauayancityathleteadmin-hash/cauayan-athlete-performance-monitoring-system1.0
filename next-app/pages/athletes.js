@@ -50,7 +50,7 @@ export default function Athletes({ session, athletes, catalog, page, totalPages,
         )}
 
         <section className={styles.panel}>
-          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registered athletes</p><h2>All athletes</h2></div><strong>{total} records</strong></div>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registered athletes</p><h2>All athletes</h2></div></div>
           <div className={styles.tableWrap}><table><thead><tr><th>Code</th><th>Athlete</th><th>Sport / event</th><th>School</th><th>Coach</th><th>Status</th></tr></thead><tbody>
             {athletes.map((athlete) => (
               <tr key={athlete.id}>

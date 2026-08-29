@@ -1,4 +1,5 @@
 import Head from "next/head";
+import { useRouter } from "next/router";
 import React from "react";
 import { getSession } from "next-auth/react";
 import { prisma } from "../lib/prisma";
@@ -12,28 +13,69 @@ export async function getServerSideProps(context) {
   if (!session) return { redirect: { destination: "/login", permanent: false } };
   const isAdmin = session.user.role === "admin";
   const page = Number(context.query.page) || 1;
-  const planResult = await paginatePrisma(prisma.eventPlan, page, { orderBy: { startDate: "asc" }, include: { sports: { include: { sport: true } }, applications: { include: { coach: { select: { coachCode: true, firstName: true, lastName: true } } } }, participants: { where: { status: "active" }, select: { id: true } } } });
+  const where = isAdmin ? undefined : { status: { in: ["open", "closed"] } };
+  const planResult = await paginatePrisma(prisma.eventPlan, page, { where, orderBy: { startDate: "asc" }, include: { sports: { include: { sport: true } }, applications: { include: { coach: { select: { coachCode: true, firstName: true, lastName: true } } } }, participants: { where: { status: "active" }, select: { id: true } } } });
   const plans = planResult.items.map((plan) => ({ ...plan, startDate: plan.startDate.toISOString(), endDate: plan.endDate?.toISOString() || null }));
-  const [sports, athletes] = isAdmin
-    ? [await prisma.sport.findMany({ where: { status: "active" }, select: { id: true, sportName: true }, orderBy: { sportName: "asc" } }), null]
-    : [null, await prisma.athlete.findMany({ where: { coach: { userId: Number(session.user.id) }, status: "active" }, select: { id: true, athleteCode: true, firstName: true, lastName: true }, orderBy: { lastName: "asc" } })];
-  return { props: { session, plans, page: planResult.page, totalPages: planResult.totalPages, sports, athletes: JSON.parse(JSON.stringify(athletes)) } };
+  let sports = null;
+  let athletes = null;
+  let coachId = null;
+  if (isAdmin) {
+    sports = await prisma.sport.findMany({ where: { status: "active" }, select: { id: true, sportName: true }, orderBy: { sportName: "asc" } });
+  } else {
+    const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
+    coachId = coach?.id ?? null;
+    athletes = coach ? await prisma.athlete.findMany({ where: { coach: { userId: Number(session.user.id) }, status: "active" }, select: { id: true, athleteCode: true, firstName: true, lastName: true }, orderBy: { lastName: "asc" } }) : [];
+  }
+  return { props: { session, plans, page: planResult.page, totalPages: planResult.totalPages, sports, athletes: JSON.parse(JSON.stringify(athletes)), coachId } };
 }
 
-function Card({ plan, children, className }) {
+const STATUS_META = {
+  draft: { label: "Draft", color: "#d6b26e", background: "rgba(214, 178, 110, .14)" },
+  open: { label: "Open", color: "var(--accent)", background: "rgba(45, 212, 168, .16)" },
+  closed: { label: "Closed", color: "#9db6c7", background: "rgba(157, 182, 199, .14)" },
+  cancelled: { label: "Cancelled", color: "#f87171", background: "rgba(248, 113, 113, .14)" },
+};
+
+function StatusChip({ status }) {
+  const meta = STATUS_META[status] || { label: status, color: "#9db6c7", background: "rgba(157, 182, 199, .14)" };
+  return <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase", background: meta.background, color: meta.color, whiteSpace: "nowrap" }}>{meta.label}</span>;
+}
+
+function formatDate(value) {
+  const date = new Date(value);
+  return isNaN(date) ? "—" : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+}
+
+function formatRange(start, end) {
+  const from = formatDate(start);
+  const to = formatDate(end);
+  return end ? `${from} to ${to}` : from;
+}
+
+function Card({ plan, children }) {
+  const sportNames = plan.sports.map((item) => item.sport.sportName).join(", ");
   return (
-    <article className={`${styles.panel} ${className || ""}`}>
-      <p className={styles.eyebrow}>{plan.status}</p>
-      <h2>{plan.eventName}</h2>
-      <p>{plan.description}</p>
-      <p><strong>{new Date(plan.startDate).toLocaleDateString()}</strong>{plan.endDate && ` - ${new Date(plan.endDate).toLocaleDateString()}`}<br />{plan.venue}</p>
-      <p>{plan.sports.map((item) => item.sport.sportName).join(", ")}</p>
+    <article className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div>
+          <p className={styles.eyebrow}>Event plan</p>
+          <h2>{plan.eventName}</h2>
+        </div>
+        <StatusChip status={plan.status} />
+      </div>
+      <p>{plan.description || "No description provided."}</p>
+      <ul style={{ listStyle: "none", margin: "14px 0 4px", padding: 0, display: "flex", flexDirection: "column", gap: "9px" }}>
+        <li style={{ display: "flex", gap: "12px", alignItems: "baseline" }}><strong style={{ minWidth: 96, color: "var(--muted)", fontSize: "12.5px", letterSpacing: ".02em" }}>Schedule</strong><span>{formatRange(plan.startDate, plan.endDate)}</span></li>
+        <li style={{ display: "flex", gap: "12px", alignItems: "baseline" }}><strong style={{ minWidth: 96, color: "var(--muted)", fontSize: "12.5px", letterSpacing: ".02em" }}>Venue</strong><span>{plan.venue}</span></li>
+        <li style={{ display: "flex", gap: "12px", alignItems: "baseline" }}><strong style={{ minWidth: 96, color: "var(--muted)", fontSize: "12.5px", letterSpacing: ".02em" }}>Sports</strong><span>{sportNames || "—"}</span></li>
+        {plan.programFlow ? <li style={{ display: "flex", gap: "12px", alignItems: "baseline" }}><strong style={{ minWidth: 96, color: "var(--muted)", fontSize: "12.5px", letterSpacing: ".02em" }}>Program</strong><span>{plan.programFlow}</span></li> : null}
+      </ul>
       {children}
     </article>
   );
 }
 
-export default function EventPlans({ plans, session, page, totalPages, sports, athletes }) {
+export default function EventPlans({ plans, session, page, totalPages, sports, athletes, coachId }) {
   const isAdmin = session?.user?.role === "admin";
   const [createPanel, setCreatePanel] = React.useState(false);
   return (
@@ -45,43 +87,71 @@ export default function EventPlans({ plans, session, page, totalPages, sports, a
           {isAdmin && <button className={styles.primary} onClick={() => setCreatePanel((current) => !current)}>{createPanel ? "Close form" : "Create plan"}</button>}
         </div>
         {isAdmin && createPanel && <CreatePlan sports={sports} />}
-        <section className={styles.grid}>{plans.map((plan) => <Card key={plan.id} plan={plan}><small>{plan.participants.length} active participants · {plan.applications.length} applications</small><EventPlanActions plan={plan} session={session} athletes={athletes} /></Card>)}</section>
+        <section className={styles.grid}>{plans.length ? plans.map((plan) => <Card key={plan.id} plan={plan}><EventPlanActions plan={plan} session={session} athletes={athletes} coachId={coachId} /></Card>) : <p className={styles.empty}>No event plans to show.</p>}</section>
         <Pagination page={page} totalPages={totalPages} />
       </AppShell>
     </>
   );
 }
 
-function EventPlanActions({ plan, session, athletes }) {
+function EventPlanActions({ plan, session, athletes, coachId }) {
+  const router = useRouter();
   const [message, setMessage] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [athleteId, setAthleteId] = React.useState("");
-  async function request(url, body) {
+
+  async function request(url, body, refresh) {
     setBusy(true); setMessage("");
     try {
       const csrf = await fetch("/api/csrf").then((r) => r.json());
       const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify(body) });
       const result = await response.json().catch(() => ({}));
-      setMessage(result.error || (response.ok ? "Saved successfully." : "Save failed."));
-      if (response.ok && !result.error) setAthleteId("");
+      if (!response.ok) { setMessage(result.error || "Action failed."); return; }
+      setAthleteId("");
+      if (refresh) { router.replace(router.asPath); return; }
+      setMessage("Saved successfully.");
     } catch (err) {
       setMessage("Unable to reach the server. Please try again later.");
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   }
+
   if (session.user.role === "coach") {
-    if (plan.status !== "open") return null;
+    const myApp = coachId ? plan.applications.find((application) => application.coachId === coachId) : null;
+    if (plan.status === "closed") {
+      return <p style={{ color: "var(--muted)", fontSize: 13, margin: "12px 0 0" }}>This event plan has been closed. Participation is no longer open.</p>;
+    }
+    if (myApp && myApp.status === "approved") {
+      return <div className={styles.actionRow}>
+        <small role="status">You are enrolled in this event plan.</small>
+        {athletes && athletes.length ? <><select value={athleteId} onChange={(event) => setAthleteId(event.target.value)}><option value="">Add athlete...</option>{athletes.map((a) => <option value={a.id} key={a.id}>{a.lastName}, {a.firstName} ({a.athleteCode})</option>)}</select><button className={`${styles.secondary} ${styles.btnSm}`} disabled={busy || !athleteId} onClick={() => request("/api/event-plans/participants", { eventPlanId: plan.id, athleteId: Number(athleteId) })}>Add athlete</button></> : <small style={{ color: "var(--muted)" }}>You have no active athletes to add.</small>}
+        {message && <small role="status">{message}</small>}
+      </div>;
+    }
+    if (myApp && myApp.status === "pending") {
+      return <p style={{ color: "var(--muted)", fontSize: 13, margin: "12px 0 0" }}>Your application to this event plan is under review.</p>;
+    }
+    if (myApp && myApp.status === "rejected") {
+      return <div className={styles.actionRow}>
+        <small style={{ color: "var(--danger)" }}>Your previous application was not approved. You may apply again.</small>
+        <button className={styles.secondary} disabled={busy} onClick={() => request("/api/event-plans/applications", { eventPlanId: plan.id }, true)}>Apply again</button>
+        {message && <small role="status">{message}</small>}
+      </div>;
+    }
     return <div className={styles.actionRow}>
-      <button className={styles.secondary} disabled={busy} onClick={() => request("/api/event-plans/applications", { eventPlanId: plan.id })}>Apply to participate</button>
-      {athletes && athletes.length ? <><select value={athleteId} onChange={(event) => setAthleteId(event.target.value)}><option value="">Add athlete...</option>{athletes.map((a) => <option value={a.id} key={a.id}>{a.lastName}, {a.firstName} ({a.athleteCode})</option>)}</select><button className={`${styles.secondary} ${styles.btnSm}`} disabled={busy || !athleteId} onClick={() => request("/api/event-plans/participants", { eventPlanId: plan.id, athleteId: Number(athleteId) })}>Add</button></> : null}
+      <button className={styles.secondary} disabled={busy} onClick={() => request("/api/event-plans/applications", { eventPlanId: plan.id }, true)}>Apply to participate</button>
       {message && <small role="status">{message}</small>}
     </div>;
   }
+
   const pending = plan.applications.filter((application) => application.status === "pending");
-  return pending.length ? <div className={styles.actionRow}>{pending.map((application) => <div key={application.id}><small>{application.coach.coachCode} {application.coach.firstName} {application.coach.lastName}</small><button className={`${styles.secondary} ${styles.btnSm}`} disabled={busy} onClick={() => request("/api/admin/event-plans/applications", { applicationId: application.id, decision: "approved" })}>Approve</button><button className={`${styles.danger} ${styles.btnSm}`} disabled={busy} onClick={() => request("/api/admin/event-plans/applications", { applicationId: application.id, decision: "rejected" })}>Reject</button></div>)}{message && <small role="status">{message}</small>}</div> : null;
+  if (!pending.length) return <p style={{ color: "var(--muted)", fontSize: 13, margin: "12px 0 0" }}>{plan.participants.length} enrolled · no applications pending review.</p>;
+  return <div className={styles.actionRow}>{pending.map((application) => <div key={application.id} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}><small>{application.coach.coachCode} {application.coach.firstName} {application.coach.lastName}</small><button className={`${styles.secondary} ${styles.btnSm}`} disabled={busy} onClick={() => request("/api/admin/event-plans/applications", { applicationId: application.id, decision: "approved" }, true)}>Approve</button><button className={`${styles.danger} ${styles.btnSm}`} disabled={busy} onClick={() => request("/api/admin/event-plans/applications", { applicationId: application.id, decision: "rejected" }, true)}>Reject</button></div>)}{message && <small role="status">{message}</small>}</div>;
 }
 
 function CreatePlan({ sports }) {
+  const router = useRouter();
   const [message, setMessage] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   async function submit(event) {
@@ -94,8 +164,8 @@ function CreatePlan({ sports }) {
     try {
       const response = await fetch("/api/event-plans", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify(body) });
       const result = await response.json().catch(() => ({}));
-      if (response.ok && !result.error) { setMessage("Event plan created. Refresh to see it."); event.currentTarget.reset(); }
-      else setMessage(result.error || "Could not create plan.");
+      if (response.ok && !result.error) { event.currentTarget.reset(); router.replace(router.asPath); return; }
+      setMessage(result.error || "Could not create plan.");
     } catch (err) { setMessage("Unable to reach the server."); }
     setBusy(false);
   }

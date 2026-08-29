@@ -1,0 +1,306 @@
+/* Formal official report — paper preview on screen and print output */
+
+.report-doc {
+  background: #ffffff;
+  color: #1a1a1a;
+  padding: 40px 44px;
+  margin: 0 auto 28px;
+  max-width: 900px;
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
+  font-family: "Times New Roman", Georgia, serif;
+  line-height: 1.5;
+  text-align: left;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.report-doc *,
+.report-doc h1,
+.report-doc h2,
+.report-doc h3,
+.report-doc p {
+  color: #1a1a1a;
+  font-family: "Times New Roman", Georgia, serif;
+}
+
+.rd-header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-bottom: 14px;
+  border-bottom: 3px double #1a5c4a;
+  margin-bottom: 20px;
+}
+
+.rd-logo {
+  height: 84px;
+  width: auto;
+  flex-shrink: 0;
+}
+
+.rd-header-text {
+  flex: 1;
+  text-align: center;
+}
+
+.rd-republic {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #444;
+}
+
+.rd-lgu {
+  margin: 2px 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.rd-office {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #333;
+}
+
+.rd-address {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: #555;
+}
+
+.rd-title {
+  text-align: center;
+  margin: 22px 0 4px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.rd-ref {
+  text-align: center;
+  font-size: 11px;
+  color: #444;
+  margin: 0 0 22px;
+}
+
+.rd-ref span {
+  text-decoration: underline;
+}
+
+.rd-info {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 22px;
+  font-size: 13px;
+}
+
+.rd-info th,
+.rd-info td {
+  border: 1px solid #333;
+  padding: 7px 10px;
+  text-align: left;
+}
+
+.rd-info th {
+  background: #f2f7f5;
+  width: 25%;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: #333;
+}
+
+.rd-info td {
+  width: 25%;
+}
+
+.rd-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid #333;
+  padding-bottom: 6px;
+  margin: 26px 0 14px;
+}
+
+.rd-section-title span {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #444;
+  margin-left: 8px;
+}
+
+.rd-assessment {
+  margin-bottom: 18px;
+}
+
+.rd-assessment-head {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.rd-assessment-head small {
+  font-weight: 400;
+  color: #444;
+}
+
+.rd-results {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.rd-results th,
+.rd-results td {
+  border: 1px solid #333;
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.rd-results td.num {
+  text-align: right;
+}
+
+.rd-results th {
+  background: #f2f7f5;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+
+.rd-empty {
+  font-size: 12px;
+  color: #444;
+  font-style: italic;
+}
+
+.rd-cert {
+  border: 1px solid #333;
+  padding: 12px 16px;
+  margin: 24px 0 30px;
+  font-size: 12.5px;
+  text-align: justify;
+}
+
+.rd-cert strong {
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.rd-signatures {
+  display: flex;
+  gap: 60px;
+  justify-content: space-between;
+}
+
+.rd-sig {
+  flex: 1;
+  text-align: center;
+}
+
+.rd-sig-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-align: left;
+  margin-bottom: 74px;
+}
+
+.rd-sig-name {
+  display: inline-block;
+  min-width: 230px;
+  height: 28px;
+  border-bottom: 1px solid #333;
+  font-size: 13px;
+  text-align: center;
+  line-height: 28px;
+}
+
+.rd-sig-pos {
+  font-size: 11px;
+  color: #333;
+  margin-top: 5px;
+  letter-spacing: 0.03em;
+}
+
+.rd-sig-note {
+  font-size: 10px;
+  color: #555;
+  margin-top: 2px;
+  font-style: italic;
+}
+
+.rd-footer {
+  margin-top: 32px;
+  border-top: 1px solid #999;
+  padding-top: 9px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 10px;
+  color: #555;
+}
+
+/* Keep the app chrome out of print output */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 14mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    background-image: none !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #report-workspace,
+  #report-workspace * {
+    visibility: visible;
+  }
+
+  #report-workspace {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  .report-doc {
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+    page-break-after: always;
+  }
+
+  .report-doc:last-child {
+    page-break-after: auto;
+  }
+
+  .rd-logo {
+    height: 64px;
+  }
+
+  .rd-assessment {
+    page-break-inside: avoid;
+  }
+}

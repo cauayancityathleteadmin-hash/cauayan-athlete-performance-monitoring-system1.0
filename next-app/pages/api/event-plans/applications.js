@@ -24,6 +24,10 @@ export default async function handler(req, res) {
   const plan = await prisma.eventPlan.findUnique({ where: { id: eventPlanId }, select: { id: true, status: true } });
   if (!plan || plan.status !== "open") return res.status(400).json({ error: "Applications are only allowed for open event plans." });
 
+  const existing = await prisma.eventApplication.findUnique({ where: { eventPlanId_coachId: { eventPlanId, coachId: coach.id } }, select: { status: true } });
+  if (existing && existing.status === "approved") return res.status(409).json({ error: "Your application to this event plan was already approved." });
+  if (existing && existing.status === "pending") return res.status(409).json({ error: "Your application to this event plan is already under review." });
+
   const application = await prisma.$transaction(async (tx) => {
     const saved = await tx.eventApplication.upsert({
       where: { eventPlanId_coachId: { eventPlanId, coachId: coach.id } },
