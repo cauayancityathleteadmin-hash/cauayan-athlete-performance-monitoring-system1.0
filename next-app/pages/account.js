@@ -221,9 +221,9 @@ export default function Account({ user, sports, session }) {
                 <label>Middle name<input name="middleName" className={styles.fieldControl} maxLength="100" defaultValue={view.middleName} /></label>
                 <label>Last name<input name="lastName" className={styles.fieldControl} required maxLength="100" defaultValue={view.lastName} /></label>
                 <label>Email<input name="email" className={styles.fieldControl} type="email" required maxLength="191" defaultValue={view.email} /></label>
-                <label>Birthdate<input name="birthdate" className={styles.fieldControl} type="date" required defaultValue={view.birthdate} /></label>
                 {isCoach && (
                   <>
+                    <label>Birthdate<input name="birthdate" className={styles.fieldControl} type="date" required defaultValue={view.birthdate} /></label>
                     <label>School<input name="school" className={styles.fieldControl} defaultValue={view.school} required maxLength="191" placeholder="Enter your school name" /></label>
                     <fieldset className={styles.fullField} style={{ border: "1px solid var(--border)", padding: "14px", borderRadius: "6px" }}>
                       <legend style={{ color: "var(--muted)", fontSize: "13px", fontWeight: 700, marginBottom: "8px" }}>Sports coached</legend>

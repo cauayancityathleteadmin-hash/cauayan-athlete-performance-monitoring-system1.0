@@ -68,7 +68,6 @@ export default function AppShell({
           </button>
           <span className={styles.userName}>{person}</span>
           <span className={styles.roleBadge}>{session?.user?.role}</span>
-          <Link href="/account">My Account</Link>
           <button type="button" className={styles.logoutBtn} onClick={() => signOut({ callbackUrl: "/login" })}>
             Log out
           </button>

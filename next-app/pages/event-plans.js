@@ -14,7 +14,7 @@ export async function getServerSideProps(context) {
   const isAdmin = session.user.role === "admin";
   const page = Number(context.query.page) || 1;
   const where = isAdmin ? undefined : { status: { in: ["open", "closed"] } };
-  const planResult = await paginatePrisma(prisma.eventPlan, page, { where, orderBy: { startDate: "asc" }, include: { sports: { include: { sport: true } }, applications: { include: { coach: { select: { coachCode: true, firstName: true, lastName: true } } } }, participants: { where: { status: "active" }, select: { id: true } } } });
+  const planResult = await paginatePrisma(prisma.eventPlan, page, { where, orderBy: { startDate: "asc" }, include: { sports: { include: { sport: true } }, applications: { include: { coach: { select: { coachCode: true, firstName: true, lastName: true } } } }, participants: { where: { status: "active" }, select: { id: true, athleteId: true } } } });
   const plans = planResult.items.map((plan) => ({ ...plan, startDate: plan.startDate.toISOString(), endDate: plan.endDate?.toISOString() || null }));
   let sports = null;
   let athletes = null;
@@ -98,7 +98,9 @@ function EventPlanActions({ plan, session, athletes, coachId }) {
   const router = useRouter();
   const [message, setMessage] = React.useState("");
   const [busy, setBusy] = React.useState(false);
-  const [athleteId, setAthleteId] = React.useState("");
+  const [pickerOpen, setPickerOpen] = React.useState(false);
+  const [selectedIds, setSelectedIds] = React.useState([]);
+  const [addedIds, setAddedIds] = React.useState(() => new Set((plan.participants || []).map((p) => p.athleteId)));
 
   async function request(url, body, refresh) {
     setBusy(true); setMessage("");
@@ -107,7 +109,6 @@ function EventPlanActions({ plan, session, athletes, coachId }) {
       const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify(body) });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) { setMessage(result.error || "Action failed."); return; }
-      setAthleteId("");
       if (refresh) { router.replace(router.asPath); return; }
       setMessage("Saved successfully.");
     } catch (err) {
@@ -117,16 +118,83 @@ function EventPlanActions({ plan, session, athletes, coachId }) {
     }
   }
 
+  function toggleAthlete(id) {
+    setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  }
+
+  async function addAthletes() {
+    const targets = selectedIds.filter((id) => !addedIds.has(id));
+    if (!targets.length) return;
+    setBusy(true);
+    setMessage("");
+    let added = 0;
+    let firstError = "";
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      for (const athleteId of targets) {
+        try {
+          const response = await fetch("/api/event-plans/participants", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ eventPlanId: plan.id, athleteId }) });
+          const result = await response.json().catch(() => ({}));
+          if (response.ok && !result.error) added++;
+          else if (!firstError) firstError = result.error || "One or more athletes could not be added.";
+        } catch {
+          if (!firstError) firstError = "Unable to reach the server.";
+        }
+      }
+    } catch {
+      firstError = "Unable to reach the server.";
+    }
+    if (added > 0) {
+      setAddedIds((current) => new Set([...current, ...targets]));
+      setMessage(`Added ${added} athlete${added > 1 ? "s" : ""} to the event plan.`);
+    } else {
+      setMessage(firstError || "No athletes were added.");
+    }
+    setSelectedIds([]);
+    setPickerOpen(false);
+    setBusy(false);
+  }
+
   if (session.user.role === "coach") {
     const myApp = coachId ? plan.applications.find((application) => application.coachId === coachId) : null;
     if (plan.status === "closed") {
       return <p style={{ color: "var(--muted)", fontSize: 13, margin: "12px 0 0" }}>This event plan has been closed. Participation is no longer open.</p>;
     }
     if (myApp && myApp.status === "approved") {
-      return <div className={styles.actionRow}>
-        <small role="status">You are enrolled in this event plan.</small>
-        {athletes && athletes.length ? <><select value={athleteId} onChange={(event) => setAthleteId(event.target.value)}><option value="">Add athlete...</option>{athletes.map((a) => <option value={a.id} key={a.id}>{a.lastName}, {a.firstName} ({a.athleteCode})</option>)}</select><button className={`${styles.secondary} ${styles.btnSm}`} disabled={busy || !athleteId} onClick={() => request("/api/event-plans/participants", { eventPlanId: plan.id, athleteId: Number(athleteId) })}>Add athlete</button></> : <small style={{ color: "var(--muted)" }}>You have no active athletes to add.</small>}
-        {message && <small role="status">{message}</small>}
+      const available = athletes || [];
+      return <div>
+        <div className={styles.actionRow}>
+          <small role="status">You are enrolled in this event plan.</small>
+          {available.length > 0 ? (
+            <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setPickerOpen((current) => !current)}>{pickerOpen ? "Close athlete list" : "Add athlete"}</button>
+          ) : (
+            <small style={{ color: "var(--muted)" }}>You have no active athletes to add.</small>
+          )}
+          {message && <small role="status">{message}</small>}
+        </div>
+        {available.length > 0 && pickerOpen && (
+          <div style={{ marginTop: 14, border: "1px solid var(--border)", borderRadius: "8px", padding: "14px", background: "rgba(6, 38, 30, 0.5)" }}>
+            <p className={styles.eyebrow} style={{ marginBottom: 4 }}>Select athletes to add</p>
+            <p className={styles.formHint} style={{ margin: "0 0 12px" }}>Only active athletes assigned to you are listed. Athletes already added are marked and cannot be selected again.</p>
+            <div className={styles.checkboxList}>
+              {available.map((athlete) => {
+                const done = addedIds.has(athlete.id);
+                return (
+                  <label key={athlete.id}>
+                    <input type="checkbox" checked={selectedIds.includes(athlete.id)} disabled={done || busy} onChange={() => toggleAthlete(athlete.id)} />
+                    <span>{athlete.lastName}, {athlete.firstName} ({athlete.athleteCode}){done ? " — added" : ""}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <div className={styles.stackedActions} style={{ marginTop: 12 }}>
+              <button className={styles.primary} disabled={busy || selectedIds.filter((id) => !addedIds.has(id)).length === 0} onClick={addAthletes}>
+                {busy ? "Adding..." : `Add selected (${selectedIds.filter((id) => !addedIds.has(id)).length})`}
+              </button>
+              <button type="button" className={styles.secondary} disabled={busy} onClick={() => { setPickerOpen(false); setSelectedIds([]); }}>Cancel</button>
+            </div>
+          </div>
+        )}
       </div>;
     }
     if (myApp && myApp.status === "pending") {

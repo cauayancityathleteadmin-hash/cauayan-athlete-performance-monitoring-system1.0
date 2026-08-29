@@ -1,5 +1,6 @@
 import Head from "next/head";
 import React from "react";
+import { useRouter } from "next/router";
 import { getSession } from "next-auth/react";
 import { prisma } from "../lib/prisma";
 import { paginatePrisma } from "../lib/pagination";
@@ -7,11 +8,39 @@ import Pagination from "../components/Pagination";
 import AppShell from "../components/AppShell";
 import styles from "../styles/Dashboard.module.css";
 
+const SORT_KEYS = {
+  name: "Athlete name",
+  code: "Athlete code",
+  sport: "Sport",
+  event: "Event",
+  school: "School",
+  coach: "Coach",
+  status: "Status",
+  registered: "Date registered",
+};
+
+function athleteOrderBy(sort, dir) {
+  const direction = dir === "desc" ? "desc" : "asc";
+  switch (sort) {
+    case "code": return [{ athleteCode: direction }];
+    case "sport": return [{ sport: { sportName: direction } }, { lastName: "asc" }];
+    case "event": return [{ event: { eventName: direction } }, { lastName: "asc" }];
+    case "school": return [{ school: { schoolName: direction } }, { lastName: "asc" }];
+    case "coach": return [{ coach: { lastName: direction } }, { coach: { firstName: direction } }, { lastName: "asc" }];
+    case "status": return [{ status: direction }, { lastName: "asc" }];
+    case "registered": return [{ dateRegistered: direction }];
+    case "name":
+    default: return [{ lastName: direction }, { firstName: direction }];
+  }
+}
+
 export async function getServerSideProps(context) {
   const session = await getSession(context);
   if (!session) return { redirect: { destination: "/login", permanent: false } };
   const page = Number(context.query.page) || 1;
-  const student = { orderBy: [{ status: "asc" }, { lastName: "asc" }], include: { school: true, sport: true, event: true, coach: true } };
+  const sort = Object.keys(SORT_KEYS).includes(context.query.sort) ? context.query.sort : "name";
+  const dir = context.query.dir === "desc" ? "desc" : "asc";
+  const student = { orderBy: athleteOrderBy(sort, dir), include: { school: true, sport: true, event: true, coach: true } };
   if (session.user.role === "coach") {
     const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
     if (coach) student.where = { coachId: coach.id };
@@ -22,12 +51,26 @@ export async function getServerSideProps(context) {
     prisma.event.findMany({ where: { status: "active" }, include: { sport: true }, orderBy: { eventName: "asc" } }),
   ]);
   const athletes = athleteResult.items.map((athlete) => ({ ...athlete, birthdate: athlete.birthdate.toISOString(), dateRegistered: athlete.dateRegistered.toISOString() }));
-  return { props: { session, catalog: { sports, events }, athletes, page: athleteResult.page, totalPages: athleteResult.totalPages, total: athleteResult.total } };
+  return { props: { session, catalog: { sports, events }, athletes, page: athleteResult.page, totalPages: athleteResult.totalPages, total: athleteResult.total, sort, dir } };
 }
 
-export default function Athletes({ session, athletes, catalog, page, totalPages, total }) {
+export default function Athletes({ session, athletes, catalog, page, totalPages, total, sort, dir }) {
   const isAdmin = session?.user?.role === "admin";
   const [view, setView] = React.useState("list");
+  const router = useRouter();
+
+  function changeSort(nextSort) {
+    router.push({ pathname: "/athletes", query: { ...router.query, sort: nextSort, dir, page: 1 } });
+  }
+
+  function toggleDir() {
+    router.push({ pathname: "/athletes", query: { ...router.query, dir: dir === "asc" ? "desc" : "asc", page: 1 } });
+  }
+
+  function formatDate(value) {
+    const date = new Date(value);
+    return isNaN(date) ? "—" : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  }
 
   return (
     <>
@@ -51,7 +94,15 @@ export default function Athletes({ session, athletes, catalog, page, totalPages,
 
         <section className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registered athletes</p><h2>All athletes</h2></div></div>
-          <div className={styles.tableWrap}><table><thead><tr><th>Code</th><th>Athlete</th><th>Sport / event</th><th>School</th><th>Coach</th><th>Status</th></tr></thead><tbody>
+          <div className={styles.toolbar}>
+            <label>Sort athletes by
+              <select value={sort} onChange={(event) => changeSort(event.target.value)}>
+                {Object.entries(SORT_KEYS).map(([key, label]) => <option value={key} key={key}>{label}</option>)}
+              </select>
+            </label>
+            <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={toggleDir}>{dir === "asc" ? "Ascending" : "Descending"}</button>
+          </div>
+          <div className={styles.tableWrap}><table><thead><tr><th>Code</th><th>Athlete</th><th>Sport / event</th><th>School</th><th>Coach</th><th>Status</th><th>Registered</th></tr></thead><tbody>
             {athletes.map((athlete) => (
               <tr key={athlete.id}>
                 <td>{athlete.athleteCode}</td>
@@ -60,10 +111,11 @@ export default function Athletes({ session, athletes, catalog, page, totalPages,
                 <td>{athlete.school?.schoolName || "Unassigned"}</td>
                 <td>{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
                 <td><StatusBadge status={athlete.status} /></td>
+                <td>{formatDate(athlete.dateRegistered)}</td>
               </tr>
             ))}
           </tbody></table></div>
-          <Pagination page={page} totalPages={totalPages} />
+          <Pagination page={page} totalPages={totalPages} query={{ sort, dir }} />
         </section>
       </AppShell>
     </>

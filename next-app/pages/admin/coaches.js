@@ -22,9 +22,50 @@ export async function getServerSideProps(context) {
 
 const FILTERS = ["all", "active", "pending", "rejected", "inactive"];
 
+const SORT_OPTIONS = [
+  { key: "name", label: "Coach name" },
+  { key: "code", label: "Coach code" },
+  { key: "email", label: "Email" },
+  { key: "school", label: "School" },
+  { key: "sports", label: "Sports count" },
+  { key: "athletes", label: "Athletes" },
+  { key: "status", label: "Status" },
+  { key: "registered", label: "Registered" },
+  { key: "lastLogin", label: "Last login" },
+];
+
+const STATUS_RANK = { active: 0, pending: 1, rejected: 2, inactive: 3 };
+
+function sortCoaches(list, key, dir) {
+  const factor = dir === "desc" ? -1 : 1;
+  const sorted = [...list];
+  sorted.sort((a, b) => {
+    let av;
+    let bv;
+    switch (key) {
+      case "name": av = `${a.firstName} ${a.lastName}`.toLowerCase(); bv = `${b.firstName} ${b.lastName}`.toLowerCase(); break;
+      case "code": av = a.coachCode || ""; bv = b.coachCode || ""; break;
+      case "email": av = (a.user?.email || "").toLowerCase(); bv = (b.user?.email || "").toLowerCase(); break;
+      case "school": av = (a.school?.schoolName || "").toLowerCase(); bv = (b.school?.schoolName || "").toLowerCase(); break;
+      case "sports": av = a.sports?.length || 0; bv = b.sports?.length || 0; break;
+      case "athletes": av = a.athletesCount; bv = b.athletesCount; break;
+      case "status": av = STATUS_RANK[a.user?.status] ?? 9; bv = STATUS_RANK[b.user?.status] ?? 9; break;
+      case "registered": av = a.user?.createdAt ? new Date(a.user.createdAt) : new Date(0); bv = b.user?.createdAt ? new Date(b.user.createdAt) : new Date(0); break;
+      case "lastLogin": av = a.user?.lastLoginAt ? new Date(a.user.lastLoginAt) : new Date(0); bv = b.user?.lastLoginAt ? new Date(b.user.lastLoginAt) : new Date(0); break;
+      default: av = ""; bv = "";
+    }
+    if (av < bv) return -1 * factor;
+    if (av > bv) return 1 * factor;
+    return 0;
+  });
+  return sorted;
+}
+
 export default function AdminCoaches({ coaches, session }) {
   const [list, setList] = React.useState(coaches);
   const [filter, setFilter] = React.useState("all");
+  const [sortKey, setSortKey] = React.useState("name");
+  const [sortDir, setSortDir] = React.useState("asc");
   const [message, setMessage] = React.useState("");
   const [busy, setBusy] = React.useState(false);
 
@@ -92,6 +133,7 @@ export default function AdminCoaches({ coaches, session }) {
   }
 
   const visible = list.filter((coach) => filter === "all" || coach.user.status === filter);
+  const sorted = sortCoaches(visible, sortKey, sortDir);
 
   return (
     <>
@@ -111,6 +153,13 @@ export default function AdminCoaches({ coaches, session }) {
               {FILTERS.map((item) => (
                 <button key={item} type="button" onClick={() => setFilter(item)} className={filter === item ? styles.primary : styles.secondary} style={{ textTransform: "capitalize" }}>{item}</button>
               ))}
+              <span style={{ flex: 1 }} />
+              <label>Sort coaches by
+                <select value={sortKey} onChange={(event) => setSortKey(event.target.value)}>
+                  {SORT_OPTIONS.map((option) => <option value={option.key} key={option.key}>{option.label}</option>)}
+                </select>
+              </label>
+              <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setSortDir((current) => (current === "asc" ? "desc" : "asc"))}>{sortDir === "asc" ? "Ascending" : "Descending"}</button>
             </div>
             {message && <p role="status" style={{ color: message.startsWith("Coach") ? "#365448" : "#8b3a3a", margin: "0 0 14px", padding: "12px", background: message.startsWith("Coach") ? "rgba(45, 212, 168, .16)" : "rgba(248, 113, 113, .16)", borderRadius: "6px", border: message.startsWith("Coach") ? "1px solid var(--accent)" : "1px solid var(--danger)" }}>{message}</p>}
             <div className={styles.tableWrap}>
@@ -129,7 +178,7 @@ export default function AdminCoaches({ coaches, session }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.map((coach) => (
+                  {sorted.map((coach) => (
                     <tr key={coach.id}>
                       <td>
                         <strong>{coachName(coach)}</strong>
