@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "../../../../lib/prisma";
+import { sendCoachPasswordResetEmail } from "../../../../lib/email";
 import { requireSession, requireRole, requireCsrf, setSecurityHeaders } from "../../../../lib/api-security";
 
 function generateTempPassword() {
@@ -41,9 +42,10 @@ export default async function handler(req, res) {
     let repro = null;
     if (reproCoachId) {
       const step = [];
+      let coach = null;
       try {
         step.push("findUnique");
-        const coach = await prisma.coach.findUnique({ where: { id: reproCoachId }, include: { user: true } });
+        coach = await prisma.coach.findUnique({ where: { id: reproCoachId }, include: { user: true } });
         if (!coach) throw new Error("coach not found");
         step.push("bcrypt.hash");
         const passwordHash = await bcrypt.hash(generateTempPassword(), 12);
@@ -56,6 +58,16 @@ export default async function handler(req, res) {
         repro = { ok: true, step };
       } catch (e) {
         repro = { ok: false, step, name: e?.name, code: e?.code, message: String(e?.message || e) };
+      }
+      if (coach) {
+        step.push("email.call");
+        try {
+          const emailed = await sendCoachPasswordResetEmail({ email: coach.user.email, name: "Diag", coachCode: coach.coachCode, temporaryPassword: "Diag12345!" });
+          step.push(`email.returned=${emailed}`);
+          if (repro && repro.ok) repro.step = step;
+        } catch (e) {
+          step.push(`email.throw=${String(e?.message || e)}`);
+        }
       }
     }
 
