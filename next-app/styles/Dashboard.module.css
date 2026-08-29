@@ -1365,62 +1365,6 @@
 }
 
 /* ===== Analytics: SVG/CSS charts (no external chart library) ===== */
-.kpiRow {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px;
-  margin-bottom: 22px;
-}
-
-.kpi {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 16px 18px;
-  background: rgba(6, 38, 30, 0.5);
-  border: 1px solid #1a5c4a;
-  border-radius: 12px;
-}
-
-.kpi strong {
-  font-size: 30px;
-  color: var(--foreground);
-}
-
-.kpi span {
-  color: var(--foreground);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.kpi small {
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.errorBox {
-  grid-column: 1 / -1;
-  background: rgba(248, 113, 113, 0.08);
-  border: 1px solid rgba(248, 113, 113, 0.4);
-  border-radius: 10px;
-  padding: 14px 16px;
-  color: #fecaca;
-}
-
-.errorBox strong {
-  display: block;
-  margin-bottom: 6px;
-  color: #fca5a5;
-}
-
-.errorBox pre {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-size: 12px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-
 .hbars {
   display: flex;
   flex-direction: column;
