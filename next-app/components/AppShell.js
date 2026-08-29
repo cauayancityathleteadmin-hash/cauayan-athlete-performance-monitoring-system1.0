@@ -12,6 +12,7 @@ const ALL_LINKS = [
   { href: "/assessments", label: "Assessments" },
   { href: "/analytics", label: "Analytics" },
   { href: "/event-plans", label: "Sports event plans" },
+  { href: "/account", label: "My account" },
   { href: "/admin/catalog", label: "Sports & Events", adminOnly: true },
   { href: "/admin/metrics", label: "Performance Metrics", adminOnly: true },
   { href: "/admin/audit-logs", label: "Audit Logs", adminOnly: true },
@@ -69,7 +70,7 @@ export default function AppShell({
           <span className={styles.roleBadge}>{session?.user?.role}</span>
           <Link href="/account">My Account</Link>
           <button type="button" className={styles.logoutBtn} onClick={() => signOut({ callbackUrl: "/login" })}>
-            Sign out
+            Log out
           </button>
         </div>
       </header>

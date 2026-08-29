@@ -98,7 +98,7 @@ export default function Login() {
             )}
           </button>
         </div>
-        <button disabled={busy}>{busy ? "Signing in..." : "Sign in"}</button>
+        <button disabled={busy}>{busy ? "Logging in..." : "Log in"}</button>
         {error && <p role="alert">{error}</p>}
       </form>
       <p className="auth-register"><Link href="/coach-register">Register as a coach</Link></p>

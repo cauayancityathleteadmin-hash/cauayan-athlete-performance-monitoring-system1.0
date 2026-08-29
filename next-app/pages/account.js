@@ -34,6 +34,7 @@ export async function getServerSideProps(context) {
 export default function Account({ user, sports, session }) {
   const router = useRouter();
   const [tab, setTab] = React.useState("profile");
+  const [editing, setEditing] = React.useState(false);
   const [message, setMessage] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState("");
@@ -46,8 +47,23 @@ export default function Account({ user, sports, session }) {
 
   const isCoach = user.role === "coach";
   const coach = user.coach;
+  const [view, setView] = React.useState({
+    firstName: coach?.firstName || "",
+    middleName: coach?.middleName || "",
+    lastName: coach?.lastName || "",
+    email: user.email,
+    birthdate: coach?.birthdate?.split("T")[0] || "",
+    school: coach?.school?.schoolName || "",
+    sportIds: coach ? coach.sports.map((cs) => cs.sportId) : [],
+  });
   const initials = ((coach?.firstName?.[0] || "") + (coach?.lastName?.[0] || "")).toUpperCase() || (user.email ? user.email[0].toUpperCase() : "A");
-  const profileName = coach ? [coach.firstName, coach.middleName, coach.lastName].filter(Boolean).join(" ") : user.name || user.email;
+  const profileName = isCoach ? [view.firstName, view.middleName, view.lastName].filter(Boolean).join(" ") : user.name || user.email;
+
+  function formatBirthdate(value) {
+    if (!value) return "—";
+    const date = new Date(value.includes("T") ? value : `${value}T00:00:00Z`);
+    return isNaN(date) ? value : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  }
 
   const handlePasswordChange = (name, value) => {
     setPasswordData((prev) => ({ ...prev, [name]: value }));
@@ -55,6 +71,18 @@ export default function Account({ user, sports, session }) {
       setNewPasswordStrength(checkPasswordStrength(value));
     }
   };
+
+  function submittedView(form) {
+    return {
+      firstName: (form.get("firstName") || "").trim(),
+      middleName: (form.get("middleName") || "").trim(),
+      lastName: (form.get("lastName") || "").trim(),
+      email: (form.get("email") || "").trim(),
+      birthdate: form.get("birthdate") || "",
+      school: (form.get("school") || "").toString().trim(),
+      sportIds: isCoach ? form.getAll("sportIds").map(Number) : [],
+    };
+  }
 
   async function submitProfile(event) {
     event.preventDefault();
@@ -71,7 +99,13 @@ export default function Account({ user, sports, session }) {
         body: JSON.stringify(body),
       });
       const result = await response.json().catch(() => ({}));
-      setMessage(result.error || (response.ok ? result.message : "Failed to update profile."));
+      if (!response.ok || result.error) {
+        setMessage(result.error || "Failed to update profile.");
+        return;
+      }
+      setView(submittedView(form));
+      setEditing(false);
+      setMessage(result.message || "Profile updated successfully.");
     } catch (err) {
       setMessage("Unable to reach the server. Please try again later.");
     }
@@ -163,30 +197,48 @@ export default function Account({ user, sports, session }) {
 
         {tab === "profile" && (
           <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Settings</p><h2>Profile information</h2></div></div>
-            <dl className={styles.infoList}>
-              <div><dt>Role</dt><dd>{user.role}</dd></div>
-              {isCoach && <><div><dt>Coach code</dt><dd>{coach.coachCode}</dd></div><div><dt>School</dt><dd>{coach.school?.schoolName || "—"}</dd></div><div><dt>Sports coached</dt><dd>{coach.sports.map((cs) => cs.sport.sportName).join(", ") || "—"}</dd></div></>}
-            </dl>
-            <form onSubmit={submitProfile} className={styles.formGrid} style={{ marginTop: 16 }}>
-              <label>First name<input name="firstName" className={styles.fieldControl} required maxLength="100" defaultValue={coach?.firstName || ""} /></label>
-              <label>Middle name<input name="middleName" className={styles.fieldControl} maxLength="100" defaultValue={coach?.middleName || ""} /></label>
-              <label>Last name<input name="lastName" className={styles.fieldControl} required maxLength="100" defaultValue={coach?.lastName || ""} /></label>
-              <label>Email<input name="email" className={styles.fieldControl} type="email" required maxLength="191" defaultValue={user.email} /></label>
-              <label>Birthdate<input name="birthdate" className={styles.fieldControl} type="date" required defaultValue={coach?.birthdate?.split("T")[0] || ""} /></label>
-              {isCoach && (
-                <>
-                  <label>School<input name="school" className={styles.fieldControl} defaultValue={coach?.school?.schoolName || ""} required maxLength="191" placeholder="Enter your school name" /></label>
-                  <fieldset className={styles.fullField} style={{ border: "1px solid var(--border)", padding: "14px", borderRadius: "6px" }}>
-                    <legend style={{ color: "var(--muted)", fontSize: "13px", fontWeight: 700, marginBottom: "8px" }}>Sports coached</legend>
-                    <div className={styles.checkboxList}>{sports.map((sport) => (
-                      <label key={sport.id}><input type="checkbox" name="sportIds" value={sport.id} defaultChecked={coach?.sports?.some((cs) => cs.sportId === sport.id)} /><span>{sport.sportName}</span></label>
-                    ))}</div>
-                  </fieldset>
-                </>
-              )}
-              <button className={styles.primary} disabled={busy} style={{ justifySelf: "start" }}>{busy ? "Saving..." : "Save changes"}</button>
-            </form>
+            <div className={styles.panelHeader}>
+              <div><p className={styles.eyebrow}>Settings</p><h2>Profile information</h2></div>
+              {!editing && <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setEditing(true)}>Edit profile</button>}
+            </div>
+            {!editing ? (
+              <dl className={styles.infoList}>
+                <div><dt>Full name</dt><dd>{profileName}</dd></div>
+                <div><dt>Email</dt><dd>{view.email}</dd></div>
+                <div><dt>Role</dt><dd>{user.role}</dd></div>
+                {isCoach && (
+                  <>
+                    <div><dt>Coach code</dt><dd>{coach.coachCode}</dd></div>
+                    <div><dt>Birthdate</dt><dd>{formatBirthdate(view.birthdate)}</dd></div>
+                    <div><dt>School</dt><dd>{view.school || "—"}</dd></div>
+                    <div><dt>Sports coached</dt><dd>{view.sportIds.length ? view.sportIds.map((id) => sports.find((s) => s.id === id)?.sportName).filter(Boolean).join(", ") || "—" : "—"}</dd></div>
+                  </>
+                )}
+              </dl>
+            ) : (
+              <form onSubmit={submitProfile} className={styles.formGrid} style={{ marginTop: 16 }}>
+                <label>First name<input name="firstName" className={styles.fieldControl} required maxLength="100" defaultValue={view.firstName} /></label>
+                <label>Middle name<input name="middleName" className={styles.fieldControl} maxLength="100" defaultValue={view.middleName} /></label>
+                <label>Last name<input name="lastName" className={styles.fieldControl} required maxLength="100" defaultValue={view.lastName} /></label>
+                <label>Email<input name="email" className={styles.fieldControl} type="email" required maxLength="191" defaultValue={view.email} /></label>
+                <label>Birthdate<input name="birthdate" className={styles.fieldControl} type="date" required defaultValue={view.birthdate} /></label>
+                {isCoach && (
+                  <>
+                    <label>School<input name="school" className={styles.fieldControl} defaultValue={view.school} required maxLength="191" placeholder="Enter your school name" /></label>
+                    <fieldset className={styles.fullField} style={{ border: "1px solid var(--border)", padding: "14px", borderRadius: "6px" }}>
+                      <legend style={{ color: "var(--muted)", fontSize: "13px", fontWeight: 700, marginBottom: "8px" }}>Sports coached</legend>
+                      <div className={styles.checkboxList}>{sports.map((sport) => (
+                        <label key={sport.id}><input type="checkbox" name="sportIds" value={sport.id} defaultChecked={view.sportIds.includes(sport.id)} /><span>{sport.sportName}</span></label>
+                      ))}</div>
+                    </fieldset>
+                  </>
+                )}
+                <div className={styles.stackedActions} style={{ gridColumn: "1 / -1" }}>
+                  <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Save changes"}</button>
+                  <button type="button" className={styles.secondary} disabled={busy} onClick={() => setEditing(false)}>Cancel</button>
+                </div>
+              </form>
+            )}
           </section>
         )}
 
