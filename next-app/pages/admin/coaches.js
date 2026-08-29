@@ -93,27 +93,6 @@ export default function AdminCoaches({ coaches, session }) {
     });
   }
 
-  async function resetCoach(coachId) {
-    setBusy(true);
-    setMessage("");
-    try {
-      const csrf = await fetch("/api/csrf").then((r) => r.json());
-      const response = await fetch("/api/admin/coaches/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
-        body: JSON.stringify({ coachId }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (result.error) setMessage(result.error);
-      else if (!response.ok) setMessage("Action failed.");
-      else if (result.temporaryPassword) setMessage("Temporary password: " + result.temporaryPassword + " — share it securely.");
-      else setMessage(result.message || "Coach password reset.");
-    } catch (err) {
-      setMessage("Unable to reach the server. Please try again later.");
-    }
-    setBusy(false);
-  }
-
   async function reviewCoach(coachId, decision) {
     if (decision === "delete" && !window.confirm("Delete this coach account permanently? This cannot be undone.")) return;
     setBusy(true);
@@ -163,10 +142,8 @@ export default function AdminCoaches({ coaches, session }) {
           <section className={styles.panel}>
             <div className={styles.panelHeader}>
               <div>
-                <p className={styles.eyebrow}>Team</p>
                 <h2>Coaches</h2>
               </div>
-              <small style={{ color: "var(--muted)" }}>Rejected coaches can be reapproved or deleted.</small>
             </div>
             <div className={styles.toolbar} style={{ marginBottom: 16 }}>
               {FILTERS.map((item) => (
@@ -186,6 +163,7 @@ export default function AdminCoaches({ coaches, session }) {
                 <thead>
                   <tr>
                     <th>Coach</th>
+                    <th>ID</th>
                     <th>Status</th>
                     <th>Action</th>
                   </tr>
@@ -196,11 +174,8 @@ export default function AdminCoaches({ coaches, session }) {
                     <tr>
                       <td>
                         <strong>{coachName(coach)}</strong>
-                        <small>{coach.coachCode || "No code"}</small>
-                        <button type="button" className={styles.expandBtn} onClick={() => setOpenId((current) => (current === coach.id ? null : coach.id))}>
-                          {openId === coach.id ? "Hide details ▲" : "View details ▼"}
-                        </button>
                       </td>
+                      <td>{coach.coachCode || "—"}</td>
                       <td>
                         {coach.user.status === "active" ? (
                           <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span>
@@ -214,24 +189,26 @@ export default function AdminCoaches({ coaches, session }) {
                         {coach.user.mustChangePassword && <small style={{display:"block",color:"#fbbf24",marginTop:"4px"}}>(Must change password)</small>}
                       </td>
                       <td>
-                        {coach.user.status === "pending" ? (
+                        <button type="button" className={styles.expandBtn} onClick={() => setOpenId((current) => (current === coach.id ? null : coach.id))} style={{marginRight:"8px"}}>
+                          {openId === coach.id ? "Hide details ▲" : "View details ▼"}
+                        </button>
+                        {coach.user.status === "pending" && (
                           <>
                             <button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`} style={{marginRight:"8px"}}>Approve</button>
                             <button onClick={() => reviewCoach(coach.id, "rejected")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Reject</button>
                           </>
-                        ) : coach.user.status === "rejected" ? (
+                        )}
+                        {coach.user.status === "rejected" && (
                           <>
                             <button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`} style={{marginRight:"8px"}}>Reapprove</button>
                             <button onClick={() => reviewCoach(coach.id, "delete")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Delete</button>
                           </>
-                        ) : (
-                          <button onClick={() => resetCoach(coach.id)} disabled={busy} className={`${styles.secondary} ${styles.btnSm}`}>Reset password</button>
                         )}
                       </td>
                     </tr>
                     {openId === coach.id && (
                       <tr>
-                        <td colSpan="3" style={{ padding: 0, background: "transparent" }}>
+                        <td colSpan="4" style={{ padding: 0, background: "transparent" }}>
                           <div className={styles.detailPanel}>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
                               <div>
@@ -286,7 +263,7 @@ export default function AdminCoaches({ coaches, session }) {
                     </React.Fragment>
                   ))}
                   {visible.length === 0 && (
-                    <tr><td colSpan="3" className={styles.empty}>No coaches in this category.</td></tr>
+                    <tr><td colSpan="4" className={styles.empty}>No coaches in this category.</td></tr>
                   )}
                 </tbody>
               </table>
