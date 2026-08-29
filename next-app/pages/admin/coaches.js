@@ -38,13 +38,7 @@ const FILTERS = ["all", "active", "pending", "rejected", "inactive"];
 const SORT_OPTIONS = [
   { key: "name", label: "Coach name" },
   { key: "code", label: "Coach code" },
-  { key: "email", label: "Email" },
-  { key: "school", label: "School" },
-  { key: "sports", label: "Sports count" },
-  { key: "athletes", label: "Athletes" },
   { key: "status", label: "Status" },
-  { key: "registered", label: "Registered" },
-  { key: "lastLogin", label: "Last login" },
 ];
 
 const STATUS_RANK = { active: 0, pending: 1, rejected: 2, inactive: 3 };
@@ -58,13 +52,7 @@ function sortCoaches(list, key, dir) {
     switch (key) {
       case "name": av = `${a.firstName} ${a.lastName}`.toLowerCase(); bv = `${b.firstName} ${b.lastName}`.toLowerCase(); break;
       case "code": av = a.coachCode || ""; bv = b.coachCode || ""; break;
-      case "email": av = (a.user?.email || "").toLowerCase(); bv = (b.user?.email || "").toLowerCase(); break;
-      case "school": av = (a.school?.schoolName || "").toLowerCase(); bv = (b.school?.schoolName || "").toLowerCase(); break;
-      case "sports": av = a.sports?.length || 0; bv = b.sports?.length || 0; break;
-      case "athletes": av = a.athletesCount; bv = b.athletesCount; break;
       case "status": av = STATUS_RANK[a.user?.status] ?? 9; bv = STATUS_RANK[b.user?.status] ?? 9; break;
-      case "registered": av = a.user?.createdAt ? new Date(a.user.createdAt) : new Date(0); bv = b.user?.createdAt ? new Date(b.user.createdAt) : new Date(0); break;
-      case "lastLogin": av = a.user?.lastLoginAt ? new Date(a.user.lastLoginAt) : new Date(0); bv = b.user?.lastLoginAt ? new Date(b.user.lastLoginAt) : new Date(0); break;
       default: av = ""; bv = "";
     }
     if (av < bv) return -1 * factor;
@@ -198,13 +186,7 @@ export default function AdminCoaches({ coaches, session }) {
                 <thead>
                   <tr>
                     <th>Coach</th>
-                    <th>Email</th>
-                    <th>School</th>
-                    <th>Sports</th>
-                    <th>Athletes</th>
                     <th>Status</th>
-                    <th>Registered</th>
-                    <th>Last Login</th>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -219,16 +201,6 @@ export default function AdminCoaches({ coaches, session }) {
                           {openId === coach.id ? "Hide details ▲" : "View details ▼"}
                         </button>
                       </td>
-                      <td>{coach.user.email}</td>
-                      <td>{coach.school?.schoolName || "Not assigned"}</td>
-                      <td>
-                        {coach.sports.length > 0 ? (
-                          coach.sports.map((cs) => <span key={cs.sportId} style={{display:"inline-block",background:"rgba(45,212,168,.16)",color:"var(--accent)",padding:"2px 8px",borderRadius:"12px",fontSize:"11px",fontWeight:700,margin:"2px 4px 2px 0"}}>{cs.sport.sportName}</span>)
-                        ) : (
-                          <span style={{color:"var(--muted)",fontSize:"13px"}}>No sports</span>
-                        )}
-                      </td>
-                      <td>{coach.athletesCount}</td>
                       <td>
                         {coach.user.status === "active" ? (
                           <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span>
@@ -241,8 +213,6 @@ export default function AdminCoaches({ coaches, session }) {
                         )}
                         {coach.user.mustChangePassword && <small style={{display:"block",color:"#fbbf24",marginTop:"4px"}}>(Must change password)</small>}
                       </td>
-                      <td>{formatDate(coach.user.createdAt)}</td>
-                      <td>{formatDateTime(coach.user.lastLoginAt)}</td>
                       <td>
                         {coach.user.status === "pending" ? (
                           <>
@@ -261,7 +231,7 @@ export default function AdminCoaches({ coaches, session }) {
                     </tr>
                     {openId === coach.id && (
                       <tr>
-                        <td colSpan="9" style={{ padding: 0, background: "transparent" }}>
+                        <td colSpan="3" style={{ padding: 0, background: "transparent" }}>
                           <div className={styles.detailPanel}>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
                               <div>
@@ -316,7 +286,7 @@ export default function AdminCoaches({ coaches, session }) {
                     </React.Fragment>
                   ))}
                   {visible.length === 0 && (
-                    <tr><td colSpan="9" className={styles.empty}>No coaches in this category.</td></tr>
+                    <tr><td colSpan="3" className={styles.empty}>No coaches in this category.</td></tr>
                   )}
                 </tbody>
               </table>
