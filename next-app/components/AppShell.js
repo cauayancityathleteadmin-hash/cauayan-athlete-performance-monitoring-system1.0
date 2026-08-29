@@ -4,22 +4,18 @@ import Link from "next/link";
 import { signOut } from "next-auth/react";
 import styles from "../styles/Dashboard.module.css";
 
-const NAV_LINKS = [
+const ALL_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/athletes", label: "Athletes" },
+  { href: "/reports", label: "Athlete reports" },
+  { href: "/admin/coaches", label: "Coaches", adminOnly: true },
   { href: "/assessments", label: "Assessments" },
   { href: "/analytics", label: "Analytics" },
   { href: "/event-plans", label: "Sports event plans" },
-  { href: "/reports", label: "Athlete reports" },
-];
-
-const ADMIN_LINKS = [
-  { href: "/admin", label: "Admin Dashboard" },
-  { href: "/admin/coaches", label: "Coaches" },
-  { href: "/admin/catalog", label: "Sports & Events" },
-  { href: "/admin/metrics", label: "Performance Metrics" },
-  { href: "/admin/audit-logs", label: "Audit Logs" },
-  { href: "/admin/backup", label: "Database Backup" },
+  { href: "/admin/catalog", label: "Sports & Events", adminOnly: true },
+  { href: "/admin/metrics", label: "Performance Metrics", adminOnly: true },
+  { href: "/admin/audit-logs", label: "Audit Logs", adminOnly: true },
+  { href: "/admin/backup", label: "Database Backup", adminOnly: true },
 ];
 
 export default function AppShell({
@@ -39,21 +35,11 @@ export default function AppShell({
 
   const nav = (
     <nav className={styles.sidebar} aria-label="Primary navigation">
-      {NAV_LINKS.map((link) => (
+      {ALL_LINKS.filter((link) => !link.adminOnly || isAdmin).map((link) => (
         <Link key={link.href} href={link.href} className={isActive(link.href)} onClick={() => setOpen(false)}>
           {link.label}
         </Link>
       ))}
-      {isAdmin && (
-        <>
-          <p className={styles.navHeading}>Administration</p>
-          {ADMIN_LINKS.map((link) => (
-            <Link key={link.href} href={link.href} className={isActive(link.href)} onClick={() => setOpen(false)}>
-              {link.label}
-            </Link>
-          ))}
-        </>
-      )}
     </nav>
   );
 
