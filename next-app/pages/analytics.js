@@ -25,7 +25,20 @@ export async function getServerSideProps(context) {
   if (!session) return { redirect: { destination: "/login", permanent: false } };
   const isAdmin = session.user.role === "admin";
   const userId = Number(session.user.id);
+  const debug = context.query.debug === "1";
 
+  try {
+    const result = await buildAnalytics(session, isAdmin, userId);
+    return { props: { session, ...result } };
+  } catch (err) {
+    if (debug) {
+      return { props: { session, debugError: String((err && err.message) || err), debugStack: (err && err.stack) || "" } };
+    }
+    throw err;
+  }
+}
+
+async function buildAnalytics(session, isAdmin, userId) {
   const athleteWhere = isAdmin ? {} : { coach: { userId } };
   const assessmentWhere = isAdmin ? {} : { athlete: { coach: { userId } } };
   const resultWhere = isAdmin ? { valueDecimal: { not: null } } : { valueDecimal: { not: null }, assessment: { athlete: { coach: { userId } } } };
@@ -150,9 +163,7 @@ export async function getServerSideProps(context) {
     .sort((a, b) => b.value - a.value).slice(0, 5);
 
   return {
-    props: {
-      session,
-      data: {
+    data: {
         kpi: { totalAthletes, activeAthletes, totalAssessments, totalResults, avgPerAthlete, achievements: achievementCount },
         sportDist,
         statusDist,
@@ -192,8 +203,7 @@ export async function getServerSideProps(context) {
       },
       insights,
       csv,
-    },
-  };
+    };
 }
 
 function HBars({ data, colors = PALETTE, axisLabel = "", axisValue = "" }) {
