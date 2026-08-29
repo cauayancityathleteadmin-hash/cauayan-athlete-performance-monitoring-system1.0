@@ -38,6 +38,8 @@ const FILTERS = ["all", "active", "pending", "rejected", "inactive"];
 const SORT_OPTIONS = [
   { key: "name", label: "Coach name" },
   { key: "code", label: "Coach code" },
+  { key: "school", label: "School" },
+  { key: "sports", label: "Sports" },
   { key: "status", label: "Status" },
 ];
 
@@ -52,6 +54,8 @@ function sortCoaches(list, key, dir) {
     switch (key) {
       case "name": av = `${a.firstName} ${a.lastName}`.toLowerCase(); bv = `${b.firstName} ${b.lastName}`.toLowerCase(); break;
       case "code": av = a.coachCode || ""; bv = b.coachCode || ""; break;
+      case "school": av = (a.school?.schoolName || "").toLowerCase(); bv = (b.school?.schoolName || "").toLowerCase(); break;
+      case "sports": av = (a.sports || []).map((cs) => cs.sport.sportName).join(", ").toLowerCase(); bv = (b.sports || []).map((cs) => cs.sport.sportName).join(", ").toLowerCase(); break;
       case "status": av = STATUS_RANK[a.user?.status] ?? 9; bv = STATUS_RANK[b.user?.status] ?? 9; break;
       default: av = ""; bv = "";
     }
@@ -164,6 +168,8 @@ export default function AdminCoaches({ coaches, session }) {
                   <tr>
                     <th>Coach</th>
                     <th>ID</th>
+                    <th>School</th>
+                    <th>Sports</th>
                     <th>Status</th>
                     <th>Action</th>
                   </tr>
@@ -176,6 +182,14 @@ export default function AdminCoaches({ coaches, session }) {
                         <strong>{coachName(coach)}</strong>
                       </td>
                       <td>{coach.coachCode || "—"}</td>
+                      <td>{coach.school?.schoolName || "Not assigned"}</td>
+                      <td>
+                        {coach.sports.length > 0 ? (
+                          coach.sports.map((cs) => <span key={cs.sportId} style={{display:"inline-block",background:"rgba(45,212,168,.16)",color:"var(--accent)",padding:"2px 8px",borderRadius:"12px",fontSize:"11px",fontWeight:700,margin:"2px 4px 2px 0"}}>{cs.sport.sportName}</span>)
+                        ) : (
+                          <span style={{color:"var(--muted)",fontSize:"13px"}}>No sports</span>
+                        )}
+                      </td>
                       <td>
                         {coach.user.status === "active" ? (
                           <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span>
@@ -208,7 +222,7 @@ export default function AdminCoaches({ coaches, session }) {
                     </tr>
                     {openId === coach.id && (
                       <tr>
-                        <td colSpan="4" style={{ padding: 0, background: "transparent" }}>
+                        <td colSpan="6" style={{ padding: 0, background: "transparent" }}>
                           <div className={styles.detailPanel}>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
                               <div>
@@ -263,7 +277,7 @@ export default function AdminCoaches({ coaches, session }) {
                     </React.Fragment>
                   ))}
                   {visible.length === 0 && (
-                    <tr><td colSpan="4" className={styles.empty}>No coaches in this category.</td></tr>
+                    <tr><td colSpan="6" className={styles.empty}>No coaches in this category.</td></tr>
                   )}
                 </tbody>
               </table>

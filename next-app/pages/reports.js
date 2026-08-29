@@ -136,9 +136,7 @@ export default function Reports({ session, athletes }) {
         <section className={styles.intro}><div><p className={styles.eyebrow}>Generate</p><h2>Official performance reports</h2><p>Select one or more athletes and a date window to produce printable reports with their full assessment history. Search the roster and sort by any column to find athletes faster.</p></div></section>
 
         <section className={styles.panel}>
-          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Selection</p><h2>Athletes</h2></div>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--muted)", fontSize: 13, fontWeight: 600 }}><input type="checkbox" style={{ width: 17, height: 17, accentColor: "var(--accent)" }} checked={allVisibleSelected} onChange={toggleVisible} disabled={!visible.length} />Select visible</label>
-          </div>
+          <div className={styles.panelHeader}><div><h2>Athletes</h2></div></div>
 
           <div className={styles.toolbar} style={{ marginTop: 16 }}>
             <label>Search athletes<input type="text" placeholder="Name, code, sport, event, coach, school…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
