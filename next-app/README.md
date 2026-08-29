@@ -106,8 +106,10 @@ cron/checks.
 - GitHub Actions (`.github/workflows/ci.yml`): on push to `main` and PRs — install,
   generate the Prisma client, lint, and build.
 - Deployment is via Vercel (`vercel.json`): the build command runs
-  `prisma migrate deploy && node prisma/seed.js && next build`, so pending migrations
-  and the idempotent seed apply automatically before the app builds.
+  `prisma migrate deploy && next build`, so pending migrations apply automatically
+  before the app builds. The seed is **not** run during deploys. Test accounts/data are
+  only created locally when `SEED_TEST_DATA=1` is set (see `prisma/seed.js` and
+  `../docs/test-accounts.md`).
 
 ### Deploy checklist
 

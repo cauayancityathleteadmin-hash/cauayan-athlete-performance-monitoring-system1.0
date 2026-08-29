@@ -5,13 +5,6 @@ const { PrismaClient } = require("@prisma/client");
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
-const passwords = {
-  admin: "$2b$12$nqhFfdEmHB.7.cfwpBvmfOrrSrN3D113tSih7tyzqMjOuMWc9fv2O",
-  coachOne: "$2b$12$ZOK8PXOrt6glV.ue21Jc5uM.tkKYfCrWCM5TP6xJR33yZjx18XMPK",
-  coachTwo: "$2b$12$5.pWGB5vXC94SEYh8tAyPeJ9lTIfyd4WODbUG7tzyJviQLRCMTNQ.",
-  coachThree: "$2b$12$E0PWVvz0m5xsxFF1OhMwsePhcjmn9nvCEmG0w96tpCoXG8APnknXC",
-};
-
 async function main() {
   const schools = {};
   for (const name of [
@@ -50,6 +43,22 @@ async function main() {
       create: { sportId: sports[sport].id, eventName, description },
     });
   }
+
+  // Reference data (schools, sports, events, metrics) is always seeded idempotently.
+  // Test users, coaches, athletes, assessments, and plans are created ONLY when
+  // SEED_TEST_DATA=1 (local development). Never enable this flag on production.
+
+  if (process.env.SEED_TEST_DATA !== "1") {
+    console.log("[seed] SEED_TEST_DATA not set to 1 - skipping test accounts/data.");
+    return;
+  }
+
+  const passwords = {
+    admin: "$2b$12$nqhFfdEmHB.7.cfwpBvmfOrrSrN3D113tSih7tyzqMjOuMWc9fv2O",
+    coachOne: "$2b$12$ZOK8PXOrt6glV.ue21Jc5uM.tkKYfCrWCM5TP6xJR33yZjx18XMPK",
+    coachTwo: "$2b$12$5.pWGB5vXC94SEYh8tAyPeJ9lTIfyd4WODbUG7tzyJviQLRCMTNQ.",
+    coachThree: "$2b$12$E0PWVvz0m5xsxFF1OhMwsePhcjmn9nvCEmG0w96tpCoXG8APnknXC",
+  };
 
   const users = {};
   for (const [key, data] of Object.entries({
