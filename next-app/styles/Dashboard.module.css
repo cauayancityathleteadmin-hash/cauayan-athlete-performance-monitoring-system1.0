@@ -1364,6 +1364,211 @@
   justify-self: start;
 }
 
+/* ===== Analytics: SVG/CSS charts (no external chart library) ===== */
+.hbars {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.hbarRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hbarLabel {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hbarLabel small {
+  color: #86efac;
+  font-size: 12px;
+}
+
+.hbarTrack {
+  height: 10px;
+  border-radius: 999px;
+  background: #0a3226;
+  border: 1px solid #1a5c4a;
+  overflow: hidden;
+}
+
+.hbarFill {
+  height: 100%;
+  border-radius: 999px;
+  min-width: 4px;
+  transition: width 0.4s ease;
+}
+
+.donutWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.donutSvgWrap {
+  position: relative;
+}
+
+.donutCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.donutCenter strong {
+  font-size: 28px;
+  color: var(--foreground);
+}
+
+.donutCenter small {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.donutLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  justify-content: center;
+}
+
+.donutLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.donutLegend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.donutLegend strong {
+  color: var(--foreground);
+}
+
+/* ===== Analytics: expandable status roster lists ===== */
+.statusPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.statusBlock {
+  border: 1px solid #1a5c4a;
+  border-radius: 10px;
+  background: rgba(6, 38, 30, 0.5);
+  overflow: hidden;
+}
+
+.statusToggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  padding: 12px 14px;
+  color: var(--foreground);
+  font: inherit;
+  cursor: pointer;
+}
+
+.statusToggle:hover {
+  background: rgba(45, 212, 168, 0.06);
+}
+
+.statusDot {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.statusName {
+  font-weight: 700;
+  font-size: 14px;
+  text-transform: capitalize;
+}
+
+.statusCount {
+  margin-left: auto;
+  background: rgba(45, 212, 168, 0.14);
+  color: #86efac;
+  border: 1px solid rgba(45, 212, 168, 0.3);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.statusChevron {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.statusAthletes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+  padding: 4px 12px 12px;
+}
+
+.statusAthlete {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: rgba(10, 50, 40, 0.7);
+  border: 1px solid #1a5c4a;
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: var(--foreground);
+}
+
+.statusAthleteName {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.statusAthlete small {
+  color: #86efac;
+  font-size: 11px;
+}
+
+.trendUp {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.trendDown {
+  color: #f87171;
+  font-weight: 700;
+}
+
+.trendFlat {
+  color: var(--muted);
+  font-weight: 600;
+}
+
 /* ===== Alert / callout box ===== */
 .alertBox {
   border: 1px solid var(--border);
