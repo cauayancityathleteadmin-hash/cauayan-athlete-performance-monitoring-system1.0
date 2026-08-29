@@ -247,3 +247,61 @@ h1, h2, h3, h4, h5, h6 {
 .login-page fieldset label { font-weight: 400; font-size: 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
 .login-page fieldset input { width: auto; margin: 0; padding: 0; }
 .login-page fieldset input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); flex-shrink: 0; }
+
+.register-sports {
+  display: block;
+  margin: 4px 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  background: rgba(6, 38, 30, .5);
+}
+
+.register-sports legend {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 0 8px;
+}
+
+.register-sports-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.register-sports-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+  background: rgba(10, 50, 40, .6);
+  transition: background .15s, border-color .15s;
+}
+
+.register-sports-option:hover {
+  background: rgba(45, 212, 168, .08);
+  border-color: rgba(45, 212, 168, .4);
+}
+
+.register-sports-option.is-checked {
+  background: rgba(45, 212, 168, .14);
+  border-color: var(--accent);
+}
+
+.register-sports-option input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+  margin: 0;
+}

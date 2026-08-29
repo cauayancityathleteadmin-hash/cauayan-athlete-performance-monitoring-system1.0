@@ -26,6 +26,7 @@ export default function CoachRegister({ sports }) {
     email: "",
     password: "",
     school: "",
+    contactNumber: "",
     sportIds: [],
   });
   const [passwordStrength, setPasswordStrength] = React.useState(null);
@@ -63,6 +64,7 @@ export default function CoachRegister({ sports }) {
     else if (!passwordStrength?.isValid) newErrors.password = "Password is too weak. Meet at least 3 requirements.";
     if (!formData.school.trim()) newErrors.school = "School name is required";
     if (formData.sportIds.length === 0) newErrors.sports = "Select at least one sport";
+    if (formData.contactNumber && !/^[0-9+\-\s()]{7,30}$/.test(formData.contactNumber.trim())) newErrors.contactNumber = "Enter a valid contact number (7–30 digits). Leave blank if none.";
 
     const parsedBirthdate = formData.birthdate && new Date(`${formData.birthdate}T00:00:00Z`);
     const age = parsedBirthdate && Math.floor((Date.now() - parsedBirthdate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
@@ -129,6 +131,7 @@ export default function CoachRegister({ sports }) {
       email: "",
       password: "",
       school: "",
+      contactNumber: "",
       sportIds: [],
     });
     setPasswordStrength(null);
@@ -184,6 +187,7 @@ export default function CoachRegister({ sports }) {
                 {reviewRow("Birthdate", formattedBirthdate)}
                 {reviewRow("Email", formData.email)}
                 {reviewRow("School", formData.school)}
+                {reviewRow("Contact number", formData.contactNumber)}
                 {reviewRow("Sports coached", selectedSports.join(", "))}
               </dl>
             </section>
@@ -268,6 +272,19 @@ export default function CoachRegister({ sports }) {
               />
               {errors.birthdate && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.birthdate}</span>}
             </label>
+            <label>
+              Contact number <small style={{ color: "var(--muted)", fontWeight: 400 }}>(optional)</small>
+              <input
+                name="contactNumber"
+                type="tel"
+                value={formData.contactNumber}
+                onChange={(e) => handleChange("contactNumber", e.target.value)}
+                maxLength="30"
+                placeholder="e.g. 0917 000 0000"
+                style={{ borderColor: errors.contactNumber ? "var(--danger)" : "var(--border)" }}
+              />
+              {errors.contactNumber && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.contactNumber}</span>}
+            </label>
             <label className="span-2">
               Email
               <input
@@ -309,22 +326,24 @@ export default function CoachRegister({ sports }) {
               />
               {errors.school && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.school}</span>}
             </label>
-            <fieldset className="span-2" style={{ display: "block", margin: "4px 0", padding: "14px 4px", border: "1px solid var(--border)", color: "var(--muted)", borderRadius: "8px" }}>
-              <legend style={{ fontSize: "13px", fontWeight: 700, marginBottom: "6px", padding: "0 10px" }}>Sports coached</legend>
-              <div style={{ display: "block" }}>
-                {sports.map((sport) => (
-                  <label key={sport.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "8px 10px", cursor: "pointer", color: "var(--foreground)", borderRadius: "6px", width: "100%", transition: "background 0.15s" }} onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(45, 212, 168, .08)" }} onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}>
-                    <input
-                      type="checkbox"
-                      name="sportIds"
-                      value={sport.id}
-                      checked={formData.sportIds.includes(sport.id)}
-                      onChange={(e) => handleSportChange(sport.id, e.target.checked)}
-                      style={{ width: "18px", height: "18px", accentColor: "var(--accent)", flexShrink: 0, margin: 0 }}
-                    />
-                    <span>{sport.sportName}</span>
-                  </label>
-                ))}
+            <fieldset className="span-2 register-sports">
+              <legend>Sports coached</legend>
+              <div className="register-sports-grid">
+                {sports.map((sport) => {
+                  const checked = formData.sportIds.includes(sport.id);
+                  return (
+                    <label key={sport.id} className={`register-sports-option${checked ? " is-checked" : ""}`}>
+                      <input
+                        type="checkbox"
+                        name="sportIds"
+                        value={sport.id}
+                        checked={checked}
+                        onChange={(e) => handleSportChange(sport.id, e.target.checked)}
+                      />
+                      <span>{sport.sportName}</span>
+                    </label>
+                  );
+                })}
               </div>
               {errors.sports && <span style={{ color: "var(--danger)", fontSize: "12px", marginTop: "4px", display: "block" }}>{errors.sports}</span>}
             </fieldset>

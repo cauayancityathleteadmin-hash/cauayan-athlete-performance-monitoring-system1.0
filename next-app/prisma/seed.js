@@ -75,18 +75,19 @@ async function main() {
   }
 
   const coachData = [
-    ["coachOne", "COA-TEST01", "Maria", "Santos", "Reyes", schools["Cauayan City National High School"]],
-    ["coachTwo", "COA-TEST02", "Roberto", "Dela", "Cruz", schools["Isabela National High School"]],
-    ["coachThree", "COA-TEST03", "Elena", "Mendoza", "Garcia", schools["University of Cagayan Valley - Cauayan"]],
+    ["coachOne", "COA-TEST01", "Maria", "Santos", "Reyes", schools["Cauayan City National High School"], "0917 111 0001"],
+    ["coachTwo", "COA-TEST02", "Roberto", "Dela", "Cruz", schools["Isabela National High School"], "0917 111 0002"],
+    ["coachThree", "COA-TEST03", "Elena", "Mendoza", "Garcia", schools["University of Cagayan Valley - Cauayan"], "0917 111 0003"],
   ];
   const coaches = {};
-  for (const [userKey, coachCode, firstName, middleName, lastName, school] of coachData) {
+  for (const [userKey, coachCode, firstName, middleName, lastName, school, contactNumber] of coachData) {
     coaches[userKey] = await prisma.coach.upsert({
       where: { userId: users[userKey].id },
-      update: { coachCode, status: "active" },
+      update: { coachCode, status: "active", contactNumber },
       create: {
         userId: users[userKey].id, coachCode, firstName, middleName, lastName,
         birthdate: new Date("1985-04-12"), email: users[userKey].email,
+        contactNumber,
         schoolId: school.id, dateRegistered: new Date("2026-01-01"),
       },
     });

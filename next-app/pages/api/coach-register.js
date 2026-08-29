@@ -22,11 +22,13 @@ export default async function handler(req, res) {
   const password = String(body.password || "");
   const birthdate = text(body.birthdate, 10, true);
   const schoolName = text(body.school, 191, true);
+  const contactNumber = text(body.contactNumber, 30);
   const sportIds = Array.isArray(body.sportIds) ? [...new Set(body.sportIds.map(validId).filter(Boolean))] : [];
   const parsedBirthdate = birthdate && new Date(`${birthdate}T00:00:00Z`);
   const age = parsedBirthdate && Math.floor((Date.now() - parsedBirthdate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+  const validContact = !contactNumber || /^[0-9+\-\s()]{7,30}$/.test(contactNumber);
 
-  if (!firstName || !lastName || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 12 || password.length > 200 || !birthdate || Number.isNaN(parsedBirthdate?.getTime()) || parsedBirthdate > new Date() || age < 18 || !schoolName || sportIds.length === 0 || sportIds.length > 20) {
+  if (!firstName || !lastName || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 12 || password.length > 200 || !birthdate || Number.isNaN(parsedBirthdate?.getTime()) || parsedBirthdate > new Date() || age < 18 || !schoolName || sportIds.length === 0 || sportIds.length > 20 || !validContact) {
     return res.status(400).json({ error: "Complete all fields. Coaches must be at least 18 and select one or more sports." });
   }
 
@@ -77,6 +79,7 @@ export default async function handler(req, res) {
           lastName,
           birthdate: parsedBirthdate,
           email,
+          contactNumber: contactNumber || null,
           schoolId: school.id,
           status: "active",
           dateRegistered: new Date(),

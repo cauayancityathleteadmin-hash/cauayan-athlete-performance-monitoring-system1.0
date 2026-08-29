@@ -25,12 +25,17 @@ export default async function handler(req, res) {
     const birthdate = isCoach ? text(body.birthdate, 10) : "";
     const parsedBirthdate = birthdate && new Date(`${birthdate}T00:00:00Z`);
     const age = parsedBirthdate && Math.floor((Date.now() - parsedBirthdate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+    const contactNumber = isCoach ? text(body.contactNumber, 30) : "";
+    const validContact = !contactNumber || /^[0-9+\-\s()]{7,30}$/.test(contactNumber);
 
     if (!firstName || !lastName || !email) {
       return res.status(400).json({ error: "Complete all required fields." });
     }
     if (isCoach && (!birthdate || Number.isNaN(parsedBirthdate?.getTime()) || parsedBirthdate > new Date() || age < 18)) {
       return res.status(400).json({ error: "Complete all required fields. You must be at least 18 years old." });
+    }
+    if (isCoach && !validContact) {
+      return res.status(400).json({ error: "Enter a valid contact number (7–30 digits)." });
     }
 
     const [emailExists, school] = await Promise.all([
@@ -75,6 +80,7 @@ export default async function handler(req, res) {
               lastName,
               birthdate: parsedBirthdate,
               email,
+              contactNumber: contactNumber || null,
               schoolId: schoolId || null,
             },
           });

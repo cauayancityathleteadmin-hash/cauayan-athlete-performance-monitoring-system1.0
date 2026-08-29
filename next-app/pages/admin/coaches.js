@@ -13,11 +13,24 @@ export async function getServerSideProps(context) {
       user: { select: { id: true, email: true, status: true, mustChangePassword: true, createdAt: true, lastLoginAt: true } },
       school: { select: { schoolName: true } },
       sports: { include: { sport: { select: { sportName: true } } } },
-      athletes: { select: { id: true } },
+      athletes: {
+        select: {
+          id: true,
+          athleteCode: true,
+          firstName: true,
+          middleName: true,
+          lastName: true,
+          suffix: true,
+          status: true,
+          sport: { select: { sportName: true } },
+          school: { select: { schoolName: true } },
+        },
+        orderBy: { lastName: "asc" },
+      },
     },
     orderBy: { user: { email: "asc" } }
   });
-  return { props: { session, coaches: coaches.map((c) => ({ ...c, user: { ...c.user, createdAt: c.user.createdAt.toISOString() }, sports: c.sports.map(cs => ({ ...cs, sport: cs.sport })), athletesCount: c.athletes.length })) } };
+  return { props: { session, coaches: coaches.map((c) => ({ ...c, user: { ...c.user, createdAt: c.user.createdAt.toISOString() }, sports: c.sports.map(cs => ({ ...cs, sport: cs.sport })), athletes: c.athletes, athletesCount: c.athletes.length })) } };
 }
 
 const FILTERS = ["all", "active", "pending", "rejected", "inactive"];
@@ -68,9 +81,21 @@ export default function AdminCoaches({ coaches, session }) {
   const [sortDir, setSortDir] = React.useState("asc");
   const [message, setMessage] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  const [openId, setOpenId] = React.useState(null);
 
   function coachName(coach) {
     return `${coach.firstName} ${coach.lastName}${coach.suffix ? " " + coach.suffix : ""}`;
+  }
+
+  function athleteName(athlete) {
+    return `${athlete.firstName}${athlete.middleName ? " " + athlete.middleName : ""} ${athlete.lastName}${athlete.suffix ? " " + athlete.suffix : ""}`;
+  }
+
+  function statusBadge(status) {
+    if (status === "active") return <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span>;
+    if (status === "pending") return <span className={`${styles.badge} ${styles.badgePending}`}>Pending</span>;
+    if (status === "rejected") return <span className={`${styles.badge} ${styles.badgeRejected}`}>Rejected</span>;
+    return <span className={`${styles.badge} ${styles.badgeMuted}`}>Inactive</span>;
   }
 
   function patchStatus(coachId, status) {
@@ -132,6 +157,12 @@ export default function AdminCoaches({ coaches, session }) {
     return new Date(dateString).toLocaleString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   }
 
+  function formatBirthdate(value) {
+    if (!value) return "—";
+    const date = new Date(value.includes("T") ? value : `${value}T00:00:00Z`);
+    return isNaN(date) ? value : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  }
+
   const visible = list.filter((coach) => filter === "all" || coach.user.status === filter);
   const sorted = sortCoaches(visible, sortKey, sortDir);
 
@@ -179,10 +210,14 @@ export default function AdminCoaches({ coaches, session }) {
                 </thead>
                 <tbody>
                   {sorted.map((coach) => (
-                    <tr key={coach.id}>
+                    <React.Fragment key={coach.id}>
+                    <tr>
                       <td>
                         <strong>{coachName(coach)}</strong>
                         <small>{coach.coachCode || "No code"}</small>
+                        <button type="button" className={styles.expandBtn} onClick={() => setOpenId((current) => (current === coach.id ? null : coach.id))}>
+                          {openId === coach.id ? "Hide details ▲" : "View details ▼"}
+                        </button>
                       </td>
                       <td>{coach.user.email}</td>
                       <td>{coach.school?.schoolName || "Not assigned"}</td>
@@ -224,6 +259,61 @@ export default function AdminCoaches({ coaches, session }) {
                         )}
                       </td>
                     </tr>
+                    {openId === coach.id && (
+                      <tr>
+                        <td colSpan="9" style={{ padding: 0, background: "transparent" }}>
+                          <div className={styles.detailPanel}>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
+                              <div>
+                                <h4>Personal information</h4>
+                                <dl className={styles.infoList}>
+                                  <div><dt>Full name</dt><dd>{coachName(coach)}</dd></div>
+                                  <div><dt>Coach code</dt><dd>{coach.coachCode || "—"}</dd></div>
+                                  <div><dt>Email</dt><dd>{coach.user.email}</dd></div>
+                                  <div><dt>Contact number</dt><dd>{coach.contactNumber || "—"}</dd></div>
+                                  <div><dt>Birthdate</dt><dd>{formatBirthdate(coach.birthdate)}</dd></div>
+                                  <div><dt>School</dt><dd>{coach.school?.schoolName || "Not assigned"}</dd></div>
+                                  <div><dt>Sports coached</dt><dd>{coach.sports.length ? coach.sports.map((cs) => cs.sport.sportName).join(", ") : "No sports"}</dd></div>
+                                  <div><dt>Status</dt><dd>{statusBadge(coach.user.status)}</dd></div>
+                                  <div><dt>Registered</dt><dd>{formatDate(coach.user.createdAt)}</dd></div>
+                                  <div><dt>Last login</dt><dd>{formatDateTime(coach.user.lastLoginAt)}</dd></div>
+                                </dl>
+                              </div>
+                              <div>
+                                <h4>Athletes under this coach ({coach.athletes.length})</h4>
+                                {coach.athletes.length > 0 ? (
+                                  <div className={styles.tableWrap}>
+                                    <table>
+                                      <thead>
+                                        <tr><th>Athlete</th><th>Sport</th><th>School</th><th>Status</th></tr>
+                                      </thead>
+                                      <tbody>
+                                        {coach.athletes.map((athlete) => (
+                                          <tr key={athlete.id}>
+                                            <td>
+                                              <div className={styles.detailAthleteName}>
+                                                <strong>{athleteName(athlete)}</strong>
+                                                <small>{athlete.athleteCode}</small>
+                                              </div>
+                                            </td>
+                                            <td>{athlete.sport?.sportName || "—"}</td>
+                                            <td>{athlete.school?.schoolName || "—"}</td>
+                                            <td>{statusBadge(athlete.status)}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                ) : (
+                                  <div className={styles.detailEmpty}>No athletes are currently assigned to this coach.</div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   ))}
                   {visible.length === 0 && (
                     <tr><td colSpan="9" className={styles.empty}>No coaches in this category.</td></tr>

@@ -54,6 +54,7 @@ export default function Account({ user, sports, session }) {
     email: user.email,
     birthdate: coach?.birthdate?.split("T")[0] || "",
     school: coach?.school?.schoolName || "",
+    contactNumber: coach?.contactNumber || "",
     sportIds: coach ? coach.sports.map((cs) => cs.sportId) : [],
   });
   const initials = ((coach?.firstName?.[0] || "") + (coach?.lastName?.[0] || "")).toUpperCase() || (user.email ? user.email[0].toUpperCase() : "A");
@@ -80,6 +81,7 @@ export default function Account({ user, sports, session }) {
       email: (form.get("email") || "").trim(),
       birthdate: form.get("birthdate") || "",
       school: (form.get("school") || "").toString().trim(),
+      contactNumber: (form.get("contactNumber") || "").toString().trim(),
       sportIds: isCoach ? form.getAll("sportIds").map(Number) : [],
     };
   }
@@ -210,6 +212,7 @@ export default function Account({ user, sports, session }) {
                   <>
                     <div><dt>Coach code</dt><dd>{coach.coachCode}</dd></div>
                     <div><dt>Birthdate</dt><dd>{formatBirthdate(view.birthdate)}</dd></div>
+                    <div><dt>Contact number</dt><dd>{view.contactNumber || "—"}</dd></div>
                     <div><dt>School</dt><dd>{view.school || "—"}</dd></div>
                     <div><dt>Sports coached</dt><dd>{view.sportIds.length ? view.sportIds.map((id) => sports.find((s) => s.id === id)?.sportName).filter(Boolean).join(", ") || "—" : "—"}</dd></div>
                   </>
@@ -224,6 +227,7 @@ export default function Account({ user, sports, session }) {
                 {isCoach && (
                   <>
                     <label>Birthdate<input name="birthdate" className={styles.fieldControl} type="date" required defaultValue={view.birthdate} /></label>
+                    <label>Contact number<input name="contactNumber" className={styles.fieldControl} type="tel" maxLength="30" defaultValue={view.contactNumber} placeholder="e.g. 0917 000 0000" /></label>
                     <label>School<input name="school" className={styles.fieldControl} defaultValue={view.school} required maxLength="191" placeholder="Enter your school name" /></label>
                     <fieldset className={styles.fullField} style={{ border: "1px solid var(--border)", padding: "14px", borderRadius: "6px" }}>
                       <legend style={{ color: "var(--muted)", fontSize: "13px", fontWeight: 700, marginBottom: "8px" }}>Sports coached</legend>
