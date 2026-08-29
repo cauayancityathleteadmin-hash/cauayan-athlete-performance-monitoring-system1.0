@@ -32,7 +32,14 @@ export async function getServerSideProps(context) {
     return { props: { session, ...result } };
   } catch (err) {
     if (debug) {
-      return { props: { session, debugError: String((err && err.message) || err), debugStack: (err && err.stack) || "" } };
+      const emptyData = {
+        kpi: { totalAthletes: 0, activeAthletes: 0, totalAssessments: 0, totalResults: 0, avgPerAthlete: "0", achievements: 0 },
+        sportDist: [], statusDist: [], genderDist: [], schoolDist: [], eventDist: [], coachDist: [], roster: {}, monthly: [],
+        assessmentTypeDist: [], achievementTypeDist: [], coachSchoolDist: [], averages: [], metricRanges: [], recentAssessments: [],
+        eventPlans: { total: 0, byStatus: [] }, applications: { total: 0, byStatus: [] }, participants: { total: 0, byType: [] },
+        isAdmin,
+      };
+      return { props: { session, data: emptyData, insights: [], csv: "", debugError: String((err && err.message) || err), debugStack: String((err && err.stack) || "") } };
     }
     throw err;
   }
@@ -287,7 +294,7 @@ function KPI({ label, value, sub }) {
   );
 }
 
-export default function Analytics({ data, insights, csv, session }) {
+export default function Analytics({ data, insights, csv, session, debugError = "", debugStack = "" }) {
   const { isAdmin } = data;
   const [openStatus, setOpenStatus] = React.useState(() => ({ active: true }));
 
@@ -322,12 +329,19 @@ export default function Analytics({ data, insights, csv, session }) {
       <Head><title>Analytics | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Evidence at a glance" title="Analytics" active="/analytics">
         <section className={styles.kpiRow}>
+          {debugError ? (
+            <div className={styles.errorBox}>
+              <strong>Analytics data error</strong>
+              <pre>{debugError}{debugStack ? `\n\n${debugStack}` : ""}</pre>
+            </div>
+          ) : (<>
           <KPI label="Total athletes" value={data.kpi.totalAthletes} />
           <KPI label="Active athletes" value={data.kpi.activeAthletes} />
           <KPI label="Total assessments" value={data.kpi.totalAssessments} />
           <KPI label="Avg assessments / athlete" value={data.kpi.avgPerAthlete} />
           <KPI label="Numeric results" value={data.kpi.totalResults} />
           <KPI label="Achievements" value={data.kpi.achievements} />
+          </>)}
         </section>
 
         <section className={styles.grid}>
