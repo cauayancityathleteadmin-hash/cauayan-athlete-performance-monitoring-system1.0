@@ -35,12 +35,11 @@ export default async function handler(req, res) {
 
   for (const entry of entries) {
     const athleteId = Number(entry?.athleteId);
-    const assessmentDate = text(entry?.assessmentDate, 10, true);
     const assessmentType = text(entry?.assessmentType, 100) || "Regular Assessment";
     const results = entry?.results;
 
-    if (!Number.isInteger(athleteId) || !assessmentDate || !Array.isArray(results) || results.length === 0 || results.length > 100) {
-      return res.status(400).json({ error: "Each assessment needs an athlete, date, and at least one metric result." });
+    if (!Number.isInteger(athleteId) || !Array.isArray(results) || results.length === 0 || results.length > 100) {
+      return res.status(400).json({ error: "Each assessment needs an athlete and at least one metric result." });
     }
 
     const athlete = await prisma.athlete.findUnique({ where: { id: athleteId }, include: { sport: true, coach: true } });
@@ -59,7 +58,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: `One or more metrics do not belong to ${athlete.athleteCode}'s sport.` });
     }
 
-    drafts.push({ athlete: athlete.athleteCode, athleteId, assessmentDate: new Date(assessmentDate), assessmentType, remarks: text(entry?.remarks, 2000) || null, resultData: buildResultData(results, metrics) });
+    drafts.push({ athlete: athlete.athleteCode, athleteId, assessmentDate: new Date(), assessmentType, remarks: text(entry?.remarks, 2000) || null, resultData: buildResultData(results, metrics) });
   }
 
   try {

@@ -1187,14 +1187,15 @@
 }
 
 .athleteSearch > input {
-  border: 1px solid var(--border);
+  width: 100%;
+  border: 1px solid #1a5c4a;
   background: #06261e;
-  color: var(--foreground);
-  padding: 10px 12px;
+  color: #f0fdf4;
+  padding: 12px 14px;
   font: inherit;
-  font-size: 14px;
+  font-size: 15px;
   border-radius: 8px;
-  width: min(100%, 420px);
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .athleteSearch > input:focus {
@@ -1207,14 +1208,14 @@
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
+  right: 0;
   z-index: 20;
-  width: min(100%, 420px);
-  max-height: 260px;
+  max-height: 280px;
   overflow-y: auto;
   background: #083226;
-  border: 1px solid var(--border);
+  border: 1px solid #1a5c4a;
   border-radius: 10px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.5);
   padding: 6px;
   display: flex;
   flex-direction: column;
@@ -1252,6 +1253,24 @@
   text-align: center;
 }
 
+.sessionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.sessionHead h3 {
+  margin: 0;
+  color: #86efac;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+
 .athleteCards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -1259,13 +1278,13 @@
 }
 
 .athleteCard {
-  border: 1px solid var(--border);
+  border: 1px solid #1a5c4a;
   border-radius: 10px;
   background: rgba(6, 38, 30, 0.5);
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .cardHead {
@@ -1284,6 +1303,65 @@
   color: #86efac;
   font-size: 12px;
   margin-top: 3px;
+}
+
+.cardFieldset {
+  border: 1px solid #1a5c4a;
+  border-radius: 10px;
+  margin: 0;
+  padding: 12px 14px 14px;
+  background: rgba(10, 50, 40, 0.4);
+}
+
+.cardFieldset legend {
+  color: #86efac;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0 6px;
+}
+
+.cardFieldset .metricsGrid {
+  margin: 10px 0 0;
+}
+
+.cardRemarks {
+  color: #86efac;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.cardRemarks textarea {
+  border: 1px solid #1a5c4a;
+  background: #06261e;
+  color: #f0fdf4;
+  padding: 10px 12px;
+  font: inherit;
+  font-weight: 400;
+  border-radius: 8px;
+  min-height: 64px;
+  resize: vertical;
+}
+
+.cardRemarks textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(45, 212, 168, 0.2);
+}
+
+.typeField {
+  flex: 1 1 240px;
+  max-width: 360px;
+  margin: 0;
+}
+
+.formActions button {
+  justify-self: start;
 }
 
 /* ===== Alert / callout box ===== */

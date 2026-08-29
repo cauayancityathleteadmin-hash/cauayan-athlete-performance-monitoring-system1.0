@@ -124,7 +124,7 @@ function AssessmentForm({ catalog, session }) {
         const results = metricsFor(a)
           .map((m) => ({ metricId: m.id, value: form.get(`metric_${a.id}_${m.id}`) || null, notes: form.get(`notes_${a.id}_${m.id}`) || null }))
           .filter((r) => r.value);
-        return { athleteId: a.id, assessmentDate: form.get("assessmentDate"), assessmentType: form.get("assessmentType") || "Regular Assessment", remarks: form.get(`remarks_${a.id}`) || null, results };
+        return { athleteId: a.id, assessmentType: form.get("assessmentType") || "Regular Assessment", remarks: form.get(`remarks_${a.id}`) || null, results };
       });
       const response = await fetch("/api/assessments", {
         method: "POST",
@@ -147,36 +147,26 @@ function AssessmentForm({ catalog, session }) {
 
   return (
     <form onSubmit={submit} className={styles.formGrid}>
-      <label>
-        Assessed athletes
-        <small style={{ color: "var(--muted)", fontWeight: 500 }}>Search and add one or more athletes, each with its own metrics.</small>
-      </label>
-      <div className={styles.athleteSearch}>
-        <input type="text" placeholder="Search athlete…" value={search} onChange={(event) => setSearch(event.target.value)} />
-        {search.trim() && (
-          <div className={styles.matchList}>
-            {matches.length ? matches.map((a) => (
-              <button type="button" key={a.id} className={styles.matchItem} onClick={() => addAthlete(a)}>
-                <strong>{athleteLabel(a)}</strong>
-                <small>{a.sport?.sportName}{a.event?.eventName ? ` · ${a.event.eventName}` : ""}</small>
-              </button>
-            )) : <div className={styles.matchEmpty}>No matching athletes.</div>}
-          </div>
-        )}
+      <div className={styles.fullField}>
+        <div className={styles.athleteSearch}>
+          <input type="text" placeholder="Search athlete…" value={search} onChange={(event) => setSearch(event.target.value)} />
+          {search.trim() && (
+            <div className={styles.matchList}>
+              {matches.length ? matches.map((a) => (
+                <button type="button" key={a.id} className={styles.matchItem} onClick={() => addAthlete(a)}>
+                  <strong>{athleteLabel(a)}</strong>
+                  <small>{a.sport?.sportName}{a.event?.eventName ? ` · ${a.event.eventName}` : ""}</small>
+                </button>
+              )) : <div className={styles.matchEmpty}>No matching athletes.</div>}
+            </div>
+          )}
+        </div>
       </div>
-      <label>
-        Date
-        <input name="assessmentDate" type="date" required />
-      </label>
-      <label>
-        Type
-        <input name="assessmentType" maxLength="100" defaultValue="Regular Assessment" />
-      </label>
 
       {added.length > 0 && (
         <div className={styles.fullField}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-            <h3 style={{ margin: "0 0 12px", color: "var(--foreground)" }}>Session ({added.length})</h3>
+          <div className={styles.sessionHead}>
+            <h3>Session ({added.length} athlete{added.length === 1 ? "" : "s"})</h3>
             <button type="button" className={`${styles.danger} ${styles.btnSm}`} onClick={() => { setAdded([]); setMessage(""); }}>Clear all</button>
           </div>
           <div className={styles.athleteCards}>
@@ -189,27 +179,29 @@ function AssessmentForm({ catalog, session }) {
                   </div>
                   <button type="button" className={`${styles.danger} ${styles.btnSm}`} onClick={() => setAdded((current) => current.filter((x) => x.id !== a.id))}>Remove</button>
                 </div>
-                <fieldset className={styles.metricsGrid}>
+                <fieldset className={styles.cardFieldset}>
                   <legend>Metrics</legend>
-                  {metricsFor(a).map((m) => (
-                    <div key={m.id} className={styles.metricField}>
-                      <label>
-                        {m.metricName}
-                        {m.isRequired && " *"}
-                        <input
-                          name={`metric_${a.id}_${m.id}`}
-                          type={m.dataType === "integer" ? "number" : m.dataType === "decimal" ? "number" : "text"}
-                          step={m.dataType === "decimal" ? "0.01" : undefined}
-                          required={m.isRequired}
-                        />
-                      </label>
-                      <label>
-                        <textarea name={`notes_${a.id}_${m.id}`} maxLength="255" rows="2" placeholder="Notes" />
-                      </label>
-                    </div>
-                  ))}
+                  <div className={styles.metricsGrid}>
+                    {metricsFor(a).map((m) => (
+                      <div key={m.id} className={styles.metricField}>
+                        <label>
+                          {m.metricName}
+                          {m.isRequired && " *"}
+                          <input
+                            name={`metric_${a.id}_${m.id}`}
+                            type={m.dataType === "integer" ? "number" : m.dataType === "decimal" ? "number" : "text"}
+                            step={m.dataType === "decimal" ? "0.01" : undefined}
+                            required={m.isRequired}
+                          />
+                        </label>
+                        <label>
+                          <textarea name={`notes_${a.id}_${m.id}`} maxLength="255" rows="2" placeholder="Notes" />
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                 </fieldset>
-                <label>
+                <label className={styles.cardRemarks}>
                   Remarks
                   <textarea name={`remarks_${a.id}`} maxLength="2000" rows="2" />
                 </label>
@@ -219,11 +211,17 @@ function AssessmentForm({ catalog, session }) {
         </div>
       )}
 
-      <button className={styles.primary} disabled={busy || added.length === 0}>
-        {busy ? "Recording..." : `Record ${added.length || ""} assessment${added.length === 1 ? "" : "s"}`}
-      </button>
+      <div className={styles.formActions}>
+        <label className={styles.typeField}>
+          Assessment type
+          <input name="assessmentType" maxLength="100" defaultValue="Regular Assessment" />
+        </label>
+        <button className={styles.primary} disabled={busy || added.length === 0}>
+          {busy ? "Recording..." : `Record ${added.length ? `${added.length} assessment${added.length === 1 ? "" : "s"}` : "assessments"}`}
+        </button>
+      </div>
       {message && (
-        <p role="status" className={styles.fullField}>
+        <p role="status" className={`${styles.fullField} ${message.startsWith("Add") || message.includes("Could not") || message === "Unable to reach the server. Please try again later." ? styles.formError : styles.formSuccess}`}>
           {message}
         </p>
       )}
