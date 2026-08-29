@@ -99,6 +99,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, message: "Profile updated successfully." });
   } catch (error) {
     console.error("Error updating profile:", error);
-    return res.status(500).json({ error: "Failed to update profile.", detail: error instanceof Error ? error.message : String(error) });
+    return res.status(500).json({ error: "Failed to update profile." });
   }
 }
