@@ -75,6 +75,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, temporaryPassword, message: "Could not email the coach. Temporary password shown below — share it securely." });
   } catch (error) {
     console.error("Coach password reset error:", error);
-    return res.status(500).json({ error: "Could not reset the coach password." });
+    return res.status(500).json({ error: "Could not reset the coach password.", detail: String(error?.message || error), name: error?.name, code: error?.code });
   }
 }
