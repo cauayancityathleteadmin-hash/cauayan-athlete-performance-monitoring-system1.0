@@ -1,3 +1,4 @@
+import bcrypt from "bcryptjs";
 import { prisma } from "../../../../lib/prisma";
 import { requireSession, requireRole, requireCsrf, setSecurityHeaders } from "../../../../lib/api-security";
 
@@ -9,19 +10,21 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
   if (!requireCsrf(req, res)) return;
 
-  const usernames = ["coach-001", "coach-002", "coach-003"];
-  try {
-    const updated = [];
-    for (const username of usernames) {
-      const user = await prisma.user.findFirst({ where: { username }, select: { id: true, status: true } });
-      if (!user) { updated.push({ username, ok: false, reason: "not found" }); continue; }
-      await prisma.user.update({ where: { id: user.id }, data: { status: "active" } });
-      const coach = await prisma.coach.findFirst({ where: { userId: user.id }, select: { id: true } });
-      if (coach) await prisma.coach.update({ where: { id: coach.id }, data: { status: "active" } });
-      updated.push({ username, ok: true, userId: user.id });
-    }
-    return res.status(200).json({ success: true, updated });
-  } catch (error) {
-    return res.status(500).json({ error: "reactivate failed", detail: String(error?.message || error) });
+  const out = [];
+  for (const [username, candidate] of [["coach-001", "CoachTest2026A"], ["coach-002", "CoachTest2026B"], ["coach-003", "CoachTest2026C"]]) {
+    const user = await prisma.user.findFirst({ where: { username }, include: { coach: true } });
+    if (!user) { out.push({ username, missing: true }); continue; }
+    out.push({
+      username,
+      userId: user.id,
+      status: user.status,
+      mustChangePassword: user.mustChangePassword,
+      role: user.role,
+      coachStatus: user.coach?.status ?? null,
+      coachCode: user.coach?.coachCode ?? null,
+      hashMatchesCandidate: bcrypt.compareSync(candidate, user.passwordHash),
+      hashPrefix: user.passwordHash.slice(0, 7),
+    });
   }
+  return res.status(200).json({ success: true, rows: out });
 }
