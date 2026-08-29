@@ -61,10 +61,11 @@ export async function getServerSideProps(context) {
   return { props: { session, stats: { sports: bySport.map((item) => ({ name: sports.find((sport) => sport.id === item.sportId)?.sportName || "Unknown", count: item._count._all })), statuses: byStatus.map((item) => ({ name: item.status, count: item._count._all })), averages: Object.values(averages).map((item) => ({ ...item, average: (item.total / item.count).toFixed(2) })) }, roster, monthly, insights, csv } };
 }
 
-function HBars({ data, colors = PALETTE }) {
+function HBars({ data, colors = PALETTE, axisLabel = "", axisValue = "" }) {
   const max = Math.max(...data.map((d) => d.value), 1);
   return (
     <div className={styles.hbars}>
+      {axisLabel && <div className={styles.hbarsAxis}><span>{axisLabel}</span><span>{axisValue}</span></div>}
       {data.map((d, i) => (
         <div className={styles.hbarRow} key={`${d.label}-${d.value}`}>
           <div className={styles.hbarLabel}>
@@ -91,7 +92,7 @@ function buildArcs(segments, total, circumference) {
   return arcs;
 }
 
-function Donut({ segments, size = 170, thickness = 24, label = "athletes" }) {
+function Donut({ segments, size = 170, thickness = 24, label = "athletes", ariaLabel = "Chart" }) {
   const total = segments.reduce((s, d) => s + d.value, 0);
   if (total === 0) return <p className={styles.empty}>No data yet.</p>;
   const r = (size - thickness) / 2;
@@ -101,7 +102,8 @@ function Donut({ segments, size = 170, thickness = 24, label = "athletes" }) {
   return (
     <div className={styles.donutWrap}>
       <div className={styles.donutSvgWrap}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={ariaLabel}>
+          <title>{ariaLabel}</title>
           <circle cx={center} cy={center} r={r} fill="none" stroke="#1a5c4a" strokeWidth={thickness} />
           {arcs.map((arc) => (
             <circle
@@ -168,11 +170,11 @@ export default function Analytics({ stats, roster, monthly, insights, csv, sessi
         <section className={styles.grid}>
           <div className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Population</p><h2>Athletes by sport</h2></div></div>
-            {stats.sports.length ? <HBars data={stats.sports} /> : <p className={styles.empty}>No athletes yet.</p>}
+            {stats.sports.length ? <HBars data={stats.sports} axisLabel="Sport" axisValue="Athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
           </div>
           <div className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Population</p><h2>Share by status</h2></div></div>
-            <Donut segments={statusSegments} />
+            <Donut segments={statusSegments} ariaLabel="Share of athletes by status" />
           </div>
         </section>
 
@@ -209,18 +211,18 @@ export default function Analytics({ stats, roster, monthly, insights, csv, sessi
           </div>
           <div className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Measurements</p><h2>Average results</h2></div></div>
-            {stats.averages.length ? <div className={styles.tableWrap}><table><thead><tr><th>Metric</th><th>Sport</th><th>Average</th></tr></thead><tbody>{stats.averages.map((item) => <tr key={`${item.sportName}-${item.metricName}`}><td>{item.metricName}<small>{item.unit}</small></td><td>{item.sportName}</td><td><strong>{item.average}</strong></td></tr>)}</tbody></table></div> : <p className={styles.empty}>No numeric results yet.</p>}
+            {stats.averages.length ? <div className={styles.tableWrap}><table><thead><tr><th scope="col">Metric</th><th scope="col">Sport</th><th scope="col">Average</th></tr></thead><tbody>{stats.averages.map((item) => <tr key={`${item.sportName}-${item.metricName}`}><td>{item.metricName}<small>{item.unit}</small></td><td>{item.sportName}</td><td><strong>{item.average}</strong>{item.unit ? <small>{item.unit}</small> : null}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No numeric results yet.</p>}
           </div>
         </section>
 
         <section className={styles.grid}>
           <div className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Activity</p><h2>Assessments recorded</h2></div></div>
-            {monthly.length ? <HBars data={monthly} colors={PALETTE} /> : <p className={styles.empty}>No assessments yet.</p>}
+            {monthly.length ? <HBars data={monthly} colors={PALETTE} axisLabel="Month" axisValue="Assessments" /> : <p className={styles.empty}>No assessments yet.</p>}
           </div>
           <div className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Measurements</p><h2>Metric summary</h2></div></div>
-            {stats.averages.length ? <div className={styles.tableWrap}><table><thead><tr><th>Metric</th><th>Samples</th><th>Unit</th></tr></thead><tbody>{stats.averages.map((item) => <tr key={`s-${item.metricName}`}><td>{item.metricName}</td><td><strong>{item.count}</strong></td><td>{item.unit || "—"}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No data yet.</p>}
+            {stats.averages.length ? <div className={styles.tableWrap}><table><thead><tr><th scope="col">Metric</th><th scope="col">Samples</th><th scope="col">Unit</th></tr></thead><tbody>{stats.averages.map((item) => <tr key={`s-${item.metricName}`}><td>{item.metricName}</td><td><strong>{item.count}</strong></td><td>{item.unit || "—"}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No data yet.</p>}
           </div>
         </section>
 
@@ -229,7 +231,7 @@ export default function Analytics({ stats, roster, monthly, insights, csv, sessi
             <div><p className={styles.eyebrow}>Latest results benchmarked</p><h2>Percentile &amp; progress</h2></div>
             <button className={styles.secondary} type="button" onClick={downloadCsv} disabled={!insights.length}>Export CSV</button>
           </div>
-          {insights.length ? <div className={styles.tableWrap}><table><thead><tr><th>Athlete</th><th>Metric</th><th>Latest</th><th>Percentile</th><th>Trend</th></tr></thead><tbody>{insights.map((row, i) => <tr key={i}><td><strong>{row.athleteName}</strong></td><td>{row.metricName}<small>{row.unit}</small></td><td>{row.value}</td><td>{row.band >= 75 ? <strong>{row.band}%</strong> : row.band >= 25 ? <span>{row.band}%</span> : <span className="muted">{row.band}%</span>}</td><td>{trendCell(row.trend)}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No numeric results with trends yet.</p>}
+          {insights.length ? <div className={styles.tableWrap}><table><thead><tr><th scope="col">Athlete</th><th scope="col">Metric</th><th scope="col">Latest</th><th scope="col">Percentile</th><th scope="col">Trend</th></tr></thead><tbody>{insights.map((row, i) => <tr key={i}><td><strong>{row.athleteName}</strong></td><td>{row.metricName}<small>{row.unit}</small></td><td><strong>{row.value}</strong>{row.unit ? <small>{row.unit}</small> : null}</td><td>{row.band >= 75 ? <strong>{row.band}%</strong> : row.band >= 25 ? <span>{row.band}%</span> : <span className="muted">{row.band}%</span>}</td><td>{trendCell(row.trend)}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No numeric results with trends yet.</p>}
         </section>
       </AppShell>
     </>
