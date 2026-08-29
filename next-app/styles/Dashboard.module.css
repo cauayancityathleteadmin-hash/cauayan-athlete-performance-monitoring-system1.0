@@ -1181,6 +1181,111 @@
   font-weight: 700;
 }
 
+/* ===== Assessment: athlete search + batch session cards ===== */
+.athleteSearch {
+  position: relative;
+}
+
+.athleteSearch > input {
+  border: 1px solid var(--border);
+  background: #06261e;
+  color: var(--foreground);
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  border-radius: 8px;
+  width: min(100%, 420px);
+}
+
+.athleteSearch > input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(45, 212, 168, 0.2);
+}
+
+.matchList {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  width: min(100%, 420px);
+  max-height: 260px;
+  overflow-y: auto;
+  background: #083226;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.matchItem {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.matchItem:hover {
+  background: rgba(45, 212, 168, 0.1);
+  border-color: rgba(45, 212, 168, 0.35);
+}
+
+.matchItem small {
+  color: #86efac;
+  font-size: 12px;
+}
+
+.matchEmpty {
+  padding: 14px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.athleteCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+.athleteCard {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(6, 38, 30, 0.5);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cardHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.cardHead strong {
+  font-size: 14px;
+}
+
+.cardHead small {
+  display: block;
+  color: #86efac;
+  font-size: 12px;
+  margin-top: 3px;
+}
+
 /* ===== Alert / callout box ===== */
 .alertBox {
   border: 1px solid var(--border);
