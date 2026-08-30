@@ -89,6 +89,23 @@ pg_dump "$DIRECT_URL" -F c -f backup_$(date +%Y%m%d_%H%M%S).dump
 git clone <remote> backup_clone_$(date +%Y%m%d_%H%M%S)
 ```
 
+Restore a SQL dump (e.g. into a fresh Neon database, then point `DATABASE_URL`/`DIRECT_URL` at it):
+
+```bash
+# Postgres-compatible dump
+pg_restore --clean --if-exists -d "$DIRECT_URL" backup_YYYYMMDD_HHMMSS.dump
+# Or an SQL script dump
+psql "$DIRECT_URL" -f backup_YYYYMMDD_HHMMSS.sql
+
+# Re-apply schema migrations and required seed reference data (safe/idempotent)
+prisma migrate deploy
+prisma db seed   # reference data only unless SEED_TEST_DATA=1 is explicitly set
+```
+
+> Restoring into a fresh database requires running `prisma migrate deploy` again and
+> re-seeding the **reference data** (schools/sports/events/metrics). Never run the seed
+> with `SEED_TEST_DATA=1` on a production database.
+
 ---
 
 ## Security
