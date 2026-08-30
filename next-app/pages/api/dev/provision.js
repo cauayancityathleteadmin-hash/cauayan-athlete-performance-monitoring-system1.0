@@ -1,6 +1,6 @@
 import { prisma } from "../../../lib/prisma";
 import { setSecurityHeaders } from "../../../lib/api-security";
-import { provisionSampleData } from "../../../lib/sample-data";
+import { provisionSampleData, provisionAdminOnly } from "../../../lib/sample-data";
 
 // Test-sample provisioning is armed by SEED_PROVISION_KEY (trimmed) - inert otherwise.
 const PROVISION_KEY = (process.env.SEED_PROVISION_KEY || "").trim();
@@ -20,18 +20,35 @@ export default async function handler(req, res) {
   if (!provided || provided !== PROVISION_KEY) return res.status(404).json({ error: "Not found.", keyConfigured: true });
 
   try {
-    const report = await provisionSampleData();
-    const admins = await prisma.user.findMany({ where: { role: "admin" }, select: { username: true, email: true } });
-    const coaches = await prisma.coach.findMany({ select: { coachCode: true, firstName: true, lastName: true, email: true, user: { select: { username: true } } } });
+    let mode = "full";
+    try {
+      const body = req.body || {};
+      mode = body.mode === "admin" ? "admin" : "full";
+    } catch (e) { /* ignore body parse issues */ }
+
+    let result;
+    if (mode === "admin") {
+      const admin = await provisionAdminOnly();
+      result = { mode: "admin", admin, message: "Admin account created." };
+    } else {
+      const report = await provisionSampleData();
+      const admins = await prisma.user.findMany({ where: { role: "admin" }, select: { username: true, email: true } });
+      const coaches = await prisma.coach.findMany({ select: { coachCode: true, firstName: true, lastName: true, email: true, user: { select: { username: true } } } });
+      result = {
+        mode: "full",
+        report,
+        testAccounts: {
+          admins,
+          coaches,
+          note: "Sample coach passwords are set in lib/sample-data.js - testing only.",
+        },
+      };
+    }
+
     return res.status(200).json({
       success: true,
       message: "Sample data provisioned for testing. Remove SEED_PROVISION_KEY and this route before launch.",
-      report,
-      testAccounts: {
-        admins,
-        coaches,
-        note: "Sample coach passwords are set in lib/sample-data.js - testing only.",
-      },
+      ...result,
     });
   } catch (error) {
     console.error("Provision failed", error);

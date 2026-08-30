@@ -100,6 +100,19 @@ async function upsertMetric(eventId, def) {
 
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
+// Fast, single-call admin creation (cannot time out) - used to guarantee an admin
+// exists even before the full sample data load is run. Returns the created admin.
+export async function provisionAdminOnly() {
+  const a = ADMIN_ACCOUNTS[0];
+  const passwordHash = await bcrypt.hash(a.password, 12);
+  const admin = await prisma.user.upsert({
+    where: { email: a.email },
+    update: { username: a.username, role: "admin", status: "active", mustChangePassword: false, passwordHash },
+    create: { username: a.username, email: a.email, role: "admin", status: "active", mustChangePassword: false, passwordHash },
+  });
+  return { username: admin.username, email: admin.email, role: admin.role, status: admin.status };
+}
+
 export async function provisionSampleData() {
   const report = { admins: 0, coaches: 0, schools: 0, sports: 0, events: 0, metrics: 0, athletes: 0, assessments: 0, results: 0, achievements: 0, eventPlans: 0, applications: 0, participants: 0 };
 
