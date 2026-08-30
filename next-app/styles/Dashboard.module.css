@@ -165,7 +165,7 @@
   width: 100%;
   max-width: 1440px;
   margin: 0 auto;
-  padding: 1.8rem 2rem 2.6rem;
+  padding: 2rem 2rem 3rem;
   overflow-x: auto;
 }
 
@@ -173,7 +173,7 @@
 .content > section + section,
 .content > section + div,
 .content > div + section {
-  margin-top: 22px;
+  margin-top: 26px;
 }
 
 .mobileNav {
@@ -383,7 +383,7 @@
   align-items: center;
   gap: 12px;
   justify-content: flex-end;
-  padding-top: 16px;
+  padding-top: 20px;
 }
 
 .pagination span {
@@ -532,8 +532,8 @@
 .panel {
   background: rgba(10, 50, 40, .93);
   border: 1px solid #1a5c4a;
-  padding: 24px;
-  border-radius: 12px;
+  padding: 28px;
+  border-radius: 14px;
 }
 
 .panelHeader {
@@ -541,7 +541,7 @@
   justify-content: space-between;
   gap: 14px;
   align-items: flex-start;
-  margin-bottom: 18px;
+  margin-bottom: 22px;
   flex-wrap: wrap;
 }
 
@@ -553,7 +553,9 @@
 
 .tableWrap {
   overflow-x: auto;
-  border-radius: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(26, 92, 74, 0.55);
+  margin-top: 4px;
 }
 
 .tableWrap table {
@@ -565,7 +567,7 @@
 
 .tableWrap th,
 .tableWrap td {
-  padding: 13px 16px;
+  padding: 16px 18px;
   border-bottom: 1px solid #1a5c4a;
 }
 
@@ -576,21 +578,31 @@
   text-transform: uppercase;
   font-weight: 700;
   background: rgba(6, 38, 30, .5);
+  white-space: nowrap;
+}
+
+.tableWrap td strong {
+  display: inline-block;
+  line-height: 1.35;
 }
 
 .tableWrap td small {
   display: block;
   color: #86efac;
-  margin-top: 4px;
+  margin-top: 5px;
   font-size: 12px;
+}
+
+.tableWrap tr {
+  transition: background-color 0.15s;
 }
 
 .tableWrap tr:last-child td {
   border-bottom: none;
 }
 
-.tableWrap tr:hover td {
-  background: rgba(45, 212, 168, .03);
+.tableWrap tbody tr:hover td {
+  background: rgba(45, 212, 168, .04);
 }
 
 .empty {
@@ -606,8 +618,9 @@
 .coverage div {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   border-bottom: 1px solid #1a5c4a;
-  padding: 14px 0;
+  padding: 14px 4px;
 }
 
 .coverage dt {
@@ -900,9 +913,9 @@
 .profileHeader {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding-bottom: 16px;
-  margin-bottom: 16px;
+  gap: 18px;
+  padding: 6px 4px 22px;
+  margin-bottom: 24px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -910,20 +923,24 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   background: var(--accent);
   color: #041f18;
   font-weight: 800;
-  font-size: 20px;
+  font-size: 22px;
   flex-shrink: 0;
+}
+
+.profileMeta h2 {
+  margin: 0 0 2px;
 }
 
 .profileMeta small {
   display: block;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 /* ===== Section heading (h2 + subtitle + count badge) ===== */
@@ -961,15 +978,19 @@
 .toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
   align-items: flex-end;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  background: rgba(6, 38, 30, 0.45);
+  border: 1px solid rgba(26, 92, 74, 0.4);
+  border-radius: 10px;
 }
 
 .toolbar label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
@@ -980,7 +1001,7 @@
   border: 1px solid var(--border);
   background: #06261e;
   color: var(--foreground);
-  padding: 10px 12px;
+  padding: 11px 13px;
   font: inherit;
   font-size: 14px;
   border-radius: 8px;
@@ -999,53 +1020,74 @@
 
 /* ===== Label/value info table (profile details) ===== */
 .infoList {
-  max-width: 560px;
+  max-width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 32px;
+  row-gap: 6px;
+  padding: 14px 0 4px;
 }
 
 .infoList > div {
   display: grid;
-  grid-template-columns: 160px 1fr;
-  gap: 12px;
-  padding: 10px 0;
+  grid-template-columns: 170px 1fr;
+  gap: 14px;
+  padding: 14px 0;
   border-bottom: 1px solid rgba(26, 92, 74, 0.5);
+  min-width: 0;
 }
 
 .infoList dt {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .infoList dd {
   color: var(--foreground);
-  font-size: 14px;
+  font-size: 15px;
+  min-width: 0;
+  word-break: break-word;
+}
+
+@media (max-width: 720px) {
+  .infoList {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ===== Checklist (multi-select athletes / features) ===== */
 .checkboxList {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 8px;
-  max-height: 260px;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 6px;
+  max-height: 280px;
   overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 12px;
+  padding: 10px;
   background: rgba(6, 38, 30, 0.5);
 }
 
 .checkboxList label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   color: var(--foreground);
   font-size: 14px;
   cursor: pointer;
+  padding: 9px 10px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.checkboxList label:hover {
+  background: rgba(45, 212, 168, 0.07);
 }
 
 .checkboxList input[type="checkbox"] {
-  width: 17px;
-  height: 17px;
+  width: 18px;
+  height: 18px;
   accent-color: var(--accent);
   flex-shrink: 0;
 }
@@ -1053,8 +1095,8 @@
 /* ===== Athlete selection report table (sortable, searchable) ===== */
 .reportTableScroll {
   border: 1px solid var(--border);
-  border-radius: 8px;
-  max-height: 440px;
+  border-radius: 10px;
+  max-height: 460px;
   overflow-y: auto;
 }
 
@@ -1067,7 +1109,7 @@
 
 .reportTableScroll th,
 .reportTableScroll td {
-  padding: 11px 14px;
+  padding: 14px 16px;
   border-bottom: 1px solid #1a5c4a;
   vertical-align: middle;
 }
@@ -1279,12 +1321,12 @@
 
 .athleteCard {
   border: 1px solid #1a5c4a;
-  border-radius: 10px;
+  border-radius: 12px;
   background: rgba(6, 38, 30, 0.5);
-  padding: 16px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 .cardHead {
@@ -1517,7 +1559,7 @@
 .statusPanel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .statusBlock {
@@ -1534,7 +1576,7 @@
   gap: 10px;
   background: none;
   border: none;
-  padding: 12px 14px;
+  padding: 14px 16px;
   color: var(--foreground);
   font: inherit;
   cursor: pointer;
@@ -1575,19 +1617,19 @@
 
 .statusAthletes {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 8px;
-  padding: 4px 12px 12px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  padding: 6px 14px 14px;
 }
 
 .statusAthlete {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   background: rgba(10, 50, 40, 0.7);
   border: 1px solid #1a5c4a;
   border-radius: 8px;
-  padding: 9px 12px;
+  padding: 11px 14px;
   color: var(--foreground);
 }
 
@@ -1753,7 +1795,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  padding-bottom: 2px;
 }
 
 .tabBtn {
@@ -1816,10 +1859,10 @@
 
 /* ===== Expandable coach detail panel ===== */
 .detailPanel {
-  padding: 18px;
-  margin: 6px 10px 14px;
+  padding: 20px;
+  margin: 10px 14px 16px;
   border: 1px solid rgba(45, 212, 168, 0.35);
-  border-radius: 10px;
+  border-radius: 12px;
   background: rgba(6, 38, 30, 0.6);
 }
 
