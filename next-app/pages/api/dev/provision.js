@@ -2,7 +2,7 @@ import { prisma } from "../../../lib/prisma";
 import { setSecurityHeaders } from "../../../lib/api-security";
 import { provisionSampleData } from "../../../lib/sample-data";
 
-const PROVISION_KEY = (process.env.SEED_PROVISION_KEY || "").trim();
+// Test-sample provisioning is armed by SEED_PROVISION_KEY (trimmed) - inert otherwise.\nconst PROVISION_KEY = (process.env.SEED_PROVISION_KEY || "").trim();
 
 export default async function handler(req, res) {
   setSecurityHeaders(res);
