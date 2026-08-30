@@ -2,14 +2,14 @@ import { prisma } from "../../../lib/prisma";
 import { setSecurityHeaders } from "../../../lib/api-security";
 import { provisionSampleData } from "../../../lib/sample-data";
 
-const PROVISION_KEY = process.env.SEED_PROVISION_KEY || "";
+const PROVISION_KEY = (process.env.SEED_PROVISION_KEY || "").trim();
 
 export default async function handler(req, res) {
   setSecurityHeaders(res);
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
 
   if (!PROVISION_KEY) return res.status(404).json({ error: "Not found." });
-  const provided = req.headers["x-provision-key"];
+  const provided = String(req.headers["x-provision-key"] || "").trim();
   if (!provided || provided !== PROVISION_KEY) return res.status(404).json({ error: "Not found." });
 
   try {
