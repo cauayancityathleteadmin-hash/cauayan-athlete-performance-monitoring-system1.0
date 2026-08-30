@@ -39,7 +39,14 @@ export default async function handler(req, res) {
       return res.status(409).json({ error: `Coach still has ${coach.athletes.length} assigned athlete${coach.athletes.length === 1 ? "" : "s"}. Reassign or remove their athletes before deleting the account.` });
     }
     await prisma.$transaction(async (tx) => {
+      // Clean up any records that reference the coach/user and are not fully cascaded.
+      await tx.coachSport.deleteMany({ where: { coachId } });
+      await tx.eventApplication.deleteMany({ where: { coachId } });
+      await tx.eventParticipant.deleteMany({ where: { coachId } });
       await tx.athleteCoachHistory.deleteMany({ where: { coachId } });
+      await tx.passwordResetToken.deleteMany({ where: { userId: coach.userId } });
+      await tx.assessment.deleteMany({ where: { recordedBy: coach.userId } });
+      await tx.auditLog.deleteMany({ where: { userId: coach.userId } });
       await tx.user.delete({ where: { id: coach.userId } });
       await tx.auditLog.create({ data: { userId: Number(session.user.id), action: "delete", entityType: "coach", entityId: coachId, description: `deleted coach account ${coach.coachCode}${reason ? `: ${reason}` : ""}` } });
     });

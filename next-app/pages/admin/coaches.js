@@ -218,6 +218,9 @@ export default function AdminCoaches({ coaches, session }) {
                             <button onClick={() => reviewCoach(coach.id, "delete")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Delete</button>
                           </>
                         )}
+                        {(coach.user.status === "active" || coach.user.status === "inactive") && (
+                          <button onClick={() => reviewCoach(coach.id, "delete")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Remove</button>
+                        )}
                       </td>
                     </tr>
                     {openId === coach.id && (
