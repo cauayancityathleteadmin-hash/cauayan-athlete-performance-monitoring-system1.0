@@ -165,36 +165,68 @@ function ParticipationToggle({ open, count, children, label }) {
   );
 }
 
-function ParticipantRoster({ participants }) {
-  const coaches = participants.filter((p) => p.participantType === "coach");
-  const athletes = participants.filter((p) => p.participantType === "athlete");
+function AthleteList({ items, empty }) {
+  if (!items.length) return <div className={styles.detailEmpty}>{empty}</div>;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+    <div className={styles.statusAthletes}>
+      {items.map((p) => (
+        <div key={p.id} className={styles.statusAthlete}>
+          <span className={styles.statusAthleteName}>{p.athlete.firstName} {p.athlete.lastName}</span>
+          <small>{p.athlete.athleteCode} · {p.sport.sportName || "—"}</small>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CoachRow({ coach, athletesOfCoach, open, onToggle }) {
+  const hasAthletes = athletesOfCoach.length > 0;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", padding: "12px 14px", border: "1px solid var(--border)", borderRadius: "10px", background: "rgba(10, 50, 40, 0.7)" }}>
+        <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+          <strong style={{ fontSize: 14 }}>{coach.firstName} {coach.lastName}</strong>
+          <small style={{ display: "block", color: "var(--muted)", fontSize: 12 }}>{coach.coachCode}{coach.school ? ` · ${coach.school.schoolName}` : ""}</small>
+        </div>
+        {hasAthletes && (
+          <button type="button" className={styles.expandBtn} onClick={onToggle}>
+            {open ? "Hide " : "View "}athletes ({athletesOfCoach.length}) {open ? "▲" : "▼"}
+          </button>
+        )}
+        {!hasAthletes && <small style={{ color: "var(--muted)", fontSize: 12 }}>No athletes enrolled</small>}
+      </div>
+      {open && <AthleteList items={athletesOfCoach} empty="No athletes enrolled under this coach." />}
+    </div>
+  );
+}
+
+function CoachGroup({ coachId, participants }) {
+  const [open, setOpen] = React.useState(false);
+  const coach = participants.find((p) => p.coach && p.coachId === coachId)?.coach;
+  const athleteRows = participants.filter((p) => p.participantType === "athlete" && p.coachId === coachId);
+  if (!coach) return null;
+  return <CoachRow coach={coach} athletesOfCoach={athleteRows} open={open} onToggle={() => setOpen((c) => !c)} />;
+}
+
+function ParticipantRoster({ participants, myCoachId }) {
+  const myAthletes = (myCoachId ? participants.filter((p) => p.participantType === "athlete" && p.coachId === myCoachId) : []);
+  const coachRows = participants.filter((p) => p.participantType === "coach" && p.coach);
+  const uniqueCoachIds = [...new Set(coachRows.map((p) => p.coachId))];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+      {myCoachId && (
+        <div>
+          <p className={styles.eyebrow} style={{ marginBottom: 8 }}>My athletes ({myAthletes.length})</p>
+          <AthleteList items={myAthletes} empty="You have no athletes enrolled in this event plan." />
+        </div>
+      )}
       <div>
-        <p className={styles.eyebrow} style={{ marginBottom: 8 }}>Coaches ({coaches.length})</p>
-        {coaches.length ? (
-          <div className={styles.statusAthletes}>
-            {coaches.map((p) => (
-              <div key={p.id} className={styles.statusAthlete}>
-                <span className={styles.statusAthleteName}>{p.coach.firstName} {p.coach.lastName}</span>
-                <small>{p.coach.coachCode}{p.coach.school ? ` · ${p.coach.school.schoolName}` : ""}</small>
-              </div>
-            ))}
+        <p className={styles.eyebrow} style={{ marginBottom: 8 }}>Coaches ({uniqueCoachIds.length})</p>
+        {uniqueCoachIds.length ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {uniqueCoachIds.map((cid) => <CoachGroup key={cid} coachId={cid} participants={participants} />)}
           </div>
         ) : <div className={styles.detailEmpty}>No participating coaches yet.</div>}
-      </div>
-      <div>
-        <p className={styles.eyebrow} style={{ marginBottom: 8 }}>Athletes ({athletes.length})</p>
-        {athletes.length ? (
-          <div className={styles.statusAthletes}>
-            {athletes.map((p) => (
-              <div key={p.id} className={styles.statusAthlete}>
-                <span className={styles.statusAthleteName}>{p.athlete.firstName} {p.athlete.lastName}</span>
-                <small>{p.athlete.athleteCode} · {p.sport.sportName || "—"}</small>
-              </div>
-            ))}
-          </div>
-        ) : <div className={styles.detailEmpty}>No enrolled athletes yet.</div>}
       </div>
     </div>
   );
@@ -305,7 +337,7 @@ function EventPlanActions({ plan, session, athletes, coachId }) {
           </div>
         )}
         <ParticipationToggle label="participants" count={(plan.participants || []).length} open={true}>
-          <ParticipantRoster participants={plan.participants || []} />
+          <ParticipantRoster participants={plan.participants || []} myCoachId={coachId} />
         </ParticipationToggle>
       </div>;
     }
