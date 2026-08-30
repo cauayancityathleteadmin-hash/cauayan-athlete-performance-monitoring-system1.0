@@ -1,0 +1,34 @@
+name: Live smoke test
+
+on:
+  schedule:
+    - cron: "0 */6 * * *" # every 6 hours
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    name: Check live site & public routes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Health check
+        run: |
+          code=$(curl -s -o /tmp/health.json -w "%{http_code}" --max-time 30 https://cauayan-athlete-performance-monitor-indol.vercel.app/api/health)
+          echo "health HTTP $code"
+          test "$code" = "200" || exit 1
+          grep -q '"db":"up"' /tmp/health.json || { echo "DB not up"; cat /tmp/health.json; exit 1; }
+
+      - name: Public route checks
+        run: |
+          for path in /login /coach-register /forgot-password /reset-password; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "https://cauayan-athlete-performance-monitor-indol.vercel.app${path}")
+            echo "$path -> $code"
+            test "$code" = "200" || exit 1
+          done
+
+      - name: Auth gating check (protected routes should not be public 200)
+        run: |
+          for path in /dashboard /admin /analytics; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "https://cauayan-athlete-performance-monitor-indol.vercel.app${path}")
+            echo "$path (unauth) -> $code"
+            test "$code" != "200" || { echo "ERROR: protected route returned 200 without auth"; exit 1; }
+          done
