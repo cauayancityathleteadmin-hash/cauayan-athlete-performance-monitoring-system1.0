@@ -4,6 +4,8 @@ import { sendCoachRegistrationNotice } from "../../lib/email";
 import { requireCsrf, text, validId } from "../../lib/api-security";
 import { checkPasswordStrength } from "../../lib/password";
 import { rateLimiters } from "../../lib/rate-limit";
+import { checkRateLimitDb } from "../../lib/rate-limit-db";
+import { verifyTurnstile } from "../../lib/turnstile";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
@@ -12,6 +14,15 @@ export default async function handler(req, res) {
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || "unknown";
   if (!rateLimiters.register(`register:${ip}`).allowed) {
     return res.status(429).json({ error: "Too many registration attempts. Please try again later." });
+  }
+  const dbRate = await checkRateLimitDb({ scope: "register", key: `register:${ip}`, limit: 3, windowMs: 60 * 60 * 1000 });
+  if (!dbRate.allowed) {
+    return res.status(429).json({ error: "Too many registration attempts. Please try again later." });
+  }
+
+  const captchaOk = await verifyTurnstile(String(req.body?.captchaToken || ""));
+  if (!captchaOk) {
+    return res.status(400).json({ error: "Security check failed. Please try again." });
   }
 
   const body = req.body || {};

@@ -102,6 +102,7 @@ export default function Login() {
         {error && <p role="alert">{error}</p>}
       </form>
       <p className="auth-register"><Link href="/coach-register">Register as a coach</Link></p>
+      <p className="auth-register" style={{ marginTop: "8px" }}><Link href="/forgot-password">Forgot password?</Link></p>
     </main>
   );
 }

@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "../../../lib/prisma";
 import { rateLimiters } from "../../../lib/rate-limit";
+import { checkRateLimitDb } from "../../../lib/rate-limit-db";
 import { isLocked, recordFailure, recordSuccess } from "../../../lib/login-protection";
 
 function normalizeHash(hash) {
@@ -26,6 +27,8 @@ export const authOptions = {
       const ip = String(forwarded).split(",")[0].trim();
       const rate = rateLimiters.login(`login:${ip}:${identifier}`);
       if (!rate.allowed) return null;
+      const dbRate = await checkRateLimitDb({ scope: "login", key: `login:${ip}`, limit: 30, windowMs: 15 * 60 * 1000 });
+      if (!dbRate.allowed) return null;
       const lock = isLocked(identifier);
       if (lock.locked) return null;
       const user = await prisma.user.findFirst({

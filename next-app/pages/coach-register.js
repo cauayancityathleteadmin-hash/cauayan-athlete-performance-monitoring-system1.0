@@ -5,19 +5,27 @@ import { prisma } from "../lib/prisma";
 import styles from "../styles/Dashboard.module.css";
 import PasswordInput from "../components/PasswordInput";
 import { checkPasswordStrength } from "../lib/password";
+import { turnstileEnabled, turnstileSiteKey } from "../lib/turnstile";
 
 export async function getServerSideProps() {
   const [sports] = await Promise.all([
     prisma.sport.findMany({ where: { status: "active" }, select: { id: true, sportName: true }, orderBy: { sportName: "asc" } }),
   ]);
-  return { props: { sports } };
+  return {
+    props: {
+      sports,
+      captchaEnabled: turnstileEnabled(),
+      captchaSiteKey: turnstileSiteKey(),
+    },
+  };
 }
 
-export default function CoachRegister({ sports }) {
+export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }) {
   const [message, setMessage] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [reviewing, setReviewing] = React.useState(false);
   const [submitted, setSubmitted] = React.useState(false);
+  const [captchaToken, setCaptchaToken] = React.useState("");
   const [formData, setFormData] = React.useState({
     firstName: "",
     middleName: "",
@@ -31,6 +39,19 @@ export default function CoachRegister({ sports }) {
   });
   const [passwordStrength, setPasswordStrength] = React.useState(null);
   const [errors, setErrors] = React.useState({});
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !captchaEnabled) return;
+    window.onTurnstileSuccess = (token) => setCaptchaToken(token);
+    if (!document.querySelector('script[src="https://challenges.cloudflare.com/turnstile/v0/api.js"]')) {
+      const s = document.createElement("script");
+      s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+      s.async = true;
+      s.defer = true;
+      document.head.appendChild(s);
+    }
+    return () => { delete window.onTurnstileSuccess; };
+  }, [captchaEnabled]);
 
   const handleChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -79,10 +100,14 @@ export default function CoachRegister({ sports }) {
   async function submit(event) {
     event.preventDefault();
     if (!validateForm()) return;
+    if (captchaEnabled && !captchaToken) {
+      setMessage("Please complete the security check to continue.");
+      return;
+    }
     setBusy(true);
     setMessage("");
 
-    const body = { ...formData, sportIds: formData.sportIds.map(Number) };
+    const body = { ...formData, sportIds: formData.sportIds.map(Number), captchaToken };
     try {
       const csrf = await fetch("/api/csrf").then((r) => r.json());
       const response = await fetch("/api/coach-register", {
@@ -107,6 +132,10 @@ export default function CoachRegister({ sports }) {
       setMessage("Unable to reach the server. Please try again later.");
     }
     setBusy(false);
+    if (captchaEnabled && window.turnstile) {
+      try { window.turnstile.reset(); } catch (e) { /* noop */ }
+      setCaptchaToken("");
+    }
   }
 
   function review(event) {
@@ -191,6 +220,11 @@ export default function CoachRegister({ sports }) {
                 {reviewRow("Sports coached", selectedSports.join(", "))}
               </dl>
             </section>
+            {captchaEnabled && (
+              <div style={{ marginTop: "18px" }}>
+                <div className="cf-turnstile" data-sitekey={captchaSiteKey} data-callback="onTurnstileSuccess" data-theme="dark" />
+              </div>
+            )}
             <div style={{ display: "flex", gap: "12px", marginTop: "18px", flexWrap: "wrap" }}>
               <button type="button" onClick={edit} disabled={busy} style={{
                 flex: "1 1 auto",

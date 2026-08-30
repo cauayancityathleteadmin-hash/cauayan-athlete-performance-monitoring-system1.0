@@ -142,3 +142,31 @@ export async function sendCoachPasswordResetEmail({ email, name, coachCode, temp
     return false;
   }
 }
+export async function sendPasswordResetLink({ email, name, resetUrl }) {
+  const transporter = getTransporter();
+  if (!transporter) return false;
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || process.env.GMAIL_USER,
+      to: email,
+      subject: "Reset your Cauayan City athlete system password",
+      text: `Hello ${name},\n\nSomeone requested to reset the password for your Cauayan City athlete account.\n\nOpen the link below to choose a new password. It expires in 30 minutes.\n\n${resetUrl}\n\nIf you did not request this, you can safely ignore this email.\n\nCauayan City Athlete Performance Monitoring System`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #041f18;">Cauayan City Athlete Performance Monitoring System</h2>
+          <p>Hello <strong>${name}</strong>,</p>
+          <p>Someone requested to reset the password for your account. If this was you, click the button below. The link expires in 30 minutes.</p>
+          <p><a href="${resetUrl}" style="display:inline-block; background:#2dd4a8; color:#041f18; padding:12px 24px; border-radius:8px; text-decoration:none; font-weight:bold;">Choose a new password</a></p>
+          <p style="color:#666; font-size:13px;">If the button does not work, copy this link into your browser:<br/>${resetUrl}</p>
+          <p style="color:#666; font-size:12px;">If you did not request this, you can safely ignore this email.</p>
+          <hr style="border:none; border-top:1px solid #e0e0e0; margin:20px 0;" />
+          <p style="color:#666; font-size:12px;">Cauayan City Athlete Performance Monitoring System</p>
+        </div>
+      `,
+    });
+    return true;
+  } catch (error) {
+    console.error("Failed to send password reset link:", error);
+    return false;
+  }
+}
