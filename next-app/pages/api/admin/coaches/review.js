@@ -1,18 +1,7 @@
 import { prisma } from "../../../../lib/prisma";
 import { requireCsrf, requireRole, requireSession, text, validId, setSecurityHeaders } from "../../../../lib/api-security";
 import { rateLimiters } from "../../../../lib/rate-limit";
-import bcrypt from "bcryptjs";
-import crypto from "crypto";
 import { sendCoachApprovalEmail, sendCoachRejectionEmail } from "../../../../lib/email";
-
-function generateTempPassword() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
-  let password = "";
-  for (let i = 0; i < 16; i++) {
-    password += chars.charAt(crypto.randomInt(chars.length));
-  }
-  return password;
-}
 
 export default async function handler(req, res) {
   setSecurityHeaders(res);
@@ -62,11 +51,8 @@ export default async function handler(req, res) {
   const status = decision === "approved" ? "active" : "rejected";
 
   if (decision === "approved" && isPending) {
-    const tempPassword = generateTempPassword();
-    const passwordHash = await bcrypt.hash(tempPassword, 12);
-
     await prisma.$transaction([
-      prisma.user.update({ where: { id: coach.userId }, data: { status, passwordHash, mustChangePassword: true, passwordChangedAt: null } }),
+      prisma.user.update({ where: { id: coach.userId }, data: { status: "active", mustChangePassword: false } }),
       prisma.coach.update({ where: { id: coachId }, data: { status: "active" } }),
       prisma.auditLog.create({ data: { userId: Number(session.user.id), action: decision, entityType: "coach", entityId: coachId, description: `${decision} coach application ${coach.coachCode}${reason ? `: ${reason}` : ""}` } }),
     ]);
@@ -75,15 +61,14 @@ export default async function handler(req, res) {
       email: coach.email,
       name: `${coach.firstName} ${coach.lastName}`,
       coachCode: coach.coachCode,
-      temporaryPassword: tempPassword,
     });
 
-    return res.status(200).json({ success: true, status, message: emailed ? "Coach approved. Temporary password sent via email." : "Coach approved, but the temporary password could not be emailed (email not configured). Share the temporary password securely with the coach." });
+    return res.status(200).json({ success: true, status, message: emailed ? "Coach approved. Sign in with the password you registered with." : "Coach approved. A confirmation email could not be sent." });
   }
 
   if (decision === "approved" && isRejected) {
     await prisma.$transaction([
-      prisma.user.update({ where: { id: coach.userId }, data: { status: "active", mustChangePassword: true } }),
+      prisma.user.update({ where: { id: coach.userId }, data: { status: "active", mustChangePassword: false } }),
       prisma.coach.update({ where: { id: coachId }, data: { status: "active" } }),
       prisma.auditLog.create({ data: { userId: Number(session.user.id), action: "reapprove", entityType: "coach", entityId: coachId, description: `reapproved coach ${coach.coachCode}${reason ? `: ${reason}` : ""}` } }),
     ]);
@@ -94,7 +79,7 @@ export default async function handler(req, res) {
       coachCode: coach.coachCode,
     });
 
-    return res.status(200).json({ success: true, status: "active", message: emailed ? "Coach reapproved. Approval notice sent via email." : "Coach reapproved." });
+    return res.status(200).json({ success: true, status: "active", message: emailed ? "Coach reapproved. Sign in with the password you registered with." : "Coach reapproved. A confirmation email could not be sent." });
   }
 
   await prisma.$transaction([

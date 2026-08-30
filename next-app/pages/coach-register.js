@@ -1,5 +1,6 @@
 import Head from "next/head";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import React from "react";
 import { prisma } from "../lib/prisma";
 import styles from "../styles/Dashboard.module.css";
@@ -21,6 +22,7 @@ export async function getServerSideProps() {
 }
 
 export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }) {
+  const router = useRouter();
   const [message, setMessage] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [reviewing, setReviewing] = React.useState(false);
@@ -125,6 +127,9 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
         setSubmitted(true);
         setReviewing(false);
         resetForm();
+        setTimeout(() => {
+          router.push("/login");
+        }, 1200);
       } else {
         setMessage("Registration could not be completed. Please try again.");
       }
