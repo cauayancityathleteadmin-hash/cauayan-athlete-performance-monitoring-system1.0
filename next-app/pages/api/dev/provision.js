@@ -15,9 +15,9 @@ export default async function handler(req, res) {
   setSecurityHeaders(res);
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
 
-  if (!PROVISION_KEY) return res.status(404).json({ error: "Not found." });
+  if (!PROVISION_KEY) return res.status(404).json({ error: "Not found.", keyConfigured: false });
   const provided = String(req.headers["x-provision-key"] || "").trim();
-  if (!provided || provided !== PROVISION_KEY) return res.status(404).json({ error: "Not found." });
+  if (!provided || provided !== PROVISION_KEY) return res.status(404).json({ error: "Not found.", keyConfigured: true });
 
   try {
     const report = await provisionSampleData();
