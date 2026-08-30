@@ -14,7 +14,7 @@ export async function getServerSideProps(context) {
   const isAdmin = session.user.role === "admin";
   const page = Number(context.query.page) || 1;
   const where = isAdmin ? undefined : { status: { in: ["open", "closed"] } };
-  const planResult = await paginatePrisma(prisma.eventPlan, page, { where, orderBy: { startDate: "asc" }, include: { sports: { include: { sport: true } }, applications: { include: { coach: { select: { coachCode: true, firstName: true, lastName: true } } } }, participants: { where: { status: "active" }, select: { id: true, athleteId: true } } } });
+  const planResult = await paginatePrisma(prisma.eventPlan, page, { where, orderBy: { startDate: "asc" }, include: { sports: { include: { sport: true } }, applications: { include: { coach: { select: { coachCode: true, firstName: true, middleName: true, lastName: true } } } }, participants: { where: { status: "active" }, include: { coach: { select: { coachCode: true, firstName: true, middleName: true, lastName: true, school: { select: { schoolName: true } } } }, athlete: { select: { athleteCode: true, firstName: true, middleName: true, lastName: true, sport: { select: { sportName: true } }, school: { select: { schoolName: true } } } }, sport: { select: { sportName: true } } } } } });
   const plans = planResult.items.map((plan) => ({ ...plan, startDate: plan.startDate.toISOString(), endDate: plan.endDate?.toISOString() || null }));
   let sports = null;
   let athletes = null;
@@ -148,6 +148,58 @@ export default function EventPlans({ plans, session, page, totalPages, sports, a
   );
 }
 
+function participantName(p) {
+  if (p.athlete) return `${p.athlete.lastName}, ${p.athlete.firstName}${p.athlete.middleName ? " " + p.athlete.middleName : ""}`;
+  return `${p.coach.lastName}, ${p.coach.firstName}${p.coach.middleName ? " " + p.coach.middleName : ""}`;
+}
+
+function ParticipationToggle({ open, count, children, label }) {
+  const [isOpen, setIsOpen] = React.useState(open);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      <button type="button" className={styles.expandBtn} onClick={() => setIsOpen((current) => !current)} style={{ alignSelf: "flex-start" }}>
+        {isOpen ? "Hide " : "View "}{label} ({count}) {isOpen ? "▲" : "▼"}
+      </button>
+      {isOpen && children}
+    </div>
+  );
+}
+
+function ParticipantRoster({ participants }) {
+  const coaches = participants.filter((p) => p.participantType === "coach");
+  const athletes = participants.filter((p) => p.participantType === "athlete");
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      <div>
+        <p className={styles.eyebrow} style={{ marginBottom: 8 }}>Coaches ({coaches.length})</p>
+        {coaches.length ? (
+          <div className={styles.statusAthletes}>
+            {coaches.map((p) => (
+              <div key={p.id} className={styles.statusAthlete}>
+                <span className={styles.statusAthleteName}>{p.coach.firstName} {p.coach.lastName}</span>
+                <small>{p.coach.coachCode}{p.coach.school ? ` · ${p.coach.school.schoolName}` : ""}</small>
+              </div>
+            ))}
+          </div>
+        ) : <div className={styles.detailEmpty}>No participating coaches yet.</div>}
+      </div>
+      <div>
+        <p className={styles.eyebrow} style={{ marginBottom: 8 }}>Athletes ({athletes.length})</p>
+        {athletes.length ? (
+          <div className={styles.statusAthletes}>
+            {athletes.map((p) => (
+              <div key={p.id} className={styles.statusAthlete}>
+                <span className={styles.statusAthleteName}>{p.athlete.firstName} {p.athlete.lastName}</span>
+                <small>{p.athlete.athleteCode} · {p.sport.sportName || "—"}</small>
+              </div>
+            ))}
+          </div>
+        ) : <div className={styles.detailEmpty}>No enrolled athletes yet.</div>}
+      </div>
+    </div>
+  );
+}
+
 function EventPlanActions({ plan, session, athletes, coachId }) {
   const router = useRouter();
   const [message, setMessage] = React.useState("");
@@ -216,9 +268,9 @@ function EventPlanActions({ plan, session, athletes, coachId }) {
     }
     if (myApp && myApp.status === "approved") {
       const available = athletes || [];
-      return <div>
+      return <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
         <div className={styles.actionRow}>
-          <small role="status">You are enrolled in this event plan.</small>
+          <small role="status"><span style={{ color: "var(--success)", fontWeight: 700 }}>✓</span> You are enrolled in this event plan.</small>
           {available.length > 0 ? (
             <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setPickerOpen((current) => !current)}>{pickerOpen ? "Close athlete list" : "Add athlete"}</button>
           ) : (
@@ -227,7 +279,7 @@ function EventPlanActions({ plan, session, athletes, coachId }) {
           {message && <small role="status">{message}</small>}
         </div>
         {available.length > 0 && pickerOpen && (
-          <div style={{ marginTop: 16, border: "1px solid var(--border)", borderRadius: "10px", padding: "18px", background: "rgba(6, 38, 30, 0.5)", display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div style={{ border: "1px solid var(--border)", borderRadius: "10px", padding: "18px", background: "rgba(6, 38, 30, 0.5)", display: "flex", flexDirection: "column", gap: "12px" }}>
             <div>
               <p className={styles.eyebrow} style={{ marginBottom: 4 }}>Select athletes to add</p>
               <p className={styles.formHint} style={{ margin: 0 }}>Only active athletes assigned to you are listed. Already-added athletes are marked and cannot be selected again.</p>
@@ -252,6 +304,9 @@ function EventPlanActions({ plan, session, athletes, coachId }) {
             </div>
           </div>
         )}
+        <ParticipationToggle label="participants" count={(plan.participants || []).length} open={true}>
+          <ParticipantRoster participants={plan.participants || []} />
+        </ParticipationToggle>
       </div>;
     }
     if (myApp && myApp.status === "pending") {
@@ -271,8 +326,32 @@ function EventPlanActions({ plan, session, athletes, coachId }) {
   }
 
   const pending = plan.applications.filter((application) => application.status === "pending");
-  if (!pending.length) return <div className={styles.actionRow}><small style={{ color: "var(--muted)", fontSize: 13 }}>{plan.participants.length} enrolled · no applications pending review.</small></div>;
-  return <div className={styles.actionRow}>{pending.map((application) => <div key={application.id} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}><small>{application.coach.coachCode} {application.coach.firstName} {application.coach.lastName}</small><button className={`${styles.secondary} ${styles.btnSm}`} disabled={busy} onClick={() => request("/api/admin/event-plans/applications", { applicationId: application.id, decision: "approved" }, true)}>Approve</button><button className={`${styles.danger} ${styles.btnSm}`} disabled={busy} onClick={() => request("/api/admin/event-plans/applications", { applicationId: application.id, decision: "rejected" }, true)}>Reject</button></div>)}{message && <small role="status">{message}</small>}</div>;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+      <ParticipationToggle label="pending coaches" count={pending.length} open={pending.length > 0}>
+        {pending.length ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {pending.map((application) => (
+              <div key={application.id} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "10px 12px", border: "1px solid var(--border)", borderRadius: "8px", background: "rgba(6, 38, 30, 0.4)" }}>
+                <div style={{ flex: "1 1 180px", minWidth: 0 }}>
+                  <strong style={{ fontSize: 14 }}>{application.coach.firstName} {application.coach.lastName}</strong>
+                  <small style={{ display: "block", color: "var(--muted)", fontSize: 12 }}>{application.coach.coachCode || "—"}</small>
+                </div>
+                <div className={styles.stackedActions}>
+                  <button className={`${styles.secondary} ${styles.btnSm}`} disabled={busy} onClick={() => request("/api/admin/event-plans/applications", { applicationId: application.id, decision: "approved" }, true)}>Approve</button>
+                  <button className={`${styles.danger} ${styles.btnSm}`} disabled={busy} onClick={() => request("/api/admin/event-plans/applications", { applicationId: application.id, decision: "rejected" }, true)}>Reject</button>
+                </div>
+              </div>
+            ))}
+            {message && <small role="status">{message}</small>}
+          </div>
+        ) : <div className={styles.detailEmpty}>No applications pending review.</div>}
+      </ParticipationToggle>
+      <ParticipationToggle label="participants" count={(plan.participants || []).length} open={false}>
+        <ParticipantRoster participants={plan.participants || []} />
+      </ParticipationToggle>
+    </div>
+  );
 }
 
 function CreatePlan({ sports }) {
