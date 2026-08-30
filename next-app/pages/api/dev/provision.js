@@ -4,6 +4,12 @@ import { provisionSampleData } from "../../../lib/sample-data";
 
 // Test-sample provisioning is armed by SEED_PROVISION_KEY (trimmed) - inert otherwise.\nconst PROVISION_KEY = (process.env.SEED_PROVISION_KEY || "").trim();
 
+// Allow a long-running build; the sample seeding is heavier than a typical request.
+// Pages Router: settings are exported for a function. (max on Hobby is 60s.)
+export const config = {
+  maxDuration: 60,
+};
+
 export default async function handler(req, res) {
   setSecurityHeaders(res);
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
@@ -23,11 +29,12 @@ export default async function handler(req, res) {
       testAccounts: {
         admins,
         coaches,
-        note: "Sample coach admin passwords are set in the codebase (lib/sample-data.js) — for testing only.",
+        note: "Sample coach passwords are set in lib/sample-data.js - testing only.",
       },
     });
   } catch (error) {
     console.error("Provision failed", error);
-    return res.status(500).json({ error: "Provisioning failed.", detail: process.env.NODE_ENV === "production" ? undefined : error.message });
+    // Test-only route: always surface detail so we can debug quickly.
+    return res.status(500).json({ error: "Provisioning failed.", detail: String((error && (error.message || error)) || error) });
   }
 }
