@@ -54,7 +54,6 @@ const SCHOOLS = [
 
 const ADMIN_ACCOUNTS = [
   { username: "admin.101", email: "admin.101@cauayan.local", password: "admin.101" },
-  { username: "admin.test", email: "admin.test@cauayan.local", password: "AdminTest123!" },
 ];
 
 const COACHES = [
