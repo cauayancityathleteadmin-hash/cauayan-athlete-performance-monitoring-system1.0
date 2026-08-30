@@ -23,6 +23,18 @@ Secrets are **never committed** (`.env*` is gitignored). Set these in your host
 | `NEXTAUTH_SECRET` | yes      | Random secret for signing NextAuth JWT sessions.               |
 | `RESEND_API_KEY`  | no*      | For transactional email (coach registration).                  |
 | `SMTP_*` / nodemailer vars | no* | Alternative email transport.                           |
+| `APP_URL`         | no       | Public base URL used to build self-service password-reset email links (defaults to `NEXTAUTH_URL` / live Vercel URL). |
+| `TURNSTILE_SITE_KEY` | no   | Cloudflare Turnstile **site key** (enables CAPTCHA on coach registration). |
+| `TURNSTILE_SECRET_KEY` | no  | Cloudflare Turnstile **secret key**. When absent, the CAPTCHA check is skipped (fail-open). |
+
+> **CAPTCHA is optional but recommended.** Set both `TURNSTILE_SITE_KEY` and
+> `TURNSTILE_SECRET_KEY` (create a free site at https://dash.cloudflare.com → Turnstile)
+> to protect the public coach-registration form from spam bots. The system safely
+> degrades to no-CAPTCHA when either key is missing, so it never blocks registration.
+>
+> Email for the self-service **password reset** uses the same transport as the other
+> transactional emails (Gmail SMTP / Resend). Confirm your SMTP credentials are live
+> before announcing reset links to coaches.
 
 > Use the **pooled** URL at runtime (`DATABASE_URL`) and the **direct** URL for
 > migrations (`DIRECT_URL`). Avoid DDL/advisory-lock operations on pooled connections.
@@ -81,11 +93,14 @@ git clone <remote> backup_clone_$(date +%Y%m%d_%H%M%S)
 
 ## Security
 
-- Account **lockout**: 5 failed logins locks an identifier for 15 min (`lib/login-protection.js`), layered on top of per-IP rate limiting (`lib/rate-limit.js`).
+- Account **lockout**: 5 failed logins locks an identifier for 15 min (`lib/login-protection.js`).
+- Rate limiting (two layers): a fast in-memory limiter (`lib/rate-limit.js`) plus a **DB-backed limiter** (`lib/rate-limit-db.js`, `RateLimitBucket` table) that enforces limits across all serverless instances on login, registration, forgot-password and reset-password.
+- **CAPTCHA** on coach registration via Cloudflare Turnstile (see environment vars above); fail-open when keys absent.
+- **Self-service password reset** (no admin needed): `GET /forgot-password`, `GET /reset-password` + `POST /api/forgot-password`, `POST /api/reset-password`. Tokens are hashed (SHA-256), single-use, 30 min expiry, rate-limited.
 - JWT sessions: 8h max age; cookies `HttpOnly` + `SameSite=Lax` + `Secure` in production.
-- Security headers on all routes (CSP, HSTS, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy, no-store for `/api/*`).
+- Security headers on all routes (HSTS, X-Frame-Options: DENY, nosniff, Referrer-Policy, Permissions-Policy, X-XSS-Protection).
 - CSRF enforcement on all state-changing API routes (`lib/api-security.js`).
-- Input validation/sanitization on all API inputs; role-based authorization.
+- Input validation/sanitization on all API inputs; role-based authorization; bcrypt (cost 12) password hashing.
 
 ---
 
