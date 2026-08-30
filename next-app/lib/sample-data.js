@@ -173,7 +173,7 @@ export async function provisionSampleData() {
     const sportId = sportIds[sportName];
     const coachEntry = coachList.find((c) => c.sports.includes(sportName)) || coachList[0];
     const eventName = eventNames[0];
-    for (let k = 0; k < 1; k += 1) {
+    for (let k = 0; k < 4; k += 1) {
       const athleteCode = `ATH-${String(athleteNum).padStart(5, "0")}`;
       const firstName = pick(FIRST);
       const lastName = pick(LAST);
@@ -202,13 +202,13 @@ export async function provisionSampleData() {
   }
 
   // Assessments + Results + Achievements
-  const createdAthletes = await prisma.athlete.findMany({ take: 10, orderBy: { id: "asc" }, select: { id: true, eventId: true } });
+  const createdAthletes = await prisma.athlete.findMany({ take: 40, orderBy: { id: "asc" }, select: { id: true, eventId: true } });
   const coachUsers = await prisma.user.findMany({ where: { role: "coach" }, select: { id: true } });
 
   let aIndex = 0;
   for (const athlete of createdAthletes) {
     const recorder = coachUsers[aIndex % coachUsers.length];
-    for (const type of ["Regular Assessment"]) {
+    for (const type of ["Regular Assessment", "Monthly Assessment", "Competition Assessment", "Final Assessment"]) {
       const assessment = await prisma.assessment.create({
         data: {
           athleteId: athlete.id, recordedBy: recorder.id,
@@ -251,9 +251,9 @@ export async function provisionSampleData() {
   }
 
   // Event plans (draft/open/closed) + applications + participants
-  const planStatuses = ["draft", "open", "closed"];
+  const planStatuses = ["draft", "open", "open", "closed"];
   const sportNameKeys = Object.keys(sportIds);
-  for (let i = 0; i < 1; i += 1) {
+  for (let i = 0; i < 4; i += 1) {
     const start = new Date(2026, 9 + (i % 3), 10 + i);
     const planSportId = sportIds[sportNameKeys[i % sportNameKeys.length]];
     const plan = await prisma.eventPlan.create({

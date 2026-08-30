@@ -2,7 +2,8 @@ import { prisma } from "../../../lib/prisma";
 import { setSecurityHeaders } from "../../../lib/api-security";
 import { provisionSampleData } from "../../../lib/sample-data";
 
-// Test-sample provisioning is armed by SEED_PROVISION_KEY (trimmed) - inert otherwise.\nconst PROVISION_KEY = (process.env.SEED_PROVISION_KEY || "").trim();
+// Test-sample provisioning is armed by SEED_PROVISION_KEY (trimmed) - inert otherwise.
+const PROVISION_KEY = (process.env.SEED_PROVISION_KEY || "").trim();
 
 // Allow a long-running build; the sample seeding is heavier than a typical request.
 // Pages Router: settings are exported for a function. (max on Hobby is 60s.)
