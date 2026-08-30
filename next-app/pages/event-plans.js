@@ -112,24 +112,22 @@ export default function EventPlans({ plans, session, page, totalPages, sports, a
                       {openId === plan.id && (
                         <tr>
                           <td colSpan="6" style={{ padding: 0, background: "transparent" }}>
-                            <div className={styles.detailPanel}>
-                              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
-                                <div>
-                                  <h4>Event details</h4>
-                                  <dl className={styles.infoList}>
-                                    <div><dt>Event name</dt><dd>{plan.eventName}</dd></div>
-                                    <div><dt>Status</dt><dd><StatusChip status={plan.status} /></dd></div>
-                                    <div><dt>Schedule</dt><dd>{formatRange(plan.startDate, plan.endDate)}</dd></div>
-                                    <div><dt>Venue</dt><dd>{plan.venue || "—"}</dd></div>
-                                    <div><dt>Sports</dt><dd>{plan.sports.length ? plan.sports.map((item) => item.sport.sportName).join(", ") : "—"}</dd></div>
-                                    <div><dt>Description</dt><dd>{plan.description || "No description provided."}</dd></div>
-                                    <div><dt>Program flow</dt><dd>{plan.programFlow || "—"}</dd></div>
-                                  </dl>
-                                </div>
-                                <div>
-                                  <h4>Participation</h4>
-                                  <EventPlanActions plan={plan} session={session} athletes={athletes} coachId={coachId} />
-                                </div>
+                            <div className={styles.detailPanel} style={{ display: "flex", flexDirection: "column", gap: "26px" }}>
+                              <div>
+                                <h4>Event details</h4>
+                                <dl className={styles.infoList}>
+                                  <div><dt>Event name</dt><dd>{plan.eventName}</dd></div>
+                                  <div><dt>Status</dt><dd><StatusChip status={plan.status} /></dd></div>
+                                  <div><dt>Schedule</dt><dd>{formatRange(plan.startDate, plan.endDate)}</dd></div>
+                                  <div><dt>Venue</dt><dd>{plan.venue || "—"}</dd></div>
+                                  <div><dt>Sports</dt><dd>{plan.sports.length ? plan.sports.map((item) => item.sport.sportName).join(", ") : "—"}</dd></div>
+                                  <div><dt>Description</dt><dd>{plan.description || "No description provided."}</dd></div>
+                                  <div><dt>Program flow</dt><dd>{plan.programFlow || "—"}</dd></div>
+                                </dl>
+                              </div>
+                              <div style={{ borderTop: "1px solid rgba(26, 92, 74, .5)", paddingTop: "22px" }}>
+                                <h4>Participation</h4>
+                                <EventPlanActions plan={plan} session={session} athletes={athletes} coachId={coachId} />
                               </div>
                             </div>
                           </td>
@@ -229,9 +227,11 @@ function EventPlanActions({ plan, session, athletes, coachId }) {
           {message && <small role="status">{message}</small>}
         </div>
         {available.length > 0 && pickerOpen && (
-          <div style={{ marginTop: 14, border: "1px solid var(--border)", borderRadius: "8px", padding: "14px", background: "rgba(6, 38, 30, 0.5)" }}>
-            <p className={styles.eyebrow} style={{ marginBottom: 4 }}>Select athletes to add</p>
-            <p className={styles.formHint} style={{ margin: "0 0 12px" }}>Only active athletes assigned to you are listed. Athletes already added are marked and cannot be selected again.</p>
+          <div style={{ marginTop: 16, border: "1px solid var(--border)", borderRadius: "10px", padding: "18px", background: "rgba(6, 38, 30, 0.5)", display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div>
+              <p className={styles.eyebrow} style={{ marginBottom: 4 }}>Select athletes to add</p>
+              <p className={styles.formHint} style={{ margin: 0 }}>Only active athletes assigned to you are listed. Already-added athletes are marked and cannot be selected again.</p>
+            </div>
             <div className={styles.checkboxList}>
               {available.map((athlete) => {
                 const done = addedIds.has(athlete.id);
@@ -243,7 +243,8 @@ function EventPlanActions({ plan, session, athletes, coachId }) {
                 );
               })}
             </div>
-            <div className={styles.stackedActions} style={{ marginTop: 12 }}>
+            {message && <p role="status" className={styles.formHint} style={{ margin: 0, color: message.startsWith("Added") ? "var(--success)" : "var(--danger)" }}>{message}</p>}
+            <div className={styles.stackedActions}>
               <button className={styles.primary} disabled={busy || selectedIds.filter((id) => !addedIds.has(id)).length === 0} onClick={addAthletes}>
                 {busy ? "Adding..." : `Add selected (${selectedIds.filter((id) => !addedIds.has(id)).length})`}
               </button>
