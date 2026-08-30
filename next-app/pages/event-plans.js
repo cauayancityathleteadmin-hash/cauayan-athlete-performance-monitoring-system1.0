@@ -52,43 +52,99 @@ function formatRange(start, end) {
   return end ? `${from} to ${to}` : from;
 }
 
-function Card({ plan, children }) {
-  const sportNames = plan.sports.map((item) => item.sport.sportName).join(", ");
-  return (
-    <article className={styles.panel}>
-      <div className={styles.panelHeader}>
-        <div>
-          <p className={styles.eyebrow}>Event plan</p>
-          <h2>{plan.eventName}</h2>
-        </div>
-        <StatusChip status={plan.status} />
-      </div>
-      <p>{plan.description || "No description provided."}</p>
-      <ul style={{ listStyle: "none", margin: "14px 0 4px", padding: 0, display: "flex", flexDirection: "column", gap: "9px" }}>
-        <li style={{ display: "flex", gap: "12px", alignItems: "baseline" }}><strong style={{ minWidth: 96, color: "var(--muted)", fontSize: "12.5px", letterSpacing: ".02em" }}>Schedule</strong><span>{formatRange(plan.startDate, plan.endDate)}</span></li>
-        <li style={{ display: "flex", gap: "12px", alignItems: "baseline" }}><strong style={{ minWidth: 96, color: "var(--muted)", fontSize: "12.5px", letterSpacing: ".02em" }}>Venue</strong><span>{plan.venue}</span></li>
-        <li style={{ display: "flex", gap: "12px", alignItems: "baseline" }}><strong style={{ minWidth: 96, color: "var(--muted)", fontSize: "12.5px", letterSpacing: ".02em" }}>Sports</strong><span>{sportNames || "—"}</span></li>
-        {plan.programFlow ? <li style={{ display: "flex", gap: "12px", alignItems: "baseline" }}><strong style={{ minWidth: 96, color: "var(--muted)", fontSize: "12.5px", letterSpacing: ".02em" }}>Program</strong><span>{plan.programFlow}</span></li> : null}
-      </ul>
-      {children}
-    </article>
-  );
-}
-
 export default function EventPlans({ plans, session, page, totalPages, sports, athletes, coachId }) {
   const isAdmin = session?.user?.role === "admin";
   const [createPanel, setCreatePanel] = React.useState(false);
+  const [openId, setOpenId] = React.useState(null);
+
   return (
     <>
       <Head><title>Event plans | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Participation" title="Event plans" active="/event-plans">
-        <div className={styles.pageTitle}>
-          <div><p className={styles.eyebrow}>Plan</p><h2>Event plans</h2></div>
-          {isAdmin && <button className={styles.primary} onClick={() => setCreatePanel((current) => !current)}>{createPanel ? "Close form" : "Create plan"}</button>}
-        </div>
-        {isAdmin && createPanel && <CreatePlan sports={sports} />}
-        <section className={styles.grid}>{plans.length ? plans.map((plan) => <Card key={plan.id} plan={plan}><EventPlanActions plan={plan} session={session} athletes={athletes} coachId={coachId} /></Card>) : <p className={styles.empty}>No event plans to show.</p>}</section>
-        <Pagination page={page} totalPages={totalPages} />
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div><p className={styles.eyebrow}>Participation</p><h2>Event plans</h2></div>
+            {isAdmin && <button className={styles.primary} onClick={() => setCreatePanel((current) => !current)}>{createPanel ? "Close form" : "Create plan"}</button>}
+          </div>
+
+          {isAdmin && createPanel && (
+            <div className={styles.panel} style={{ marginBottom: 22, marginTop: 0 }}>
+              <CreatePlan sports={sports} />
+            </div>
+          )}
+
+          {plans.length > 0 ? (
+            <div className={styles.tableWrap}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Event</th>
+                    <th>Schedule</th>
+                    <th>Venue</th>
+                    <th>Sports</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {plans.map((plan) => (
+                    <React.Fragment key={plan.id}>
+                      <tr>
+                        <td><strong>{plan.eventName}</strong></td>
+                        <td>{formatRange(plan.startDate, plan.endDate)}</td>
+                        <td>{plan.venue}</td>
+                        <td>
+                          {plan.sports.length > 0 ? (
+                            plan.sports.map((item) => (
+                              <span key={item.sportId} style={{ display: "inline-block", background: "rgba(45,212,168,.16)", color: "var(--accent)", padding: "2px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, margin: "2px 4px 2px 0" }}>{item.sport.sportName}</span>
+                            ))
+                          ) : (
+                            <span style={{ color: "var(--muted)", fontSize: 13 }}>No sports</span>
+                          )}
+                        </td>
+                        <td><StatusChip status={plan.status} /></td>
+                        <td>
+                          <button type="button" className={styles.expandBtn} onClick={() => setOpenId((current) => (current === plan.id ? null : plan.id))}>
+                            {openId === plan.id ? "Hide details ▲" : "View details ▼"}
+                          </button>
+                        </td>
+                      </tr>
+                      {openId === plan.id && (
+                        <tr>
+                          <td colSpan="6" style={{ padding: 0, background: "transparent" }}>
+                            <div className={styles.detailPanel}>
+                              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
+                                <div>
+                                  <h4>Event details</h4>
+                                  <dl className={styles.infoList}>
+                                    <div><dt>Event name</dt><dd>{plan.eventName}</dd></div>
+                                    <div><dt>Status</dt><dd><StatusChip status={plan.status} /></dd></div>
+                                    <div><dt>Schedule</dt><dd>{formatRange(plan.startDate, plan.endDate)}</dd></div>
+                                    <div><dt>Venue</dt><dd>{plan.venue || "—"}</dd></div>
+                                    <div><dt>Sports</dt><dd>{plan.sports.length ? plan.sports.map((item) => item.sport.sportName).join(", ") : "—"}</dd></div>
+                                    <div><dt>Description</dt><dd>{plan.description || "No description provided."}</dd></div>
+                                    <div><dt>Program flow</dt><dd>{plan.programFlow || "—"}</dd></div>
+                                  </dl>
+                                </div>
+                                <div>
+                                  <h4>Participation</h4>
+                                  <EventPlanActions plan={plan} session={session} athletes={athletes} coachId={coachId} />
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className={styles.empty}>No event plans to show.</p>
+          )}
+          <Pagination page={page} totalPages={totalPages} />
+        </section>
       </AppShell>
     </>
   );
@@ -214,7 +270,7 @@ function EventPlanActions({ plan, session, athletes, coachId }) {
   }
 
   const pending = plan.applications.filter((application) => application.status === "pending");
-  if (!pending.length) return <p style={{ color: "var(--muted)", fontSize: 13, margin: "12px 0 0" }}>{plan.participants.length} enrolled · no applications pending review.</p>;
+  if (!pending.length) return <div className={styles.actionRow}><small style={{ color: "var(--muted)", fontSize: 13 }}>{plan.participants.length} enrolled · no applications pending review.</small></div>;
   return <div className={styles.actionRow}>{pending.map((application) => <div key={application.id} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}><small>{application.coach.coachCode} {application.coach.firstName} {application.coach.lastName}</small><button className={`${styles.secondary} ${styles.btnSm}`} disabled={busy} onClick={() => request("/api/admin/event-plans/applications", { applicationId: application.id, decision: "approved" }, true)}>Approve</button><button className={`${styles.danger} ${styles.btnSm}`} disabled={busy} onClick={() => request("/api/admin/event-plans/applications", { applicationId: application.id, decision: "rejected" }, true)}>Reject</button></div>)}{message && <small role="status">{message}</small>}</div>;
 }
 
@@ -238,7 +294,7 @@ function CreatePlan({ sports }) {
     setBusy(false);
   }
   return (
-    <section className={styles.panel}>
+    <>
       <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Schedule</p><h2>Create event plan</h2></div></div>
       <form onSubmit={submit} className={styles.formGrid}>
         <label>Event name *<input name="eventName" required maxLength="191" placeholder="e.g. City Sports Festival" /></label>
@@ -252,6 +308,6 @@ function CreatePlan({ sports }) {
         <div className={styles.formActions}><button className={styles.primary} disabled={busy}>{busy ? "Creating..." : "Create plan"}</button></div>
         {message && <p role="status" className={`${styles.fullField} ${message.includes("created") ? styles.formSuccess : styles.formError}`}>{message}</p>}
       </form>
-    </section>
+    </>
   );
 }
