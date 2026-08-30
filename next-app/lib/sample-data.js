@@ -191,11 +191,10 @@ export async function provisionSampleData() {
         },
         select: { id: true },
       });
-      await prisma.athleteCoachHistory.upsert({
-        where: { athleteId_coachId: { athleteId: athleteRow.id, coachId: coachEntry.coach.id } },
-        update: {},
-        create: { athleteId: athleteRow.id, coachId: coachEntry.coach.id, startedAt: new Date(2025, (athleteNum % 12), 1) },
-      });
+      const existingHistory = await prisma.athleteCoachHistory.findFirst({ where: { athleteId: athleteRow.id, coachId: coachEntry.coach.id }, select: { id: true } });
+      if (!existingHistory) {
+        await prisma.athleteCoachHistory.create({ data: { athleteId: athleteRow.id, coachId: coachEntry.coach.id, startedAt: new Date(2025, (athleteNum % 12), 1) } });
+      }
       report.athletes += 1;
       athleteNum += 1;
     }
