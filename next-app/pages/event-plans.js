@@ -127,7 +127,7 @@ export default function EventPlans({ plans, session, page, totalPages, sports, a
                               </div>
                               <div style={{ borderTop: "1px solid rgba(26, 92, 74, .5)", paddingTop: "22px" }}>
                                 <h4>Participation</h4>
-                                <EventPlanActions plan={plan} session={session} athletes={athletes} coachId={coachId} />
+                                <EventPlanActions plan={plan} session={session} athletes={athletes} coachId={coachId} sports={sports} />
                               </div>
                             </div>
                           </td>
@@ -165,7 +165,7 @@ function ParticipationToggle({ open, count, children, label }) {
   );
 }
 
-function AthleteList({ items, empty }) {
+function AthleteList({ items, empty, onRemove, busyRemove }) {
   if (!items.length) return <div className={styles.detailEmpty}>{empty}</div>;
   return (
     <div className={styles.statusAthletes}>
@@ -173,6 +173,7 @@ function AthleteList({ items, empty }) {
         <div key={p.id} className={styles.statusAthlete}>
           <span className={styles.statusAthleteName}>{p.athlete.firstName} {p.athlete.lastName}</span>
           <small>{p.athlete.athleteCode} · {p.sport.sportName || "—"}</small>
+          {onRemove && <button type="button" className={`${styles.danger} ${styles.btnSm}`} disabled={busyRemove} onClick={() => onRemove(p.athlete.id)}>Remove</button>}
         </div>
       ))}
     </div>
@@ -208,7 +209,7 @@ function CoachGroup({ coachId, participants }) {
   return <CoachRow coach={coach} athletesOfCoach={athleteRows} open={open} onToggle={() => setOpen((c) => !c)} />;
 }
 
-function ParticipantRoster({ participants, myCoachId }) {
+function ParticipantRoster({ participants, myCoachId, onRemove, busyRemove }) {
   const myAthletes = (myCoachId ? participants.filter((p) => p.participantType === "athlete" && p.coachId === myCoachId) : []);
   const coachRows = participants.filter((p) => p.participantType === "coach" && p.coach);
   const otherCoachIds = [...new Set(coachRows.map((p) => p.coachId).filter((cid) => cid !== myCoachId))];
@@ -219,7 +220,7 @@ function ParticipantRoster({ participants, myCoachId }) {
       {isCoachView && (
         <div>
           <p className={styles.eyebrow} style={{ marginBottom: 8 }}>My athletes ({myAthletes.length})</p>
-          <AthleteList items={myAthletes} empty="You have no athletes enrolled in this event plan." />
+          <AthleteList items={myAthletes} empty="You have no athletes enrolled in this event plan." onRemove={onRemove} busyRemove={busyRemove} />
         </div>
       )}
       <div>
@@ -234,13 +235,14 @@ function ParticipantRoster({ participants, myCoachId }) {
   );
 }
 
-function EventPlanActions({ plan, session, athletes, coachId }) {
+function EventPlanActions({ plan, session, athletes, coachId, sports }) {
   const router = useRouter();
   const [message, setMessage] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [pickerOpen, setPickerOpen] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState([]);
   const [addedIds, setAddedIds] = React.useState(() => new Set((plan.participants || []).map((p) => p.athleteId)));
+  const [editOpen, setEditOpen] = React.useState(false);
 
   async function request(url, body, refresh) {
     setBusy(true); setMessage("");
@@ -295,6 +297,34 @@ function EventPlanActions({ plan, session, athletes, coachId }) {
     setBusy(false);
   }
 
+  async function removeAthlete(athleteId) {
+    if (!window.confirm("Remove this athlete from the event plan?")) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/event-plans/participants", { method: "DELETE", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ eventPlanId: plan.id, athleteId }) });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok && !result.error) { router.replace(router.asPath); return; }
+      setMessage(result.error || "Could not remove athlete.");
+    } catch { setMessage("Unable to reach the server."); }
+    setBusy(false);
+  }
+
+  async function cancelPlan() {
+    if (!window.confirm(`Cancel "${plan.eventName}"? It will be marked as cancelled and hidden from open participation.`)) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/event-plans", { method: "DELETE", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ id: plan.id }) });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok && !result.error) { router.replace(router.asPath); return; }
+      setMessage(result.error || "Could not cancel plan.");
+    } catch { setMessage("Unable to reach the server."); }
+    setBusy(false);
+  }
+
   if (session.user.role === "coach") {
     const myApp = coachId ? plan.applications.find((application) => application.coachId === coachId) : null;
     if (plan.status === "closed") {
@@ -339,7 +369,7 @@ function EventPlanActions({ plan, session, athletes, coachId }) {
           </div>
         )}
         <ParticipationToggle label="participants" count={(plan.participants || []).length} open={true}>
-          <ParticipantRoster participants={plan.participants || []} myCoachId={coachId} />
+          <ParticipantRoster participants={plan.participants || []} myCoachId={coachId} onRemove={removeAthlete} busyRemove={busy} />
         </ParticipationToggle>
       </div>;
     }
@@ -362,6 +392,12 @@ function EventPlanActions({ plan, session, athletes, coachId }) {
   const pending = plan.applications.filter((application) => application.status === "pending");
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+      <div className={styles.actionRow}>
+        <button type="button" className={styles.secondary} disabled={busy} onClick={() => setEditOpen(!editOpen)}>{editOpen ? "Close editor" : "Edit plan"}</button>
+        <button type="button" className={`${styles.danger} ${styles.btnSm}`} disabled={busy || plan.status === "cancelled"} onClick={cancelPlan}>{plan.status === "cancelled" ? "Cancelled" : "Cancel plan"}</button>
+        {message && <small role="status">{message}</small>}
+      </div>
+      {editOpen && <EditPlan plan={plan} sports={sports} />}
       <ParticipationToggle label="pending coaches" count={pending.length} open={pending.length > 0}>
         {pending.length ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -423,5 +459,45 @@ function CreatePlan({ sports }) {
         {message && <p role="status" className={`${styles.fullField} ${message.includes("created") ? styles.formSuccess : styles.formError}`}>{message}</p>}
       </form>
     </>
+  );
+}
+
+function EditPlan({ plan, sports }) {
+  const router = useRouter();
+  const [message, setMessage] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const currentSportIds = (plan.sports || []).map((s) => s.sportId);
+  const fmtDateInput = (dt) => (dt ? new Date(dt).toISOString().slice(0, 10) : "");
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true); setMessage("");
+    const form = new FormData(event.currentTarget);
+    const sportIds = form.getAll("sportIds").map(Number);
+    const body = { id: plan.id, eventName: form.get("eventName"), startDate: form.get("startDate"), endDate: form.get("endDate"), venue: form.get("venue"), description: form.get("description"), programFlow: form.get("programFlow"), status: form.get("status"), sportIds };
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    try {
+      const response = await fetch("/api/event-plans", { method: "PUT", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify(body) });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok && !result.error) { router.replace(router.asPath); return; }
+      setMessage(result.error || "Could not update plan.");
+    } catch (err) { setMessage("Unable to reach the server."); }
+    setBusy(false);
+  }
+  return (
+    <div style={{ border: "1px solid var(--border)", borderRadius: "10px", padding: "18px", background: "rgba(6, 38, 30, 0.4)", display: "flex", flexDirection: "column", gap: "12px" }}>
+      <p className={styles.eyebrow}>Edit event plan</p>
+      <form onSubmit={submit} className={styles.formGrid}>
+        <label>Event name *<input name="eventName" className={styles.fieldControl} required maxLength="191" defaultValue={plan.eventName} /></label>
+        <label>Status<select name="status" className={styles.fieldControl} defaultValue={plan.status}><option value="draft">Draft</option><option value="open">Open</option><option value="closed">Closed</option><option value="cancelled">Cancelled</option></select></label>
+        <label>Start date *<input name="startDate" className={styles.fieldControl} type="date" required defaultValue={fmtDateInput(plan.startDate)} /></label>
+        <label>End date<input name="endDate" className={styles.fieldControl} type="date" defaultValue={fmtDateInput(plan.endDate)} /></label>
+        <label>Venue *<input name="venue" className={styles.fieldControl} required maxLength="191" defaultValue={plan.venue} /></label>
+        <label>Description<textarea name="description" className={styles.fieldControl} rows="3" maxLength="2000" defaultValue={plan.description || ""} /></label>
+        <label className={styles.fullField}>Sports *<span className={styles.checkboxList}>{sports.map((sport) => <label key={sport.id}><input type="checkbox" name="sportIds" value={sport.id} defaultChecked={currentSportIds.includes(sport.id)} />{sport.sportName}</label>)}</span></label>
+        <label className={styles.fullField}>Program flow<textarea name="programFlow" className={styles.fieldControl} rows="4" maxLength="10000" defaultValue={plan.programFlow || ""} /></label>
+        <div className={styles.formActions}><button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Save plan"}</button></div>
+        {message && <p role="status" className={`${styles.fullField} ${styles.formHint}`}>{message}</p>}
+      </form>
+    </div>
   );
 }

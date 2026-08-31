@@ -11,6 +11,52 @@ export default async function handler(req, res) {
   const rate = rateLimiters.api(`api:${ip}:${req.method}`);
   if (!rate.allowed) return res.status(429).json({ error: "Too many requests. Please try again later." });
 
+  if (req.method === "PUT") {
+    if (!requireRole(session, "admin", res)) return;
+    if (!requireCsrf(req, res)) return;
+    const kind = text(req.body?.kind, 20, true);
+    const id = validId(req.body?.id);
+    if (!kind || !id) return res.status(400).json({ error: "Catalog item id and kind are required." });
+    if (kind === "sport") {
+      const sportName = text(req.body?.sportName, 100, true);
+      if (!sportName) return res.status(400).json({ error: "Sport name is required." });
+      const status = ["active", "inactive"].includes(req.body?.status) ? req.body.status : undefined;
+      const result = await updateCatalogItem(res, session, "sport", id, { sportName, description: text(req.body?.description, 2000) || null, status: status ?? undefined });
+      if (result) return result;
+    } else if (kind === "event") {
+      const eventName = text(req.body?.eventName, 150, true);
+      const sportId = validId(req.body?.sportId);
+      if (!eventName) return res.status(400).json({ error: "Event name is required." });
+      const status = ["active", "inactive"].includes(req.body?.status) ? req.body.status : undefined;
+      const data = { eventName, description: text(req.body?.description, 2000) || null, status: status ?? undefined };
+      if (sportId) {
+        const sport = await prisma.sport.findUnique({ where: { id: sportId }, select: { id: true } });
+        if (!sport) return res.status(400).json({ error: "The selected sport is invalid." });
+        data.sportId = sportId;
+      }
+      const result = await updateCatalogItem(res, session, "event", id, data);
+      if (result) return result;
+    } else {
+      return res.status(400).json({ error: "Unsupported catalog item." });
+    }
+  }
+
+  if (req.method === "DELETE") {
+    if (!requireRole(session, "admin", res)) return;
+    if (!requireCsrf(req, res)) return;
+    const kind = text(req.body?.kind, 20, true);
+    const id = validId(req.body?.id);
+    if (!kind || !id) return res.status(400).json({ error: "Catalog item id and kind are required." });
+    try {
+      await prisma[kind].update({ where: { id }, data: { status: "inactive" } });
+      await prisma.auditLog.create({ data: { userId: Number(session.user.id), action: "deactivate", entityType: kind, entityId: id, description: `Deactivated ${kind} #${id}` } });
+      return res.status(200).json({ success: true });
+    } catch (error) {
+      if (error.code === "P2025") return res.status(404).json({ error: "Catalog item not found." });
+      throw error;
+    }
+  }
+
   if (req.method === "GET") {
     const [sports, events, metrics, schools] = await Promise.all([
       prisma.sport.findMany({ orderBy: { sportName: "asc" }, include: { events: true } }),
@@ -86,4 +132,16 @@ export default async function handler(req, res) {
     }
   }
   return res.status(400).json({ error: "Unsupported catalog item." });
+}
+
+async function updateCatalogItem(res, session, kind, id, data) {
+  try {
+    const updated = await prisma[kind].update({ where: { id }, data });
+    await prisma.auditLog.create({ data: { userId: Number(session.user.id), action: "update", entityType: kind, entityId: id, description: `Updated ${kind} #${id}` } });
+    return res.status(200).json(updated);
+  } catch (error) {
+    if (error.code === "P2025") return res.status(404).json({ error: "Catalog item not found." });
+    if (error.code === "P2002") return res.status(409).json({ error: "A catalog item with that name already exists." });
+    throw error;
+  }
 }

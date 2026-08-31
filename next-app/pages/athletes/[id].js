@@ -45,10 +45,20 @@ export async function getServerSideProps(context) {
     }
   }
 
+  const catalog = {
+    sports: await prisma.sport.findMany({ where: { status: "active" }, orderBy: { sportName: "asc" } }),
+    events: await prisma.event.findMany({ where: { status: "active" }, include: { sport: true }, orderBy: { eventName: "asc" } }),
+    schools: await prisma.school.findMany({ where: { status: "active" }, orderBy: { schoolName: "asc" } }),
+    coaches: session.user.role === "admin"
+      ? await prisma.coach.findMany({ where: { status: "active" }, orderBy: { lastName: "asc" }, select: { id: true, coachCode: true, firstName: true, lastName: true, schoolId: true, school: { select: { schoolName: true } } } })
+      : [],
+  };
+
   return {
     props: {
       session,
       athlete: JSON.parse(JSON.stringify(athlete)),
+      catalog: JSON.parse(JSON.stringify(catalog)),
     },
   };
 }
@@ -163,9 +173,10 @@ function trendBadge(betterDirection, first, last) {
     : { text: "Declining", cls: styles.badgeMuted };
 }
 
-export default function AthleteProfile({ session, athlete }) {
+export default function AthleteProfile({ session, athlete, catalog }) {
   const isAdmin = session?.user?.role === "admin";
   const router = useRouter();
+  const [editOpen, setEditOpen] = React.useState(false);
   const series = React.useMemo(() => buildMetricSeries(athlete.assessments), [athlete.assessments]);
 
   /* first vs latest assessment results per metric for comparison */
@@ -208,7 +219,11 @@ export default function AthleteProfile({ session, athlete }) {
 
         {/* Overview */}
         <section className={styles.panel}>
-          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Information</p><h2>Overview</h2></div></div>
+          <div className={styles.panelHeader}>
+            <div><p className={styles.eyebrow}>Information</p><h2>Overview</h2></div>
+            <button type="button" className={styles.secondary} onClick={() => setEditOpen(!editOpen)}>{editOpen ? "Cancel" : "Edit athlete"}</button>
+          </div>
+          {editOpen && <EditAthleteForm athlete={athlete} catalog={catalog} isAdmin={isAdmin} onDone={() => { setEditOpen(false); router.reload(); }} />}
           <div className={styles.infoList}>
             <div><dt>Athlete code</dt><dd>{athlete.athleteCode}</dd></div>
             <div><dt>Gender</dt><dd>{athlete.gender || "—"}</dd></div>
@@ -521,6 +536,63 @@ function NoteForm({ athleteId, onComplete }) {
       <textarea className={styles.fieldControl} rows="3" maxLength="5000" placeholder="e.g. Showing consistent gains in sprint endurance; needs focus on starts." value={note} onChange={(e) => setNote(e.target.value)} />
       <button className={styles.primary} disabled={busy || !note.trim()}>{busy ? "Saving..." : "Add note"}</button>
       {message && <p role="status" className={styles.formHint}>{message}</p>}
+    </form>
+  );
+}
+
+function EditAthleteForm({ athlete, catalog, isAdmin, onDone }) {
+  const [sportId, setSportId] = React.useState(athlete.sportId || "");
+  const [schoolId, setSchoolId] = React.useState(athlete.schoolId || "");
+  const [busy, setBusy] = React.useState(false);
+  const [message, setMessage] = React.useState("");
+
+  const eventsForSport = catalog?.events?.filter((e) => e.sportId === Number(sportId)) || [];
+  const birthLocal = athlete.birthdate ? new Date(athlete.birthdate).toISOString().slice(0, 10) : "";
+
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setMessage("");
+    const form = new FormData(event.currentTarget);
+    const body = Object.fromEntries(form.entries());
+    body.eventId = body.eventId || "";
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    const response = await fetch(`/api/athletes/${athlete.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+      body: JSON.stringify(body),
+    }).catch(() => null);
+    const result = response ? await response.json().catch(() => ({})) : {};
+    if (response && response.ok && !result.error) {
+      setMessage("Athlete updated.");
+      onDone();
+    } else {
+      setMessage(result.error || "Could not update athlete.");
+    }
+    setBusy(false);
+  }
+
+  return (
+    <form onSubmit={submit} className={styles.formStack} style={{ marginBottom: 18 }}>
+      <div className={styles.formGrid}>
+        <label>First name *<input name="firstName" className={styles.fieldControl} type="text" required maxLength="100" defaultValue={athlete.firstName} /></label>
+        <label>Middle name<input name="middleName" className={styles.fieldControl} type="text" maxLength="100" defaultValue={athlete.middleName || ""} /></label>
+        <label>Last name *<input name="lastName" className={styles.fieldControl} type="text" required maxLength="100" defaultValue={athlete.lastName} /></label>
+        <label>Suffix<input name="suffix" className={styles.fieldControl} type="text" maxLength="20" defaultValue={athlete.suffix || ""} /></label>
+        <label>Birthdate<input name="birthdate" className={styles.fieldControl} type="date" defaultValue={birthLocal} /></label>
+        <label>Gender<select name="gender" className={styles.fieldControl} defaultValue={athlete.gender || "prefer_not_to_say"}><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option><option value="prefer_not_to_say">Prefer not to say</option></select></label>
+        <label>Sport *<select name="sportId" className={styles.fieldControl} required value={sportId} onChange={(e) => setSportId(e.target.value)}>{catalog?.sports?.map((s) => <option value={s.id} key={s.id}>{s.sportName}</option>)}</select></label>
+        <label>Event / discipline<select name="eventId" className={styles.fieldControl} defaultValue={athlete.eventId || ""}><option value="">No event</option>{eventsForSport.map((e) => <option value={e.id} key={e.id}>{e.eventName}</option>)}</select></label>
+        {isAdmin && (
+          <label>Coach *<select name="coachId" className={styles.fieldControl} required defaultValue={athlete.coachId || ""}>{catalog?.coaches?.map((c) => <option value={c.id} key={c.id}>{c.firstName} {c.lastName} ({c.coachCode})</option>)}</select></label>
+        )}
+        <label>School<select name="schoolId" className={styles.fieldControl} value={schoolId} onChange={(e) => setSchoolId(e.target.value)}><option value="">Unassigned</option>{catalog?.schools?.map((s) => <option value={s.id} key={s.id}>{s.schoolName}</option>)}</select></label>
+        <label>Contact number<input name="contactNumber" className={styles.fieldControl} type="text" maxLength="30" defaultValue={athlete.contactNumber || ""} /></label>
+        <label>Email<input name="email" className={styles.fieldControl} type="email" maxLength="191" defaultValue={athlete.email || ""} /></label>
+        <label className={styles.fullField}>Address<textarea name="address" className={styles.fieldControl} rows="2" maxLength="2000" defaultValue={athlete.address || ""} /></label>
+      </div>
+      <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Save changes"}</button>
+      {message && <p role="status" className={styles.formSuccess}>{message}</p>}
     </form>
   );
 }
