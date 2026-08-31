@@ -23,13 +23,13 @@ const NAV_GROUPS = [
     links: [
       { href: "/admin/catalog", label: "Sports & Events", adminOnly: true },
       { href: "/admin/metrics", label: "Performance Metrics", adminOnly: true },
-      { href: "/admin/coach-accounts", label: "Coach Accounts", adminOnly: true },
     ],
   },
   {
     label: "Account & System",
     links: [
       { href: "/account", label: "My account" },
+      { href: "/admin/coach-accounts", label: "Coach Accounts", adminOnly: true },
       { href: "/admin/audit-logs", label: "Audit Logs", adminOnly: true },
       { href: "/admin/backup", label: "Database Backup", adminOnly: true },
     ],
