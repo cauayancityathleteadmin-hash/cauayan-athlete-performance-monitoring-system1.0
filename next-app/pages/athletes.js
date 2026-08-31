@@ -1,4 +1,5 @@
 import Head from "next/head";
+import Link from "next/link";
 import React from "react";
 import { useRouter } from "next/router";
 import { getSession } from "next-auth/react";
@@ -102,16 +103,17 @@ export default function Athletes({ session, athletes, catalog, page, totalPages,
             </label>
             <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={toggleDir}>{dir === "asc" ? "Ascending" : "Descending"}</button>
           </div>
-          <div className={styles.tableWrap}><table><thead><tr><th>Code</th><th>Athlete</th><th>Sport / event</th><th>School</th><th>Coach</th><th>Status</th><th>Registered</th></tr></thead><tbody>
+          <div className={styles.tableWrap}><table><thead><tr><th>Code</th><th>Athlete</th><th>Sport / event</th><th>School</th><th>Coach</th><th>Status</th><th>Registered</th><th></th></tr></thead><tbody>
             {athletes.map((athlete) => (
               <tr key={athlete.id}>
                 <td>{athlete.athleteCode}</td>
-                <td><strong>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</strong><small>{athlete.gender}</small></td>
+                <td><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></td>
                 <td>{athlete.sport.sportName}<small>{athlete.event?.eventName || "No event"}</small></td>
                 <td>{athlete.school?.schoolName || "Unassigned"}</td>
                 <td>{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
                 <td><StatusBadge status={athlete.status} /></td>
                 <td>{formatDate(athlete.dateRegistered)}</td>
+                <td><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
               </tr>
             ))}
           </tbody></table></div>
