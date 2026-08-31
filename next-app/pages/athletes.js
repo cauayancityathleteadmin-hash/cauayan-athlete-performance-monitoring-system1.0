@@ -97,7 +97,7 @@ export default function Athletes({ session, athletes, catalog, page, totalPages,
           <div className={styles.toolbar}>
             <label>Sort athletes by
               <select value={sort} onChange={(event) => changeSort(event.target.value)}>
-                {Object.entries(SORT_KEYS).map(([key, label]) => <option value={key} key={key}>{label}</option>)}
+                {Object.entries(SORT_KEYS).filter(([key]) => isAdmin || key !== "coach").map(([key, label]) => <option value={key} key={key}>{label}</option>)}
               </select>
             </label>
             <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={toggleDir}>{dir === "asc" ? "Ascending" : "Descending"}</button>

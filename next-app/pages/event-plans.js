@@ -211,22 +211,24 @@ function CoachGroup({ coachId, participants }) {
 function ParticipantRoster({ participants, myCoachId }) {
   const myAthletes = (myCoachId ? participants.filter((p) => p.participantType === "athlete" && p.coachId === myCoachId) : []);
   const coachRows = participants.filter((p) => p.participantType === "coach" && p.coach);
-  const uniqueCoachIds = [...new Set(coachRows.map((p) => p.coachId))];
+  const otherCoachIds = [...new Set(coachRows.map((p) => p.coachId).filter((cid) => cid !== myCoachId))];
+  const isCoachView = Boolean(myCoachId);
+  const sectionLabel = isCoachView ? "Other coaches" : "Coaches";
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-      {myCoachId && (
+      {isCoachView && (
         <div>
           <p className={styles.eyebrow} style={{ marginBottom: 8 }}>My athletes ({myAthletes.length})</p>
           <AthleteList items={myAthletes} empty="You have no athletes enrolled in this event plan." />
         </div>
       )}
       <div>
-        <p className={styles.eyebrow} style={{ marginBottom: 8 }}>Coaches ({uniqueCoachIds.length})</p>
-        {uniqueCoachIds.length ? (
+        <p className={styles.eyebrow} style={{ marginBottom: 8 }}>{sectionLabel} ({otherCoachIds.length})</p>
+        {otherCoachIds.length ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {uniqueCoachIds.map((cid) => <CoachGroup key={cid} coachId={cid} participants={participants} />)}
+            {otherCoachIds.map((cid) => <CoachGroup key={cid} coachId={cid} participants={participants} />)}
           </div>
-        ) : <div className={styles.detailEmpty}>No participating coaches yet.</div>}
+        ) : <div className={styles.detailEmpty}>{isCoachView ? "No other coaches participating yet." : "No participating coaches yet."}</div>}
       </div>
     </div>
   );
