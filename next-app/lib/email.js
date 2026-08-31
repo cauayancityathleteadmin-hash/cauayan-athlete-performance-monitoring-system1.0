@@ -138,3 +138,32 @@ export async function sendPasswordResetLink({ email, name, resetUrl }) {
     return false;
   }
 }
+
+export async function sendEventApplicationDecisionEmail({ email, name, eventPlanName, decision, reason }) {
+  const transporter = getTransporter();
+  if (!transporter) return false;
+  const ok = decision === "approved";
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || process.env.GMAIL_USER,
+      to: email,
+      subject: `Your application to "${eventPlanName}" was ${decision}`,
+      text: `Hello ${name},\n\nYour application to the event plan "${eventPlanName}" was ${decision} by an administrator.${reason ? `\n\nReason: ${reason}` : ""}\n\nCauayan City Athlete Performance Monitoring System`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #041f18;">Cauayan City Athlete Performance Monitoring System</h2>
+          <p>Hello <strong>${name}</strong>,</p>
+          <p>Your application to the event plan <strong>"${eventPlanName}"</strong> was ${ok ? '<strong style="color: #2dd4a8;">approved</strong>' : '<strong style="color: #f56565;">not approved</strong>'} by an administrator.</p>
+          ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ""}
+          ${ok ? "<p>You can now add your athletes to this event plan.</p>" : ""}
+          <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;" />
+          <p style="color: #666; font-size: 12px;">Cauayan City Athlete Performance Monitoring System</p>
+        </div>
+      `,
+    });
+    return true;
+  } catch (error) {
+    console.error("Failed to send event application decision email:", error);
+    return false;
+  }
+}

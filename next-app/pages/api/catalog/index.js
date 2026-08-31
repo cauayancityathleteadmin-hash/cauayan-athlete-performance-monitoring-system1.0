@@ -36,6 +36,22 @@ export default async function handler(req, res) {
       }
       const result = await updateCatalogItem(res, session, "event", id, data);
       if (result) return result;
+    } else if (kind === "school") {
+      const schoolName = text(req.body?.schoolName, 191, true);
+      if (!schoolName) return res.status(400).json({ error: "School name is required." });
+      const status = ["active", "inactive"].includes(req.body?.status) ? req.body.status : undefined;
+      const result = await updateCatalogItem(
+        res,
+        session,
+        "school",
+        id,
+        (() => {
+          const d = { schoolName };
+          if (status) d.status = status;
+          return d;
+        })()
+      );
+      if (result) return result;
     } else {
       return res.status(400).json({ error: "Unsupported catalog item." });
     }
@@ -93,6 +109,18 @@ export default async function handler(req, res) {
       return res.status(201).json(event);
     } catch (error) {
       if (error.code === "P2002") return res.status(409).json({ error: "That event already exists for the sport." });
+      throw error;
+    }
+  }
+  if (kind === "school") {
+    const schoolName = text(req.body?.schoolName, 191, true);
+    if (!schoolName) return res.status(400).json({ error: "School name is required." });
+    try {
+      const school = await prisma.school.create({ data: { schoolName } });
+      await prisma.auditLog.create({ data: { userId: Number(session.user.id), action: "create", entityType: "school", entityId: school.id, description: `Created school ${school.schoolName}` } });
+      return res.status(201).json(school);
+    } catch (error) {
+      if (error.code === "P2002") return res.status(409).json({ error: "That school already exists." });
       throw error;
     }
   }

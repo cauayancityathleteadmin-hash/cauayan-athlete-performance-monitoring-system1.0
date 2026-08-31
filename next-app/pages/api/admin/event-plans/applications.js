@@ -1,5 +1,6 @@
 import { prisma } from "../../../../lib/prisma";
 import { requireCsrf, requireRole, requireSession, text, validId, setSecurityHeaders } from "../../../../lib/api-security";
+import { sendEventApplicationDecisionEmail } from "../../../../lib/email";
 import { rateLimiters } from "../../../../lib/rate-limit";
 
 export default async function handler(req, res) {
@@ -35,5 +36,17 @@ export default async function handler(req, res) {
     await tx.auditLog.create({ data: { userId: Number(session.user.id), action: decision, entityType: "event_application", entityId: applicationId, description: `${decision} event application ${applicationId}` } });
     return updated;
   });
+
+  const coach = await prisma.coach.findUnique({ where: { id: application.coachId }, select: { firstName: true, lastName: true, email: true } });
+  if (coach) {
+    await sendEventApplicationDecisionEmail({
+      email: coach.email,
+      name: `${coach.firstName} ${coach.lastName}`.trim(),
+      eventPlanName: application.eventPlan.eventName,
+      decision,
+      reason,
+    }).catch(() => {});
+  }
+
   return res.status(200).json(saved);
 }
