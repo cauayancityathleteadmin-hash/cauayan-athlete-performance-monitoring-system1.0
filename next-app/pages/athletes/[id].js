@@ -1,6 +1,7 @@
 import Head from "next/head";
 import React from "react";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { getSession } from "next-auth/react";
 import { prisma } from "../../lib/prisma";
 import AppShell from "../../components/AppShell";
@@ -164,6 +165,7 @@ function trendBadge(betterDirection, first, last) {
 
 export default function AthleteProfile({ session, athlete }) {
   const isAdmin = session?.user?.role === "admin";
+  const router = useRouter();
   const series = React.useMemo(() => buildMetricSeries(athlete.assessments), [athlete.assessments]);
 
   /* first vs latest assessment results per metric for comparison */
@@ -297,6 +299,7 @@ export default function AthleteProfile({ session, athlete }) {
           {/* Status history */}
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Timeline</p><h2>Status history</h2></div></div>
+            <StatusForm athleteId={athlete.id} currentStatus={athlete.status} onComplete={() => router.reload()} />
             {athlete.statusHistory?.length ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {athlete.statusHistory.map((s) => (
@@ -315,6 +318,7 @@ export default function AthleteProfile({ session, athlete }) {
           {/* Achievements */}
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Recognition</p><h2>Achievements</h2></div></div>
+            <AchievementForm athleteId={athlete.id} onComplete={() => router.reload()} />
             {athlete.achievements?.length ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {athlete.achievements.map((a) => (
@@ -354,5 +358,102 @@ export default function AthleteProfile({ session, athlete }) {
         </section>
       </AppShell>
     </>
+  );
+}
+
+function StatusForm({ athleteId, currentStatus, onComplete }) {
+  const [status, setStatus] = React.useState(currentStatus === "active" ? "inactive" : "active");
+  const [reason, setReason] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [message, setMessage] = React.useState("");
+
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setMessage("");
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    const response = await fetch(`/api/athletes/${athleteId}/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+      body: JSON.stringify({ status, reason }),
+    }).catch(() => null);
+    const result = response ? await response.json().catch(() => ({})) : {};
+    if (response && response.ok && !result.error) {
+      setMessage(result.message || "Updated.");
+      setReason("");
+      onComplete();
+    } else {
+      setMessage(result.error || "Could not update status.");
+    }
+    setBusy(false);
+  }
+
+  return (
+    <form onSubmit={submit} className={styles.formStack} style={{ marginBottom: 14 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <label style={{ flex: "0 0 auto" }}>Set status
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className={styles.fieldControl}>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </label>
+        <label style={{ flex: "1 1 160px", minWidth: 0 }}>Reason
+          <input name="reason" className={styles.fieldControl} type="text" maxLength="500" placeholder="e.g. returned from injury" value={reason} onChange={(e) => setReason(e.target.value)} />
+        </label>
+        <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Update status"}</button>
+      </div>
+      {message && <p role="status" className={styles.formHint}>{message}</p>}
+    </form>
+  );
+}
+
+function AchievementForm({ athleteId, onComplete }) {
+  const [busy, setBusy] = React.useState(false);
+  const [message, setMessage] = React.useState("");
+
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setMessage("");
+    const form = new FormData(event.currentTarget);
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    const response = await fetch(`/api/athletes/${athleteId}/achievements`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+      body: JSON.stringify({
+        title: form.get("title"),
+        achievementType: form.get("achievementType"),
+        organization: form.get("organization"),
+        achievementDate: form.get("achievementDate"),
+        description: form.get("description"),
+      }),
+    }).catch(() => null);
+    const result = response ? await response.json().catch(() => ({})) : {};
+    if (response && response.ok && !result.error) {
+      setMessage("Achievement added.");
+      event.currentTarget.reset();
+      onComplete();
+    } else {
+      setMessage(result.error || "Could not add achievement.");
+    }
+    setBusy(false);
+  }
+
+  return (
+    <form onSubmit={submit} className={styles.formStack} style={{ marginBottom: 14 }}>
+      <label>Title *<input name="title" className={styles.fieldControl} required maxLength="150" placeholder="e.g. Gold medal, 100m sprint" /></label>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <label style={{ flex: "1 1 140px" }}>Type
+          <input name="achievementType" className={styles.fieldControl} maxLength="100" placeholder="e.g. Medal, Record, Cert" />
+        </label>
+        <label style={{ flex: "1 1 160px" }}>Date
+          <input name="achievementDate" className={styles.fieldControl} type="date" />
+        </label>
+      </div>
+      <label>Organization<input name="organization" className={styles.fieldControl} maxLength="191" placeholder="e.g. PRISAA" /></label>
+      <label>Description<textarea name="description" className={styles.fieldControl} rows="2" maxLength="2000" /></label>
+      <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Add achievement"}</button>
+      {message && <p role="status" className={styles.formHint}>{message}</p>}
+    </form>
   );
 }
