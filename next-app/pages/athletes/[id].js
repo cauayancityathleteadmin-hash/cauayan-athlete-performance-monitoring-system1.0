@@ -337,6 +337,28 @@ export default function AthleteProfile({ session, athlete }) {
           </section>
         </div>
 
+        {/* Coaching notes */}
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Observations</p><h2>Coaching notes</h2></div></div>
+          <NoteForm athleteId={athlete.id} onComplete={() => router.reload()} />
+          {athlete.notes?.length ? (
+            <div className={styles.tableWrap}>
+              <table>
+                <thead><tr><th>Note</th><th>Author</th><th>Date</th></tr></thead>
+                <tbody>
+                  {athlete.notes.map((n) => (
+                    <tr key={n.id}>
+                      <td>{n.note}</td>
+                      <td>{noteAuthorName(n.author)}</td>
+                      <td>{fmtDate(n.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : <p className={styles.empty}>No coaching notes yet.</p>}
+        </section>
+
         {/* Events participated */}
         <section className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Participation</p><h2>Events participated</h2></div></div>
@@ -453,6 +475,51 @@ function AchievementForm({ athleteId, onComplete }) {
       <label>Organization<input name="organization" className={styles.fieldControl} maxLength="191" placeholder="e.g. PRISAA" /></label>
       <label>Description<textarea name="description" className={styles.fieldControl} rows="2" maxLength="2000" /></label>
       <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Add achievement"}</button>
+      {message && <p role="status" className={styles.formHint}>{message}</p>}
+    </form>
+  );
+}
+
+function noteAuthorName(author) {
+  if (!author) return "System";
+  if (author.coach?.firstName || author.coach?.lastName) {
+    return `${author.coach.firstName || ""} ${author.coach.lastName || ""}`.trim();
+  }
+  return author.username || author.email || "System";
+}
+
+function NoteForm({ athleteId, onComplete }) {
+  const [note, setNote] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [message, setMessage] = React.useState("");
+
+  async function submit(event) {
+    event.preventDefault();
+    if (!note.trim()) return;
+    setBusy(true);
+    setMessage("");
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    const response = await fetch(`/api/athletes/${athleteId}/notes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+      body: JSON.stringify({ note: note.trim() }),
+    }).catch(() => null);
+    const result = response ? await response.json().catch(() => ({})) : {};
+    if (response && response.ok && !result.error) {
+      setNote("");
+      setMessage("Coaching note added.");
+      onComplete();
+    } else {
+      setMessage(result.error || "Could not add note.");
+    }
+    setBusy(false);
+  }
+
+  return (
+    <form onSubmit={submit} className={styles.formStack} style={{ marginBottom: 14 }}>
+      <label>Add an observation about the athlete{String.fromCharCode(39)}s progress</label>
+      <textarea className={styles.fieldControl} rows="3" maxLength="5000" placeholder="e.g. Showing consistent gains in sprint endurance; needs focus on starts." value={note} onChange={(e) => setNote(e.target.value)} />
+      <button className={styles.primary} disabled={busy || !note.trim()}>{busy ? "Saving..." : "Add note"}</button>
       {message && <p role="status" className={styles.formHint}>{message}</p>}
     </form>
   );

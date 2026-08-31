@@ -25,6 +25,10 @@ export default async function handler(req, res) {
       statusHistory: { orderBy: { changedAt: "asc" }, include: { changer: { select: { email: true } } } },
       coachHistory: { orderBy: { startedAt: "asc" }, include: { coach: { select: { firstName: true, lastName: true, coachCode: true } }, assigner: { select: { email: true } } } },
       achievements: { orderBy: { achievementDate: "asc" } },
+      notes: {
+        orderBy: { createdAt: "desc" },
+        include: { author: { select: { username: true, email: true, coach: { select: { firstName: true, lastName: true } } } } },
+      },
       participants: {
         where: { status: "active" },
         include: { eventPlan: { select: { id: true, eventName: true, startDate: true, endDate: true, status: true } }, sport: { select: { sportName: true } } },

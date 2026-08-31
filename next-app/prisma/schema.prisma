@@ -85,6 +85,7 @@ model User {
   changedStatusHistory  AthleteStatusHistory[] @relation("StatusChanger")
   reviewedApplications  EventApplication[]     @relation("ApplicationReviewer")
   addedParticipants     EventParticipant[]
+  coachingNotes         CoachingNote[]          @relation("NoteAuthor")
   passwordResetTokens   PasswordResetToken[]
   @@map("users")
   @@index([role, status])
@@ -221,6 +222,7 @@ model Athlete {
   assessments    Assessment[]
   achievements   Achievement[]
   participants   EventParticipant[]
+  notes          CoachingNote[]
   @@map("athletes")
   @@index([coachId, status])
   @@index([sportId, eventId])
@@ -253,6 +255,18 @@ model AthleteStatusHistory {
   changer   User?     @relation("StatusChanger", fields: [changedBy], references: [id], onDelete: SetNull)
   @@map("athlete_status_history")
   @@index([athleteId, changedAt])
+}
+
+model CoachingNote {
+  id        Int      @id @default(autoincrement())
+  athleteId Int      @map("athlete_id")
+  authorId  Int?     @map("author_id")
+  note      String   @map("note")
+  createdAt DateTime @default(now()) @map("created_at")
+  athlete   Athlete  @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  author    User?    @relation("NoteAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  @@map("coaching_notes")
+  @@index([athleteId, createdAt])
 }
 
 model PerformanceMetric {
