@@ -46,13 +46,14 @@ export async function getServerSideProps(context) {
     const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
     if (coach) student.where = { coachId: coach.id };
   }
-  const [athleteResult, sports, events] = await Promise.all([
+  const [athleteResult, sports, events, coaches] = await Promise.all([
     paginatePrisma(prisma.athlete, page, student),
     prisma.sport.findMany({ where: { status: "active" }, orderBy: { sportName: "asc" } }),
     prisma.event.findMany({ where: { status: "active" }, include: { sport: true }, orderBy: { eventName: "asc" } }),
+    session.user.role === "admin" ? prisma.coach.findMany({ where: { status: "active" }, orderBy: { lastName: "asc" }, select: { id: true, coachCode: true, firstName: true, lastName: true, schoolId: true, school: { select: { schoolName: true } } } }) : Promise.resolve([]),
   ]);
   const athletes = athleteResult.items.map((athlete) => ({ ...athlete, birthdate: athlete.birthdate.toISOString(), dateRegistered: athlete.dateRegistered.toISOString() }));
-  return { props: { session, catalog: { sports, events }, athletes, page: athleteResult.page, totalPages: athleteResult.totalPages, total: athleteResult.total, sort, dir } };
+  return { props: { session, catalog: { sports, events, coaches }, athletes, page: athleteResult.page, totalPages: athleteResult.totalPages, total: athleteResult.total, sort, dir } };
 }
 
 export default function Athletes({ session, athletes, catalog, page, totalPages, total, sort, dir }) {
@@ -85,7 +86,7 @@ export default function Athletes({ session, athletes, catalog, page, totalPages,
         {view === "add" && (
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registration</p><h2>Add athlete</h2></div></div>
-            <AthleteForm catalog={catalog} onDone={() => setView("list")} />
+            <AthleteForm catalog={catalog} isAdmin={isAdmin} onDone={() => setView("list")} />
           </section>
         )}
 
@@ -131,7 +132,7 @@ function StatusBadge({ status }) {
   return <span className={`${styles.badge} ${styles.badgeMuted}`}>{status || "—"}</span>;
 }
 
-function AthleteForm({ catalog, onDone }) {
+function AthleteForm({ catalog, isAdmin, onDone }) {
   const [message, setMessage] = React.useState("");
   const [createdCode, setCreatedCode] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -166,6 +167,9 @@ function AthleteForm({ catalog, onDone }) {
       <label>Gender<select name="gender" defaultValue="prefer_not_to_say"><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option><option value="prefer_not_to_say">Prefer not to say</option></select></label>
       <label>Sport<select name="sportId" required defaultValue="">{catalog.sports.map((sport) => <option value={sport.id} key={sport.id}>{sport.sportName}</option>)}</select></label>
       <label>Event<select name="eventId" defaultValue=""><option value="">No event</option>{catalog.events.map((event) => <option value={event.id} key={event.id}>{event.sport.sportName} - {event.eventName}</option>)}</select></label>
+      {isAdmin && (
+        <label className={styles.fullField}>Assigned coach (admin){catalog.coaches.length > 0 ? <select name="coachId" required defaultValue="">{catalog.coaches.map((coach) => <option value={coach.id} key={coach.id}>{coach.firstName} {coach.lastName} ({coach.coachCode}){coach.school?.schoolName ? ` - ${coach.school.schoolName}` : ""}</option>)}</select> : <select name="coachId" required defaultValue=""><option value="">No active coaches available</option></select>}</label>
+      )}
       <label>School<input name="school" maxLength="191" placeholder="Enter school name" /></label>
       <label>Contact number<input name="contactNumber" maxLength="30" /></label>
       <label>Email<input name="email" type="email" maxLength="191" /></label>
