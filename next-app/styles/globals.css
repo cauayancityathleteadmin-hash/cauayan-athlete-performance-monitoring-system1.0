@@ -179,6 +179,14 @@ h1, h2, h3, h4, h5, h6 {
   overflow-y: auto;
 }
 
+.login-page.register-box .auth-kicker,
+.login-page.register-box h1,
+.login-page.register-box .auth-subtitle,
+.login-page.register-box .auth-register {
+  align-self: center;
+  text-align: center;
+}
+
 .login-page .register-fields {
   display: grid;
   grid-template-columns: 1fr;
