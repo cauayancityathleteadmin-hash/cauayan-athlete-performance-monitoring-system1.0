@@ -28,6 +28,7 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
   const [reviewing, setReviewing] = React.useState(false);
   const [submitted, setSubmitted] = React.useState(false);
   const [captchaToken, setCaptchaToken] = React.useState("");
+  const captchaRef = React.useRef(null);
   const [formData, setFormData] = React.useState({
     firstName: "",
     middleName: "",
