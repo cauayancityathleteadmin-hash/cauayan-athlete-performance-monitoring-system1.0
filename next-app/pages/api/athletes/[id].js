@@ -52,7 +52,7 @@ export default async function handler(req, res) {
       participants: {
         where: { status: "active" },
         include: { eventPlan: { select: { id: true, eventName: true, startDate: true, endDate: true, status: true } }, sport: { select: { sportName: true } } },
-        orderBy: { addedAt: "desc" },
+        orderBy: { createdAt: "desc" },
       },
     },
   });
