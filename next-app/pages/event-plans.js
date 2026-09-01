@@ -352,18 +352,36 @@ function EventPlanActions({ plan, session, athletes, coachId, sports }) {
     if (plan.status === "closed") {
       return <p style={{ color: "var(--muted)", fontSize: 13, margin: "12px 0 0" }}>This event plan has been closed. Participation is no longer open.</p>;
     }
-    if (myApp && myApp.status === "approved") {
-      const available = athletes || [];
-      return <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-        <div className={styles.actionRow}>
-          <small role="status"><span style={{ color: "var(--success)", fontWeight: 700 }}>✓</span> You are enrolled in this event plan.</small>
-          {available.length > 0 ? (
-            <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setPickerOpen((current) => !current)}>{pickerOpen ? "Close athlete list" : "Add athlete"}</button>
-          ) : (
-            <small style={{ color: "var(--muted)" }}>You have no active athletes to add.</small>
-          )}
-          {message && <small role="status">{message}</small>}
-        </div>
+    const isApproved = Boolean(myApp && myApp.status === "approved");
+    const available = athletes || [];
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+        {plan.status === "closed" ? (
+          <small style={{ color: "var(--muted)", fontSize: 13 }}>This event plan has been closed. Participation is no longer open.</small>
+        ) : isApproved ? (
+          <div className={styles.actionRow}>
+            <small role="status"><span style={{ color: "var(--success)", fontWeight: 700 }}>&#10003;</span> You are enrolled in this event plan.</small>
+            {available.length > 0 ? (
+              <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setPickerOpen((current) => !current)}>{pickerOpen ? "Close athlete list" : "Add athlete"}</button>
+            ) : (
+              <small style={{ color: "var(--muted)" }}>You have no active athletes to add.</small>
+            )}
+            {message && <small role="status">{message}</small>}
+          </div>
+        ) : myApp && myApp.status === "pending" ? (
+          <small style={{ color: "var(--muted)", fontSize: 13 }}>Your application to this event plan is under review.</small>
+        ) : myApp && myApp.status === "rejected" ? (
+          <div className={styles.actionRow}>
+            <small style={{ color: "var(--danger)" }}>Your previous application was not approved. You may apply again.</small>
+            <button className={styles.secondary} disabled={busy} onClick={() => request("/api/event-plans/applications", { eventPlanId: plan.id }, true)}>Apply again</button>
+            {message && <small role="status">{message}</small>}
+          </div>
+        ) : (
+          <div className={styles.actionRow}>
+            <button className={styles.secondary} disabled={busy} onClick={() => request("/api/event-plans/applications", { eventPlanId: plan.id }, true)}>Apply to participate</button>
+            {message && <small role="status">{message}</small>}
+          </div>
+        )}
         {available.length > 0 && pickerOpen && (
           <div style={{ border: "1px solid var(--border)", borderRadius: "10px", padding: "18px", background: "rgba(6, 38, 30, 0.5)", display: "flex", flexDirection: "column", gap: "12px" }}>
             <div>
@@ -391,27 +409,13 @@ function EventPlanActions({ plan, session, athletes, coachId, sports }) {
           </div>
         )}
         <ParticipationToggle label="participants" count={(plan.participants || []).length} open={true}>
-          <ParticipantRoster participants={plan.participants || []} myCoachId={coachId} onRemove={removeAthlete} busyRemove={busy} />
+          <ParticipantRoster participants={plan.participants || []} myCoachId={coachId} onRemove={isApproved ? removeAthlete : undefined} busyRemove={busy} />
         </ParticipationToggle>
-      </div>;
-    }
-    if (myApp && myApp.status === "pending") {
-      return <p style={{ color: "var(--muted)", fontSize: 13, margin: "12px 0 0" }}>Your application to this event plan is under review.</p>;
-    }
-    if (myApp && myApp.status === "rejected") {
-      return <div className={styles.actionRow}>
-        <small style={{ color: "var(--danger)" }}>Your previous application was not approved. You may apply again.</small>
-        <button className={styles.secondary} disabled={busy} onClick={() => request("/api/event-plans/applications", { eventPlanId: plan.id }, true)}>Apply again</button>
-        {message && <small role="status">{message}</small>}
-      </div>;
-    }
-    return <div className={styles.actionRow}>
-      <button className={styles.secondary} disabled={busy} onClick={() => request("/api/event-plans/applications", { eventPlanId: plan.id }, true)}>Apply to participate</button>
-      {message && <small role="status">{message}</small>}
-    </div>;
+      </div>
+    );
   }
 
-  const pending = plan.applications.filter((application) => application.status === "pending");
+const pending = plan.applications.filter((application) => application.status === "pending");
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
       <div className={styles.actionRow}>
