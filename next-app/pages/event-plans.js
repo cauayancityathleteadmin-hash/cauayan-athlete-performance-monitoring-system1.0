@@ -211,7 +211,13 @@ function CoachGroup({ coachId, participants }) {
 
 function ParticipantRoster({ participants, myCoachId, onRemove, busyRemove }) {
   const allAthletes = participants.filter((p) => p.participantType === "athlete");
-  const coachParticipants = participants.filter((p) => p.participantType === "coach" && p.coach);
+  const seenCoaches = new Set();
+  const coachParticipants = participants.filter((p) => {
+    if (p.participantType !== "coach" || !p.coach) return false;
+    if (seenCoaches.has(p.coachId)) return false;
+    seenCoaches.add(p.coachId);
+    return true;
+  });
   const isCoachView = Boolean(myCoachId);
   const canRemove = (p) => (isCoachView ? p.coachId === myCoachId : Boolean(onRemove));
   return (
