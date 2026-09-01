@@ -55,6 +55,23 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
     return () => { delete window.onTurnstileSuccess; };
   }, [captchaEnabled]);
 
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !captchaEnabled || !reviewing) return;
+    const el = captchaRef.current;
+    if (!el || typeof window.turnstile === "undefined") return;
+    try {
+      window.turnstile.render(el, {
+        sitekey: captchaSiteKey,
+        callback: (token) => setCaptchaToken(token),
+        "expired-callback": () => setCaptchaToken(""),
+        "error-callback": () => setCaptchaToken(""),
+        theme: "dark",
+      });
+    } catch (e) {
+      // already rendered for this element
+    }
+  }, [captchaEnabled, reviewing, captchaSiteKey]);
+
   const handleChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (name === "password") {
@@ -147,6 +164,7 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
     event.preventDefault();
     if (!validateForm()) return;
     setMessage("");
+    setCaptchaToken("");
     setReviewing(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -227,7 +245,7 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
             </section>
             {captchaEnabled && (
               <div style={{ marginTop: "18px" }}>
-                <div className="cf-turnstile" data-sitekey={captchaSiteKey} data-callback="onTurnstileSuccess" data-theme="dark" />
+                <div ref={captchaRef} className="cf-turnstile" />
               </div>
             )}
             <div style={{ display: "flex", gap: "12px", marginTop: "18px", flexWrap: "wrap" }}>
