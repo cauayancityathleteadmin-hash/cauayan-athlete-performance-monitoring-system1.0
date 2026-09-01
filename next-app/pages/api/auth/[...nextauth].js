@@ -35,7 +35,7 @@ export const authOptions = {
         where: { OR: [{ email: identifier }, { username: identifier }, { coach: { coachCode: identifier.toUpperCase() } }] },
         include: { coach: true },
       });
-      if (!user || user.status !== "active" || !(await bcrypt.compare(password, normalizeHash(user.passwordHash)))) {
+      if (!user || (user.status !== "active" && user.status !== "pending") || !(await bcrypt.compare(password, normalizeHash(user.passwordHash)))) {
         recordFailure(identifier);
         return null;
       }

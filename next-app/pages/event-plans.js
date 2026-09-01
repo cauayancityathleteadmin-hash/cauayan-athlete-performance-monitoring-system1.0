@@ -210,26 +210,42 @@ function CoachGroup({ coachId, participants }) {
 }
 
 function ParticipantRoster({ participants, myCoachId, onRemove, busyRemove }) {
-  const myAthletes = (myCoachId ? participants.filter((p) => p.participantType === "athlete" && p.coachId === myCoachId) : []);
-  const coachRows = participants.filter((p) => p.participantType === "coach" && p.coach);
-  const otherCoachIds = [...new Set(coachRows.map((p) => p.coachId).filter((cid) => cid !== myCoachId))];
+  const allAthletes = participants.filter((p) => p.participantType === "athlete");
+  const coachParticipants = participants.filter((p) => p.participantType === "coach" && p.coach);
   const isCoachView = Boolean(myCoachId);
-  const sectionLabel = isCoachView ? "Other coaches" : "Coaches";
+  const canRemove = (p) => (isCoachView ? p.coachId === myCoachId : Boolean(onRemove));
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-      {isCoachView && (
-        <div>
-          <p className={styles.eyebrow} style={{ marginBottom: 8 }}>My athletes ({myAthletes.length})</p>
-          <AthleteList items={myAthletes} empty="You have no athletes enrolled in this event plan." onRemove={onRemove} busyRemove={busyRemove} />
-        </div>
-      )}
       <div>
-        <p className={styles.eyebrow} style={{ marginBottom: 8 }}>{sectionLabel} ({otherCoachIds.length})</p>
-        {otherCoachIds.length ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {otherCoachIds.map((cid) => <CoachGroup key={cid} coachId={cid} participants={participants} />)}
+        <p className={styles.eyebrow} style={{ marginBottom: 8 }}>Athletes ({allAthletes.length})</p>
+        {allAthletes.length ? (
+          <div className={styles.statusAthletes}>
+            {allAthletes.map((p) => (
+              <div key={p.id} className={styles.statusAthlete}>
+                <div style={{ minWidth: 0 }}>
+                  <span className={styles.statusAthleteName}>{p.athlete.firstName} {p.athlete.lastName}</span>
+                  <small>{p.athlete.athleteCode || "—"} · {p.sport?.sportName || "—"}{p.coach ? ` · Coach ${p.coach.coachCode || ""}` : ""}</small>
+                </div>
+                {canRemove(p) && <button type="button" className={`${styles.danger} ${styles.btnSm}`} disabled={busyRemove} onClick={() => onRemove(p.athlete.id)}>Remove</button>}
+              </div>
+            ))}
           </div>
-        ) : <div className={styles.detailEmpty}>{isCoachView ? "No other coaches participating yet." : "No participating coaches yet."}</div>}
+        ) : <div className={styles.detailEmpty}>No athletes enrolled in this event plan.</div>}
+      </div>
+      <div>
+        <p className={styles.eyebrow} style={{ marginBottom: 8 }}>Coaches ({coachParticipants.length})</p>
+        {coachParticipants.length ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {coachParticipants.map((p) => (
+              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", padding: "12px 14px", border: "1px solid var(--border)", borderRadius: "10px", background: "rgba(10, 50, 40, 0.7)" }}>
+                <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                  <strong style={{ fontSize: 14 }}>{p.coach.firstName} {p.coach.lastName}</strong>
+                  <small style={{ display: "block", color: "var(--muted)", fontSize: 12 }}>{p.coach.coachCode}{p.coach.school ? ` · ${p.coach.school.schoolName}` : ""}</small>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : <div className={styles.detailEmpty}>No participating coaches yet.</div>}
       </div>
     </div>
   );
