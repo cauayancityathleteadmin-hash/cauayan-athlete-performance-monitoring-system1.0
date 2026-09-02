@@ -22,15 +22,21 @@ const NAV_GROUPS = [
     label: "Coaches",
     links: [
       { href: "/admin/coaches", label: "Coaches", adminOnly: true },
-      { href: "/admin/coach-accounts", label: "Coach accounts", adminOnly: true },
       { href: "/admin/coach-performances", label: "Coach evaluations", adminOnly: true },
       { href: "/coach-approvals", label: "Coach approvals", coachApproveOnly: true },
+      { href: "/admin/coach-accounts", label: "Coach accounts", adminOnly: true },
     ],
   },
   {
     label: "Training & Assessment",
     links: [
       { href: "/training-plans", label: "Training" },
+    ],
+  },
+  {
+    label: "Analytics",
+    links: [
+      { href: "/analytics", label: "Analytics" },
     ],
   },
   {
@@ -85,7 +91,7 @@ export default function AppShell({
         if (!links.length) return null;
         return (
           <React.Fragment key={group.label}>
-            <p className={styles.navHeading}>{group.label}</p>
+            <p className={styles.navHeading}>{group.label.toUpperCase()}</p>
             {links.map((link) => (
               <Link key={link.href} href={link.href} className={isActive(link.href)} onClick={() => setOpen(false)}>
                 {link.label}

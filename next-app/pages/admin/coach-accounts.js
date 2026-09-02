@@ -30,9 +30,25 @@ export default function AdminCoachAccounts({ coaches, session }) {
   const [selected, setSelected] = React.useState(new Set());
   const [message, setMessage] = React.useState(null);
   const [busy, setBusy] = React.useState(false);
+  const [search, setSearch] = React.useState("");
 
   const activeCoaches = coaches.filter((c) => c.user.status === "active");
   const selectedActive = [...selected].filter((id) => activeCoaches.some((c) => c.id === id));
+
+  const filteredCoaches = React.useMemo(() => {
+    if (!search.trim()) return coaches;
+    const q = search.trim().toLowerCase();
+    return coaches.filter((c) => 
+      c.firstName.toLowerCase().includes(q) ||
+      c.lastName.toLowerCase().includes(q) ||
+      (c.middleName || "").toLowerCase().includes(q) ||
+      c.coachCode.toLowerCase().includes(q) ||
+      c.user.email.toLowerCase().includes(q) ||
+      (c.user.username || "").toLowerCase().includes(q) ||
+      (c.school?.schoolName || "").toLowerCase().includes(q) ||
+      c.sports.some((cs) => cs.sport.sportName.toLowerCase().includes(q))
+    );
+  }, [coaches, search]);
 
   function toggle(id, canSelect) {
     if (!canSelect) return;
@@ -119,9 +135,7 @@ export default function AdminCoachAccounts({ coaches, session }) {
           </div>
 
           <div className={styles.toolbar}>
-            <label style={{ minWidth: 220 }}>
-              <small>Select active coaches to reset their password to the default and email each one. They must change it on next login.</small>
-            </label>
+            <label style={{ minWidth: 260 }}>Search coaches<input type="text" placeholder="Name, code, email, sport, school…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
             <span style={{ flex: 1 }} />
             {selectedActive.length > 0 && (
               <span className={styles.selectionSummary}><strong>{selectedActive.length}</strong> selected</span>
@@ -154,7 +168,7 @@ export default function AdminCoachAccounts({ coaches, session }) {
                 </tr>
               </thead>
               <tbody>
-                {coaches.map((coach) => {
+                {filteredCoaches.map((coach) => {
                   const canSelect = coach.user.status === "active";
                   const checked = canSelect && selected.has(coach.id);
                   return (
@@ -187,7 +201,7 @@ export default function AdminCoachAccounts({ coaches, session }) {
                     </tr>
                   );
                 })}
-                {coaches.length === 0 && <tr><td colSpan="7" className={styles.empty}>No coaches found.</td></tr>}
+                {filteredCoaches.length === 0 && <tr><td colSpan="7" className={styles.empty}>No coaches found.</td></tr>}
               </tbody>
             </table>
           </div>

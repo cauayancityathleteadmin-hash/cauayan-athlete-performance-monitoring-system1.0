@@ -504,8 +504,8 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
         <section className={styles.panel}>
           {isAdmin && (
             <div className={styles.segmented} style={{ marginBottom: 18 }}>
-              <button className={type === "athlete" ? styles.segmentedActive : ""} onClick={() => switchType("athlete")}>Athlete report</button>
-              <button className={type === "coach" ? styles.segmentedActive : ""} onClick={() => switchType("coach")}>Coach report</button>
+              <button className={type === "athlete" ? "active" : ""} onClick={() => switchType("athlete")}>Athlete report</button>
+              <button className={type === "coach" ? "active" : ""} onClick={() => switchType("coach")}>Coach report</button>
             </div>
           )}
 
@@ -515,7 +515,7 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
             <label>Search {type === "athlete" ? "athletes" : "coaches"}<input type="text" placeholder={type === "athlete" ? "Name, code, sport, event, coach, school…" : "Name, code, email, sport, school…"} value={type === "athlete" ? search : cSearch} onChange={(event) => (type === "athlete" ? setSearch(event.target.value) : setCSearch(event.target.value))} /></label>
             {type === "athlete" && <label>From date<input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>}
             {type === "athlete" && <label>To date<input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>}
-            {count > 0 && <p className={styles.selectionSummary}>{count > 1 ? `${count} selected` : "1 selected"}<button type="button" onClick={() => setSelected([])}>Clear</button></p>}
+            {count > 0 && <p className={styles.selectionSummary}>{count > 1 ? `${count} selected` : "1 selected"}<button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setSelected([])}>Clear</button></p>}
             <div className={styles.stackedActions}>
               <button className={styles.primary} disabled={!count} onClick={() => scrollRef.current?.scrollIntoView({ behavior: "smooth" })}>Show {count ? `${count} report${count > 1 ? "s" : ""}` : "reports"}</button>
               <button className={styles.secondary} disabled={!count} onClick={() => window.print()}>Print</button>

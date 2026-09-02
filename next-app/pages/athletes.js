@@ -61,10 +61,11 @@ export async function getServerSideProps(context) {
   return { props: { session, catalog: { sports, events, coaches }, athletes, paginated, page: Math.min(page, totalPages), totalPages, total: athletes.length, sort, dir, health } };
 }
 
-export default function Athletes({ session, athletes, paginated, catalog, page, totalPages, total, sort, dir, health }) {
+export default function Athletes({ session, athletes, paginated: serverPaginated, catalog, page: serverPage, totalPages: serverTotalPages, total, sort, dir, health }) {
   const isAdmin = session?.user?.role === "admin";
   const [view, setView] = React.useState("sport");
   const router = useRouter();
+  const [search, setSearch] = React.useState("");
 
   function changeSort(nextSort) {
     router.push({ pathname: "/athletes", query: { ...router.query, sort: nextSort, dir, page: 1 } });
@@ -79,15 +80,35 @@ export default function Athletes({ session, athletes, paginated, catalog, page, 
     return isNaN(date) ? "—" : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
   }
 
+  const filteredAthletes = React.useMemo(() => {
+    if (!search.trim()) return athletes;
+    const q = search.trim().toLowerCase();
+    return athletes.filter((a) => 
+      a.firstName.toLowerCase().includes(q) ||
+      a.lastName.toLowerCase().includes(q) ||
+      (a.middleName || "").toLowerCase().includes(q) ||
+      a.athleteCode.toLowerCase().includes(q) ||
+      (a.sport?.sportName || "").toLowerCase().includes(q) ||
+      (a.event?.eventName || "").toLowerCase().includes(q) ||
+      (a.school?.schoolName || "").toLowerCase().includes(q) ||
+      (a.coach ? `${a.coach.firstName} ${a.coach.lastName}`.toLowerCase() : "").includes(q)
+    );
+  }, [athletes, search]);
+
   const grouped = React.useMemo(() => {
     const map = new Map();
-    for (const athlete of athletes) {
+    for (const athlete of filteredAthletes) {
       const sport = athlete.sport?.sportName || "Unassigned";
       if (!map.has(sport)) map.set(sport, []);
       map.get(sport).push(athlete);
     }
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [athletes]);
+  }, [filteredAthletes]);
+
+  const perPage = 25;
+  const clientTotalPages = Math.max(1, Math.ceil(filteredAthletes.length / perPage));
+  const currentPage = Math.min(serverPage, clientTotalPages);
+  const clientPaginated = filteredAthletes.slice((currentPage - 1) * perPage, currentPage * perPage);
 
   return (
     <>
@@ -116,27 +137,28 @@ export default function Athletes({ session, athletes, paginated, catalog, page, 
         {view === "list" && (
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registered athletes</p><h2>All athletes</h2></div></div>
-            <div className={styles.toolbar}>
-              <label>Sort athletes by
-                <select value={sort} onChange={(event) => changeSort(event.target.value)}>
-                  {Object.entries(SORT_KEYS).filter(([key]) => isAdmin || key !== "coach").map(([key, label]) => <option value={key} key={key}>{label}</option>)}
-                </select>
-              </label>
-              <label>Filter by health
-                <select value={health} onChange={(event) => router.push({ pathname: "/athletes", query: { ...router.query, health: event.target.value, page: 1 } })}>
-<option value="">All health</option>
-                  <option value="healthy">Healthy</option>
-                  <option value="recovering">Recovering</option>
-                  <option value="sick">Sick</option>
-                  <option value="injured">Injured</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="flagged">Any flagged health</option>
-                </select>
-              </label>
-              <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={toggleDir}>{dir === "asc" ? "Ascending" : "Descending"}</button>
-            </div>
+<div className={styles.toolbar}>
+            <label style={{ minWidth: 240 }}>Search athletes<input type="text" placeholder="Name, code, sport, event, school, coach…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+            <label>Sort athletes by
+              <select value={sort} onChange={(event) => changeSort(event.target.value)}>
+                {Object.entries(SORT_KEYS).filter(([key]) => isAdmin || key !== "coach").map(([key, label]) => <option value={key} key={key}>{label}</option>)}
+              </select>
+            </label>
+            <label>Filter by health
+              <select value={health} onChange={(event) => router.push({ pathname: "/athletes", query: { ...router.query, health: event.target.value, page: 1 } })}>
+              <option value="">All health</option>
+              <option value="healthy">Healthy</option>
+              <option value="recovering">Recovering</option>
+              <option value="sick">Sick</option>
+              <option value="injured">Injured</option>
+              <option value="inactive">Inactive</option>
+              <option value="flagged">Any flagged health</option>
+              </select>
+            </label>
+            <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={toggleDir}>{dir === "asc" ? "Ascending" : "Descending"}</button>
+          </div>
             <div className={styles.tableWrap}><table><thead><tr><th>Code</th><th>Athlete</th><th>Sport / event</th><th>School</th><th>Coach</th><th>Health</th><th>Status</th><th></th></tr></thead><tbody>
-              {paginated.map((athlete) => (
+              {clientPaginated.map((athlete) => (
                 <tr key={athlete.id}>
                   <td>{athlete.athleteCode}</td>
                   <td><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></td>
@@ -149,13 +171,13 @@ export default function Athletes({ session, athletes, paginated, catalog, page, 
                 </tr>
               ))}
             </tbody></table></div>
-            <Pagination page={page} totalPages={totalPages} query={{ sort, dir, health }} />
+            <Pagination page={currentPage} totalPages={clientTotalPages} query={{ sort, dir, health, search }} />
           </section>
         )}
 
         {view === "sport" && (
           <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Roster by sport</p><h2>{isAdmin ? "All athletes by sport" : "My athletes by sport"}</h2></div><span className={styles.formHint} style={{ alignSelf: "center" }}>{total} athlete{total === 1 ? "" : "s"}</span></div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Roster by sport</p><h2>{isAdmin ? "All athletes by sport" : "My athletes by sport"}</h2></div><span className={styles.formHint} style={{ alignSelf: "center" }}>{filteredAthletes.length} athlete{filteredAthletes.length === 1 ? "" : "s"}</span></div>
             {grouped.length ? grouped.map(([sportName, roster]) => (
               <div key={sportName} style={{ marginBottom: 22 }}>
                 <h3 className={styles.sectionTitle}>{sportName} <span className={styles.formHint}>({roster.length})</span></h3>

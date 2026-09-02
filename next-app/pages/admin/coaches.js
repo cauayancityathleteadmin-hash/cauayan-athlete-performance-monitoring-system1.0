@@ -13,24 +13,11 @@ export async function getServerSideProps(context) {
       user: { select: { id: true, email: true, status: true, mustChangePassword: true, createdAt: true, lastLoginAt: true } },
       school: { select: { schoolName: true } },
       sports: { include: { sport: { select: { sportName: true } } } },
-      athletes: {
-        select: {
-          id: true,
-          athleteCode: true,
-          firstName: true,
-          middleName: true,
-          lastName: true,
-          suffix: true,
-          status: true,
-          sport: { select: { sportName: true } },
-          school: { select: { schoolName: true } },
-        },
-        orderBy: { lastName: "asc" },
-      },
+      _count: { select: { athletes: true } },
     },
     orderBy: { user: { email: "asc" } }
   });
-  return { props: { session, coaches: coaches.map((c) => ({ ...c, user: { ...c.user, createdAt: c.user.createdAt.toISOString() }, sports: c.sports.map(cs => ({ ...cs, sport: cs.sport })), athletes: c.athletes, athletesCount: c.athletes.length })) } };
+  return { props: { session, coaches: coaches.map((c) => ({ ...c, user: { ...c.user, createdAt: c.user.createdAt.toISOString() }, sports: c.sports.map(cs => ({ ...cs, sport: cs.sport })), athletesCount: c._count.athletes })) } };
 }
 
 const FILTERS = ["all", "active", "pending", "rejected", "inactive"];
@@ -78,10 +65,6 @@ export default function AdminCoaches({ coaches, session }) {
 
   function coachName(coach) {
     return `${coach.firstName} ${coach.lastName}${coach.suffix ? " " + coach.suffix : ""}`;
-  }
-
-  function athleteName(athlete) {
-    return `${athlete.firstName}${athlete.middleName ? " " + athlete.middleName : ""} ${athlete.lastName}${athlete.suffix ? " " + athlete.suffix : ""}`;
   }
 
   function statusBadge(status) {
@@ -156,49 +139,49 @@ export default function AdminCoaches({ coaches, session }) {
         <title>Manage Coaches | Cauayan Athlete Performance</title>
       </Head>
       <AppShell session={session} isAdmin eyebrow="Administration" title="Coaches" active="/admin/coaches">
-          <section className={styles.panel}>
-            <div className={styles.panelHeader}>
-              <div>
-                <h2>Coaches</h2>
-              </div>
-              <div className={styles.segmented}>
-                <button className={view === "sport" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("sport")}>By sport</button>
-                <button className={view === "list" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("list")}>List</button>
-              </div>
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <h2>Coaches</h2>
             </div>
-            <div className={styles.toolbar} style={{ marginBottom: 16 }}>
-              {FILTERS.map((item) => (
-                <button key={item} type="button" onClick={() => setFilter(item)} className={filter === item ? styles.primary : styles.secondary} style={{ textTransform: "capitalize" }}>{item}</button>
-              ))}
-              <span style={{ flex: 1 }} />
-              <label>Sort coaches by
-                <select value={sortKey} onChange={(event) => setSortKey(event.target.value)}>
-                  {SORT_OPTIONS.map((option) => <option value={option.key} key={option.key}>{option.label}</option>)}
-                </select>
-              </label>
-              <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setSortDir((current) => (current === "asc" ? "desc" : "asc"))}>{sortDir === "asc" ? "Ascending" : "Descending"}</button>
+            <div className={styles.segmented}>
+              <button className={view === "sport" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("sport")}>By sport</button>
+              <button className={view === "list" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("list")}>List</button>
             </div>
-            {message && <p role="status" style={{ color: message.startsWith("Coach") ? "#365448" : "#8b3a3a", margin: "0 0 14px", padding: "12px", background: message.startsWith("Coach") ? "rgba(45, 212, 168, .16)" : "rgba(248, 113, 113, .16)", borderRadius: "6px", border: message.startsWith("Coach") ? "1px solid var(--accent)" : "1px solid var(--danger)" }}>{message}</p>}
+          </div>
+          <div className={styles.toolbar}>
+            {FILTERS.map((item) => (
+              <button key={item} type="button" onClick={() => setFilter(item)} className={filter === item ? styles.primary : styles.secondary} style={{ textTransform: "capitalize" }}>{item}</button>
+            ))}
+            <span style={{ flex: 1 }} />
+            <label>Sort coaches by
+              <select value={sortKey} onChange={(event) => setSortKey(event.target.value)}>
+                {SORT_OPTIONS.map((option) => <option value={option.key} key={option.key}>{option.label}</option>)}
+              </select>
+            </label>
+            <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setSortDir((current) => (current === "asc" ? "desc" : "asc"))}>{sortDir === "asc" ? "Ascending" : "Descending"}</button>
+          </div>
+          {message && <p role="status" className={`alertBox ${message.startsWith("Coach") ? "" : "danger"}`}>{message}</p>}
 
-            {view === "list" && (
-              <CoachTable coaches={sorted} coachName={coachName} statusBadge={statusBadge} openId={openId} setOpenId={setOpenId} busy={busy} reviewCoach={reviewCoach} athleteName={athleteName} formatDate={formatDate} formatDateTime={formatDateTime} formatBirthdate={formatBirthdate} />
-            )}
+          {view === "list" && (
+            <CoachTable coaches={sorted} coachName={coachName} statusBadge={statusBadge} openId={openId} setOpenId={setOpenId} busy={busy} reviewCoach={reviewCoach} formatDate={formatDate} formatDateTime={formatDateTime} formatBirthdate={formatBirthdate} />
+          )}
 
-            {view === "sport" && (
-              grouped.length ? grouped.map(([sportName, roster]) => (
-                <div key={sportName} style={{ marginBottom: 22 }}>
-                  <h3 className={styles.sectionTitle}>{sportName} <span className={styles.formHint}>({roster.length})</span></h3>
-                  <CoachTable coaches={roster} coachName={coachName} statusBadge={statusBadge} openId={openId} setOpenId={setOpenId} busy={busy} reviewCoach={reviewCoach} athleteName={athleteName} formatDate={formatDate} formatDateTime={formatDateTime} formatBirthdate={formatBirthdate} />
-                </div>
-              )) : <p className={styles.empty}>No coaches in this category.</p>
-            )}
-          </section>
+          {view === "sport" && (
+            grouped.length ? grouped.map(([sportName, roster]) => (
+              <div key={sportName} className={styles.sectionGap}>
+                <h3 className={styles.sectionTitle}>{sportName} <span className={styles.formHint}>({roster.length})</span></h3>
+                <CoachTable coaches={roster} coachName={coachName} statusBadge={statusBadge} openId={openId} setOpenId={setOpenId} busy={busy} reviewCoach={reviewCoach} formatDate={formatDate} formatDateTime={formatDateTime} formatBirthdate={formatBirthdate} />
+              </div>
+            )) : <p className={styles.empty}>No coaches in this category.</p>
+          )}
+        </section>
       </AppShell>
     </>
   );
 }
 
-function CoachTable({ coaches, coachName, statusBadge, openId, setOpenId, busy, reviewCoach, athleteName, formatDate, formatDateTime, formatBirthdate }) {
+function CoachTable({ coaches, coachName, statusBadge, openId, setOpenId, busy, reviewCoach, formatDate, formatDateTime, formatBirthdate }) {
   return (
     <div className={styles.tableWrap}>
       <table>
@@ -209,6 +192,7 @@ function CoachTable({ coaches, coachName, statusBadge, openId, setOpenId, busy, 
             <th>School</th>
             <th>Sports</th>
             <th>Status</th>
+            <th>Athletes</th>
             <th>Action</th>
           </tr>
         </thead>
@@ -239,31 +223,36 @@ function CoachTable({ coaches, coachName, statusBadge, openId, setOpenId, busy, 
                   {coach.user.mustChangePassword && <small style={{ display: "block", color: "#fbbf24", marginTop: "4px" }}>(Must change password)</small>}
                 </td>
                 <td>
-                  <button type="button" className={styles.expandBtn} onClick={() => setOpenId((current) => (current === coach.id ? null : coach.id))} style={{ marginRight: "8px" }}>
-                    {openId === coach.id ? "Hide details ▲" : "View details ▼"}
-                  </button>
-                  {coach.user.status === "pending" && (
-                    <>
-                      <button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`} style={{ marginRight: "8px" }}>Approve</button>
-                      <button onClick={() => reviewCoach(coach.id, "rejected")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Reject</button>
-                    </>
-                  )}
-                  {coach.user.status === "rejected" && (
-                    <>
-                      <button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`} style={{ marginRight: "8px" }}>Reapprove</button>
-                      <button onClick={() => reviewCoach(coach.id, "delete")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Delete</button>
-                    </>
-                  )}
-                  {(coach.user.status === "active" || coach.user.status === "inactive") && (
-                    <button onClick={() => reviewCoach(coach.id, "delete")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Remove</button>
-                  )}
+                  <span className={styles.countBadge}>{coach.athletesCount || 0}</span>
+                </td>
+                <td>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                    <button type="button" className={styles.expandBtn} onClick={() => setOpenId((current) => (current === coach.id ? null : coach.id))}>
+                      {openId === coach.id ? "Hide details ▲" : "View details ▼"}
+                    </button>
+                    {coach.user.status === "pending" && (
+                      <>
+                        <button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`}>Approve</button>
+                        <button onClick={() => reviewCoach(coach.id, "rejected")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Reject</button>
+                      </>
+                    )}
+                    {coach.user.status === "rejected" && (
+                      <>
+                        <button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`}>Reapprove</button>
+                        <button onClick={() => reviewCoach(coach.id, "delete")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Delete</button>
+                      </>
+                    )}
+                    {(coach.user.status === "active" || coach.user.status === "inactive") && (
+                      <button onClick={() => reviewCoach(coach.id, "delete")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Remove</button>
+                    )}
+                  </div>
                 </td>
               </tr>
               {openId === coach.id && (
                 <tr>
-                  <td colSpan="6" style={{ padding: 0, background: "transparent" }}>
+                  <td colSpan="7" style={{ padding: 0, background: "transparent" }}>
                     <div className={styles.detailPanel}>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
+                      <div className={styles.grid}>
                         <div>
                           <h4>Personal information</h4>
                           <dl className={styles.infoList}>
@@ -277,46 +266,39 @@ function CoachTable({ coaches, coachName, statusBadge, openId, setOpenId, busy, 
                             <div><dt>Status</dt><dd>{statusBadge(coach.user.status)}</dd></div>
                             <div><dt>Registered</dt><dd>{formatDate(coach.user.createdAt)}</dd></div>
                             <div><dt>Last login</dt><dd>{formatDateTime(coach.user.lastLoginAt)}</dd></div>
+                            <div><dt>Athletes assigned</dt><dd><span className={styles.countBadge}>{coach.athletesCount || 0}</span></dd></div>
                           </dl>
                         </div>
                         <div>
-                          <h4>Athletes under this coach ({coach.athletes.length})</h4>
-                          {coach.athletes.length > 0 ? (
-                            <div className={styles.tableWrap}>
-                              <table>
-                                <thead>
-                                  <tr><th>Athlete</th><th>Sport</th><th>School</th><th>Status</th></tr>
-                                </thead>
-                                <tbody>
-                                  {coach.athletes.map((athlete) => (
-                                    <tr key={athlete.id}>
-                                      <td>
-                                        <div className={styles.detailAthleteName}>
-                                          <strong>{athleteName(athlete)}</strong>
-                                          <small>{athlete.athleteCode}</small>
-                                        </div>
-                                      </td>
-                                      <td>{athlete.sport?.sportName || "—"}</td>
-                                      <td>{athlete.school?.schoolName || "—"}</td>
-                                      <td>{statusBadge(athlete.status)}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          ) : (
-                            <div className={styles.detailEmpty}>No athletes are currently assigned to this coach.</div>
-                          )}
+                          <h4>Account actions</h4>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            {coach.user.status === "pending" && (
+                              <>
+                                <button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`}>Approve coach</button>
+                                <button onClick={() => reviewCoach(coach.id, "rejected")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Reject coach</button>
+                              </>
+                            )}
+                            {coach.user.status === "rejected" && (
+                              <>
+                                <button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`}>Reapprove coach</button>
+                                <button onClick={() => reviewCoach(coach.id, "delete")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Delete account</button>
+                              </>
+                            )}
+                            {(coach.user.status === "active" || coach.user.status === "inactive") && (
+                              <button onClick={() => reviewCoach(coach.id, "delete")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Remove coach</button>
+                            )}
+                            <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setOpenId(null)}>Close details</button>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </td>
                 </tr>
               )}
-            </React.Fragment>
-          ))}
+</React.Fragment>
+            ))}
           {coaches.length === 0 && (
-            <tr><td colSpan="6" className={styles.empty}>No coaches in this category.</td></tr>
+            <tr><td colSpan="7" className={styles.empty}>No coaches in this category.</td></tr>
           )}
         </tbody>
       </table>
