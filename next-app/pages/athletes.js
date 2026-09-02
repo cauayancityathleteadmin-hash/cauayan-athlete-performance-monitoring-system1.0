@@ -41,9 +41,10 @@ export async function getServerSideProps(context) {
   const page = Number(context.query.page) || 1;
   const sort = Object.keys(SORT_KEYS).includes(context.query.sort) ? context.query.sort : "name";
   const dir = context.query.dir === "desc" ? "desc" : "asc";
-  const health = ["healthy", "sick", "injured", "recovering", "inactive"].includes(context.query.health) ? context.query.health : "";
+  const health = ["flagged", "healthy", "sick", "injured", "recovering", "inactive"].includes(context.query.health) ? context.query.health : "";
   const student = { orderBy: athleteOrderBy(sort, dir), include: { school: true, sport: true, event: true, coach: true } };
-  if (health) student.where = { healthStatus: health };
+  if (health === "flagged") student.where = { healthStatus: { in: ["sick", "injured", "recovering", "inactive"] } };
+  else if (health) student.where = { healthStatus: health };
   if (session.user.role === "coach") {
     const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
     if (coach) student.where = { ...(student.where || {}), coachId: coach.id };
@@ -106,12 +107,13 @@ export default function Athletes({ session, athletes, catalog, page, totalPages,
             </label>
             <label>Filter by health
               <select value={health} onChange={(event) => router.push({ pathname: "/athletes", query: { ...router.query, health: event.target.value, page: 1 } })}>
-                <option value="">All health</option>
+<option value="">All health</option>
                 <option value="healthy">Healthy</option>
                 <option value="recovering">Recovering</option>
                 <option value="sick">Sick</option>
                 <option value="injured">Injured</option>
                 <option value="inactive">Inactive</option>
+                <option value="flagged">Any flagged health</option>
               </select>
             </label>
             <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={toggleDir}>{dir === "asc" ? "Ascending" : "Descending"}</button>
