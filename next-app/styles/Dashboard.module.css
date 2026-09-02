@@ -37,10 +37,11 @@
 }
 
 .brand img {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   object-fit: contain;
   flex-shrink: 0;
+  border-radius: 8px;
 }
 
 .brand .eyebrow {
