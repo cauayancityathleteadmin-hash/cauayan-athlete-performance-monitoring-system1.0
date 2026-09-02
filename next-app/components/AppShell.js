@@ -7,14 +7,12 @@ import styles from "../styles/Dashboard.module.css";
 
 const NAV_GROUPS = [
   {
-    label: "Overview",
+    label: "Main",
     links: [
       { href: "/dashboard", label: "Dashboard" },
       { href: "/athletes", label: "Athletes" },
-      { href: "/assessments", label: "Assessments" },
-      { href: "/training-sessions", label: "Training sessions" },
+      { href: "/training-sessions", label: "Training" },
       { href: "/event-plans", label: "Event plans" },
-      { href: "/analytics", label: "Analytics" },
       { href: "/reports", label: "Reports" },
     ],
   },
@@ -26,7 +24,7 @@ const NAV_GROUPS = [
       { href: "/admin/coach-accounts", label: "Coach accounts" },
       { href: "/admin/coach-performances", label: "Coach evaluations" },
       { href: "/admin/catalog", label: "Sports & Events" },
-      { href: "/admin/metrics", label: "Performance metrics" },
+      { href: "/admin/metrics", label: "Metrics" },
       { href: "/admin/audit-logs", label: "Audit logs" },
       { href: "/admin/backup", label: "Backup" },
     ],
