@@ -11,27 +11,28 @@ const NAV_GROUPS = [
     links: [
       { href: "/dashboard", label: "Dashboard" },
       { href: "/athletes", label: "Athletes" },
-      { href: "/reports", label: "Athlete reports" },
-      { href: "/admin/coaches", label: "Coaches", adminOnly: true },
       { href: "/assessments", label: "Assessments" },
+      { href: "/event-plans", label: "Event plans" },
       { href: "/analytics", label: "Analytics" },
-      { href: "/event-plans", label: "Sports event plans" },
+      { href: "/reports", label: "Reports" },
     ],
   },
   {
     label: "Administration",
+    adminOnly: true,
     links: [
-      { href: "/admin/catalog", label: "Sports & Events", adminOnly: true },
-      { href: "/admin/metrics", label: "Performance Metrics", adminOnly: true },
+      { href: "/admin/coaches", label: "Coaches" },
+      { href: "/admin/coach-accounts", label: "Coach accounts" },
+      { href: "/admin/catalog", label: "Sports & Events" },
+      { href: "/admin/metrics", label: "Performance metrics" },
+      { href: "/admin/audit-logs", label: "Audit logs" },
+      { href: "/admin/backup", label: "Backup" },
     ],
   },
   {
-    label: "Account & System",
+    label: "Account",
     links: [
       { href: "/account", label: "My account" },
-      { href: "/admin/coach-accounts", label: "Coach Accounts", adminOnly: true },
-      { href: "/admin/audit-logs", label: "Audit Logs", adminOnly: true },
-      { href: "/admin/backup", label: "Database Backup", adminOnly: true },
     ],
   },
 ];
@@ -54,7 +55,7 @@ export default function AppShell({
   const nav = (
     <nav className={styles.sidebar} aria-label="Primary navigation">
       {NAV_GROUPS.map((group) => {
-        const links = group.links.filter((link) => !link.adminOnly || isAdmin);
+        const links = group.adminOnly ? (isAdmin ? group.links : []) : group.links;
         if (!links.length) return null;
         return (
           <React.Fragment key={group.label}>
@@ -75,7 +76,7 @@ export default function AppShell({
       <header className={styles.topbar}>
         <div className={styles.brand}>
           <Link href="/dashboard" onClick={() => setOpen(false)}>
-            <img src="/cauayan logo.png" alt="Cauayan City" />
+            <img src="/sports-logo.svg" alt="Cauayan City Sports" />
             <div>
               <p className={styles.eyebrow}>{eyebrow}</p>
               <span className={styles.brandTitle}>{title}</span>

@@ -7,6 +7,10 @@
   --accent-hover: #5eead4;
   --muted: #86efac;
   --danger: #f87171;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --warning-dark: #d6b26e;
+  --brand: #cae47a;
   --font: "Trebuchet MS", "Segoe UI", sans-serif;
   --font-heading: "Trebuchet MS", "Segoe UI", sans-serif;
   --max-width: 1280px;

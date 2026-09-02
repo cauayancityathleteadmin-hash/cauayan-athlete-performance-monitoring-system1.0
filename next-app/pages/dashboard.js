@@ -36,7 +36,12 @@ export default function Dashboard({ stats, recentAssessments }) {
   return <>
     <Head><title>Dashboard | Cauayan Athlete Performance</title><meta name="description" content="Athlete performance monitoring dashboard" /></Head>
     <AppShell session={session} isAdmin={isAdmin} active="/dashboard">
-      <section className={styles.intro}><div><p className={styles.eyebrow}>Overview</p><h2>Good day, {session.user.name?.split(" ")[0] || "team"}.</h2><p>Track participation, assessments, and progress from one place.</p></div><Link className={styles.primary} href="/assessments">Record assessment</Link></section>
+      <section className={styles.intro}><div><p className={styles.eyebrow}>Overview</p><h2>Good day, {session.user.name?.split(" ")[0] || "team"}.</h2><p>Track participation, assessments, health, and progress from one place.</p></div><Link className={styles.primary} href="/assessments">Record assessment</Link></section>
+        <section className={styles.actionRow} style={{ marginBottom: 4 }}>
+          <Link className={styles.secondary} href="/athletes">Add athlete</Link>
+          <Link className={styles.secondary} href="/event-plans">Plan event</Link>
+          <Link className={styles.secondary} href="/analytics">View analytics</Link>
+        </section>
         <section className={styles.cards} aria-label="System totals">{cards.map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>
         {isAdmin && <section className={styles.cards} aria-label="Administration totals">{[["Sports", stats.sports, "/admin/catalog"], ["Events", stats.events, "/admin/catalog"], ["Audit entries", stats.logs, "/admin/audit-logs"]].map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>Manage</small></Link>)}</section>}
         <section className={styles.grid}><div className={styles.panel}><div className={styles.panelHeader}><div><p className={styles.eyebrow}>Monitoring</p><h2>Recent assessments</h2></div><Link href="/analytics">Open analytics</Link></div>{recentAssessments.length ? <div className={styles.tableWrap}><table><thead><tr><th>Athlete</th><th>Date</th><th>Type</th></tr></thead><tbody>{recentAssessments.map((assessment) => <tr key={assessment.id}><td><strong>{assessment.athlete.firstName} {assessment.athlete.lastName}</strong><small>{assessment.athlete.athleteCode}</small></td><td>{new Date(assessment.assessmentDate).toLocaleDateString()}</td><td>{assessment.assessmentType}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No assessments recorded yet.</p>}</div>

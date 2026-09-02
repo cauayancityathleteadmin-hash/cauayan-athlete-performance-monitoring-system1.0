@@ -27,7 +27,8 @@ export async function getServerSideProps(context) {
       },
       statusHistory: { orderBy: { changedAt: "asc" }, include: { changer: { select: { email: true } } } },
       coachHistory: { orderBy: { startedAt: "asc" }, include: { coach: { select: { firstName: true, lastName: true, coachCode: true } } } },
-      achievements: { orderBy: { achievementDate: "asc" } },
+achievements: { orderBy: { achievementDate: "asc" } },
+      healthLogs: { orderBy: { reportedAt: "desc" }, include: { reporter: { select: { username: true, email: true, coach: { select: { firstName: true, lastName: true } } } } } },
       participants: {
         where: { status: "active" },
         include: { eventPlan: { select: { id: true, eventName: true, startDate: true, endDate: true, status: true } }, sport: { select: { sportName: true } } },
@@ -165,6 +166,19 @@ function StatusBadge({ status }) {
   );
 }
 
+const HEALTH_META = {
+  healthy: { label: "Healthy", cls: "badgeActive" },
+  sick: { label: "Sick", cls: "badgeRejected" },
+  injured: { label: "Injured", cls: "badgeRejected" },
+  recovering: { label: "Recovering", cls: "badgePending" },
+  inactive: { label: "Inactive", cls: "badgeMuted" },
+};
+
+function HealthBadge({ status }) {
+  const meta = HEALTH_META[status] || { label: status || "—", cls: "badgeMuted" };
+  return <span className={`${styles.badge} ${styles[meta.cls]}`}>{meta.label}</span>;
+}
+
 function trendBadge(betterDirection, first, last) {
   if (!betterDirection || betterDirection === "neutral" || first === last) return { text: "No change", cls: styles.badgeMuted };
   const improved = betterDirection === "higher" ? last > first : last < first;
@@ -224,7 +238,7 @@ export default function AthleteProfile({ session, athlete, catalog }) {
             <button type="button" className={styles.secondary} onClick={() => setEditOpen(!editOpen)}>{editOpen ? "Cancel" : "Edit athlete"}</button>
           </div>
           {editOpen && <EditAthleteForm athlete={athlete} catalog={catalog} isAdmin={isAdmin} onDone={() => { setEditOpen(false); router.reload(); }} />}
-          <div className={styles.infoList}>
+<div className={styles.infoList}>
             <div><dt>Athlete code</dt><dd>{athlete.athleteCode}</dd></div>
             <div><dt>Gender</dt><dd>{athlete.gender || "—"}</dd></div>
             <div><dt>Birthdate</dt><dd>{fmtDate(athlete.birthdate)}</dd></div>
@@ -234,8 +248,32 @@ export default function AthleteProfile({ session, athlete, catalog }) {
             <div><dt>Coach</dt><dd>{athlete.coach ? `${athlete.coach.firstName} ${athlete.coach.lastName}` : "—"}</dd></div>
             <div><dt>Contact</dt><dd>{athlete.contactNumber || "—"}</dd></div>
             <div><dt>Email</dt><dd>{athlete.email || "—"}</dd></div>
+            <div><dt>Height</dt><dd>{athlete.height ? `${fmtNum(athlete.height)} cm` : "—"}</dd></div>
+            <div><dt>Weight</dt><dd>{athlete.weight ? `${fmtNum(athlete.weight)} kg` : "—"}</dd></div>
+            <div><dt>Health status</dt><dd><HealthBadge status={athlete.healthStatus} /></dd></div>
             <div><dt>Registered</dt><dd>{fmtDate(athlete.dateRegistered)}</dd></div>
           </div>
+        </section>
+
+        {/* Health tracking */}
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Wellness</p><h2>Health tracking</h2></div><span style={{ alignSelf: "center" }}><HealthBadge status={athlete.healthStatus} /></span></div>
+          <HealthForm athleteId={athlete.id} onComplete={() => router.reload()} />
+          {athlete.healthLogs?.length ? (
+            <div className={styles.tableWrap}><table>
+              <thead><tr><th>Status</th><th>Notes</th><th>Reported</th><th>By</th></tr></thead>
+              <tbody>
+                {athlete.healthLogs.map((h) => (
+                  <tr key={h.id}>
+                    <td><HealthBadge status={h.status} /></td>
+                    <td>{h.description || "—"}</td>
+                    <td>{fmtDate(h.reportedAt)}</td>
+                    <td>{healthReporterName(h.reporter)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table></div>
+          ) : <p className={styles.empty}>No health history recorded yet.</p>}
         </section>
 
         {/* Progress summary */}
@@ -503,6 +541,63 @@ function noteAuthorName(author) {
   return author.username || author.email || "System";
 }
 
+function healthReporterName(reporter) {
+  if (!reporter) return "System";
+  if (reporter.coach?.firstName || reporter.coach?.lastName) {
+    return `${reporter.coach.firstName || ""} ${reporter.coach.lastName || ""}`.trim();
+  }
+  return reporter.username || reporter.email || "System";
+}
+
+function HealthForm({ athleteId, onComplete }) {
+  const [status, setStatus] = React.useState("healthy");
+  const [description, setDescription] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [message, setMessage] = React.useState("");
+
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setMessage("");
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    const response = await fetch(`/api/athletes/${athleteId}/health`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+      body: JSON.stringify({ status, description: description.trim() }),
+    }).catch(() => null);
+    const result = response ? await response.json().catch(() => ({})) : {};
+    if (response && response.ok && !result.error) {
+      setDescription("");
+      setMessage(result.message || "Health status updated.");
+      onComplete();
+    } else {
+      setMessage(result.error || "Could not update health status.");
+    }
+    setBusy(false);
+  }
+
+  return (
+    <form onSubmit={submit} className={styles.formStack} style={{ marginBottom: 18 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <label style={{ flex: "0 0 auto" }}>Set health condition
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className={styles.fieldControl}>
+            <option value="healthy">Healthy</option>
+            <option value="recovering">Recovering</option>
+            <option value="sick">Sick</option>
+            <option value="injured">Injured</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </label>
+        <label style={{ flex: "1 1 200px", minWidth: 0 }}>Notes
+          <input name="description" className={styles.fieldControl} type="text" maxLength="2000" placeholder="e.g. recovering well from knee strain" value={description} onChange={(e) => setDescription(e.target.value)} />
+        </label>
+        <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Update health"}</button>
+      </div>
+      {message && <p role="status" className={styles.formHint}>{message}</p>}
+    </form>
+  );
+}
+
 function NoteForm({ athleteId, onComplete }) {
   const [note, setNote] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -587,8 +682,12 @@ function EditAthleteForm({ athlete, catalog, isAdmin, onDone }) {
           <label>Coach *<select name="coachId" className={styles.fieldControl} required defaultValue={athlete.coachId || ""}>{catalog?.coaches?.map((c) => <option value={c.id} key={c.id}>{c.firstName} {c.lastName} ({c.coachCode})</option>)}</select></label>
         )}
         <label>School<select name="schoolId" className={styles.fieldControl} value={schoolId} onChange={(e) => setSchoolId(e.target.value)}><option value="">Unassigned</option>{catalog?.schools?.map((s) => <option value={s.id} key={s.id}>{s.schoolName}</option>)}</select></label>
-        <label>Contact number<input name="contactNumber" className={styles.fieldControl} type="text" maxLength="30" defaultValue={athlete.contactNumber || ""} /></label>
+<label>Contact number<input name="contactNumber" className={styles.fieldControl} type="text" maxLength="30" defaultValue={athlete.contactNumber || ""} /></label>
         <label>Email<input name="email" className={styles.fieldControl} type="email" maxLength="191" defaultValue={athlete.email || ""} /></label>
+        <label>Height (cm)<input name="height" className={styles.fieldControl} type="number" step="0.01" min="1" max="300" defaultValue={athlete.height ?? ""} placeholder="e.g. 170" /></label>
+        <label>Weight (kg)<input name="weight" className={styles.fieldControl} type="number" step="0.01" min="1" max="300" defaultValue={athlete.weight ?? ""} placeholder="e.g. 60" /></label>
+        <label>Health status<select name="healthStatus" className={styles.fieldControl} defaultValue={athlete.healthStatus || "healthy"}><option value="healthy">Healthy</option><option value="recovering">Recovering</option><option value="sick">Sick</option><option value="injured">Injured</option><option value="inactive">Inactive</option></select></label>
+        <label className={styles.fullField}>Health notes<textarea name="healthNotes" className={styles.fieldControl} rows="2" maxLength="2000" defaultValue={athlete.healthNotes || ""} /></label>
         <label className={styles.fullField}>Address<textarea name="address" className={styles.fieldControl} rows="2" maxLength="2000" defaultValue={athlete.address || ""} /></label>
       </div>
       <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Save changes"}</button>

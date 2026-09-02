@@ -41,10 +41,12 @@ export async function getServerSideProps(context) {
   const page = Number(context.query.page) || 1;
   const sort = Object.keys(SORT_KEYS).includes(context.query.sort) ? context.query.sort : "name";
   const dir = context.query.dir === "desc" ? "desc" : "asc";
+  const health = ["healthy", "sick", "injured", "recovering", "inactive"].includes(context.query.health) ? context.query.health : "";
   const student = { orderBy: athleteOrderBy(sort, dir), include: { school: true, sport: true, event: true, coach: true } };
+  if (health) student.where = { healthStatus: health };
   if (session.user.role === "coach") {
     const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
-    if (coach) student.where = { coachId: coach.id };
+    if (coach) student.where = { ...(student.where || {}), coachId: coach.id };
   }
   const [athleteResult, sports, events, coaches] = await Promise.all([
     paginatePrisma(prisma.athlete, page, student),
@@ -53,10 +55,10 @@ export async function getServerSideProps(context) {
     session.user.role === "admin" ? prisma.coach.findMany({ where: { status: "active" }, orderBy: { lastName: "asc" }, select: { id: true, coachCode: true, firstName: true, lastName: true, schoolId: true, school: { select: { schoolName: true } } } }) : Promise.resolve([]),
   ]);
   const athletes = athleteResult.items.map((athlete) => ({ ...athlete, birthdate: athlete.birthdate.toISOString(), dateRegistered: athlete.dateRegistered.toISOString() }));
-  return { props: { session, catalog: { sports, events, coaches }, athletes, page: athleteResult.page, totalPages: athleteResult.totalPages, total: athleteResult.total, sort, dir } };
+  return { props: { session, catalog: { sports, events, coaches }, athletes, page: athleteResult.page, totalPages: athleteResult.totalPages, total: athleteResult.total, sort, dir, health } };
 }
 
-export default function Athletes({ session, athletes, catalog, page, totalPages, total, sort, dir }) {
+export default function Athletes({ session, athletes, catalog, page, totalPages, total, sort, dir, health }) {
   const isAdmin = session?.user?.role === "admin";
   const [view, setView] = React.useState("list");
   const router = useRouter();
@@ -102,9 +104,19 @@ export default function Athletes({ session, athletes, catalog, page, totalPages,
                 {Object.entries(SORT_KEYS).filter(([key]) => isAdmin || key !== "coach").map(([key, label]) => <option value={key} key={key}>{label}</option>)}
               </select>
             </label>
+            <label>Filter by health
+              <select value={health} onChange={(event) => router.push({ pathname: "/athletes", query: { ...router.query, health: event.target.value, page: 1 } })}>
+                <option value="">All health</option>
+                <option value="healthy">Healthy</option>
+                <option value="recovering">Recovering</option>
+                <option value="sick">Sick</option>
+                <option value="injured">Injured</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </label>
             <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={toggleDir}>{dir === "asc" ? "Ascending" : "Descending"}</button>
           </div>
-          <div className={styles.tableWrap}><table><thead><tr><th>Code</th><th>Athlete</th><th>Sport / event</th><th>School</th><th>Coach</th><th>Status</th><th>Registered</th><th></th></tr></thead><tbody>
+          <div className={styles.tableWrap}><table><thead><tr><th>Code</th><th>Athlete</th><th>Sport / event</th><th>School</th><th>Coach</th><th>Health</th><th>Status</th><th>Registered</th><th></th></tr></thead><tbody>
             {athletes.map((athlete) => (
               <tr key={athlete.id}>
                 <td>{athlete.athleteCode}</td>
@@ -112,13 +124,14 @@ export default function Athletes({ session, athletes, catalog, page, totalPages,
                 <td>{athlete.sport.sportName}<small>{athlete.event?.eventName || "No event"}</small></td>
                 <td>{athlete.school?.schoolName || "Unassigned"}</td>
                 <td>{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
+                <td><HealthBadge status={athlete.healthStatus} /></td>
                 <td><StatusBadge status={athlete.status} /></td>
                 <td>{formatDate(athlete.dateRegistered)}</td>
                 <td><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
               </tr>
             ))}
           </tbody></table></div>
-          <Pagination page={page} totalPages={totalPages} query={{ sort, dir }} />
+          <Pagination page={page} totalPages={totalPages} query={{ sort, dir, health }} />
         </section>
       </AppShell>
     </>
@@ -130,6 +143,19 @@ function StatusBadge({ status }) {
   if (value === "active") return <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span>;
   if (value === "inactive") return <span className={`${styles.badge} ${styles.badgeMuted}`}>Inactive</span>;
   return <span className={`${styles.badge} ${styles.badgeMuted}`}>{status || "—"}</span>;
+}
+
+const HEALTH_META = {
+  healthy: { label: "Healthy", cls: "badgeActive" },
+  sick: { label: "Sick", cls: "badgeRejected" },
+  injured: { label: "Injured", cls: "badgeRejected" },
+  recovering: { label: "Recovering", cls: "badgePending" },
+  inactive: { label: "Inactive", cls: "badgeMuted" },
+};
+
+function HealthBadge({ status }) {
+  const meta = HEALTH_META[status] || { label: status || "—", cls: "badgeMuted" };
+  return <span className={`${styles.badge} ${styles[meta.cls]}`}>{meta.label}</span>;
 }
 
 function AthleteForm({ catalog, isAdmin, onDone }) {
@@ -173,6 +199,9 @@ function AthleteForm({ catalog, isAdmin, onDone }) {
       <label>School<input name="school" maxLength="191" placeholder="Enter school name" /></label>
       <label>Contact number<input name="contactNumber" maxLength="30" /></label>
       <label>Email<input name="email" type="email" maxLength="191" /></label>
+      <label>Height (cm)<input name="height" type="number" step="0.01" min="1" max="300" placeholder="e.g. 170" /></label>
+      <label>Weight (kg)<input name="weight" type="number" step="0.01" min="1" max="300" placeholder="e.g. 60" /></label>
+      <label>Health status<select name="healthStatus" defaultValue="healthy"><option value="healthy">Healthy</option><option value="recovering">Recovering</option><option value="sick">Sick</option><option value="injured">Injured</option><option value="inactive">Inactive</option></select></label>
       <label className={styles.fullField}>Address<textarea name="address" maxLength="2000" /></label>
       <div className={styles.formActions}>
         <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Register athlete"}</button>

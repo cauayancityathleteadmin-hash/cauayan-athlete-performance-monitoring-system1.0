@@ -78,6 +78,15 @@ async function updateAthlete(req, res, session, id) {
     return res.status(400).json({ error: "Provide a valid birthdate (YYYY-MM-DD)." });
   }
 
+  const height = body.height !== undefined && body.height !== "" ? Number(body.height) : undefined;
+  const weight = body.weight !== undefined && body.weight !== "" ? Number(body.weight) : undefined;
+  if (height !== undefined && (!Number.isFinite(height) || height <= 0 || height > 300)) {
+    return res.status(400).json({ error: "Provide a valid height in centimeters (e.g. 170)." });
+  }
+  if (weight !== undefined && (!Number.isFinite(weight) || weight <= 0 || weight > 300)) {
+    return res.status(400).json({ error: "Provide a valid weight in kilograms (e.g. 60)." });
+  }
+
   const [sport, event, coach] = await Promise.all([
     prisma.sport.findUnique({ where: { id: sportId }, select: { id: true, status: true } }),
     eventId ? prisma.event.findUnique({ where: { id: eventId }, select: { id: true, sportId: true } }) : null,
@@ -110,6 +119,10 @@ async function updateAthlete(req, res, session, id) {
         contactNumber: body.contactNumber !== undefined ? (text(body.contactNumber, 30) || null) : undefined,
         email: body.email !== undefined ? (validateEmail(body.email) || null) : undefined,
         address: body.address !== undefined ? (text(body.address, 2000) || null) : undefined,
+        height,
+        weight,
+        healthStatus: body.healthStatus !== undefined && ["healthy", "sick", "injured", "recovering", "inactive"].includes(body.healthStatus) ? body.healthStatus : undefined,
+        healthNotes: body.healthNotes !== undefined ? (text(body.healthNotes, 2000) || null) : undefined,
         schoolId,
         sportId,
         eventId,

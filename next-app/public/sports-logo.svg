@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120" role="img" aria-label="Cauayan City Sports">
+  <defs>
+    <linearGradient id="badgeBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f473a"/>
+      <stop offset="100%" stop-color="#06261e"/>
+    </linearGradient>
+    <linearGradient id="flame" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5eead4"/>
+      <stop offset="55%" stop-color="#2dd4a8"/>
+      <stop offset="100%" stop-color="#14b8a6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Shield -->
+  <path d="M50 2 L94 16 V54 C94 82 76 98 50 116 C24 98 6 82 6 54 V16 Z" fill="url(#badgeBg)" stroke="#2dd4a8" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M50 10 L86 21.5 V54 C86 77 71 91 50 106 C29 91 14 77 14 54 V21.5 Z" fill="none" stroke="#1a5c4a" stroke-width="1.5" stroke-linejoin="round"/>
+
+  <!-- Three stars (competition tiers) -->
+  <g fill="#cae47a">
+    <path d="M50 16 L51.9 22.2 L58.4 21.6 L53.5 26.1 L55.2 32.4 L50 28.6 L44.8 32.4 L46.5 26.1 L41.6 21.6 L48.1 22.2 Z"/>
+    <path d="M29.5 24 L30.6 27.7 L34.6 27.3 L31.5 30.2 L32.5 34 L29.5 31.7 L26.5 34 L27.5 30.2 L24.4 27.3 L28.4 27.7 Z"/>
+    <path d="M70.5 24 L71.6 27.7 L75.6 27.3 L72.5 30.2 L73.5 34 L70.5 31.7 L67.5 34 L68.5 30.2 L65.4 27.3 L69.4 27.7 Z"/>
+  </g>
+
+  <!-- Running athlete -->
+  <g stroke="url(#flame)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- head -->
+    <circle cx="34" cy="46" r="5" fill="url(#flame)" stroke="none"/>
+    <!-- torso -->
+    <path d="M33.5 53 C32 60 29 68 25 75"/>
+    <!-- front arm -->
+    <path d="M37 59 C43 56 48 52 52 48"/>
+    <!-- back arm -->
+    <path d="M31 57 C25 55 21 53 17 51"/>
+    <!-- front leg -->
+    <path d="M25 75 C31 82 36 88 40 93 C43 96 47 97 51 96"/>
+    <!-- back leg -->
+    <path d="M25 75 C19 80 14 85 11 90"/>
+  </g>
+
+  <!-- Ground -->
+  <path d="M14 100 Q50 104 86 100" stroke="#2dd4a8" stroke-width="2.5" fill="none" opacity="0.7"/>
+
+  <!-- Ribbon text -->
+  <path id="ribbonPath" d="M22 112 H78" stroke="none" fill="none"/>
+  <text font-family="Trebuchet MS, Segoe UI, sans-serif" font-size="9.5" font-weight="800" letter-spacing="2.2" fill="#f0fdf4" text-anchor="middle" x="50" y="110.5">CAUAYAN SPORTS</text>
+</svg>

@@ -32,10 +32,10 @@ export default function Login() {
 
   return (
     <main className="login-page">
-      <img src="/cauayan logo.png" alt="Cauayan City" className="logo" />
+      <img src="/sports-logo.svg" alt="Cauayan City Sports" className="logo" />
       <p className="auth-kicker">Cauayan City</p>
-      <h1>Athlete Performance</h1>
-      <p className="auth-subtitle">Secure monitoring system</p>
+      <h1>Athlete Performance System</h1>
+      <p className="auth-subtitle">Secure monitoring platform</p>
       <form onSubmit={submit} noValidate>
         <label htmlFor="identifier">Username, email, or coach code</label>
         <input
