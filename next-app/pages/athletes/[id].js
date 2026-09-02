@@ -29,10 +29,18 @@ export async function getServerSideProps(context) {
       coachHistory: { orderBy: { startedAt: "asc" }, include: { coach: { select: { firstName: true, lastName: true, coachCode: true } } } },
 achievements: { orderBy: { achievementDate: "asc" } },
       healthLogs: { orderBy: { reportedAt: "desc" }, include: { reporter: { select: { username: true, email: true, coach: { select: { firstName: true, lastName: true } } } } } },
-      participants: {
+participants: {
         where: { status: "active" },
         include: { eventPlan: { select: { id: true, eventName: true, startDate: true, endDate: true, status: true } }, sport: { select: { sportName: true } } },
         orderBy: { createdAt: "desc" },
+      },
+      trainingPlans: {
+        include: { plan: { select: { id: true, planName: true, frequency: true, startDate: true, endDate: true, status: true, sport: { select: { sportName: true } }, coach: { select: { firstName: true, lastName: true } } } } },
+        orderBy: { plan: { startDate: "desc" } },
+      },
+      trainingAssessments: {
+        orderBy: { assessmentDate: "desc" },
+        include: { plan: { select: { id: true, planName: true } }, assessor: { select: { username: true, email: true } } },
       },
     },
   });
@@ -412,7 +420,7 @@ export default function AthleteProfile({ session, athlete, catalog }) {
           ) : <p className={styles.empty}>No coaching notes yet.</p>}
         </section>
 
-        {/* Events participated */}
+{/* Participation: events by the athlete */}
         <section className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Participation</p><h2>Events participated</h2></div></div>
           {athlete.participants?.length ? (
@@ -430,6 +438,47 @@ export default function AthleteProfile({ session, athlete, catalog }) {
               </tbody>
             </table></div>
           ) : <p className={styles.empty}>Not enrolled in any events yet.</p>}
+        </section>
+
+        {/* Training plans & assessments */}
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Training plan &amp; assessments</h2></div><Link href="/training-plans">Open training</Link></div>
+          <div className={styles.grid}>
+            <div className={styles.detailPanel}>
+              <h4>Training plans</h4>
+              {athlete.trainingPlans?.length ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {athlete.trainingPlans.map((tpl) => (
+                    <div key={tpl.id} className={styles.detailPanel} style={{ padding: 10 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
+                        <strong style={{ fontSize: 13 }}>{tpl.plan?.planName || "—"}</strong>
+                        <small style={{ color: "var(--muted)", fontSize: 12, textTransform: "capitalize" }}>{tpl.plan?.frequency || "—"}</small>
+                      </div>
+                      <small style={{ display: "block", color: "var(--muted)", fontSize: 12 }}>{tpl.plan?.sport?.sportName || ""}{tpl.plan?.startDate ? ` · ${fmtDate(tpl.plan.startDate)}` : ""}{tpl.plan?.endDate ? ` – ${fmtDate(tpl.plan.endDate)}` : ""}</small>
+                      {tpl.plan?.status === "completed" ? <span className={`${styles.badge} ${styles.badgeMuted}`}>Completed</span> : <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span>}
+                    </div>
+                  ))}
+                </div>
+              ) : <p className={styles.empty}>Not on any training plans yet.</p>}
+            </div>
+            <div className={styles.detailPanel}>
+              <h4>Assessment history</h4>
+              {athlete.trainingAssessments?.length ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {athlete.trainingAssessments.map((a) => (
+                    <div key={a.id} className={styles.detailPanel} style={{ padding: 10 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                        <strong style={{ fontSize: 13 }}>{fmtDate(a.assessmentDate)}</strong>
+                        <span className={`${styles.badge} ${a.rating >= 4 ? styles.badgeActive : styles.badgePending}`}>{a.rating}/5</span>
+                      </div>
+                      {a.plan?.planName && <small style={{ display: "block", color: "var(--accent)", fontSize: 12 }}>{a.plan.planName}</small>}
+                      {a.comments && <small style={{ display: "block", color: "var(--muted)", fontSize: 12 }}>{a.comments}</small>}
+                    </div>
+                  ))}
+                </div>
+              ) : <p className={styles.empty}>No training assessments recorded yet.</p>}
+            </div>
+          </div>
         </section>
       </AppShell>
     </>

@@ -11,7 +11,7 @@ const NAV_GROUPS = [
     links: [
       { href: "/dashboard", label: "Dashboard" },
       { href: "/athletes", label: "Athletes" },
-      { href: "/training-sessions", label: "Training" },
+      { href: "/training-plans", label: "Training" },
       { href: "/event-plans", label: "Event plans" },
       { href: "/reports", label: "Reports" },
     ],

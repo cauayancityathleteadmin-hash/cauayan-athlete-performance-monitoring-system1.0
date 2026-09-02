@@ -129,6 +129,7 @@ model User {
   healthLogsResolved    HealthLog[]            @relation("HealthLogResolver")
   trainingPerformances  ExercisePerformance[]  @relation("PerformanceRecorder")
   coachPerformanceEvals CoachPerformance[]     @relation("CoachPerformanceEvaluator")
+  trainingAssessments   TrainingAssessment[]   @relation("TrainingAssessor")
   @@map("users")
   @@index([role, status])
 }
@@ -196,6 +197,7 @@ model Coach {
   participants         EventParticipant[]
   trainingSessions     TrainingSession[]
   performances         CoachPerformance[]
+  trainingPlans        TrainingPlan[]
   @@map("coaches")
   @@index([schoolId, status])
 }
@@ -212,6 +214,7 @@ model Sport {
   athletes    Athlete[]
   participants EventParticipant[]
   trainingSessions TrainingSession[]
+  trainingPlans    TrainingPlan[]
   @@map("sports")
 }
 
@@ -277,6 +280,8 @@ model Athlete {
   healthLogs     HealthLog[]
   trainingPerformances ExercisePerformance[]
   trainingAttendances TrainingAttendance[]
+  trainingPlans       TrainingPlanAthlete[]
+  trainingAssessments TrainingAssessment[]
   @@map("athletes")
   @@index([coachId, status])
   @@index([sportId, eventId])
@@ -500,15 +505,19 @@ model TrainingSession {
   coachId         Int                    @map("coach_id")
   venue           String?
   notes           String?
+  planId          Int?                   @map("plan_id")
   createdAt       DateTime               @default(now()) @map("created_at")
   updatedAt       DateTime               @updatedAt @map("updated_at")
   sport           Sport                  @relation(fields: [sportId], references: [id])
   coach           Coach                  @relation(fields: [coachId], references: [id])
+  plan            TrainingPlan?          @relation(fields: [planId], references: [id], onDelete: SetNull)
   exercises       TrainingExercise[]
   attendances     TrainingAttendance[]
+  assessments     TrainingAssessment[]
   @@map("training_sessions")
   @@index([coachId, sessionDate])
   @@index([sportId, sessionDate])
+  @@index([planId])
 }
 
 model TrainingExercise {
@@ -572,6 +581,57 @@ model TrainingAttendance {
   performances  ExercisePerformance[]
   @@unique([sessionId, athleteId])
   @@map("training_attendances")
+}
+
+model TrainingPlan {
+  id          Int                    @id @default(autoincrement())
+  planName    String                 @map("plan_name")
+  description String?
+  sportId     Int                    @map("sport_id")
+  coachId     Int                    @map("coach_id")
+  frequency   String                 @default("day") @map("frequency")
+  startDate   DateTime               @map("start_date")
+  endDate     DateTime?              @map("end_date")
+  status      String                 @default("active") @map("status")
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
+  sport       Sport                  @relation(fields: [sportId], references: [id])
+  coach       Coach                  @relation(fields: [coachId], references: [id])
+  athletes    TrainingPlanAthlete[]
+  assessments TrainingAssessment[]
+  sessions    TrainingSession[]
+  @@map("training_plans")
+  @@index([coachId, startDate])
+  @@index([sportId, startDate])
+}
+
+model TrainingPlanAthlete {
+  id        Int      @id @default(autoincrement())
+  planId    Int      @map("plan_id")
+  athleteId Int      @map("athlete_id")
+  plan      TrainingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  athlete   Athlete   @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  @@unique([planId, athleteId])
+  @@map("training_plan_athletes")
+  @@index([athleteId])
+}
+
+model TrainingAssessment {
+  id             Int            @id @default(autoincrement())
+  planId         Int?           @map("plan_id")
+  sessionId      Int?           @map("session_id")
+  athleteId      Int            @map("athlete_id")
+  assessmentDate DateTime       @default(now()) @map("assessment_date")
+  rating         Int            @map("rating")
+  comments       String?
+  assessedBy     Int            @map("assessed_by")
+  plan           TrainingPlan?  @relation(fields: [planId], references: [id], onDelete: Cascade)
+  session        TrainingSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  athlete        Athlete        @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  assessor       User           @relation("TrainingAssessor", fields: [assessedBy], references: [id])
+  @@map("training_assessments")
+  @@index([athleteId, assessmentDate])
+  @@index([planId])
 }
 
 model CoachPerformance {
