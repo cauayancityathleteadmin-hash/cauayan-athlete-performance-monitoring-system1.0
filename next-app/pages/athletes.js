@@ -4,7 +4,6 @@ import React from "react";
 import { useRouter } from "next/router";
 import { getSession } from "next-auth/react";
 import { prisma } from "../lib/prisma";
-import { paginatePrisma } from "../lib/pagination";
 import Pagination from "../components/Pagination";
 import AppShell from "../components/AppShell";
 import styles from "../styles/Dashboard.module.css";
@@ -49,19 +48,22 @@ export async function getServerSideProps(context) {
     const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
     if (coach) student.where = { ...(student.where || {}), coachId: coach.id };
   }
-  const [athleteResult, sports, events, coaches] = await Promise.all([
-    paginatePrisma(prisma.athlete, page, student),
+  const [allAthletes, sports, events, coaches] = await Promise.all([
+    prisma.athlete.findMany({ ...student, orderBy: [{ sport: { sportName: "asc" } }, { lastName: "asc" }, { firstName: "asc" }] }),
     prisma.sport.findMany({ where: { status: "active" }, orderBy: { sportName: "asc" } }),
     prisma.event.findMany({ where: { status: "active" }, include: { sport: true }, orderBy: { eventName: "asc" } }),
     session.user.role === "admin" ? prisma.coach.findMany({ where: { status: "active" }, orderBy: { lastName: "asc" }, select: { id: true, coachCode: true, firstName: true, lastName: true, schoolId: true, school: { select: { schoolName: true } } } }) : Promise.resolve([]),
   ]);
-  const athletes = athleteResult.items.map((athlete) => ({ ...athlete, birthdate: athlete.birthdate.toISOString(), dateRegistered: athlete.dateRegistered.toISOString() }));
-  return { props: { session, catalog: { sports, events, coaches }, athletes, page: athleteResult.page, totalPages: athleteResult.totalPages, total: athleteResult.total, sort, dir, health } };
+  const athletes = allAthletes.map((athlete) => ({ ...athlete, birthdate: athlete.birthdate.toISOString(), dateRegistered: athlete.dateRegistered.toISOString() }));
+  const perPage = 25;
+  const totalPages = Math.max(1, Math.ceil(athletes.length / perPage));
+  const paginated = athletes.slice((page - 1) * perPage, page * perPage);
+  return { props: { session, catalog: { sports, events, coaches }, athletes, paginated, page: Math.min(page, totalPages), totalPages, total: athletes.length, sort, dir, health } };
 }
 
-export default function Athletes({ session, athletes, catalog, page, totalPages, total, sort, dir, health }) {
+export default function Athletes({ session, athletes, paginated, catalog, page, totalPages, total, sort, dir, health }) {
   const isAdmin = session?.user?.role === "admin";
-  const [view, setView] = React.useState("list");
+  const [view, setView] = React.useState("sport");
   const router = useRouter();
 
   function changeSort(nextSort) {
@@ -77,64 +79,112 @@ export default function Athletes({ session, athletes, catalog, page, totalPages,
     return isNaN(date) ? "—" : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
   }
 
+  const grouped = React.useMemo(() => {
+    const map = new Map();
+    for (const athlete of athletes) {
+      const sport = athlete.sport?.sportName || "Unassigned";
+      if (!map.has(sport)) map.set(sport, []);
+      map.get(sport).push(athlete);
+    }
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [athletes]);
+
   return (
     <>
       <Head><title>Athletes | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Directory" title="Athletes" active="/athletes">
         <div className={styles.pageActions}>
-          <button className={view === "add" ? `${styles.primary} ${styles.btnSm}` : styles.primary} onClick={() => setView(view === "add" ? "list" : "add")}>{view === "add" ? "Close form" : "Add athlete"}</button>
-          <button className={view === "import" ? `${styles.secondary} ${styles.btnSm}` : styles.secondary} onClick={() => setView(view === "import" ? "list" : "import")}>{view === "import" ? "Close import" : "Import athletes"}</button>
+          <div className={styles.segmented}>
+            <button className={view === "sport" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("sport")}>By sport</button>
+            <button className={view === "list" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("list")}>List</button>
+          </div>
+          <button className={view === "add" ? `${styles.primary} ${styles.btnSm}` : styles.primary} onClick={() => setView(view === "add" ? "sport" : "add")}>{view === "add" ? "Close form" : "Add athlete"}</button>
+          <button className={view === "import" ? `${styles.secondary} ${styles.btnSm}` : styles.secondary} onClick={() => setView(view === "import" ? "sport" : "import")}>{view === "import" ? "Close import" : "Import athletes"}</button>
         </div>
 
         {view === "add" && (
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registration</p><h2>Add athlete</h2></div></div>
-            <AthleteForm catalog={catalog} isAdmin={isAdmin} onDone={() => setView("list")} />
+            <AthleteForm catalog={catalog} isAdmin={isAdmin} onDone={() => setView("sport")} />
           </section>
         )}
 
         {view === "import" && (
-          <ImportPanel isAdmin={isAdmin} onDone={() => setView("list")} />
+          <ImportPanel isAdmin={isAdmin} onDone={() => setView("sport")} />
         )}
 
-        <section className={styles.panel}>
-          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registered athletes</p><h2>All athletes</h2></div></div>
-          <div className={styles.toolbar}>
-            <label>Sort athletes by
-              <select value={sort} onChange={(event) => changeSort(event.target.value)}>
-                {Object.entries(SORT_KEYS).filter(([key]) => isAdmin || key !== "coach").map(([key, label]) => <option value={key} key={key}>{label}</option>)}
-              </select>
-            </label>
-            <label>Filter by health
-              <select value={health} onChange={(event) => router.push({ pathname: "/athletes", query: { ...router.query, health: event.target.value, page: 1 } })}>
+        {view === "list" && (
+          <section className={styles.panel}>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registered athletes</p><h2>All athletes</h2></div></div>
+            <div className={styles.toolbar}>
+              <label>Sort athletes by
+                <select value={sort} onChange={(event) => changeSort(event.target.value)}>
+                  {Object.entries(SORT_KEYS).filter(([key]) => isAdmin || key !== "coach").map(([key, label]) => <option value={key} key={key}>{label}</option>)}
+                </select>
+              </label>
+              <label>Filter by health
+                <select value={health} onChange={(event) => router.push({ pathname: "/athletes", query: { ...router.query, health: event.target.value, page: 1 } })}>
 <option value="">All health</option>
-                <option value="healthy">Healthy</option>
-                <option value="recovering">Recovering</option>
-                <option value="sick">Sick</option>
-                <option value="injured">Injured</option>
-                <option value="inactive">Inactive</option>
-                <option value="flagged">Any flagged health</option>
-              </select>
-            </label>
-            <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={toggleDir}>{dir === "asc" ? "Ascending" : "Descending"}</button>
-          </div>
-          <div className={styles.tableWrap}><table><thead><tr><th>Code</th><th>Athlete</th><th>Sport / event</th><th>School</th><th>Coach</th><th>Health</th><th>Status</th><th>Registered</th><th></th></tr></thead><tbody>
-            {athletes.map((athlete) => (
-              <tr key={athlete.id}>
-                <td>{athlete.athleteCode}</td>
-                <td><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></td>
-                <td>{athlete.sport.sportName}<small>{athlete.event?.eventName || "No event"}</small></td>
-                <td>{athlete.school?.schoolName || "Unassigned"}</td>
-                <td>{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
-                <td><HealthBadge status={athlete.healthStatus} /></td>
-                <td><StatusBadge status={athlete.status} /></td>
-                <td>{formatDate(athlete.dateRegistered)}</td>
-                <td><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
-              </tr>
-            ))}
-          </tbody></table></div>
-          <Pagination page={page} totalPages={totalPages} query={{ sort, dir, health }} />
-        </section>
+                  <option value="healthy">Healthy</option>
+                  <option value="recovering">Recovering</option>
+                  <option value="sick">Sick</option>
+                  <option value="injured">Injured</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="flagged">Any flagged health</option>
+                </select>
+              </label>
+              <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={toggleDir}>{dir === "asc" ? "Ascending" : "Descending"}</button>
+            </div>
+            <div className={styles.tableWrap}><table><thead><tr><th>Code</th><th>Athlete</th><th>Sport / event</th><th>School</th><th>Coach</th><th>Health</th><th>Status</th><th></th></tr></thead><tbody>
+              {paginated.map((athlete) => (
+                <tr key={athlete.id}>
+                  <td>{athlete.athleteCode}</td>
+                  <td><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></td>
+                  <td>{athlete.sport.sportName}<small>{athlete.event?.eventName || "No event"}</small></td>
+                  <td>{athlete.school?.schoolName || "Unassigned"}</td>
+                  <td>{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
+                  <td><HealthBadge status={athlete.healthStatus} /></td>
+                  <td><StatusBadge status={athlete.status} /></td>
+                  <td><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
+                </tr>
+              ))}
+            </tbody></table></div>
+            <Pagination page={page} totalPages={totalPages} query={{ sort, dir, health }} />
+          </section>
+        )}
+
+        {view === "sport" && (
+          <section className={styles.panel}>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Roster by sport</p><h2>{isAdmin ? "All athletes by sport" : "My athletes by sport"}</h2></div><span className={styles.formHint} style={{ alignSelf: "center" }}>{total} athlete{total === 1 ? "" : "s"}</span></div>
+            {isAdmin && (
+              <div className={styles.infoList} style={{ marginBottom: 2 }}>
+                <div><dt>Coaches</dt><dd>{catalog.coaches.length ? catalog.coaches.map((c) => c.firstName + " " + c.lastName).join(", ") : "None registered"}</dd></div>
+              </div>
+            )}
+            {grouped.length ? grouped.map(([sportName, roster]) => (
+              <div key={sportName} style={{ marginBottom: 22 }}>
+                <h3 className={styles.sectionTitle}>{sportName} <span className={styles.formHint}>({roster.length})</span></h3>
+                <div className={styles.tableWrap}><table>
+                  <thead><tr><th>Code</th><th>Athlete</th><th>Event / discipline</th><th>School</th><th>Coach</th><th>Health</th><th>Status</th><th></th></tr></thead>
+                  <tbody>
+                    {roster.map((athlete) => (
+                      <tr key={athlete.id}>
+                        <td>{athlete.athleteCode}</td>
+                        <td><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></td>
+                        <td>{athlete.event?.eventName || "No event"}</td>
+                        <td>{athlete.school?.schoolName || "Unassigned"}</td>
+                        <td>{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
+                        <td><HealthBadge status={athlete.healthStatus} /></td>
+                        <td><StatusBadge status={athlete.status} /></td>
+                        <td><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table></div>
+              </div>
+            )) : <p className={styles.empty}>No athletes registered yet.</p>}
+          </section>
+        )}
       </AppShell>
     </>
   );

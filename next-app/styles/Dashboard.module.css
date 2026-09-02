@@ -723,6 +723,20 @@
   align-items: center;
 }
 
+.segmented {
+  display: inline-flex;
+  gap: 6px;
+  margin-right: auto;
+}
+
+.sectionTitle {
+  margin: 0 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 16px;
+  color: var(--accent);
+}
+
 /* ===== Import panel (old local-system bulk import logic) ===== */
 .importBox {
   border: 1px solid var(--border);
