@@ -12,6 +12,7 @@ const NAV_GROUPS = [
       { href: "/dashboard", label: "Dashboard" },
       { href: "/athletes", label: "Athletes" },
       { href: "/assessments", label: "Assessments" },
+      { href: "/training-sessions", label: "Training sessions" },
       { href: "/event-plans", label: "Event plans" },
       { href: "/analytics", label: "Analytics" },
       { href: "/reports", label: "Reports" },
@@ -23,6 +24,7 @@ const NAV_GROUPS = [
     links: [
       { href: "/admin/coaches", label: "Coaches" },
       { href: "/admin/coach-accounts", label: "Coach accounts" },
+      { href: "/admin/coach-performances", label: "Coach evaluations" },
       { href: "/admin/catalog", label: "Sports & Events" },
       { href: "/admin/metrics", label: "Performance metrics" },
       { href: "/admin/audit-logs", label: "Audit logs" },

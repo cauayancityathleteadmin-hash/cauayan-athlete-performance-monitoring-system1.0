@@ -51,6 +51,32 @@ export default function AdminCoachAccounts({ coaches, session }) {
     }
   }
 
+  async function toggleApproval(coach) {
+    const next = !coach.canApproveCoaches;
+    if (!window.confirm(`${next ? "Grant" : "Revoke"} coach application approval rights for ${coach.firstName} ${coach.lastName} (${coach.coachCode})?\n\nCoaches with approval rights can approve pending coach applications.`)) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/admin/coaches/approval-rights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify({ coachId: coach.id, canApproveCoaches: next }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.error) {
+        setMessage({ kind: "error", text: result.error || "Could not update approval rights." });
+      } else {
+        coach.canApproveCoaches = result.canApproveCoaches;
+        setMessage({ kind: "success", text: `${coach.firstName} ${coach.lastName} ${result.canApproveCoaches ? "can now" : "can no longer"} approve coach applications.` });
+      }
+    } catch (err) {
+      setMessage({ kind: "error", text: "Unable to reach the server. Please try again later." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function resetSelected() {
     if (!selectedActive.length) return;
     if (!window.confirm(`Reset ${selectedActive.length} coach account(s) to the default password and email each one?\n\nThey will be required to change their password on next login.`)) return;
@@ -123,6 +149,7 @@ export default function AdminCoachAccounts({ coaches, session }) {
                   <th>Email</th>
                   <th>School</th>
                   <th>Sports</th>
+                  <th>Approves coaches</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -147,11 +174,20 @@ export default function AdminCoachAccounts({ coaches, session }) {
                       <td>
                         {coach.sports.length ? coach.sports.map((cs) => <span key={cs.sportId} className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)", margin: "2px 4px 2px 0" }}>{cs.sport.sportName}</span>) : <span style={{ color: "var(--muted)", fontSize: 12 }}>No sports</span>}
                       </td>
+                      <td>
+                        {coach.user.status === "active" ? (
+                          <button type="button" className={styles.badge} disabled={busy} onClick={() => toggleApproval(coach)} style={{ cursor: "pointer", background: coach.canApproveCoaches ? "rgba(45,212,168,.18)" : "rgba(157,182,199,.14)", color: coach.canApproveCoaches ? "var(--accent)" : "var(--foreground)", border: "none" }}>
+                            {coach.canApproveCoaches ? "Yes ✓" : "No"}
+                          </button>
+                        ) : (
+                          <span style={{ color: "var(--muted)", fontSize: 12 }}>—</span>
+                        )}
+                      </td>
                       <td>{statusLabel(coach.user.status)}</td>
                     </tr>
                   );
                 })}
-                {coaches.length === 0 && <tr><td colSpan="6" className={styles.empty}>No coaches found.</td></tr>}
+                {coaches.length === 0 && <tr><td colSpan="7" className={styles.empty}>No coaches found.</td></tr>}
               </tbody>
             </table>
           </div>

@@ -122,6 +122,8 @@ export default function EventPlans({ plans, session, page, totalPages, sports, a
                                   <div><dt>Venue</dt><dd>{plan.venue || "—"}</dd></div>
                                   <div><dt>Sports</dt><dd>{plan.sports.length ? plan.sports.map((item) => item.sport.sportName).join(", ") : "—"}</dd></div>
                                   <div><dt>Description</dt><dd>{plan.description || "No description provided."}</dd></div>
+                                  <div><dt>Purpose</dt><dd>{plan.purpose || "—"}</dd></div>
+                                  <div><dt>Target audience</dt><dd>{plan.targetParticipants ? `${plan.targetParticipants} participants` : "Any"} · {plan.targetGender ? plan.targetGender : "any gender"}{plan.targetAgeMin ? ` · ages ${plan.targetAgeMin}${plan.targetAgeMax ? `–${plan.targetAgeMax}` : "+"}` : ""}</dd></div>
                                   <div><dt>Program flow</dt><dd>{plan.programFlow || "—"}</dd></div>
                                 </dl>
                               </div>
@@ -440,7 +442,7 @@ function CreatePlan({ sports }) {
     setBusy(true); setMessage("");
     const form = new FormData(event.currentTarget);
     const sportIds = form.getAll("sportIds").map(Number);
-    const body = { eventName: form.get("eventName"), startDate: form.get("startDate"), endDate: form.get("endDate"), venue: form.get("venue"), description: form.get("description"), programFlow: form.get("programFlow"), status: form.get("status"), sportIds };
+    const body = { eventName: form.get("eventName"), startDate: form.get("startDate"), endDate: form.get("endDate"), venue: form.get("venue"), description: form.get("description"), programFlow: form.get("programFlow"), status: form.get("status"), purpose: form.get("purpose"), targetParticipants: form.get("targetParticipants"), targetAgeMin: form.get("targetAgeMin"), targetAgeMax: form.get("targetAgeMax"), targetGender: form.get("targetGender") || null, sportIds };
     const csrf = await fetch("/api/csrf").then((r) => r.json());
     try {
       const response = await fetch("/api/event-plans", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify(body) });
@@ -460,6 +462,11 @@ function CreatePlan({ sports }) {
         <label>End date<input name="endDate" type="date" /></label>
         <label>Venue *<input name="venue" required maxLength="191" placeholder="e.g. City Sports Complex" /></label>
         <label>Description<textarea name="description" rows="3" maxLength="2000" /></label>
+        <label className={styles.fullField}>Purpose<textarea name="purpose" rows="2" maxLength="2000" placeholder="e.g. Select athletes for the regional qualifying meet" /></label>
+        <label>Target participants<input name="targetParticipants" type="number" min="1" max="100000" placeholder="e.g. 200" /></label>
+        <label>Target gender<select name="targetGender" defaultValue=""><option value="">Any</option><option value="male">Male</option><option value="female">Female</option><option value="mixed">Mixed</option></select></label>
+        <label>Min age<input name="targetAgeMin" type="number" min="5" max="100" placeholder="e.g. 12" /></label>
+        <label>Max age<input name="targetAgeMax" type="number" min="5" max="100" placeholder="e.g. 18" /></label>
         <label className={styles.fullField}>Sports *<span className={styles.checkboxList}>{sports.map((sport) => <label key={sport.id}><input type="checkbox" name="sportIds" value={sport.id} />{sport.sportName}</label>)}</span></label>
         <label className={styles.fullField}>Program flow<textarea name="programFlow" rows="4" maxLength="10000" /></label>
         <div className={styles.formActions}><button className={styles.primary} disabled={busy}>{busy ? "Creating..." : "Create plan"}</button></div>
@@ -480,7 +487,7 @@ function EditPlan({ plan, sports }) {
     setBusy(true); setMessage("");
     const form = new FormData(event.currentTarget);
     const sportIds = form.getAll("sportIds").map(Number);
-    const body = { id: plan.id, eventName: form.get("eventName"), startDate: form.get("startDate"), endDate: form.get("endDate"), venue: form.get("venue"), description: form.get("description"), programFlow: form.get("programFlow"), status: form.get("status"), sportIds };
+    const body = { id: plan.id, eventName: form.get("eventName"), startDate: form.get("startDate"), endDate: form.get("endDate"), venue: form.get("venue"), description: form.get("description"), programFlow: form.get("programFlow"), status: form.get("status"), purpose: form.get("purpose"), targetParticipants: form.get("targetParticipants"), targetAgeMin: form.get("targetAgeMin"), targetAgeMax: form.get("targetAgeMax"), targetGender: form.get("targetGender") || null, sportIds };
     const csrf = await fetch("/api/csrf").then((r) => r.json());
     try {
       const response = await fetch("/api/event-plans", { method: "PUT", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify(body) });
@@ -500,6 +507,11 @@ function EditPlan({ plan, sports }) {
         <label>End date<input name="endDate" className={styles.fieldControl} type="date" defaultValue={fmtDateInput(plan.endDate)} /></label>
         <label>Venue *<input name="venue" className={styles.fieldControl} required maxLength="191" defaultValue={plan.venue} /></label>
         <label>Description<textarea name="description" className={styles.fieldControl} rows="3" maxLength="2000" defaultValue={plan.description || ""} /></label>
+        <label className={styles.fullField}>Purpose<textarea name="purpose" className={styles.fieldControl} rows="2" maxLength="2000" defaultValue={plan.purpose || ""} /></label>
+        <label>Target participants<input name="targetParticipants" className={styles.fieldControl} type="number" min="1" max="100000" defaultValue={plan.targetParticipants ?? ""} /></label>
+        <label>Target gender<select name="targetGender" className={styles.fieldControl} defaultValue={plan.targetGender || ""}><option value="">Any</option><option value="male">Male</option><option value="female">Female</option><option value="mixed">Mixed</option></select></label>
+        <label>Min age<input name="targetAgeMin" className={styles.fieldControl} type="number" min="5" max="100" defaultValue={plan.targetAgeMin ?? ""} /></label>
+        <label>Max age<input name="targetAgeMax" className={styles.fieldControl} type="number" min="5" max="100" defaultValue={plan.targetAgeMax ?? ""} /></label>
         <label className={styles.fullField}>Sports *<span className={styles.checkboxList}>{sports.map((sport) => <label key={sport.id}><input type="checkbox" name="sportIds" value={sport.id} defaultChecked={currentSportIds.includes(sport.id)} />{sport.sportName}</label>)}</span></label>
         <label className={styles.fullField}>Program flow<textarea name="programFlow" className={styles.fieldControl} rows="4" maxLength="10000" defaultValue={plan.programFlow || ""} /></label>
         <div className={styles.formActions}><button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Save plan"}</button></div>
