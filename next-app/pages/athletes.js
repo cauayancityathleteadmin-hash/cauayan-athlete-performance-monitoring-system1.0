@@ -156,11 +156,6 @@ export default function Athletes({ session, athletes, paginated, catalog, page, 
         {view === "sport" && (
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Roster by sport</p><h2>{isAdmin ? "All athletes by sport" : "My athletes by sport"}</h2></div><span className={styles.formHint} style={{ alignSelf: "center" }}>{total} athlete{total === 1 ? "" : "s"}</span></div>
-            {isAdmin && (
-              <div className={styles.infoList} style={{ marginBottom: 2 }}>
-                <div><dt>Coaches</dt><dd>{catalog.coaches.length ? catalog.coaches.map((c) => c.firstName + " " + c.lastName).join(", ") : "None registered"}</dd></div>
-              </div>
-            )}
             {grouped.length ? grouped.map(([sportName, roster]) => (
               <div key={sportName} style={{ marginBottom: 22 }}>
                 <h3 className={styles.sectionTitle}>{sportName} <span className={styles.formHint}>({roster.length})</span></h3>

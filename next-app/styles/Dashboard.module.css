@@ -731,9 +731,14 @@
 
 .sectionTitle {
   margin: 0 0 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border);
-  font-size: 16px;
+  padding: 12px 14px;
+  border-bottom: 2px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 6px;
+  background: rgba(6, 38, 30, 0.5);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   color: var(--accent);
 }
 

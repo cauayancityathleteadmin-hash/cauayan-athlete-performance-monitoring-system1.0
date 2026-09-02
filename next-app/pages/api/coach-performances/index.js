@@ -2,11 +2,13 @@ import { prisma } from "../../../lib/prisma";
 import { requireCsrf, requireRole, requireSession, text, validId, setSecurityHeaders } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
 
-const EVAL_FIELDS = ["sessionPlanning", "exerciseSelection", "technicalInstruction", "athleteDevelopment", "communication", "safetyCompliance"];
+const EVAL_FIELDS = ["sessionPlanning", "exerciseSelection", "technicalInstruction", "athleteDevelopment", "communication", "safetyCompliance", "trainingImplementation"];
+
+const SCALE = 10;
 
 function score(value, fallback) {
   const n = Number(value);
-  return Number.isFinite(n) && n >= 0 && n <= 5 ? n : fallback;
+  return Number.isFinite(n) && n >= 0 && n <= SCALE ? n : fallback;
 }
 
 export default async function handler(req, res) {
@@ -44,7 +46,8 @@ export default async function handler(req, res) {
   const athleteDevelopment = score(body.athleteDevelopment, 0);
   const communication = score(body.communication, 0);
   const safetyCompliance = score(body.safetyCompliance, 0);
-  const overallScore = ((sessionPlanning + exerciseSelection + technicalInstruction + athleteDevelopment + communication + safetyCompliance) / 6);
+  const trainingImplementation = score(body.trainingImplementation, 0);
+  const overallScore = ((sessionPlanning + exerciseSelection + technicalInstruction + athleteDevelopment + communication + safetyCompliance + trainingImplementation) / EVAL_FIELDS.length);
 
   const created = await prisma.$transaction(async (tx) => {
     const e = await tx.coachPerformance.create({
@@ -59,6 +62,7 @@ export default async function handler(req, res) {
         athleteDevelopment,
         communication,
         safetyCompliance,
+        trainingImplementation,
         overallScore: Math.round(overallScore * 10) / 10,
         strengths: text(body.strengths, 2000) || null,
         areasForImprovement: text(body.areasForImprovement, 2000) || null,

@@ -646,6 +646,7 @@ model CoachPerformance {
   athleteDevelopment   Int       @map("athlete_development")
   communication        Int
   safetyCompliance     Int       @map("safety_compliance")
+  trainingImplementation Int    @default(0) @map("training_implementation")
   overallScore         Decimal   @map("overall_score")
   strengths            String?
   areasForImprovement  String?   @map("areas_for_improvement")

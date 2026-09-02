@@ -68,6 +68,7 @@ function sortCoaches(list, key, dir) {
 
 export default function AdminCoaches({ coaches, session }) {
   const [list, setList] = React.useState(coaches);
+  const [view, setView] = React.useState("sport");
   const [filter, setFilter] = React.useState("all");
   const [sortKey, setSortKey] = React.useState("name");
   const [sortDir, setSortDir] = React.useState("asc");
@@ -137,6 +138,18 @@ export default function AdminCoaches({ coaches, session }) {
   const visible = list.filter((coach) => filter === "all" || coach.user.status === filter);
   const sorted = sortCoaches(visible, sortKey, sortDir);
 
+  const grouped = React.useMemo(() => {
+    const map = new Map();
+    for (const coach of visible) {
+      const sports = (coach.sports && coach.sports.length) ? coach.sports.map((cs) => cs.sport.sportName) : ["Unassigned"];
+      for (const sport of sports) {
+        if (!map.has(sport)) map.set(sport, []);
+        map.get(sport).push(coach);
+      }
+    }
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [visible]);
+
   return (
     <>
       <Head>
@@ -147,6 +160,10 @@ export default function AdminCoaches({ coaches, session }) {
             <div className={styles.panelHeader}>
               <div>
                 <h2>Coaches</h2>
+              </div>
+              <div className={styles.segmented}>
+                <button className={view === "sport" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("sport")}>By sport</button>
+                <button className={view === "list" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("list")}>List</button>
               </div>
             </div>
             <div className={styles.toolbar} style={{ marginBottom: 16 }}>
@@ -162,131 +179,147 @@ export default function AdminCoaches({ coaches, session }) {
               <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setSortDir((current) => (current === "asc" ? "desc" : "asc"))}>{sortDir === "asc" ? "Ascending" : "Descending"}</button>
             </div>
             {message && <p role="status" style={{ color: message.startsWith("Coach") ? "#365448" : "#8b3a3a", margin: "0 0 14px", padding: "12px", background: message.startsWith("Coach") ? "rgba(45, 212, 168, .16)" : "rgba(248, 113, 113, .16)", borderRadius: "6px", border: message.startsWith("Coach") ? "1px solid var(--accent)" : "1px solid var(--danger)" }}>{message}</p>}
-            <div className={styles.tableWrap}>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Coach</th>
-                    <th>ID</th>
-                    <th>School</th>
-                    <th>Sports</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sorted.map((coach) => (
-                    <React.Fragment key={coach.id}>
-                    <tr>
-                      <td>
-                        <strong>{coachName(coach)}</strong>
-                      </td>
-                      <td>{coach.coachCode || "—"}</td>
-                      <td>{coach.school?.schoolName || "Not assigned"}</td>
-                      <td>
-                        {coach.sports.length > 0 ? (
-                          coach.sports.map((cs) => <span key={cs.sportId} style={{display:"inline-block",background:"rgba(45,212,168,.16)",color:"var(--accent)",padding:"2px 8px",borderRadius:"12px",fontSize:"11px",fontWeight:700,margin:"2px 4px 2px 0"}}>{cs.sport.sportName}</span>)
-                        ) : (
-                          <span style={{color:"var(--muted)",fontSize:"13px"}}>No sports</span>
-                        )}
-                      </td>
-                      <td>
-                        {coach.user.status === "active" ? (
-                          <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span>
-                        ) : coach.user.status === "pending" ? (
-                          <span className={`${styles.badge} ${styles.badgePending}`}>Pending</span>
-                        ) : coach.user.status === "rejected" ? (
-                          <span className={`${styles.badge} ${styles.badgeRejected}`}>Rejected</span>
-                        ) : (
-                          <span className={`${styles.badge} ${styles.badgeMuted}`}>Inactive</span>
-                        )}
-                        {coach.user.mustChangePassword && <small style={{display:"block",color:"#fbbf24",marginTop:"4px"}}>(Must change password)</small>}
-                      </td>
-                      <td>
-                        <button type="button" className={styles.expandBtn} onClick={() => setOpenId((current) => (current === coach.id ? null : coach.id))} style={{marginRight:"8px"}}>
-                          {openId === coach.id ? "Hide details ▲" : "View details ▼"}
-                        </button>
-                        {coach.user.status === "pending" && (
-                          <>
-                            <button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`} style={{marginRight:"8px"}}>Approve</button>
-                            <button onClick={() => reviewCoach(coach.id, "rejected")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Reject</button>
-                          </>
-                        )}
-                        {coach.user.status === "rejected" && (
-                          <>
-                            <button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`} style={{marginRight:"8px"}}>Reapprove</button>
-                            <button onClick={() => reviewCoach(coach.id, "delete")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Delete</button>
-                          </>
-                        )}
-                        {(coach.user.status === "active" || coach.user.status === "inactive") && (
-                          <button onClick={() => reviewCoach(coach.id, "delete")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Remove</button>
-                        )}
-                      </td>
-                    </tr>
-                    {openId === coach.id && (
-                      <tr>
-                        <td colSpan="6" style={{ padding: 0, background: "transparent" }}>
-                          <div className={styles.detailPanel}>
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
-                              <div>
-                                <h4>Personal information</h4>
-                                <dl className={styles.infoList}>
-                                  <div><dt>Full name</dt><dd>{coachName(coach)}</dd></div>
-                                  <div><dt>Coach code</dt><dd>{coach.coachCode || "—"}</dd></div>
-                                  <div><dt>Email</dt><dd>{coach.user.email}</dd></div>
-                                  <div><dt>Contact number</dt><dd>{coach.contactNumber || "—"}</dd></div>
-                                  <div><dt>Birthdate</dt><dd>{formatBirthdate(coach.birthdate)}</dd></div>
-                                  <div><dt>School</dt><dd>{coach.school?.schoolName || "Not assigned"}</dd></div>
-                                  <div><dt>Sports coached</dt><dd>{coach.sports.length ? coach.sports.map((cs) => cs.sport.sportName).join(", ") : "No sports"}</dd></div>
-                                  <div><dt>Status</dt><dd>{statusBadge(coach.user.status)}</dd></div>
-                                  <div><dt>Registered</dt><dd>{formatDate(coach.user.createdAt)}</dd></div>
-                                  <div><dt>Last login</dt><dd>{formatDateTime(coach.user.lastLoginAt)}</dd></div>
-                                </dl>
-                              </div>
-                              <div>
-                                <h4>Athletes under this coach ({coach.athletes.length})</h4>
-                                {coach.athletes.length > 0 ? (
-                                  <div className={styles.tableWrap}>
-                                    <table>
-                                      <thead>
-                                        <tr><th>Athlete</th><th>Sport</th><th>School</th><th>Status</th></tr>
-                                      </thead>
-                                      <tbody>
-                                        {coach.athletes.map((athlete) => (
-                                          <tr key={athlete.id}>
-                                            <td>
-                                              <div className={styles.detailAthleteName}>
-                                                <strong>{athleteName(athlete)}</strong>
-                                                <small>{athlete.athleteCode}</small>
-                                              </div>
-                                            </td>
-                                            <td>{athlete.sport?.sportName || "—"}</td>
-                                            <td>{athlete.school?.schoolName || "—"}</td>
-                                            <td>{statusBadge(athlete.status)}</td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                ) : (
-                                  <div className={styles.detailEmpty}>No athletes are currently assigned to this coach.</div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                    </React.Fragment>
-                  ))}
-                  {visible.length === 0 && (
-                    <tr><td colSpan="6" className={styles.empty}>No coaches in this category.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+
+            {view === "list" && (
+              <CoachTable coaches={sorted} coachName={coachName} statusBadge={statusBadge} openId={openId} setOpenId={setOpenId} busy={busy} reviewCoach={reviewCoach} athleteName={athleteName} formatDate={formatDate} formatDateTime={formatDateTime} formatBirthdate={formatBirthdate} />
+            )}
+
+            {view === "sport" && (
+              grouped.length ? grouped.map(([sportName, roster]) => (
+                <div key={sportName} style={{ marginBottom: 22 }}>
+                  <h3 className={styles.sectionTitle}>{sportName} <span className={styles.formHint}>({roster.length})</span></h3>
+                  <CoachTable coaches={roster} coachName={coachName} statusBadge={statusBadge} openId={openId} setOpenId={setOpenId} busy={busy} reviewCoach={reviewCoach} athleteName={athleteName} formatDate={formatDate} formatDateTime={formatDateTime} formatBirthdate={formatBirthdate} />
+                </div>
+              )) : <p className={styles.empty}>No coaches in this category.</p>
+            )}
           </section>
       </AppShell>
     </>
+  );
+}
+
+function CoachTable({ coaches, coachName, statusBadge, openId, setOpenId, busy, reviewCoach, athleteName, formatDate, formatDateTime, formatBirthdate }) {
+  return (
+    <div className={styles.tableWrap}>
+      <table>
+        <thead>
+          <tr>
+            <th>Coach</th>
+            <th>ID</th>
+            <th>School</th>
+            <th>Sports</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {coaches.map((coach) => (
+            <React.Fragment key={coach.id}>
+              <tr>
+                <td><strong>{coachName(coach)}</strong></td>
+                <td>{coach.coachCode || "—"}</td>
+                <td>{coach.school?.schoolName || "Not assigned"}</td>
+                <td>
+                  {coach.sports.length > 0 ? (
+                    coach.sports.map((cs) => <span key={cs.sportId} style={{ display: "inline-block", background: "rgba(45,212,168,.16)", color: "var(--accent)", padding: "2px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, margin: "2px 4px 2px 0" }}>{cs.sport.sportName}</span>)
+                  ) : (
+                    <span style={{ color: "var(--muted)", fontSize: "13px" }}>No sports</span>
+                  )}
+                </td>
+                <td>
+                  {coach.user.status === "active" ? (
+                    <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span>
+                  ) : coach.user.status === "pending" ? (
+                    <span className={`${styles.badge} ${styles.badgePending}`}>Pending</span>
+                  ) : coach.user.status === "rejected" ? (
+                    <span className={`${styles.badge} ${styles.badgeRejected}`}>Rejected</span>
+                  ) : (
+                    <span className={`${styles.badge} ${styles.badgeMuted}`}>Inactive</span>
+                  )}
+                  {coach.user.mustChangePassword && <small style={{ display: "block", color: "#fbbf24", marginTop: "4px" }}>(Must change password)</small>}
+                </td>
+                <td>
+                  <button type="button" className={styles.expandBtn} onClick={() => setOpenId((current) => (current === coach.id ? null : coach.id))} style={{ marginRight: "8px" }}>
+                    {openId === coach.id ? "Hide details ▲" : "View details ▼"}
+                  </button>
+                  {coach.user.status === "pending" && (
+                    <>
+                      <button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`} style={{ marginRight: "8px" }}>Approve</button>
+                      <button onClick={() => reviewCoach(coach.id, "rejected")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Reject</button>
+                    </>
+                  )}
+                  {coach.user.status === "rejected" && (
+                    <>
+                      <button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`} style={{ marginRight: "8px" }}>Reapprove</button>
+                      <button onClick={() => reviewCoach(coach.id, "delete")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Delete</button>
+                    </>
+                  )}
+                  {(coach.user.status === "active" || coach.user.status === "inactive") && (
+                    <button onClick={() => reviewCoach(coach.id, "delete")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Remove</button>
+                  )}
+                </td>
+              </tr>
+              {openId === coach.id && (
+                <tr>
+                  <td colSpan="6" style={{ padding: 0, background: "transparent" }}>
+                    <div className={styles.detailPanel}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
+                        <div>
+                          <h4>Personal information</h4>
+                          <dl className={styles.infoList}>
+                            <div><dt>Full name</dt><dd>{coachName(coach)}</dd></div>
+                            <div><dt>Coach code</dt><dd>{coach.coachCode || "—"}</dd></div>
+                            <div><dt>Email</dt><dd>{coach.user.email}</dd></div>
+                            <div><dt>Contact number</dt><dd>{coach.contactNumber || "—"}</dd></div>
+                            <div><dt>Birthdate</dt><dd>{formatBirthdate(coach.birthdate)}</dd></div>
+                            <div><dt>School</dt><dd>{coach.school?.schoolName || "Not assigned"}</dd></div>
+                            <div><dt>Sports coached</dt><dd>{coach.sports.length ? coach.sports.map((cs) => cs.sport.sportName).join(", ") : "No sports"}</dd></div>
+                            <div><dt>Status</dt><dd>{statusBadge(coach.user.status)}</dd></div>
+                            <div><dt>Registered</dt><dd>{formatDate(coach.user.createdAt)}</dd></div>
+                            <div><dt>Last login</dt><dd>{formatDateTime(coach.user.lastLoginAt)}</dd></div>
+                          </dl>
+                        </div>
+                        <div>
+                          <h4>Athletes under this coach ({coach.athletes.length})</h4>
+                          {coach.athletes.length > 0 ? (
+                            <div className={styles.tableWrap}>
+                              <table>
+                                <thead>
+                                  <tr><th>Athlete</th><th>Sport</th><th>School</th><th>Status</th></tr>
+                                </thead>
+                                <tbody>
+                                  {coach.athletes.map((athlete) => (
+                                    <tr key={athlete.id}>
+                                      <td>
+                                        <div className={styles.detailAthleteName}>
+                                          <strong>{athleteName(athlete)}</strong>
+                                          <small>{athlete.athleteCode}</small>
+                                        </div>
+                                      </td>
+                                      <td>{athlete.sport?.sportName || "—"}</td>
+                                      <td>{athlete.school?.schoolName || "—"}</td>
+                                      <td>{statusBadge(athlete.status)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <div className={styles.detailEmpty}>No athletes are currently assigned to this coach.</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </React.Fragment>
+          ))}
+          {coaches.length === 0 && (
+            <tr><td colSpan="6" className={styles.empty}>No coaches in this category.</td></tr>
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 }

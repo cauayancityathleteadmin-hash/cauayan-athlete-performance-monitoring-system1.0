@@ -7,26 +7,51 @@ import styles from "../styles/Dashboard.module.css";
 
 const NAV_GROUPS = [
   {
-    label: "Main",
+    label: "Home",
     links: [
       { href: "/dashboard", label: "Dashboard" },
+    ],
+  },
+  {
+    label: "Athletes",
+    links: [
       { href: "/athletes", label: "Athletes" },
+    ],
+  },
+  {
+    label: "Coaches",
+    links: [
+      { href: "/admin/coaches", label: "Coaches", adminOnly: true },
+      { href: "/admin/coach-accounts", label: "Coach accounts", adminOnly: true },
+      { href: "/admin/coach-performances", label: "Coach evaluations", adminOnly: true },
+      { href: "/coach-approvals", label: "Coach approvals", coachApproveOnly: true },
+    ],
+  },
+  {
+    label: "Training & Assessment",
+    links: [
       { href: "/training-plans", label: "Training" },
+    ],
+  },
+  {
+    label: "Events & Program",
+    links: [
       { href: "/event-plans", label: "Event plans" },
+      { href: "/admin/catalog", label: "Sports & Events", adminOnly: true },
+    ],
+  },
+  {
+    label: "Reports",
+    links: [
       { href: "/reports", label: "Reports" },
     ],
   },
   {
-    label: "Administration",
-    adminOnly: true,
+    label: "System",
     links: [
-      { href: "/admin/coaches", label: "Coaches" },
-      { href: "/admin/coach-accounts", label: "Coach accounts" },
-      { href: "/admin/coach-performances", label: "Coach evaluations" },
-      { href: "/admin/catalog", label: "Sports & Events" },
-      { href: "/admin/metrics", label: "Metrics" },
-      { href: "/admin/audit-logs", label: "Audit logs" },
-      { href: "/admin/backup", label: "Backup" },
+      { href: "/admin/metrics", label: "Metrics", adminOnly: true },
+      { href: "/admin/audit-logs", label: "Audit logs", adminOnly: true },
+      { href: "/admin/backup", label: "Backup", adminOnly: true },
     ],
   },
   {
@@ -40,6 +65,7 @@ const NAV_GROUPS = [
 export default function AppShell({
   session,
   isAdmin,
+  canApproveCoaches = Boolean(session?.user?.canApproveCoaches),
   eyebrow = "Cauayan City",
   title = "Athlete performance",
   active,
@@ -55,7 +81,7 @@ export default function AppShell({
   const nav = (
     <nav className={styles.sidebar} aria-label="Primary navigation">
       {NAV_GROUPS.map((group) => {
-        const links = group.adminOnly ? (isAdmin ? group.links : []) : group.links;
+        const links = group.links.filter((link) => (!link.adminOnly || isAdmin) && (!link.coachApproveOnly || canApproveCoaches || isAdmin));
         if (!links.length) return null;
         return (
           <React.Fragment key={group.label}>

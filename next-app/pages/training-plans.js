@@ -33,7 +33,7 @@ function fmtDate(value) {
 }
 
 function ratingChip(rating) {
-  return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, background: "rgba(45,212,168,.14)", color: "var(--accent)" }}>{rating}<small style={{ fontSize: 9, opacity: .7 }}>/5</small></span>;
+  return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, background: "rgba(45,212,168,.14)", color: "var(--accent)" }}>{rating}<small style={{ fontSize: 9, opacity: .7 }}>/10</small></span>;
 }
 
 export default function TrainingPlans({ session, isAdmin, sports, coaches, athletes }) {
@@ -110,7 +110,7 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
             <div><p className={styles.eyebrow}>Progress</p><h2>Training assessments</h2></div>
             <button className={styles.secondary} onClick={() => setShowAssessmentForm((c) => !c)}>{showAssessmentForm ? "Close form" : "Record assessment"}</button>
           </div>
-          <p className={styles.formHint} style={{ marginTop: 0 }}>Rate how each athlete is performing in their training. Ratings (1–5) are used to monitor athlete progress and coaching effectiveness.</p>
+          <p className={styles.formHint} style={{ marginTop: 0 }}>Rate how each athlete is performing in their training. Ratings (1–10) are used to monitor athlete progress and coaching effectiveness.</p>
 
           {showAssessmentForm && (
             <div style={{ marginBottom: 22 }}>
@@ -251,7 +251,7 @@ function CreateAssessmentForm({ isAdmin, plans, athletes, onCreated }) {
       <form onSubmit={submit} className={styles.formGrid}>
         <label>Athlete *<select name="athleteId" required>{athletes.map((a) => <option key={a.id} value={a.id}>{a.lastName}, {a.firstName} ({a.athleteCode})</option>)}</select></label>
         <label>Training plan<select name="planId"><option value="">No plan</option>{plans.map((p) => <option key={p.id} value={p.id}>{p.planName}</option>)}</select></label>
-        <label>Rating (1–5) *<select name="rating" required defaultValue="3"><option value="1">1 – Poor</option><option value="2">2 – Below average</option><option value="3">3 – Average</option><option value="4">4 – Good</option><option value="5">5 – Excellent</option></select></label>
+        <label>Rating (1–10) *<select name="rating" required defaultValue="5"><option value="1">1 – Very poor</option><option value="2">2 – Poor</option><option value="3">3 – Below average</option><option value="4">4 – Fair</option><option value="5">5 – Average</option><option value="6">6 – Above average</option><option value="7">7 – Good</option><option value="8">8 – Very good</option><option value="9">9 – Excellent</option><option value="10">10 – Perfect</option></select></label>
         <label className={styles.fullField}>Comments<textarea name="comments" rows="2" maxLength="2000" placeholder="Observations about the athlete's effort, technique, and progress" /></label>
         <div className={styles.formActions}>
           <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Record assessment"}</button>

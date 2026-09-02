@@ -246,19 +246,38 @@ export default function AthleteProfile({ session, athlete, catalog }) {
             <button type="button" className={styles.secondary} onClick={() => setEditOpen(!editOpen)}>{editOpen ? "Cancel" : "Edit athlete"}</button>
           </div>
           {editOpen && <EditAthleteForm athlete={athlete} catalog={catalog} isAdmin={isAdmin} onDone={() => { setEditOpen(false); router.reload(); }} />}
-<div className={styles.infoList}>
-            <div><dt>Athlete code</dt><dd>{athlete.athleteCode}</dd></div>
-            <div><dt>Gender</dt><dd>{athlete.gender || "—"}</dd></div>
-            <div><dt>Birthdate</dt><dd>{fmtDate(athlete.birthdate)}</dd></div>
-            <div><dt>Sport</dt><dd>{athlete.sport?.sportName || "—"}</dd></div>
-            <div><dt>Event / discipline</dt><dd>{athlete.event?.eventName || "—"}</dd></div>
-            <div><dt>School</dt><dd>{athlete.school?.schoolName || "—"}</dd></div>
-            <div><dt>Coach</dt><dd>{athlete.coach ? `${athlete.coach.firstName} ${athlete.coach.lastName}` : "—"}</dd></div>
-            <div><dt>Contact</dt><dd>{athlete.contactNumber || "—"}</dd></div>
-            <div><dt>Email</dt><dd>{athlete.email || "—"}</dd></div>
-            <div><dt>Height</dt><dd>{athlete.height ? `${fmtNum(athlete.height)} cm` : "—"}</dd></div>
-            <div><dt>Weight</dt><dd>{athlete.weight ? `${fmtNum(athlete.weight)} kg` : "—"}</dd></div>
+          <div className={styles.grid}>
+            <div className={styles.detailPanel}>
+              <h4>Personal</h4>
+              <div className={styles.infoList}>
+                <div><dt>Athlete code</dt><dd>{athlete.athleteCode}</dd></div>
+                <div><dt>Gender</dt><dd>{athlete.gender || "—"}</dd></div>
+                <div><dt>Birthdate</dt><dd>{fmtDate(athlete.birthdate)}</dd></div>
+                <div><dt>Address</dt><dd>{athlete.address || "—"}</dd></div>
+              </div>
+            </div>
+            <div className={styles.detailPanel}>
+              <h4>Sport &amp; program</h4>
+              <div className={styles.infoList}>
+                <div><dt>Sport</dt><dd>{athlete.sport?.sportName || "—"}</dd></div>
+                <div><dt>Event / discipline</dt><dd>{athlete.event?.eventName || "—"}</dd></div>
+                <div><dt>School</dt><dd>{athlete.school?.schoolName || "—"}</dd></div>
+                <div><dt>Coach</dt><dd>{athlete.coach ? `${athlete.coach.firstName} ${athlete.coach.lastName}` : "—"}</dd></div>
+              </div>
+            </div>
+            <div className={styles.detailPanel}>
+              <h4>Contact &amp; physical</h4>
+              <div className={styles.infoList}>
+                <div><dt>Contact</dt><dd>{athlete.contactNumber || "—"}</dd></div>
+                <div><dt>Email</dt><dd>{athlete.email || "—"}</dd></div>
+                <div><dt>Height</dt><dd>{athlete.height ? `${fmtNum(athlete.height)} cm` : "—"}</dd></div>
+                <div><dt>Weight</dt><dd>{athlete.weight ? `${fmtNum(athlete.weight)} kg` : "—"}</dd></div>
+              </div>
+            </div>
+          </div>
+<div className={styles.infoList} style={{ marginTop: 14 }}>
             <div><dt>Health status</dt><dd><HealthBadge status={athlete.healthStatus} /></dd></div>
+            {athlete.healthNotes ? <div><dt>Health notes</dt><dd>{athlete.healthNotes}</dd></div> : null}
             <div><dt>Registered</dt><dd>{fmtDate(athlete.dateRegistered)}</dd></div>
           </div>
         </section>
@@ -469,7 +488,7 @@ export default function AthleteProfile({ session, athlete, catalog }) {
                     <div key={a.id} className={styles.detailPanel} style={{ padding: 10 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
                         <strong style={{ fontSize: 13 }}>{fmtDate(a.assessmentDate)}</strong>
-                        <span className={`${styles.badge} ${a.rating >= 4 ? styles.badgeActive : styles.badgePending}`}>{a.rating}/5</span>
+                        <span className={`${styles.badge} ${a.rating >= 8 ? styles.badgeActive : styles.badgePending}`}>{a.rating}/10</span>
                       </div>
                       {a.plan?.planName && <small style={{ display: "block", color: "var(--accent)", fontSize: 12 }}>{a.plan.planName}</small>}
                       {a.comments && <small style={{ display: "block", color: "var(--muted)", fontSize: 12 }}>{a.comments}</small>}

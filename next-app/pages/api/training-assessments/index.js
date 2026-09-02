@@ -41,7 +41,7 @@ export default async function handler(req, res) {
   const athleteId = validId(body.athleteId);
   if (!athleteId) return res.status(400).json({ error: "A valid athlete is required." });
   const rating = Number(body.rating);
-  if (!Number.isInteger(rating) || rating < 1 || rating > 5) return res.status(400).json({ error: "Rating must be a whole number from 1 to 5." });
+  if (!Number.isInteger(rating) || rating < 1 || rating > 10) return res.status(400).json({ error: "Rating must be a whole number from 1 to 10." });
 
   const planId = validId(body.planId);
   if (planId) {

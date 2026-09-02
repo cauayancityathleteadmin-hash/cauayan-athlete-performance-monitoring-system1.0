@@ -40,7 +40,7 @@ export const authOptions = {
         return null;
       }
       recordSuccess(identifier);
-      return { id: String(user.id), role: user.role, email: user.email, name: user.coach ? `${user.coach.firstName} ${user.coach.lastName}` : user.username, mustChangePassword: user.mustChangePassword };
+      return { id: String(user.id), role: user.role, email: user.email, name: user.coach ? `${user.coach.firstName} ${user.coach.lastName}` : user.username, mustChangePassword: user.mustChangePassword, canApproveCoaches: user.coach ? user.coach.canApproveCoaches : false };
     },
   })],
   session: { strategy: "jwt", maxAge: 8 * 60 * 60 },
@@ -48,7 +48,7 @@ export const authOptions = {
   pages: { signIn: "/login" },
   callbacks: {
     async jwt({ token, user, trigger, session }) { if (user) Object.assign(token, user); if (trigger === "update" && session?.mustChangePassword !== undefined) token.mustChangePassword = session.mustChangePassword; return token; },
-    async session({ session, token }) { session.user = { id: token.id, name: token.name, email: token.email, role: token.role, mustChangePassword: token.mustChangePassword }; return session; },
+    async session({ session, token }) { session.user = { id: token.id, name: token.name, email: token.email, role: token.role, mustChangePassword: token.mustChangePassword, canApproveCoaches: Boolean(token.canApproveCoaches) }; return session; },
   },
   secret: nextAuthSecret,
   cookies: {

@@ -19,6 +19,7 @@ const CRITERIA = [
   { key: "athleteDevelopment", label: "Athlete development" },
   { key: "communication", label: "Communication" },
   { key: "safetyCompliance", label: "Safety compliance" },
+  { key: "trainingImplementation", label: "Training implementation" },
 ];
 
 function fmtDate(value) {
@@ -31,8 +32,8 @@ function round(v) {
 
 function ratingColor(v) {
   const n = Number(v || 0);
-  if (n >= 4) return "var(--success)";
-  if (n >= 3) return "var(--warning)";
+  if (n >= 8) return "var(--success)";
+  if (n >= 6) return "var(--warning)";
   return "var(--danger)";
 }
 
@@ -80,6 +81,7 @@ export default function CoachPerformances({ session, coaches }) {
                     <th>Athlete dev</th>
                     <th>Communication</th>
                     <th>Safety</th>
+                    <th>Training impl</th>
                     <th>Overall</th>
                     <th>Evaluator</th>
                   </tr>
@@ -95,6 +97,7 @@ export default function CoachPerformances({ session, coaches }) {
                       <td>{e.athleteDevelopment}</td>
                       <td>{e.communication}</td>
                       <td>{e.safetyCompliance}</td>
+                      <td>{e.trainingImplementation}</td>
                       <td><strong style={{ color: ratingColor(e.overallScore) }}>{round(e.overallScore)}</strong></td>
                       <td>{e.evaluator?.username || e.evaluator?.email || "—"}</td>
                     </tr>
@@ -112,7 +115,7 @@ export default function CoachPerformances({ session, coaches }) {
 function CreatePerformance({ coaches, onCreated }) {
   const [message, setMessage] = React.useState("");
   const [busy, setBusy] = React.useState(false);
-  const [scores, setScores] = React.useState({ sessionPlanning: "0", exerciseSelection: "0", technicalInstruction: "0", athleteDevelopment: "0", communication: "0", safetyCompliance: "0" });
+  const [scores, setScores] = React.useState({ sessionPlanning: "0", exerciseSelection: "0", technicalInstruction: "0", athleteDevelopment: "0", communication: "0", safetyCompliance: "0", trainingImplementation: "0" });
 
   function setScore(key, value) {
     setScores((current) => ({ ...current, [key]: value }));
@@ -144,7 +147,7 @@ function CreatePerformance({ coaches, onCreated }) {
   return (
     <>
       <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Create</p><h2>New coach evaluation</h2></div></div>
-      <p className={styles.formHint} style={{ marginTop: 0 }}>Rate each criterion from 0 (poor) to 5 (excellent). The overall score is averaged automatically.</p>
+      <p className={styles.formHint} style={{ marginTop: 0 }}>Rate each criterion from 0 (poor) to 10 (perfect). The overall score is averaged automatically.</p>
       <form onSubmit={submit} className={styles.formGrid}>
         <label>Coach *<select name="coachId" required><option value="">Select a coach</option>{coaches.map((c) => <option key={c.id} value={c.id}>{c.lastName}, {c.firstName}{c.coachCode ? ` (${c.coachCode})` : ""}</option>)}</select></label>
         <label>Period start *<input name="periodStart" type="date" required /></label>
@@ -157,11 +160,16 @@ function CreatePerformance({ coaches, onCreated }) {
                 {c.label}
                 <select className={styles.fieldControl} value={scores[c.key]} onChange={(e) => setScore(c.key, e.target.value)}>
                   <option value="0">0 — Not observed</option>
-                  <option value="1">1 — Poor</option>
-                  <option value="2">2 — Fair</option>
-                  <option value="3">3 — Good</option>
-                  <option value="4">4 — Very good</option>
-                  <option value="5">5 — Excellent</option>
+                  <option value="1">1 — Very poor</option>
+                  <option value="2">2 — Poor</option>
+                  <option value="3">3 — Below average</option>
+                  <option value="4">4 — Fair</option>
+                  <option value="5">5 — Average</option>
+                  <option value="6">6 — Above average</option>
+                  <option value="7">7 — Good</option>
+                  <option value="8">8 — Very good</option>
+                  <option value="9">9 — Excellent</option>
+                  <option value="10">10 — Perfect</option>
                 </select>
               </label>
             ))}
