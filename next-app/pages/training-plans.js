@@ -86,7 +86,7 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
             <p className={styles.empty}>No training plans yet. Create the first plan to get started.</p>
           ) : (
             <div className={styles.tableWrap}><table>
-              <thead><tr><th>Plan</th><th>Frequency</th><th>Sport</th><th>Coach</th><th>Period</th><th>Athletes</th><th>Assessments</th><th>Status</th></tr></thead>
+              <thead><tr><th>Plan</th><th>Frequency</th><th>Sport</th><th>Coach</th><th>Period</th><th>Athletes</th><th>Assessments</th><th>Status</th><th></th></tr></thead>
               <tbody>
                 {plans.map((p) => (
                   <tr key={p.id}>
@@ -98,6 +98,7 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
                     <td>{p.athletes?.length ?? 0}</td>
                     <td>{p.assessments?.filter((a) => a.planId === p.id).length ?? 0}</td>
                     <td>{p.status === "completed" ? <span className={`${styles.badge} ${styles.badgeMuted}`}>Completed</span> : <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span>}</td>
+                    <td><Link className={styles.expandBtn} href={`/training-plans/${p.id}`}>Manage</Link></td>
                   </tr>
                 ))}
               </tbody>

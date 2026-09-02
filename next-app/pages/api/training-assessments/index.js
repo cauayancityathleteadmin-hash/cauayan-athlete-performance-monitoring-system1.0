@@ -2,6 +2,8 @@ import { prisma } from "../../../lib/prisma";
 import { requireCsrf, requireSession, text, validId, setSecurityHeaders } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
 
+const FITNESS_TYPES = ["endurance", "strength", "power", "speed_agility", "skill_technique", "mobility", "recovery"];
+
 export default async function handler(req, res) {
   setSecurityHeaders(res);
   const session = await requireSession(req, res);
@@ -64,6 +66,7 @@ export default async function handler(req, res) {
         athleteId,
         assessmentDate: new Date(),
         rating,
+        fitnessDimension: FITNESS_TYPES.includes(body.fitnessDimension) ? body.fitnessDimension : null,
         comments: text(body.comments, 2000) || null,
         assessedBy: Number(session.user.id),
       },
