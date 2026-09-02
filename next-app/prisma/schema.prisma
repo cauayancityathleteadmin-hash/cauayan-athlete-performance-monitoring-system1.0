@@ -614,6 +614,7 @@ model TrainingPlan {
   startDate   DateTime               @map("start_date")
   endDate     DateTime?              @map("end_date")
   status      String                 @default("active") @map("status")
+  isTemplate  Boolean                @default(false) @map("is_template")
   createdAt   DateTime               @default(now()) @map("created_at")
   updatedAt   DateTime               @updatedAt @map("updated_at")
   sport       Sport                  @relation(fields: [sportId], references: [id])
@@ -626,6 +627,7 @@ model TrainingPlan {
   @@map("training_plans")
   @@index([coachId, startDate])
   @@index([sportId, startDate])
+  @@index([isTemplate])
 }
 
 model TrainingPlanAthlete {
