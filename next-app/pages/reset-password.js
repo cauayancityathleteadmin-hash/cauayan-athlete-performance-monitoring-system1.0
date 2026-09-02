@@ -57,7 +57,7 @@ export default function ResetPassword() {
 
   return (
     <main className="login-page">
-      <img src="/sports_logo.jpg" alt="Cauayan City" className="logo" />
+      <img src="/sports_logo.png" alt="Cauayan City" className="logo" />
       <p className="auth-kicker">Cauayan City</p>
       <h1>Choose a new password</h1>
       <p className="auth-subtitle">Enter a new password for your account</p>

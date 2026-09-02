@@ -65,7 +65,7 @@ export default function ChangePassword() {
       <main className={styles.app}>
         <header className={styles.header}>
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <img src="/sports_logo.jpg" alt="Cauayan City" className="logo" style={{ height: "48px", width: "auto" }} />
+            <img src="/sports_logo.png" alt="Cauayan City" className="logo" style={{ height: "48px", width: "auto" }} />
           </div>
         </header>
         <main className={styles.main}>

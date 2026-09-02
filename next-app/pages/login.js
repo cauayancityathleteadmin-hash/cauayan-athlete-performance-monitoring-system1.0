@@ -32,7 +32,7 @@ export default function Login() {
 
   return (
     <main className="login-page">
-      <img src="/sports_logo.jpg" alt="Cauayan City Sports" className="logo" />
+      <img src="/sports_logo.png" alt="Cauayan City Sports" className="logo" />
       <p className="auth-kicker">Cauayan City</p>
       <h1>Athlete Performance System</h1>
       <p className="auth-subtitle">Secure monitoring platform</p>

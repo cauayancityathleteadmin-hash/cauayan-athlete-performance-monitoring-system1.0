@@ -78,7 +78,7 @@ export default function AppShell({
       <header className={styles.topbar}>
         <div className={styles.brand}>
           <Link href="/dashboard" onClick={() => setOpen(false)}>
-            <img src="/sports_logo.jpg" alt="Cauayan City Sports" />
+            <img src="/sports_logo.png" alt="Cauayan City Sports" />
             <div>
               <p className={styles.eyebrow}>{eyebrow}</p>
               <span className={styles.brandTitle}>{title}</span>
