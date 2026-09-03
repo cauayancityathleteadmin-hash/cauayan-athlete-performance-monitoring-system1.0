@@ -237,13 +237,23 @@ export async function provisionSampleData() {
     });
     const schoolName = SCHOOLS[i % SCHOOLS.length];
     const schoolId = schoolIds[schoolName];
-    // Defensive: remove any orphan coach row that already claims this coach code
-    // under a different user, so the upsert below can never collide.
-    await prisma.coach.deleteMany({ where: { coachCode, userId: { not: user.id } } }).catch(() => {});
-    const coach = await prisma.coach.upsert({
-      where: { userId: user.id },
-      update: { coachCode, firstName: first, lastName: last, schoolId, status: "active", email },
-      create: {
+    // Fully idempotent: remove any existing coach for this user AND any orphan row
+    // that claims this reserved code, clearing row-level dependents first so the
+    // delete never fails silently. We then create the coach fresh (no update-collision).
+    const targets = await prisma.coach.findMany({
+      where: { OR: [{ userId: user.id }, { coachCode }] },
+      select: { id: true },
+    });
+    const targetIds = targets.map((t) => t.id);
+    if (targetIds.length) {
+      await prisma.eventParticipant.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
+      await prisma.eventApplication.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
+      await prisma.coachSport.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
+      await prisma.athlete.updateMany({ where: { coachId: { in: targetIds } }, data: { coachId: null } }).catch(() => {});
+      await prisma.coach.deleteMany({ where: { id: { in: targetIds } } }).catch(() => {});
+    }
+    const coach = await prisma.coach.create({
+      data: {
         userId: user.id, coachCode, firstName: first, lastName: last, birthdate: new Date("1990-01-01"),
         email, contactNumber: `0917 000 00${i + 1}`, schoolId, status: "active", dateRegistered: new Date(),
       },
