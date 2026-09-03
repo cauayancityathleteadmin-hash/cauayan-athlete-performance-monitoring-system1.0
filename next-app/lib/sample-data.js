@@ -157,6 +157,7 @@ export async function provisionAdminOnly() {
 }
 
 export const PROVISION_STEPS = [
+  "schema",
   "cleanup",
   "catalog",
   "accounts",
@@ -181,6 +182,32 @@ const memoizedHash = (() => {
 export async function runProvisionStep(step) {
   const report = { step, admins: 0, coaches: 0, schools: 0, sports: 0, events: 0, metrics: 0, athletes: 0, assessments: 0, results: 0, achievements: 0, eventPlans: 0, applications: 0, participants: 0 };
   const rng = () => Math.random();
+
+  if (step === "schema") {
+    // Phase 3 self-healing DDL. The build-time `prisma migrate deploy` can silently
+    // fail (and is swallowed by `|| echo "[migrate] skipped"`) when only the pooled
+    // DATABASE_URL is set, so the points_config table / achievement columns may be
+    // missing on the live DB. Run idempotent DDL here so the standings feature works
+    // regardless of migration state.
+    const stmts = [
+      `CREATE TABLE IF NOT EXISTS "points_config" ("id" SERIAL NOT NULL, "medal" TEXT NOT NULL, "level" TEXT NOT NULL, "points" INTEGER NOT NULL, CONSTRAINT "points_config_pkey" PRIMARY KEY ("id"))`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "points_config_medal_level_key" ON "points_config" ("medal", "level")`,
+      `ALTER TABLE "achievements" ADD COLUMN IF NOT EXISTS "medal" TEXT`,
+      `ALTER TABLE "achievements" ADD COLUMN IF NOT EXISTS "level" TEXT`,
+      `ALTER TABLE "achievements" ADD COLUMN IF NOT EXISTS "sport_id" INTEGER`,
+      `ALTER TABLE "achievements" ADD COLUMN IF NOT EXISTS "event_id" INTEGER`,
+      `ALTER TABLE "achievements" ADD COLUMN IF NOT EXISTS "certificate_url" TEXT`,
+      `CREATE INDEX IF NOT EXISTS "achievements_athlete_id_achievement_date_idx" ON "achievements" ("athlete_id", "achievement_date")`,
+      `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'achievements_sport_id_fkey') THEN ALTER TABLE "achievements" ADD CONSTRAINT "achievements_sport_id_fkey" FOREIGN KEY ("sport_id") REFERENCES "sports" ("id") ON DELETE SET NULL ON UPDATE CASCADE; END IF; END $$;`,
+      `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'achievements_event_id_fkey') THEN ALTER TABLE "achievements" ADD CONSTRAINT "achievements_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "events" ("id") ON DELETE SET NULL ON UPDATE CASCADE; END IF; END $$;`,
+    ];
+    let applied = 0;
+    for (const sql of stmts) {
+      try { await prisma.$executeRawUnsafe(sql); applied += 1; } catch (e) { console.warn("[sample-data] schema stmt skipped:", e && e.message); }
+    }
+    report.schemaStatements = applied;
+    return report;
+  }
 
   if (step === "cleanup") {
     const removed = await cleanupLegacyTestData();
