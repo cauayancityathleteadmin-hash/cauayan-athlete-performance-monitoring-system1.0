@@ -113,25 +113,28 @@ export default function AppShell({
   return (
     <div className={styles.shell}>
       <header className={styles.topbar}>
-        <div className={styles.brand}>
-          <Link href="/dashboard" onClick={() => setOpen(false)}>
-            <img src="/sports_logo.png" alt="Cauayan City Sports" />
-            <div>
-              <p className={styles.eyebrow}>{eyebrow}</p>
-              <span className={styles.brandTitle}>{title}</span>
-            </div>
-          </Link>
-        </div>
-        <div className={styles.userArea}>
+        <div className={styles.topLeft}>
           <button
             type="button"
             className={styles.menuToggle}
             aria-label="Toggle navigation menu"
             aria-expanded={collapsed ? false : open}
             onClick={toggleNav}
+            title={collapsed ? "Show menu" : "Hide menu"}
           >
-            {collapsed ? "☰ Show menu" : "✕ Hide menu"}
+            ☰
           </button>
+          <div className={styles.brand}>
+            <Link href="/dashboard" onClick={() => setOpen(false)}>
+              <img src="/sports_logo.png" alt="Cauayan City Sports" />
+              <div>
+                <p className={styles.eyebrow}>{eyebrow}</p>
+                <span className={styles.brandTitle}>{title}</span>
+              </div>
+            </Link>
+          </div>
+        </div>
+        <div className={styles.userArea}>
           <span className={styles.userName}>{person}</span>
           <span className={styles.roleBadge}>{session?.user?.role}</span>
           <button type="button" className={styles.logoutBtn} onClick={() => signOut({ callbackUrl: "/login" })}>
