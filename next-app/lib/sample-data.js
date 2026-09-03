@@ -69,39 +69,6 @@ const COACHES = [
   ["rdomingo", "ramon.domingo@cauayan.local", "CoachDomingo6!", "Ramon", "Domingo", ["Swimming", "Volleyball"]],
 ];
 
-async function upsertSchool(name) {
-  let s = await prisma.school.findFirst({ where: { schoolName: { equals: name, mode: "insensitive" } }, select: { id: true } });
-  if (!s) s = await prisma.school.create({ data: { schoolName: name, status: "active" }, select: { id: true } });
-  return s.id;
-}
-
-async function upsertSport(name) {
-  let s = await prisma.sport.findFirst({ where: { sportName: { equals: name, mode: "insensitive" } }, select: { id: true } });
-  if (!s) s = await prisma.sport.create({ data: { sportName: name, status: "active" }, select: { id: true } });
-  return s.id;
-}
-
-async function upsertEvent(sportId, eventName) {
-  let e = await prisma.event.findFirst({ where: { sportId, eventName }, select: { id: true } });
-  if (!e) e = await prisma.event.create({ data: { sportId, eventName, status: "active" }, select: { id: true } });
-  return e;
-}
-
-async function upsertMetric(eventId, def) {
-  const [metricName, unit, dataType, betterDirection, min, max, required] = def;
-  let m = await prisma.performanceMetric.findFirst({ where: { eventId, metricName }, select: { id: true } });
-  if (!m) {
-    m = await prisma.performanceMetric.create({
-      data: {
-        eventId, metricName, unit, dataType, betterDirection,
-        minimumValue: min, maximumValue: max, isRequired: required, status: "active",
-      },
-      select: { id: true },
-    });
-  }
-  return m;
-}
-
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 // Default points per medal x level (idempotent). Keeps the standings formula populated.
@@ -189,259 +156,329 @@ export async function provisionAdminOnly() {
   return { username: admin.username, email: admin.email, role: admin.role, status: admin.status };
 }
 
-export async function provisionSampleData() {
-  const report = { admins: 0, coaches: 0, schools: 0, sports: 0, events: 0, metrics: 0, athletes: 0, assessments: 0, results: 0, achievements: 0, eventPlans: 0, applications: 0, participants: 0, removedLegacy: 0 };
+export const PROVISION_STEPS = [
+  "cleanup",
+  "catalog",
+  "accounts",
+  "athletes",
+  "assessments",
+  "plans",
+  "points",
+];
 
-  // Drop any legacy/unrealistic test records before (re)seeding so only the
-  // realistic demo dataset remains. Each cleanup is isolated so a failure never
-  // aborts provisioning.
-  const removed = await cleanupLegacyTestData();
-  report.removedLegacy = (removed.users || 0) + (removed.athletes || 0) + (removed.coaches || 0) + (removed.plans || 0);
+// Demo password helper (cost kept low so steps stay fast).
+const memoizedHash = (() => {
+  const cache = new Map();
+  return async (password) => {
+    if (!cache.has(password)) cache.set(password, await bcrypt.hash(password, 10));
+    return cache.get(password);
+  };
+})();
 
+// Step-based provisioning. Each step is small, idempotent, and self-sufficient
+// (it derives every ID it needs from the DB) so it fits comfortably within a single
+// serverless function invocation. Callers loop through PROVISION_STEPS until done.
+export async function runProvisionStep(step) {
+  const report = { step, admins: 0, coaches: 0, schools: 0, sports: 0, events: 0, metrics: 0, athletes: 0, assessments: 0, results: 0, achievements: 0, eventPlans: 0, applications: 0, participants: 0 };
   const rng = () => Math.random();
 
-  // Sports + Events + Metrics
-  const sportIds = {};
-  for (const sportName of SPORTS) sportIds[sportName] = await upsertSport(sportName);
-  report.sports = SPORTS.length;
-
-  const eventIds = {};
-  for (const [sportName, events] of Object.entries(EVENTS)) {
-    for (const evt of events) {
-      const e = await upsertEvent(sportIds[sportName], evt);
-      eventIds[evt] = e.id;
-      const defs = METRICS[evt] || [];
-      for (const def of defs) { await upsertMetric(e.id, def); report.metrics += 1; }
-      report.events += 1;
-    }
+  if (step === "cleanup") {
+    const removed = await cleanupLegacyTestData();
+    report.removedLegacy = (removed.users || 0) + (removed.athletes || 0) + (removed.coaches || 0) + (removed.plans || 0);
+    return report;
   }
 
-  // Schools
-  const schoolIds = {};
-  for (const name of SCHOOLS) { schoolIds[name] = await upsertSchool(name); report.schools += 1; }
-
-  // Admins (password hashed once, reused) - keep cost low so provisioning stays
-  // within the serverless function time limit.
-  const adminMemos = new Map();
-  for (const a of ADMIN_ACCOUNTS) {
-    if (!adminMemos.has(a.password)) adminMemos.set(a.password, await bcrypt.hash(a.password, 10));
-    const passwordHash = adminMemos.get(a.password);
-    await prisma.user.upsert({
-      where: { email: a.email },
-      update: { username: a.username, role: "admin", status: "active", mustChangePassword: false, passwordHash },
-      create: { username: a.username, email: a.email, role: "admin", status: "active", mustChangePassword: false, passwordHash },
-    });
-    report.admins += 1;
-  }
-
-  // Coaches
-  const coachList = [];
-  const coachMemos = new Map();
-  for (let i = 0; i < COACHES.length; i += 1) {
-    const [username, email, password, first, last, sports] = COACHES[i];
-    const coachCode = `COA-${String(100000 + i + 1)}`;
-    if (!coachMemos.has(password)) coachMemos.set(password, await bcrypt.hash(password, 10));
-    const passwordHash = coachMemos.get(password);
-    const user = await prisma.user.upsert({
-      where: { email },
-      update: { username, role: "coach", status: "active", mustChangePassword: false, passwordHash },
-      create: { username, email, role: "coach", status: "active", mustChangePassword: false, passwordHash },
-      select: { id: true },
-    });
-    const schoolName = SCHOOLS[i % SCHOOLS.length];
-    const schoolId = schoolIds[schoolName];
-    // Fully idempotent: remove any existing coach for this user AND any orphan row
-    // that claims this reserved code, clearing row-level dependents first so the
-    // delete never fails silently. We then create the coach fresh (no update-collision).
-    const targets = await prisma.coach.findMany({
-      where: { OR: [{ userId: user.id }, { coachCode }] },
-      select: { id: true },
-    });
-    const targetIds = targets.map((t) => t.id);
-    if (targetIds.length) {
-      // Clear every dependency (many coach FKs are Restrict, so remove them explicitly)
-      // before deleting the leftover row, then create fresh (no collision).
-      await prisma.athleteCoachHistory.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
-      await prisma.trainingSession.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
-      await prisma.trainingPlan.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
-      await prisma.coachPerformance.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
-      await prisma.eventParticipant.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
-      await prisma.eventApplication.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
-      await prisma.coachSport.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
-      await prisma.athlete.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
-      await prisma.coach.deleteMany({ where: { id: { in: targetIds } } }).catch(() => {});
-    }
-    const coach = await prisma.coach.create({
-      data: {
-        userId: user.id, coachCode, firstName: first, lastName: last, birthdate: new Date("1990-01-01"),
-        email, contactNumber: `0917 000 00${i + 1}`, schoolId, status: "active", dateRegistered: new Date(),
-      },
-      select: { id: true },
-    });
-    for (const sp of sports) {
-      await prisma.coachSport.upsert({
-        where: { coachId_sportId: { coachId: coach.id, sportId: sportIds[sp] } },
-        update: {}, create: { coachId: coach.id, sportId: sportIds[sp] },
-      });
-    }
-    coachList.push({ coach, code: coachCode, sports });
-    report.coaches += 1;
-  }
-
-  // Athletes (enough to exercise every sport/event)
-  let athleteNum = 1;
-  for (const [sportName, eventNames] of Object.entries(EVENTS)) {
-    const sportId = sportIds[sportName];
-    const coachEntry = coachList.find((c) => c.sports.includes(sportName)) || coachList[0];
-    const eventName = eventNames[0];
-    for (let k = 0; k < 2; k += 1) {
-      const athleteCode = `ATH-${String(athleteNum).padStart(5, "0")}`;
-      const firstName = pick(FIRST);
-      const lastName = pick(LAST);
-      const gender = rng() > 0.5 ? "male" : "female";
-      const schoolId = schoolIds[SCHOOLS[athleteNum % SCHOOLS.length]];
-      const athleteRow = await prisma.athlete.upsert({
-        where: { athleteCode },
+  if (step === "catalog") {
+    // Sports (upsert = single call each)
+    for (const sportName of SPORTS) {
+      await prisma.sport.upsert({
+        where: { sportName },
         update: { status: "active" },
-        create: {
-          athleteCode, firstName, lastName, birthdate: new Date(2005 + (athleteNum % 4), (athleteNum % 12), (athleteNum % 28) + 1),
-          gender, contactNumber: `0917 11${String(athleteNum).padStart(7, "0")}`,
-          email: `${athleteCode.toLowerCase()}@cauayan.local`, address: "Cauayan City",
-          schoolId, sportId, eventId: eventIds[eventName], coachId: coachEntry.coach.id,
-          status: "active", dateRegistered: new Date(2025, (athleteNum % 12), 1),
-        },
-        select: { id: true },
+        create: { sportName, status: "active" },
       });
-      const existingHistory = await prisma.athleteCoachHistory.findFirst({ where: { athleteId: athleteRow.id, coachId: coachEntry.coach.id }, select: { id: true } });
-      if (!existingHistory) {
-        await prisma.athleteCoachHistory.create({ data: { athleteId: athleteRow.id, coachId: coachEntry.coach.id, startedAt: new Date(2025, (athleteNum % 12), 1) } });
-      }
-      report.athletes += 1;
-      athleteNum += 1;
+      report.sports += 1;
     }
+    // Schools
+    for (const name of SCHOOLS) {
+      await prisma.school.upsert({
+        where: { schoolName: name },
+        update: { status: "active" },
+        create: { schoolName: name, status: "active" },
+      });
+      report.schools += 1;
+    }
+    // Events + metrics (idempotent)
+    const sports = await prisma.sport.findMany({ where: { sportName: { in: SPORTS } }, select: { id: true, sportName: true } });
+    const sportIdByName = Object.fromEntries(sports.map((s) => [s.sportName, s.id]));
+    for (const [sportName, eventNames] of Object.entries(EVENTS)) {
+      const sid = sportIdByName[sportName];
+      for (const evt of eventNames) {
+        const row = await prisma.event.upsert({
+          where: { sportId_eventName: { sportId: sid, eventName: evt } },
+          update: { status: "active" },
+          create: { sportId: sid, eventName: evt, status: "active" },
+          select: { id: true },
+        });
+        report.events += 1;
+        for (const def of METRICS[evt] || []) {
+          const [metricName, unit, dataType, betterDirection, min, max, required] = def;
+          await prisma.performanceMetric.upsert({
+            where: { eventId_metricName: { eventId: row.id, metricName } },
+            update: { status: "active" },
+            create: { eventId: row.id, metricName, unit, dataType, betterDirection, minimumValue: min, maximumValue: max, isRequired: required, status: "active" },
+          });
+          report.metrics += 1;
+        }
+      }
+    }
+    return report;
   }
 
-  // Assessments + Results + Achievements
-  const createdAthletes = await prisma.athlete.findMany({ take: 16, orderBy: { id: "asc" }, select: { id: true, sportId: true, eventId: true } });
-  const coachUsers = await prisma.user.findMany({ where: { role: "coach" }, select: { id: true } });
+  if (step === "accounts") {
+    const schoolIds = {};
+    const schoolRows = await prisma.school.findMany({ where: { schoolName: { in: SCHOOLS } }, select: { id: true, schoolName: true } });
+    for (const s of schoolRows) schoolIds[s.schoolName] = s.id;
 
-  let aIndex = 0;
-  let pointsSeeded = false;
-  for (const athlete of createdAthletes) {
-    const recorder = coachUsers[aIndex % coachUsers.length];
-    for (const type of ["Regular Assessment", "Competition Assessment"]) {
-      const assessment = await prisma.assessment.create({
+    // Admin(s)
+    for (const a of ADMIN_ACCOUNTS) {
+      const passwordHash = await memoizedHash(a.password);
+      await prisma.user.upsert({
+        where: { email: a.email },
+        update: { username: a.username, role: "admin", status: "active", mustChangePassword: false, passwordHash },
+        create: { username: a.username, email: a.email, role: "admin", status: "active", mustChangePassword: false, passwordHash },
+      });
+      report.admins += 1;
+    }
+
+    // Coaches (create fresh after removing leftovers for this user/code)
+    for (let i = 0; i < COACHES.length; i += 1) {
+      const [username, email, password, first, last, sports] = COACHES[i];
+      const coachCode = `COA-${String(100000 + i + 1)}`;
+      const passwordHash = await memoizedHash(password);
+      const user = await prisma.user.upsert({
+        where: { email },
+        update: { username, role: "coach", status: "active", mustChangePassword: false, passwordHash },
+        create: { username, email, role: "coach", status: "active", mustChangePassword: false, passwordHash },
+        select: { id: true },
+      });
+      const targets = await prisma.coach.findMany({ where: { OR: [{ userId: user.id }, { coachCode }] }, select: { id: true } });
+      const targetIds = targets.map((t) => t.id);
+      if (targetIds.length) {
+        await prisma.athleteCoachHistory.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
+        await prisma.trainingSession.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
+        await prisma.trainingPlan.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
+        await prisma.coachPerformance.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
+        await prisma.eventParticipant.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
+        await prisma.eventApplication.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
+        await prisma.coachSport.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
+        await prisma.athlete.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
+        await prisma.coach.deleteMany({ where: { id: { in: targetIds } } }).catch(() => {});
+      }
+      const coach = await prisma.coach.create({
         data: {
-          athleteId: athlete.id, recordedBy: recorder.id,
-          assessmentDate: new Date(2026, aIndex % 12, (aIndex % 20) + 1),
-          assessmentType: type, remarks: "Sample performance assessment",
+          userId: user.id, coachCode, firstName: first, lastName: last, birthdate: new Date("1990-01-01"),
+          email, contactNumber: `0917 000 00${i + 1}`, schoolId: schoolIds[SCHOOLS[i % SCHOOLS.length]], status: "active", dateRegistered: new Date(),
         },
         select: { id: true },
       });
-      report.assessments += 1;
+      const sportRows = await prisma.sport.findMany({ where: { sportName: { in: sports } }, select: { id: true } });
+      await prisma.coachSport.createMany({
+        data: sportRows.map((s) => ({ coachId: coach.id, sportId: s.id })),
+        skipDuplicates: true,
+      });
+      report.coaches += 1;
+    }
+    return report;
+  }
+
+  if (step === "athletes") {
+    const sports = await prisma.sport.findMany({ select: { id: true, sportName: true } });
+    const events = await prisma.event.findMany({ select: { id: true, eventName: true, sportId: true } });
+    const sportIdByName = Object.fromEntries(sports.map((s) => [s.sportName, s.id]));
+    const eventIdBySportName = {};
+    for (const e of events) eventIdBySportName[e.sportId] = e.id;
+    const schoolRows = await prisma.school.findMany({ select: { id: true, schoolName: true } });
+    const schoolIdByName = Object.fromEntries(schoolRows.map((s) => [s.schoolName, s.id]));
+    const coaches = await prisma.coach.findMany({ select: { id: true, coachCode: true, sports: { select: { sportId: true } } } });
+    const coachBySport = {};
+    for (const c of coaches) {
+      for (const cs of c.sports || []) coachBySport[cs.sportId] = c.id;
+    }
+    const firstCoachId = coaches[0]?.id;
+
+    const rows = [];
+    let athleteNum = 1;
+    for (const [sportName, eventNames] of Object.entries(EVENTS)) {
+      const sportId = sportIdByName[sportName];
+      const eventId = eventIdBySportName[sportId] || null;
+      const coachId = coachBySport[sportId] || firstCoachId;
+      for (let k = 0; k < 2; k += 1) {
+        const athleteCode = `ATH-${String(athleteNum).padStart(5, "0")}`;
+        rows.push({
+          athleteCode,
+          firstName: pick(FIRST),
+          lastName: pick(LAST),
+          birthdate: new Date(2005 + (athleteNum % 4), athleteNum % 12, (athleteNum % 28) + 1),
+          gender: rng() > 0.5 ? "male" : "female",
+          contactNumber: `0917 11${String(athleteNum).padStart(7, "0")}`,
+          email: `${athleteCode.toLowerCase()}@cauayan.local`,
+          address: "Cauayan City",
+          schoolId: schoolIdByName[SCHOOLS[athleteNum % SCHOOLS.length]] || null,
+          sportId,
+          eventId,
+          coachId,
+          status: "active",
+          dateRegistered: new Date(2025, athleteNum % 12, 1),
+        });
+        athleteNum += 1;
+      }
+    }
+    const created = await prisma.athlete.createManyAndReturn({ data: rows, skipDuplicates: true });
+    report.athletes = created.length;
+
+    // Coach history (batched)
+    const histRows = created.map((a) => ({
+      athleteId: a.id, coachId: a.coachId, startedAt: new Date(2025, 0, 1),
+    }));
+    await prisma.athleteCoachHistory.createMany({ data: histRows, skipDuplicates: true });
+    return report;
+  }
+
+  if (step === "assessments") {
+    const athletes = await prisma.athlete.findMany({ take: 16, orderBy: { id: "asc" }, select: { id: true, sportId: true, eventId: true, coachId: true } });
+    const coachUsers = await prisma.user.findMany({ where: { role: "coach" }, select: { id: true } });
+    if (!coachUsers.length) coachUsers.push({ id: (await prisma.user.findFirst({ where: { role: "admin" }, select: { id: true } }))?.id ?? 0 });
+
+    let aIndex = 0;
+    for (const athlete of athletes) {
+      const recorder = coachUsers[aIndex % coachUsers.length];
       const metrics = athlete.eventId
         ? await prisma.performanceMetric.findMany({ where: { eventId: athlete.eventId }, select: { id: true, dataType: true, minimumValue: true, maximumValue: true } })
         : [];
-      for (const m of metrics) {
-        const lo = Number(m.minimumValue ?? 0);
-        const hi = Number(m.maximumValue ?? 100);
-        const val = lo + rng() * (hi - lo);
-        await prisma.assessmentResult.create({
-          data: {
+      for (const type of ["Regular Assessment", "Competition Assessment"]) {
+        let assessment;
+        try {
+          assessment = await prisma.assessment.create({
+            data: {
+              athleteId: athlete.id, recordedBy: recorder.id,
+              assessmentDate: new Date(2026, aIndex % 12, (aIndex % 20) + 1),
+              assessmentType: type, remarks: "Sample performance assessment",
+            },
+            select: { id: true },
+          });
+          report.assessments += 1;
+        } catch { continue; }
+        const resultRows = metrics.map((m) => {
+          const lo = Number(m.minimumValue ?? 0);
+          const hi = Number(m.maximumValue ?? 100);
+          const val = lo + rng() * (hi - lo);
+          return {
             assessmentId: assessment.id, metricId: m.id,
             valueDecimal: m.dataType === "text" ? null : val,
             valueText: m.dataType === "text" ? "Sample" : null,
             notes: "Sample result",
-          },
-        }).catch(() => {});
-        report.results += 1;
+          };
+        });
+        if (resultRows.length) {
+          await prisma.assessmentResult.createMany({ data: resultRows, skipDuplicates: true });
+          report.results += resultRows.length;
+        }
       }
-    }
-    if (rng() > 0.25) {
-      const medals = ["gold", "silver", "bronze", "participation"];
-      const levels = ["intramural", "district", "regional", "national", "international"];
-      const medal = medals[aIndex % medals.length];
-      const level = levels[(aIndex * 2) % levels.length];
-      const achievement = await prisma.achievement.create({
-        data: {
-          athleteId: athlete.id,
-          achievementTitle: `${medal.charAt(0).toUpperCase() + medal.slice(1)} - Cauayan City ${level.charAt(0).toUpperCase() + level.slice(1)} Meet`,
-          achievementType: medal === "gold" ? "Gold Medal" : medal.charAt(0).toUpperCase() + medal.slice(1),
-          achievementDate: new Date(2026, aIndex % 12, 1),
-          organization: "Cauayan City Division",
-          description: "Sample achievement demonstrating medal and level tracking",
-          medal, level,
-          sportId: athlete.sportId ?? undefined,
-          eventId: athlete.eventId ?? undefined,
-          certificateUrl: null,
-        },
-      });
-      report.achievements += 1;
-      // Give a few top athletes a second, higher achievement so the leaderboard varies.
-      if (aIndex % 4 === 0) {
+      // Achievement for ~3/4 of athletes (single create), plus an extra for some.
+      if (rng() > 0.25) {
+        const medals = ["gold", "silver", "bronze", "participation"];
+        const levels = ["intramural", "district", "regional", "national", "international"];
+        const medal = medals[aIndex % medals.length];
+        const level = levels[(aIndex * 2) % levels.length];
         await prisma.achievement.create({
           data: {
             athleteId: athlete.id,
-            achievementTitle: `National Qualifier - ${(athlete.eventId ? "Open" : "Cauayan City")}`,
-            achievementType: "National Qualifier",
-            achievementDate: new Date(2026, (aIndex + 2) % 12, 10),
-            organization: "DepEd Cauayan City",
-            description: "Second sample achievement for points demonstration",
-            medal: "silver", level: "regional",
+            achievementTitle: `${medal.charAt(0).toUpperCase() + medal.slice(1)} - Cauayan City ${level.charAt(0).toUpperCase() + level.slice(1)} Meet`,
+            achievementType: medal === "gold" ? "Gold Medal" : medal.charAt(0).toUpperCase() + medal.slice(1),
+            achievementDate: new Date(2026, aIndex % 12, 1),
+            organization: "Cauayan City Division",
+            description: "Sample achievement demonstrating medal and level tracking",
+            medal, level,
             sportId: athlete.sportId ?? undefined,
             eventId: athlete.eventId ?? undefined,
             certificateUrl: null,
           },
         }).catch(() => {});
         report.achievements += 1;
+        if (aIndex % 4 === 0) {
+          await prisma.achievement.create({
+            data: {
+              athleteId: athlete.id,
+              achievementTitle: `National Qualifier - ${(athlete.eventId ? "Open" : "Cauayan City")}`,
+              achievementType: "National Qualifier",
+              achievementDate: new Date(2026, (aIndex + 2) % 12, 10),
+              organization: "DepEd Cauayan City",
+              description: "Second sample achievement for points demonstration",
+              medal: "silver", level: "regional",
+              sportId: athlete.sportId ?? undefined,
+              eventId: athlete.eventId ?? undefined,
+              certificateUrl: null,
+            },
+          }).catch(() => {});
+          report.achievements += 1;
+        }
       }
+      aIndex += 1;
     }
-    aIndex += 1;
+    return report;
   }
 
-  // Seed default points config once (idempotent) so standings/points compute correctly.
-  await seedPointsConfig();
-
-  // Event plans (draft/open/closed) + applications + participants
-  const planStatuses = ["draft", "open"];
-  const sportNameKeys = Object.keys(sportIds);
-  for (let i = 0; i < 2; i += 1) {
-    const start = new Date(2026, 9 + (i % 3), 10 + i);
-    const planSportId = sportIds[sportNameKeys[i % sportNameKeys.length]];
-    const plan = await prisma.eventPlan.create({
-      data: {
-        eventName: `Cauayan City Meet ${i + 1}`,
-        description: "Sample event program for testing",
-        startDate: start, endDate: new Date(start.getTime() + 86400000 * 2),
-        venue: "Cauayan City Sports Complex", status: planStatuses[i],
-        programFlow: "Opening ceremony\nQualifying heats\nFinals",
-        sports: { create: [{ sportId: planSportId }] },
-      },
-      select: { id: true },
-    });
-    report.eventPlans += 1;
-    if (planStatuses[i] === "open") {
-      for (const c of coachList) {
-        await prisma.eventApplication.create({
-          data: { eventPlanId: plan.id, coachId: c.coach.id, status: "approved", reason: "Sample application", reviewedAt: new Date() },
-        }).catch(() => {});
-        report.applications += 1;
-      }
-      const someAthletes = createdAthletes.slice(i * 3, i * 3 + 5);
-      for (let j = 0; j < someAthletes.length; j += 1) {
-        const ath = someAthletes[j];
-        const coachEntry = coachList[j % coachList.length];
-        await prisma.eventParticipant.create({
-          data: {
-            eventPlanId: plan.id, coachId: coachEntry.coach.id, athleteId: ath.id,
-            sportId: planSportId,
-            participantType: "athlete", status: "active",
-          },
-        }).catch(() => {});
-        report.participants += 1;
+  if (step === "plans") {
+    const sportRows = await prisma.sport.findMany({ select: { id: true, sportName: true } });
+    const coaches = await prisma.coach.findMany({ select: { id: true } });
+    const athletes = await prisma.athlete.findMany({ take: 10, orderBy: { id: "asc" }, select: { id: true } });
+    const planStatuses = ["draft", "open"];
+    for (let i = 0; i < 2; i += 1) {
+      const start = new Date(2026, 9 + (i % 3), 10 + i);
+      const planSportId = sportRows[i % sportRows.length]?.id;
+      const plan = await prisma.eventPlan.create({
+        data: {
+          eventName: `Cauayan City Meet ${i + 1}`,
+          description: "Sample event program for testing",
+          startDate: start, endDate: new Date(start.getTime() + 86400000 * 2),
+          venue: "Cauayan City Sports Complex", status: planStatuses[i],
+          programFlow: "Opening ceremony\nQualifying heats\nFinals",
+          sports: { create: [{ sportId: planSportId }] },
+        },
+        select: { id: true },
+      });
+      report.eventPlans += 1;
+      if (planStatuses[i] === "open") {
+        await prisma.eventApplication.createMany({
+          data: coaches.map((c) => ({ eventPlanId: plan.id, coachId: c.id, status: "approved", reason: "Sample application", reviewedAt: new Date() })),
+          skipDuplicates: true,
+        });
+        report.applications += coaches.length;
+        const partRows = athletes.slice(i * 3, i * 3 + 5).map((ath, j) => ({
+          eventPlanId: plan.id, coachId: coaches[j % coaches.length]?.id, athleteId: ath.id,
+          sportId: planSportId, participantType: "athlete", status: "active",
+        }));
+        await prisma.eventParticipant.createMany({ data: partRows, skipDuplicates: true });
+        report.participants += partRows.length;
       }
     }
+    return report;
   }
 
-  return report;
+  if (step === "points") {
+    await seedPointsConfig();
+    return report;
+  }
+
+  throw new Error(`Unknown provision step: ${step}`);
+}
+
+export async function provisionSampleData() {
+  let aggregate = { step: "done", removedLegacy: 0, admins: 0, coaches: 0, schools: 0, sports: 0, events: 0, metrics: 0, athletes: 0, assessments: 0, results: 0, achievements: 0, eventPlans: 0, applications: 0, participants: 0 };
+  for (const step of PROVISION_STEPS) {
+    const r = await runProvisionStep(step);
+    aggregate = { ...aggregate, ...r };
+  }
+  aggregate.step = "done";
+  return aggregate;
 }

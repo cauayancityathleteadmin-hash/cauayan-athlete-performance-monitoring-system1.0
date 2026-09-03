@@ -1,6 +1,5 @@
-import { prisma } from "../../../lib/prisma";
 import { setSecurityHeaders } from "../../../lib/api-security";
-import { provisionSampleData, provisionAdminOnly } from "../../../lib/sample-data";
+import { runProvisionStep, PROVISION_STEPS, provisionAdminOnly } from "../../../lib/sample-data";
 
 // Test-sample provisioning is armed by SEED_PROVISION_KEY (trimmed) - inert otherwise.
 const PROVISION_KEY = (process.env.SEED_PROVISION_KEY || "").trim();
@@ -21,28 +20,35 @@ export default async function handler(req, res) {
 
   try {
     let mode = "full";
+    let step = null;
     try {
       const body = req.body || {};
       mode = body.mode === "admin" ? "admin" : "full";
+      step = typeof body.step === "string" ? body.step : null;
     } catch (e) { /* ignore body parse issues */ }
 
     let result;
     if (mode === "admin") {
       const admin = await provisionAdminOnly();
-      result = { mode: "admin", admin, message: "Admin account created." };
+      result = { mode: "admin", step: "done", done: true, admin, message: "Admin account created." };
+    } else if (step) {
+      // Run a single bounded step; the caller loops until done. Immune to function timeouts.
+      if (step === "done") {
+        result = { mode: "full", step: "done", done: true, report: null };
+      } else {
+        const report = await runProvisionStep(step);
+        const idx = PROVISION_STEPS.indexOf(step);
+        const next = idx >= 0 && idx < PROVISION_STEPS.length - 1 ? PROVISION_STEPS[idx + 1] : "done";
+        result = { mode: "full", step, done: false, next, report };
+      }
     } else {
-      const report = await provisionSampleData();
-      const admins = await prisma.user.findMany({ where: { role: "admin" }, select: { username: true, email: true } });
-      const coaches = await prisma.coach.findMany({ select: { coachCode: true, firstName: true, lastName: true, email: true, user: { select: { username: true } } } });
-      result = {
-        mode: "full",
-        report,
-        testAccounts: {
-          admins,
-          coaches,
-          note: "Sample coach passwords are set in lib/sample-data.js - testing only.",
-        },
-      };
+      // Run all steps sequentially (may exceed the function timeout; prefer explicit steps).
+      let aggregate = { step: "done", removedLegacy: 0, admins: 0, coaches: 0, schools: 0, sports: 0, events: 0, metrics: 0, athletes: 0, assessments: 0, results: 0, achievements: 0, eventPlans: 0, applications: 0, participants: 0 };
+      for (const s of PROVISION_STEPS) {
+        const r = await runProvisionStep(s);
+        aggregate = { ...aggregate, ...r };
+      }
+      result = { mode: "full", step: "done", done: true, report: aggregate };
     }
 
     return res.status(200).json({
