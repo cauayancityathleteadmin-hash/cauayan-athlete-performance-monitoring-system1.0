@@ -237,6 +237,9 @@ export async function provisionSampleData() {
     });
     const schoolName = SCHOOLS[i % SCHOOLS.length];
     const schoolId = schoolIds[schoolName];
+    // Defensive: remove any orphan coach row that already claims this coach code
+    // under a different user, so the upsert below can never collide.
+    await prisma.coach.deleteMany({ where: { coachCode, userId: { not: user.id } } }).catch(() => {});
     const coach = await prisma.coach.upsert({
       where: { userId: user.id },
       update: { coachCode, firstName: first, lastName: last, schoolId, status: "active", email },
