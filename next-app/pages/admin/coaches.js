@@ -214,7 +214,7 @@ function CoachTable({ coaches, coachName, statusBadge, openId, setOpenId, busy, 
           {coaches.map((coach) => (
             <React.Fragment key={coach.id}>
               <tr>
-                <td><strong>{coachName(coach)}</strong></td>
+                <td style={{ display: "flex", alignItems: "center", gap: 10 }}>{coach.pictureUrl ? <img src={coach.pictureUrl} alt="" style={{ width: "34px", height: "34px", objectFit: "cover", borderRadius: "50%", flexShrink: 0 }} /> : null}<strong>{coachName(coach)}</strong></td>
                 <td>{coach.coachCode || "—"}</td>
                 <td>{coach.school?.schoolName || "Not assigned"}</td>
                 <td>

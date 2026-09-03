@@ -5,6 +5,7 @@ import React from "react";
 import { prisma } from "../lib/prisma";
 import styles from "../styles/Dashboard.module.css";
 import PasswordInput from "../components/PasswordInput";
+import IdPhotoUpload from "../components/IdPhotoUpload";
 import { checkPasswordStrength } from "../lib/password";
 import { turnstileEnabled, turnstileSiteKey } from "../lib/turnstile";
 
@@ -38,6 +39,7 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
     password: "",
     school: "",
     contactNumber: "",
+    pictureUrl: "",
     sportIds: [],
   });
   const [passwordStrength, setPasswordStrength] = React.useState(null);
@@ -106,6 +108,7 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
     if (!formData.school.trim()) newErrors.school = "School name is required";
     if (formData.sportIds.length === 0) newErrors.sports = "Select at least one sport";
     if (formData.contactNumber && !/^[0-9+\-\s()]{7,30}$/.test(formData.contactNumber.trim())) newErrors.contactNumber = "Enter a valid contact number (7–30 digits). Leave blank if none.";
+    if (!formData.pictureUrl) newErrors.pictureUrl = "A 2x2 ID picture is required";
 
     const parsedBirthdate = formData.birthdate && new Date(`${formData.birthdate}T00:00:00Z`);
     const age = parsedBirthdate && Math.floor((Date.now() - parsedBirthdate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
@@ -185,6 +188,7 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
       password: "",
       school: "",
       contactNumber: "",
+      pictureUrl: "",
       sportIds: [],
     });
     setPasswordStrength(null);
@@ -242,6 +246,12 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
                 {reviewRow("School", formData.school)}
                 {reviewRow("Contact number", formData.contactNumber)}
                 {reviewRow("Sports coached", selectedSports.join(", "))}
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", padding: "12px 0", borderBottom: "1px solid var(--border)", flexWrap: "wrap" }}>
+                  <dt style={{ color: "var(--muted)", fontSize: "14px", fontWeight: 600, flex: "0 0 40%" }}>2x2 ID picture</dt>
+                  <dd style={{ margin: 0, flex: "1 1 auto" }}>
+                    <img src={formData.pictureUrl} alt="2x2 ID preview" style={{ width: "72px", height: "72px", objectFit: "cover", borderRadius: "8px", border: "1px solid var(--border)" }} />
+                  </dd>
+                </div>
               </dl>
             </section>
             {captchaEnabled && (
@@ -405,6 +415,13 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
               </div>
               {errors.sports && <span style={{ color: "var(--danger)", fontSize: "12px", marginTop: "4px", display: "block" }}>{errors.sports}</span>}
             </fieldset>
+            <div className="span-2">
+              <fieldset className="register-sports" style={{ margin: 0 }}>
+                <legend>2x2 ID picture</legend>
+                <IdPhotoUpload value={formData.pictureUrl} onChange={(url) => handleChange("pictureUrl", url)} required={true} label="ID photo" />
+              </fieldset>
+              {errors.pictureUrl && <span style={{ color: "var(--danger)", fontSize: "12px", marginTop: "4px", display: "block" }}>{errors.pictureUrl}</span>}
+            </div>
             <button type="submit" disabled={busy} className="span-2" style={{ marginTop: "10px" }}>
               Review registration
             </button>

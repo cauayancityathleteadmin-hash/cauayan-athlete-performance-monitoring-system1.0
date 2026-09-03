@@ -36,9 +36,13 @@ export default async function handler(req, res) {
   const sportId = Number(body.sportId);
   const eventId = body.eventId ? Number(body.eventId) : null;
   const schoolName = text(body.school, 191);
+  const pictureUrl = text(body.pictureUrl, 2000);
 
   if (!firstName || !lastName || !birthdate || !["male", "female", "other", "prefer_not_to_say"].includes(gender) || !Number.isInteger(sportId) || (eventId !== null && !Number.isInteger(eventId))) {
     return res.status(400).json({ error: "Complete the required athlete fields with valid values." });
+  }
+  if (!pictureUrl || !/^https?:\/\//.test(pictureUrl)) {
+    return res.status(400).json({ error: "A 2x2 ID picture is required." });
   }
 
   let coachId = Number(body.coachId);
@@ -93,6 +97,7 @@ export default async function handler(req, res) {
           weight: body.weight !== undefined && body.weight !== "" ? Number(body.weight) : null,
           healthStatus: body.healthStatus !== undefined && ["healthy", "sick", "injured", "recovering", "inactive"].includes(body.healthStatus) ? body.healthStatus : "healthy",
           healthNotes: text(body.healthNotes, 2000) || null,
+          pictureUrl,
           schoolId,
           sportId,
           eventId,

@@ -5,6 +5,7 @@ import { useRouter } from "next/router";
 import { getSession } from "next-auth/react";
 import { prisma } from "../lib/prisma";
 import Pagination from "../components/Pagination";
+import IdPhotoUpload from "../components/IdPhotoUpload";
 import AppShell from "../components/AppShell";
 import styles from "../styles/Dashboard.module.css";
 
@@ -161,7 +162,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
               {clientPaginated.map((athlete) => (
                 <tr key={athlete.id}>
                   <td>{athlete.athleteCode}</td>
-                  <td><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></td>
+                  <td style={{ display: "flex", alignItems: "center", gap: 10 }}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></span></td>
                   <td>{athlete.sport.sportName}<small>{athlete.event?.eventName || "No event"}</small></td>
                   <td>{athlete.school?.schoolName || "Unassigned"}</td>
                   <td>{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
@@ -187,7 +188,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
                     {roster.map((athlete) => (
                       <tr key={athlete.id}>
                         <td>{athlete.athleteCode}</td>
-                        <td><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></td>
+                        <td style={{ display: "flex", alignItems: "center", gap: 10 }}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></span></td>
                         <td>{athlete.event?.eventName || "No event"}</td>
                         <td>{athlete.school?.schoolName || "Unassigned"}</td>
                         <td>{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
@@ -222,6 +223,14 @@ const HEALTH_META = {
   inactive: { label: "Inactive", cls: "badgeMuted" },
 };
 
+function Avi({ name, url }) {
+  const initials = (name || "A").split(" ").filter(Boolean).map((s) => s[0]).slice(0, 2).join("").toUpperCase();
+  if (url) {
+    return <img src={url} alt="" style={{ width: "34px", height: "34px", objectFit: "cover", borderRadius: "50%", flexShrink: 0, verticalAlign: "middle" }} />;
+  }
+  return <span style={{ width: "34px", height: "34px", borderRadius: "50%", background: "rgba(45,212,168,.18)", color: "var(--accent)", fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: "13px" }}>{initials}</span>;
+}
+
 function HealthBadge({ status }) {
   const meta = HEALTH_META[status] || { label: status || "—", cls: "badgeMuted" };
   return <span className={`${styles.badge} ${styles[meta.cls]}`}>{meta.label}</span>;
@@ -231,9 +240,15 @@ function AthleteForm({ catalog, isAdmin, onDone }) {
   const [message, setMessage] = React.useState("");
   const [createdCode, setCreatedCode] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  const [pictureUrl, setPictureUrl] = React.useState("");
 
   async function submit(event) {
     event.preventDefault();
+    if (!pictureUrl) {
+      setMessage("A 2x2 ID picture is required.");
+      setCreatedCode("");
+      return;
+    }
     setBusy(true);
     setMessage("");
     setCreatedCode("");
@@ -255,6 +270,10 @@ function AthleteForm({ catalog, isAdmin, onDone }) {
   return (
     <form onSubmit={submit} className={styles.formGrid}>
       <p className={`${styles.fullField} ${styles.formHint}`}>Athlete code is generated automatically.</p>
+      <div className={styles.fullField}>
+        <IdPhotoUpload value={pictureUrl} onChange={setPictureUrl} required={true} label="2x2 ID picture" />
+        <input type="hidden" name="pictureUrl" value={pictureUrl} />
+      </div>
       <label>First name<input name="firstName" required maxLength="100" /></label>
       <label>Middle name<input name="middleName" maxLength="100" /></label>
       <label>Last name<input name="lastName" required maxLength="100" /></label>

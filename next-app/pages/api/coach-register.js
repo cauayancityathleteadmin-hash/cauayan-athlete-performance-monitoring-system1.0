@@ -34,6 +34,7 @@ export default async function handler(req, res) {
   const birthdate = text(body.birthdate, 10, true);
   const schoolName = text(body.school, 191, true);
   const contactNumber = text(body.contactNumber, 30);
+  const pictureUrl = text(body.pictureUrl, 2000);
   const sportIds = Array.isArray(body.sportIds) ? [...new Set(body.sportIds.map(validId).filter(Boolean))] : [];
   const parsedBirthdate = birthdate && new Date(`${birthdate}T00:00:00Z`);
   const age = parsedBirthdate && Math.floor((Date.now() - parsedBirthdate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
@@ -41,6 +42,9 @@ export default async function handler(req, res) {
 
   if (!firstName || !lastName || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 12 || password.length > 200 || !birthdate || Number.isNaN(parsedBirthdate?.getTime()) || parsedBirthdate > new Date() || age < 18 || !schoolName || sportIds.length === 0 || sportIds.length > 20 || !validContact) {
     return res.status(400).json({ error: "Complete all fields. Coaches must be at least 18 and select one or more sports." });
+  }
+  if (!pictureUrl || !/^https?:\/\//.test(pictureUrl)) {
+    return res.status(400).json({ error: "A 2x2 ID picture is required." });
   }
 
   const passwordStrength = checkPasswordStrength(password);
@@ -91,6 +95,7 @@ export default async function handler(req, res) {
           birthdate: parsedBirthdate,
           email,
           contactNumber: contactNumber || null,
+          pictureUrl,
           schoolId: school.id,
           status: "active",
           dateRegistered: new Date(),
