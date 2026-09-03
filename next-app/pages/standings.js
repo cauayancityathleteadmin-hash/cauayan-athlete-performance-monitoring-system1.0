@@ -12,7 +12,8 @@ export async function getServerSideProps(context) {
   if (!session) return { redirect: { destination: "/login", permanent: false } };
   const isAdmin = session.user.role === "admin";
 
-  let coachId = null;
+  try {
+    let coachId = null;
   if (!isAdmin) {
     const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
     coachId = coach?.id ?? null;
@@ -67,6 +68,10 @@ export async function getServerSideProps(context) {
       coachScoped: !!coachId,
     },
   };
+  } catch (e) {
+    console.error("[standings] GSSP error:", e);
+    return { props: { session, isAdmin, standings: [], sports: [], coachScoped: false, diagnostics: String((e && (e.message || e)) || e), diagnosticsStack: String((e && e.stack) || "") } };
+  }
 }
 
 function medalChip(type, count) {
@@ -79,7 +84,7 @@ function medalChip(type, count) {
   );
 }
 
-export default function Standings({ session, isAdmin, standings, sports, coachScoped }) {
+export default function Standings({ session, isAdmin, standings, sports, coachScoped, diagnostics, diagnosticsStack }) {
   const [sportId, setSportId] = React.useState("");
   const filtered = sportId ? standings.filter((s) => s.sportId === Number(sportId)) : standings;
   const ranked = [...filtered].sort((a, b) => b.points - a.points || b.awardCount - a.awardCount);
@@ -90,6 +95,12 @@ export default function Standings({ session, isAdmin, standings, sports, coachSc
       <Head><title>Standings | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Recognition" title="Standings" active="/standings">
         <section className={styles.panel}>
+          {diagnostics && (
+            <div style={{ marginBottom: 16, padding: 14, borderRadius: 8, border: "1px solid #ef4444", background: "rgba(248,113,113,.12)", color: "#fca5a5", fontFamily: "monospace", fontSize: 12, whiteSpace: "pre-wrap" }}>
+              DIAGNOSTICS: {diagnostics}
+              {"\n\n"}{diagnosticsStack || ""}
+            </div>
+          )}
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>{coachScoped ? "My athletes" : "All athletes"}</p><h2>Medal &amp; points leaderboard</h2></div>
           </div>
