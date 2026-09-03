@@ -128,36 +128,42 @@ async function seedPointsConfig() {
 async function cleanupLegacyTestData() {
   let state = { users: 0, athletes: 0, coaches: 0, plans: 0 };
   try {
-    // Known legacy test users (old seed usernames/emails). Deleting a user cascades
-    // its coach + coach dependents per the schema. The realistic admin (ADMIN_ACCOUNTS)
-    // is not in this list, so it is preserved.
-    const legacyEmails = [
-      "admin.test@cauayan.local", "admin.101@cauayan.local",
-      "coach.one@cauayan.local", "coach.two@cauayan.local", "coach.three@cauayan.local",
-      "coach.a@cauayan.local", "coach.b@cauayan.local", "coach.c@cauayan.local",
-      "coach.d@cauayan.local", "coach.e@cauayan.local", "coach.f@cauayan.local",
-    ];
-    for (const email of legacyEmails) {
-      await prisma.coachSport.deleteMany({ where: { coach: { user: { email } } } }).catch(() => {});
+    // Purge ALL demo-origin records so every provision is idempotent and leaves only
+    // the current realistic dataset. Boundary is safe: demo data is the only data that
+    // uses @cauayan.local emails / ATH- / COA- codes / demo plans. Real production
+    // accounts and records never match these and are preserved.
+
+    // 1) Demo athletes (by email domain) - cascades achievements/assessments/notes/
+    //    health/training per the schema.
+    state.athletes = (await prisma.athlete.deleteMany({ where: { email: { endsWith: "@cauayan.local" } } }).catch(() => ({ count: 0 }))).count || 0;
+
+    // 2) Demo event plans.
+    state.plans = (await prisma.eventPlan.deleteMany({
+      where: { OR: [{ eventName: { contains: "TEST" } }, { description: "Sample event program for testing" }, { eventName: { startsWith: "Cauayan City Meet" } }] },
+    }).catch(() => ({ count: 0 }))).count || 0;
+
+    // 3) Demo users (any @cauayan.local account) -> cascades their coaches.
+    const demoUserIds = (await prisma.user.findMany({ where: { email: { endsWith: "@cauayan.local" } }, select: { id: true } })).map((u) => u.id);
+    if (demoUserIds.length) {
+      // Clear any row-level references to demo coaches first (athletes are already gone,
+      // but clear participant/application/coachSport leftovers to avoid FK surprises).
+      const demoCoachIds = (await prisma.coach.findMany({ where: { userId: { in: demoUserIds } }, select: { id: true } })).map((c) => c.id);
+      if (demoCoachIds.length) {
+        await prisma.eventParticipant.deleteMany({ where: { coachId: { in: demoCoachIds } } }).catch(() => {});
+        await prisma.eventApplication.deleteMany({ where: { coachId: { in: demoCoachIds } } }).catch(() => {});
+        await prisma.coachSport.deleteMany({ where: { coachId: { in: demoCoachIds } } }).catch(() => {});
+      }
+      state.users = (await prisma.user.deleteMany({ where: { id: { in: demoUserIds } } }).catch(() => ({ count: 0 }))).count || 0;
     }
-    state.users = (await prisma.user.deleteMany({ where: { email: { in: legacyEmails } } }).catch(() => ({ count: 0 }))).count || 0;
 
-    // Legacy test athletes (ATH-TEST*) - cascades achievements/assessments/notes/etc.
-    state.athletes = (await prisma.athlete.deleteMany({ where: { athleteCode: { startsWith: "ATH-TEST" } } }).catch(() => ({ count: 0 }))).count || 0;
-
-    // Legacy test coaches by code (COA-TEST*): clear row-level dependents first.
-    const testCoachIds = await prisma.coach.findMany({ where: { coachCode: { startsWith: "COA-TEST" } }, select: { id: true } });
-    const ids = testCoachIds.map((c) => c.id);
-    if (ids.length) {
-      await prisma.eventParticipant.deleteMany({ where: { coachId: { in: ids } } }).catch(() => {});
-      await prisma.eventApplication.deleteMany({ where: { coachId: { in: ids } } }).catch(() => {});
-      await prisma.athlete.updateMany({ where: { coachId: { in: ids } }, data: { coachId: null } }).catch(() => {});
-      await prisma.coachSport.deleteMany({ where: { coachId: { in: ids } } }).catch(() => {});
+    // 4) Any leftover demo coaches still present by code prefix (belt & suspenders).
+    const leftover = (await prisma.coach.findMany({ where: { coachCode: { in: ["COA-100001", "COA-100002", "COA-100003", "COA-100004", "COA-100005", "COA-100006", "COA-TEST01", "COA-TEST02", "COA-TEST03"] } }, select: { id: true } })).map((c) => c.id);
+    if (leftover.length) {
+      await prisma.eventParticipant.deleteMany({ where: { coachId: { in: leftover } } }).catch(() => {});
+      await prisma.eventApplication.deleteMany({ where: { coachId: { in: leftover } } }).catch(() => {});
+      await prisma.coachSport.deleteMany({ where: { coachId: { in: leftover } } }).catch(() => {});
+      state.coaches = (await prisma.coach.deleteMany({ where: { id: { in: leftover } } }).catch(() => ({ count: 0 }))).count || 0;
     }
-    state.coaches = (await prisma.coach.deleteMany({ where: { coachCode: { startsWith: "COA-TEST" } } }).catch(() => ({ count: 0 }))).count || 0;
-
-    // Legacy test event plans (names containing TEST marker).
-    state.plans = (await prisma.eventPlan.deleteMany({ where: { eventName: { contains: "TEST" } } }).catch(() => ({ count: 0 }))).count || 0;
   } catch (e) {
     console.warn("[sample-data] legacy cleanup skipped (non-fatal):", e && e.message);
   }
