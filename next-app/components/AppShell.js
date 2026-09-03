@@ -80,10 +80,16 @@ export default function AppShell({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const person = session?.user?.name || session?.user?.email || "Account";
   const currentPath = active || router.pathname;
 
   const isActive = (href) => (currentPath === href ? styles.navLinkActive : undefined);
+
+  const toggleNav = () => {
+    setOpen((v) => !v);
+    setCollapsed((v) => !v);
+  };
 
   const nav = (
     <nav className={styles.sidebar} aria-label="Primary navigation">
@@ -121,10 +127,10 @@ export default function AppShell({
             type="button"
             className={styles.menuToggle}
             aria-label="Toggle navigation menu"
-            aria-expanded={open}
-            onClick={() => setOpen((v) => !v)}
+            aria-expanded={collapsed ? false : open}
+            onClick={toggleNav}
           >
-            Menu
+            {collapsed ? "☰ Show menu" : "✕ Hide menu"}
           </button>
           <span className={styles.userName}>{person}</span>
           <span className={styles.roleBadge}>{session?.user?.role}</span>
@@ -134,8 +140,8 @@ export default function AppShell({
         </div>
       </header>
       {open && <div className={styles.mobileNav}>{nav}</div>}
-      <div className={styles.layout}>
-        {nav}
+      <div className={`${styles.layout}${collapsed ? " " + styles.sidebarHidden : ""}`}>
+        {!collapsed && nav}
         <main className={styles.content}>{children}</main>
       </div>
     </div>

@@ -154,7 +154,9 @@
 }
 
 .menuToggle {
-  display: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   background: transparent;
   border: 1px solid var(--border);
   color: var(--muted);
@@ -165,12 +167,19 @@
   font-size: var(--text-base);
   font-weight: 600;
 }
+.menuToggle:hover { color: #f0fdf4; background: rgba(45, 212, 168, 0.12); }
 
 .layout {
   display: flex;
   flex: 1;
   min-height: 0;
 }
+
+/* Sidebar collapsed to give the active feature more space.
+   The desktop nav is conditionally rendered by AppShell; this rule is a
+   belt-and-suspenders guard (e.g. nav appearing in the mobile overlay). */
+.layout.sidebarHidden .sidebar { display: none; }
+.layout.sidebarHidden .content { max-width: none; }
 
 .sidebar {
   width: 220px;
