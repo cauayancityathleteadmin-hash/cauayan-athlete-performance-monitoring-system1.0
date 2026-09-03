@@ -235,6 +235,7 @@ export default function AthleteProfile({ session, athlete, catalog }) {
           </div>
           <div className={styles.actions}>
             <StatusBadge status={athlete.status} />
+            <Link className={styles.primary} href={`/athletes/${athlete.id}/progress`}>View progress</Link>
             <Link className={styles.secondary} href="/athletes">Back to athletes</Link>
           </div>
         </div>
@@ -398,7 +399,7 @@ export default function AthleteProfile({ session, athlete, catalog }) {
           {/* Achievements */}
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Recognition</p><h2>Achievements</h2></div></div>
-            <AchievementForm athleteId={athlete.id} onComplete={() => router.reload()} />
+            <AchievementForm athleteId={athlete.id} catalog={catalog} onComplete={() => router.reload()} />
             {athlete.achievements?.length ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {athlete.achievements.map((a) => (
@@ -407,9 +408,16 @@ export default function AthleteProfile({ session, athlete, catalog }) {
                       <strong style={{ fontSize: 13 }}>{a.achievementTitle}</strong>
                       <small style={{ color: "var(--muted)", fontSize: 12 }}>{fmtDate(a.achievementDate)}</small>
                     </div>
-                    {a.achievementType && <small style={{ display: "block", color: "var(--accent)", fontSize: 12, textTransform: "capitalize" }}>{a.achievementType}</small>}
+                    {(a.medal || a.level) && (
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                        {a.medal && <span className={`${styles.badge} ${a.medal === "gold" ? styles.badgeActive : a.medal === "participation" ? styles.badgeMuted : styles.badgePending}`} style={{ textTransform: "capitalize" }}>{a.medal}</span>}
+                        {a.level && <span className={`${styles.badge} ${styles.badgePending}`} style={{ textTransform: "capitalize" }}>{a.level}</span>}
+                      </div>
+                    )}
+                    {a.achievementType && <small style={{ display: "block", color: "var(--accent)", fontSize: 12, textTransform: "capitalize", marginTop: 4 }}>{a.achievementType}</small>}
                     {a.organization && <small style={{ display: "block", color: "var(--muted)", fontSize: 12 }}>{a.organization}</small>}
                     {a.description && <small style={{ display: "block", color: "var(--muted)", fontSize: 12 }}>{a.description}</small>}
+                    {a.certificateUrl && <small style={{ display: "block", marginTop: 2 }}><a href={a.certificateUrl} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>View certificate</a></small>}
                   </div>
                 ))}
               </div>
@@ -550,9 +558,12 @@ function StatusForm({ athleteId, currentStatus, onComplete }) {
   );
 }
 
-function AchievementForm({ athleteId, onComplete }) {
+function AchievementForm({ athleteId, catalog, onComplete }) {
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState("");
+  const [sportId, setSportId] = React.useState(athleteId ? "" : "");
+  const eventsForSport = catalog?.events?.filter((e) => e.sportId === Number(sportId)) || [];
+  const currentSport = Number(sportId);
 
   async function submit(event) {
     event.preventDefault();
@@ -569,6 +580,11 @@ function AchievementForm({ athleteId, onComplete }) {
         organization: form.get("organization"),
         achievementDate: form.get("achievementDate"),
         description: form.get("description"),
+        medal: form.get("medal"),
+        level: form.get("level"),
+        sportId: Number(form.get("sportId")) || null,
+        eventId: Number(form.get("eventId")) || null,
+        certificateUrl: form.get("certificateUrl"),
       }),
     }).catch(() => null);
     const result = response ? await response.json().catch(() => ({})) : {};
@@ -586,14 +602,46 @@ function AchievementForm({ athleteId, onComplete }) {
     <form onSubmit={submit} className={styles.formStack} style={{ marginBottom: 14 }}>
       <label>Title *<input name="title" className={styles.fieldControl} required maxLength="150" placeholder="e.g. Gold medal, 100m sprint" /></label>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <label style={{ flex: "1 1 140px" }}>Type
-          <input name="achievementType" className={styles.fieldControl} maxLength="100" placeholder="e.g. Medal, Record, Cert" />
+        <label style={{ flex: "1 1 140px" }}>Medal / result
+          <select name="medal" className={styles.fieldControl} defaultValue="">
+            <option value="">None</option>
+            <option value="gold">Gold (1st)</option>
+            <option value="silver">Silver (2nd)</option>
+            <option value="bronze">Bronze (3rd)</option>
+            <option value="participation">Participation</option>
+          </select>
+        </label>
+        <label style={{ flex: "1 1 160px" }}>Level
+          <select name="level" className={styles.fieldControl} defaultValue="">
+            <option value="">None</option>
+            <option value="intramural">Intramural</option>
+            <option value="district">District</option>
+            <option value="regional">Regional</option>
+            <option value="national">National</option>
+            <option value="international">International</option>
+          </select>
         </label>
         <label style={{ flex: "1 1 160px" }}>Date
           <input name="achievementDate" className={styles.fieldControl} type="date" />
         </label>
       </div>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <label style={{ flex: "1 1 160px" }}>Sport
+          <select name="sportId" className={styles.fieldControl} defaultValue="" onChange={(e) => setSportId(e.target.value)}>
+            <option value="">None</option>
+            {(catalog?.sports || []).map((s) => <option value={s.id} key={s.id}>{s.sportName}</option>)}
+          </select>
+        </label>
+        <label style={{ flex: "1 1 160px" }}>Event / discipline
+          <select name="eventId" className={styles.fieldControl} defaultValue="">
+            <option value="">None</option>
+            {eventsForSport.map((e) => <option value={e.id} key={e.id}>{e.eventName}</option>)}
+          </select>
+        </label>
+      </div>
+      <label>Type<input name="achievementType" className={styles.fieldControl} maxLength="100" placeholder="e.g. Medal, Record, Cert" /></label>
       <label>Organization<input name="organization" className={styles.fieldControl} maxLength="191" placeholder="e.g. PRISAA" /></label>
+      <label>Certificate / photo link<input name="certificateUrl" className={styles.fieldControl} maxLength="500" placeholder="https://... (optional proof)" /></label>
       <label>Description<textarea name="description" className={styles.fieldControl} rows="2" maxLength="2000" /></label>
       <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Add achievement"}</button>
       {message && <p role="status" className={styles.formHint}>{message}</p>}

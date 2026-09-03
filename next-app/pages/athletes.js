@@ -49,7 +49,7 @@ export async function getServerSideProps(context) {
     if (coach) student.where = { ...(student.where || {}), coachId: coach.id };
   }
   const [allAthletes, sports, events, coaches] = await Promise.all([
-    prisma.athlete.findMany({ ...student, orderBy: [{ sport: { sportName: "asc" } }, { lastName: "asc" }, { firstName: "asc" }] }),
+    prisma.athlete.findMany(student),
     prisma.sport.findMany({ where: { status: "active" }, orderBy: { sportName: "asc" } }),
     prisma.event.findMany({ where: { status: "active" }, include: { sport: true }, orderBy: { eventName: "asc" } }),
     session.user.role === "admin" ? prisma.coach.findMany({ where: { status: "active" }, orderBy: { lastName: "asc" }, select: { id: true, coachCode: true, firstName: true, lastName: true, schoolId: true, school: { select: { schoolName: true } } } }) : Promise.resolve([]),

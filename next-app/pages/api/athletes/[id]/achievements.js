@@ -39,6 +39,11 @@ export default async function handler(req, res) {
     const achievementType = text(req.body?.achievementType, 100);
     const organization = text(req.body?.organization, 191);
     const description = text(req.body?.description, 2000);
+    const medal = text(req.body?.medal, 50);
+    const level = text(req.body?.level, 50);
+    const certificateUrl = text(req.body?.certificateUrl, 500);
+    const sportId = validId(req.body?.sportId);
+    const eventId = validId(req.body?.eventId);
     let achievementDate = null;
     if (req.body?.achievementDate) {
       const parsed = new Date(`${String(req.body.achievementDate).slice(0, 10)}T00:00:00Z`);
@@ -55,6 +60,11 @@ export default async function handler(req, res) {
           organization: organization || null,
           description: description || null,
           achievementDate,
+          medal: medal || null,
+          level: level || null,
+          sportId: sportId || null,
+          eventId: eventId || null,
+          certificateUrl: certificateUrl || null,
         },
       }),
       prisma.auditLog.create({

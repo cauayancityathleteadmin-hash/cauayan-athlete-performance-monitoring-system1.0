@@ -234,6 +234,7 @@ model Sport {
   participants EventParticipant[]
   trainingSessions TrainingSession[]
   trainingPlans    TrainingPlan[]
+  achievements     Achievement[]
   @@map("sports")
 }
 
@@ -247,6 +248,7 @@ model Event {
   sport       Sport        @relation(fields: [sportId], references: [id], onDelete: Cascade)
   metrics     PerformanceMetric[]
   athletes    Athlete[]
+  achievements Achievement[]
   @@unique([sportId, eventName])
   @@map("events")
   @@index([sportId, status])
@@ -406,10 +408,26 @@ model Achievement {
   achievementDate  DateTime? @map("achievement_date")
   organization     String?
   description      String?
+  medal            String?   @map("medal")
+  level            String?   @map("level")
+  sportId          Int?      @map("sport_id")
+  eventId          Int?      @map("event_id")
+  certificateUrl   String?   @map("certificate_url")
   createdAt        DateTime  @default(now()) @map("created_at")
   athlete          Athlete   @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  sport            Sport?    @relation(fields: [sportId], references: [id], onDelete: SetNull)
+  event            Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
   @@map("achievements")
   @@index([athleteId, achievementDate])
+}
+
+model PointsConfig {
+  id     Int    @id @default(autoincrement())
+  medal  String @map("medal")
+  level  String @map("level")
+  points Int    @map("points")
+  @@unique([medal, level])
+  @@map("points_config")
 }
 
 model AuditLog {

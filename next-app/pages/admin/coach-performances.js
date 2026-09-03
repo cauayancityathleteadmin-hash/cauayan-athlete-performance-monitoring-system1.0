@@ -37,6 +37,105 @@ function ratingColor(v) {
   return "var(--danger)";
 }
 
+function CoachTrend({ points }) {
+  const w = 360;
+  const h = 110;
+  const padL = 8;
+  const padR = 12;
+  const padT = 10;
+  const padB = 22;
+  if (!points || points.length < 2) return <p className={styles.empty}>Not enough evaluations to plot a trend yet.</p>;
+  const values = points.map((p) => p.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const plotW = w - padL - padR;
+  const plotH = h - padT - padB;
+  const step = plotW / (points.length - 1 || 1);
+  const coords = points.map((p, i) => ({ x: padL + i * step, y: padT + plotH - ((p.value - min) / range) * plotH, p }));
+  const path = coords.map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
+  const area = `${path} L${coords[coords.length - 1].x.toFixed(1)},${h - padB} L${coords[0].x.toFixed(1)},${h - padB} Z`;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: "auto", display: "block" }} role="img" aria-label="Coach evaluation trend chart">
+      <defs>
+        <linearGradient id="ctrend2" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="rgba(45, 212, 168, 0.35)" />
+          <stop offset="100%" stopColor="rgba(45, 212, 168, 0.02)" />
+        </linearGradient>
+      </defs>
+      {[0.1, 0.5, 0.9].map((fy) => (
+        <line key={fy} x1={padL} x2={w - padR} y1={padT + plotH * fy} y2={padT + plotH * fy} stroke="rgba(127, 199, 175, 0.12)" strokeWidth="1" />
+      ))}
+      <path d={area} fill="url(#ctrend2)" />
+      <path d={path} fill="none" stroke="#2dd4a8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      {coords.map((c, i) => (
+        <g key={i}>
+          <circle cx={c.x} cy={c.y} r="3" fill="#041f18" stroke="#2dd4a8" strokeWidth="2" />
+          <text x={c.x} y={h - 7} textAnchor="middle" fontSize="8" fill="var(--muted)">{c.p.when}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function CoachProgressPanel({ coaches, evals }) {
+  const [coachId, setCoachId] = React.useState("");
+  const list = (coaches || []).filter((c) => !coachId || c.id === Number(coachId));
+  if (!evals || evals.length === 0) {
+    return null;
+  }
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div><p className={styles.eyebrow}>Progress</p><h2>Coach progress</h2></div>
+        <select className={styles.fieldControl} style={{ width: 220 }} value={coachId} onChange={(e) => setCoachId(e.target.value)}>
+          <option value="">All coaches</option>
+          {(coaches || []).map((c) => <option key={c.id} value={c.id}>{c.lastName}, {c.firstName}</option>)}
+        </select>
+      </div>
+      <p className={styles.formHint} style={{ marginTop: 0 }}>Tracks each coach&apos;s evaluation scores over time to spot improvement or decline.</p>
+      {list.map((coach) => {
+        const coachEvals = evals
+          .filter((e) => e.coach?.id === coach.id)
+          .sort((a, b) => new Date(a.periodEnd) - new Date(b.periodEnd));
+        if (coachEvals.length === 0) return <p key={coach.id} className={styles.empty}>No evaluations for {coach.firstName} {coach.lastName} yet.</p>;
+        const points = coachEvals.map((e) => ({ when: fmtDate(e.periodEnd), value: Number(e.overallScore) }));
+        const avgOverall = coachEvals.reduce((s, e) => s + Number(e.overallScore), 0) / coachEvals.length;
+        const first = Number(coachEvals[0].overallScore);
+        const last = Number(coachEvals[coachEvals.length - 1].overallScore);
+        const delta = last - first;
+        const trendText = coachEvals.length < 2 ? "Need 2+ evaluations to show a trend" : delta > 0.1 ? `Improving (+${round(delta)})` : delta < -0.1 ? `Declining (${round(delta)})` : "Holding steady";
+        const trendColor = delta > 0.1 ? "var(--success)" : delta < -0.1 ? "var(--danger)" : "var(--muted)";
+        return (
+          <div key={coach.id} className={styles.detailPanel} style={{ marginBottom: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10, alignItems: "baseline" }}>
+              <strong style={{ fontSize: 15 }}>{coach.firstName} {coach.lastName} <small style={{ color: "var(--muted)" }}>({coach.coachCode})</small></strong>
+              <small><span style={{ color: ratingColor(avgOverall), fontWeight: 700 }}>{round(avgOverall)}/10</span> avg · {coachEvals.length} evaluation{coachEvals.length === 1 ? "" : "s"} · <span style={{ color: trendColor, fontWeight: 700 }}>{trendText}</span></small>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <CoachTrend points={points} />
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <h4 style={{ fontSize: 13, margin: "0 0 6px", color: "var(--accent)" }}>Average per criterion</h4>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {CRITERIA.map((c) => {
+                  const avg = coachEvals.reduce((s, e) => s + Number(e[c.key] || 0), 0) / coachEvals.length;
+                  return (
+                    <span key={c.key} style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", padding: "6px 10px", borderRadius: 10, background: "rgba(6,38,30,.35)", border: "1px solid var(--border)" }}>
+                      <strong style={{ color: ratingColor(avg), fontSize: 14 }}>{round(avg)}</strong>
+                      <small style={{ color: "var(--muted)", fontSize: 10, textAlign: "center" }}>{c.label}</small>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
 export default function CoachPerformances({ session, coaches }) {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [evals, setEvals] = React.useState([]);
@@ -107,6 +206,8 @@ export default function CoachPerformances({ session, coaches }) {
             </div>
           )}
         </section>
+
+        <CoachProgressPanel coaches={coaches} evals={evals} />
       </AppShell>
     </>
   );

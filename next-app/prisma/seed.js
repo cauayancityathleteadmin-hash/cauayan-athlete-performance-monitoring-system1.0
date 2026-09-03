@@ -62,10 +62,10 @@ async function main() {
 
   const users = {};
   for (const [key, data] of Object.entries({
-    admin: { username: "admin-test", email: "admin.test@cauayan.local", passwordHash: passwords.admin, role: "admin" },
-    coachOne: { username: "coach-001", email: "coach.one@cauayan.local", passwordHash: passwords.coachOne, role: "coach" },
-    coachTwo: { username: "coach-002", email: "coach.two@cauayan.local", passwordHash: passwords.coachTwo, role: "coach" },
-    coachThree: { username: "coach-003", email: "coach.three@cauayan.local", passwordHash: passwords.coachThree, role: "coach" },
+    admin: { username: "admin", email: "admin@cauayan.local", passwordHash: passwords.admin, role: "admin" },
+    coachOne: { username: "msantos", email: "maria.santos@cauayan.local", passwordHash: passwords.coachOne, role: "coach" },
+    coachTwo: { username: "rdelacruz", email: "roberto.delacruz@cauayan.local", passwordHash: passwords.coachTwo, role: "coach" },
+    coachThree: { username: "ereyes", email: "elena.reyes@cauayan.local", passwordHash: passwords.coachThree, role: "coach" },
   })) {
     users[key] = await prisma.user.upsert({
       where: { email: data.email },
@@ -75,9 +75,9 @@ async function main() {
   }
 
   const coachData = [
-    ["coachOne", "COA-TEST01", "Maria", "Santos", "Reyes", schools["Cauayan City National High School"], "0917 111 0001"],
-    ["coachTwo", "COA-TEST02", "Roberto", "Dela", "Cruz", schools["Isabela National High School"], "0917 111 0002"],
-    ["coachThree", "COA-TEST03", "Elena", "Mendoza", "Garcia", schools["University of Cagayan Valley - Cauayan"], "0917 111 0003"],
+    ["coachOne", "COA-100001", "Maria", "Velasco", "Santos", schools["Cauayan City National High School"], "0917 111 0001"],
+    ["coachTwo", "COA-100002", "Roberto", "Dela", "Cruz", schools["Isabela National High School"], "0917 111 0002"],
+    ["coachThree", "COA-100003", "Elena", "Mendoza", "Reyes", schools["University of Cagayan Valley - Cauayan"], "0917 111 0003"],
   ];
   const coaches = {};
   for (const [userKey, coachCode, firstName, middleName, lastName, school, contactNumber] of coachData) {
@@ -103,15 +103,15 @@ async function main() {
   }
 
   const athleteData = [
-    ["ATH-TEST001", "Juan", "Pedro", "Dela Cruz", "Athletics", "100m Sprint", "coachOne", "Cauayan City National High School"],
-    ["ATH-TEST002", "Ana", "Marie", "Santos", "Swimming", "50m Freestyle", "coachOne", "Cauayan City National High School"],
-    ["ATH-TEST003", "Miguel", "Luis", "Reyes", "Athletics", "Long Jump", "coachOne", "Cauayan City National High School"],
-    ["ATH-TEST004", "Carlo", "Ben", "Mendoza", "Basketball", "5x5 Basketball", "coachTwo", "Isabela National High School"],
-    ["ATH-TEST005", "Sofia", "Luna", "Garcia", "Volleyball", "Indoor Volleyball", "coachTwo", "Isabela National High School"],
-    ["ATH-TEST006", "Mark", "Jose", "Navarro", "Basketball", "5x5 Basketball", "coachTwo", "Isabela National High School"],
-    ["ATH-TEST007", "Leah", "Grace", "Torres", "Athletics", "100m Sprint", "coachThree", "University of Cagayan Valley - Cauayan"],
-    ["ATH-TEST008", "Paolo", "Nico", "Ramos", "Basketball", "5x5 Basketball", "coachThree", "University of Cagayan Valley - Cauayan"],
-    ["ATH-TEST009", "Ivy", "Mae", "Flores", "Athletics", "Long Jump", "coachThree", "University of Cagayan Valley - Cauayan"],
+    ["ATH-100001", "Juan", "Pedro", "Dela Cruz", "Athletics", "100m Sprint", "coachOne", "Cauayan City National High School"],
+    ["ATH-100002", "Ana", "Marie", "Santos", "Swimming", "50m Freestyle", "coachOne", "Cauayan City National High School"],
+    ["ATH-100003", "Miguel", "Luis", "Reyes", "Athletics", "Long Jump", "coachOne", "Cauayan City National High School"],
+    ["ATH-100004", "Carlo", "Ben", "Mendoza", "Basketball", "5x5 Basketball", "coachTwo", "Isabela National High School"],
+    ["ATH-100005", "Sofia", "Luna", "Garcia", "Volleyball", "Indoor Volleyball", "coachTwo", "Isabela National High School"],
+    ["ATH-100006", "Mark", "Jose", "Navarro", "Basketball", "5x5 Basketball", "coachTwo", "Isabela National High School"],
+    ["ATH-100007", "Leah", "Grace", "Torres", "Athletics", "100m Sprint", "coachThree", "University of Cagayan Valley - Cauayan"],
+    ["ATH-100008", "Paolo", "Nico", "Ramos", "Basketball", "5x5 Basketball", "coachThree", "University of Cagayan Valley - Cauayan"],
+    ["ATH-100009", "Ivy", "Mae", "Flores", "Athletics", "Long Jump", "coachThree", "University of Cagayan Valley - Cauayan"],
   ];
   const athletes = [];
   for (const [athleteCode, firstName, middleName, lastName, sportName, eventName, coachKey, schoolName] of athleteData) {

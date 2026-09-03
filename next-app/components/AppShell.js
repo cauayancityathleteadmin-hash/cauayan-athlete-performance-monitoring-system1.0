@@ -37,6 +37,7 @@ const NAV_GROUPS = [
     label: "Analytics",
     links: [
       { href: "/analytics", label: "Analytics" },
+      { href: "/standings", label: "Standings" },
     ],
   },
   {

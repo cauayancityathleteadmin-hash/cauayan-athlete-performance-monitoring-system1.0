@@ -40,29 +40,33 @@ const METRICS = {
   "Blitz": [["ELO Rating", "points", "integer", "higher", 800, 2400, false]],
 };
 
-const FIRST = ["Juan", "Ana", "Miguel", "Carlo", "Sofia", "Mark", "Leah", "Paolo", "Ivy", "Rafael", "Diana", "Enzo", "Bianca", "Luis", "Nina", "Marco", "Tessa", "Aldo", "Gia", "Ramon", "Lara", "Diego", "Mia", "Karlo", "Jade", "Nico", "Ella", "Vince", "Rosa", "Sam"];
-const LAST = ["Dela Cruz", "Santos", "Reyes", "Mendoza", "Garcia", "Navarro", "Torres", "Ramos", "Flores", "Aquino", "Villanueva", "Cruz", "Bautista", "Ocampo", "Padilla", "Domingo", "Salazar", "Ramoso", "Gonzales", "Silva", "Fernandez", "Castillo", "Lopez", "Perez", "Marquez", "Uy", "Tan", "Go", "Chua", "Lim"];
+const FIRST = ["Andres", "Maria", "Jose", "Rosario", "Ana", "Miguel", "Sofia", "Carlo", "Lea", "Paolo", "Ivy", "Rafael", "Bianca", "Luis", "Nina", "Marco", "Tessa", "Ramon", "Lara", "Diego", "Mia", "Karlo", "Ella", "Vince", "Rosa", "Patrick", "Janella", "Enrique", "Kriselle", "Aldrin", "Fatima", "Gerardo", "Hazel", "Ian", "Jasmine", "Kevin", "Lovely", "Noralyn", "Oscar", "Precious", "Rey", "Sheryl", "Tristan", "Vanessa", "Wenefredo", "Xyza", "Ysabel", "Zachary", "Dominic", "Pauline"];
+const LAST = ["Agcaoili", "Bumanlag", "Corpuz", "Dumlao", "Dela Cruz", "Santos", "Reyes", "Mendoza", "Garcia", "Navarro", "Torres", "Ramos", "Flores", "Aquino", "Villanueva", "Bautista", "Ocampo", "Padilla", "Domingo", "Salazar", "Gonzales", "Uy", "Tan", "Go", "Chua", "Lim", "Ganaban", "Mabanta", "Mallillin", "Paguyo", "Pacio", "Salviejo", "Turingan", "Visaya", "Calimag", "Carino", "Castro", "Ilagan", "Lazo", "Mabini", "Obedoza", "Palattao", "Queto", "Siazon", "Tabang", "Verzosa", "Zuniega", "Manuel", "Bautista", "Castillo", "Marquez"];
 
 const SCHOOLS = [
   "Cauayan City National High School",
-  "Isabela National High School",
-  "University of Cagayan Valley - Cauayan",
-  "Cauayan City Stand Alone Senior High School",
-  "Central Cauayan Elementary",
-  "Dadalat Integrated School",
+  "Isabela State University",
+  "Cauayan University",
+  "University of La Salette - Santiago",
+  "Cagayan State University",
+  "San Ildefonso National High School",
+  "Quirino General High School",
+  "Mallig Plains National High School",
+  "Centro Agro-Industrial School",
+  "PLT College - Cauayan",
 ];
 
 const ADMIN_ACCOUNTS = [
-  { username: "admin.101", email: "admin.101@cauayan.local", password: "admin.101" },
+  { username: "admin", email: "admin@cauayan.local", password: "Admin123!" },
 ];
 
 const COACHES = [
-  ["coach.a", "coach.a@cauayan.local", "UpgradeCoachA1!", "Maria", "Santos", ["Athletics", "Swimming"]],
-  ["coach.b", "coach.b@cauayan.local", "UpgradeCoachB2!", "Roberto", "Cruz", ["Basketball", "Volleyball"]],
-  ["coach.c", "coach.c@cauayan.local", "UpgradeCoachC3!", "Elena", "Reyes", ["Arnis", "Table Tennis"]],
-  ["coach.d", "coach.d@cauayan.local", "UpgradeCoachD4!", "Danilo", "Garcia", ["Chess", "Badminton"]],
-  ["coach.e", "coach.e@cauayan.local", "UpgradeCoachE5!", "Fely", "Aquino", ["Athletics", "Chess"]],
-  ["coach.f", "coach.f@cauayan.local", "UpgradeCoachF6!", "Ramon", "Domingo", ["Swimming", "Volleyball"]],
+  ["msantos", "maria.santos@cauayan.local", "CoachSantos1!", "Maria", "Santos", ["Athletics", "Swimming"]],
+  ["rdelacruz", "roberto.delacruz@cauayan.local", "CoachDelaCruz2!", "Roberto", "Dela Cruz", ["Basketball", "Volleyball"]],
+  ["ereyes", "elena.reyes@cauayan.local", "CoachReyes3!", "Elena", "Reyes", ["Arnis", "Table Tennis"]],
+  ["rgarcia", "roderick.garcia@cauayan.local", "CoachGarcia4!", "Roderick", "Garcia", ["Chess", "Badminton"]],
+  ["faquino", "fely.aquino@cauayan.local", "CoachAquino5!", "Fely", "Aquino", ["Athletics", "Chess"]],
+  ["rdomingo", "ramon.domingo@cauayan.local", "CoachDomingo6!", "Ramon", "Domingo", ["Swimming", "Volleyball"]],
 ];
 
 async function upsertSchool(name) {
@@ -100,6 +104,66 @@ async function upsertMetric(eventId, def) {
 
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
+// Default points per medal x level (idempotent). Keeps the standings formula non-empty.
+const DEFAULT_POINTS = [
+  ["gold", "intramural", 3], ["gold", "district", 5], ["gold", "regional", 10], ["gold", "national", 20], ["gold", "international", 40],
+  ["silver", "intramural", 2], ["silver", "district", 3], ["silver", "regional", 6], ["silver", "national", 12], ["silver", "international", 24],
+  ["bronze", "intramural", 1], ["bronze", "district", 1], ["bronze", "regional", 3], ["bronze", "national", 6], ["bronze", "international", 12],
+  ["participation", "intramural", 0], ["participation", "district", 1], ["participation", "regional", 1], ["participation", "national", 2], ["participation", "international", 3],
+];
+
+async function seedPointsConfig() {
+  for (const [medal, level, points] of DEFAULT_POINTS) {
+    await prisma.pointsConfig.upsert({
+      where: { medal_level: { medal, level } },
+      update: { points },
+      create: { medal, level, points },
+    }).catch(() => {});
+  }
+}
+
+// Remove legacy/unrealistic records left by earlier test seeds (test-form users,
+// coaches, athletes, and test event plans) while leaving realistic data intact.
+// Each step is isolated so a failure never aborts provisioning.
+async function cleanupLegacyTestData() {
+  let state = { users: 0, athletes: 0, coaches: 0, plans: 0 };
+  try {
+    // Known legacy test users (old seed usernames/emails). Deleting a user cascades
+    // its coach + coach dependents per the schema. The realistic admin (ADMIN_ACCOUNTS)
+    // is not in this list, so it is preserved.
+    const legacyEmails = [
+      "admin.test@cauayan.local", "admin.101@cauayan.local",
+      "coach.one@cauayan.local", "coach.two@cauayan.local", "coach.three@cauayan.local",
+      "coach.a@cauayan.local", "coach.b@cauayan.local", "coach.c@cauayan.local",
+      "coach.d@cauayan.local", "coach.e@cauayan.local", "coach.f@cauayan.local",
+    ];
+    for (const email of legacyEmails) {
+      await prisma.coachSport.deleteMany({ where: { coach: { user: { email } } } }).catch(() => {});
+    }
+    state.users = (await prisma.user.deleteMany({ where: { email: { in: legacyEmails } } }).catch(() => ({ count: 0 }))).count || 0;
+
+    // Legacy test athletes (ATH-TEST*) - cascades achievements/assessments/notes/etc.
+    state.athletes = (await prisma.athlete.deleteMany({ where: { athleteCode: { startsWith: "ATH-TEST" } } }).catch(() => ({ count: 0 }))).count || 0;
+
+    // Legacy test coaches by code (COA-TEST*): clear row-level dependents first.
+    const testCoachIds = await prisma.coach.findMany({ where: { coachCode: { startsWith: "COA-TEST" } }, select: { id: true } });
+    const ids = testCoachIds.map((c) => c.id);
+    if (ids.length) {
+      await prisma.eventParticipant.deleteMany({ where: { coachId: { in: ids } } }).catch(() => {});
+      await prisma.eventApplication.deleteMany({ where: { coachId: { in: ids } } }).catch(() => {});
+      await prisma.athlete.updateMany({ where: { coachId: { in: ids } }, data: { coachId: null } }).catch(() => {});
+      await prisma.coachSport.deleteMany({ where: { coachId: { in: ids } } }).catch(() => {});
+    }
+    state.coaches = (await prisma.coach.deleteMany({ where: { coachCode: { startsWith: "COA-TEST" } } }).catch(() => ({ count: 0 }))).count || 0;
+
+    // Legacy test event plans (names containing TEST marker).
+    state.plans = (await prisma.eventPlan.deleteMany({ where: { eventName: { contains: "TEST" } } }).catch(() => ({ count: 0 }))).count || 0;
+  } catch (e) {
+    console.warn("[sample-data] legacy cleanup skipped (non-fatal):", e && e.message);
+  }
+  return state;
+}
+
 // Fast, single-call admin creation (cannot time out) - used to guarantee an admin
 // exists even before the full sample data load is run. Returns the created admin.
 export async function provisionAdminOnly() {
@@ -114,7 +178,13 @@ export async function provisionAdminOnly() {
 }
 
 export async function provisionSampleData() {
-  const report = { admins: 0, coaches: 0, schools: 0, sports: 0, events: 0, metrics: 0, athletes: 0, assessments: 0, results: 0, achievements: 0, eventPlans: 0, applications: 0, participants: 0 };
+  const report = { admins: 0, coaches: 0, schools: 0, sports: 0, events: 0, metrics: 0, athletes: 0, assessments: 0, results: 0, achievements: 0, eventPlans: 0, applications: 0, participants: 0, removedLegacy: 0 };
+
+  // Drop any legacy/unrealistic test records before (re)seeding so only the
+  // realistic demo dataset remains. Each cleanup is isolated so a failure never
+  // aborts provisioning.
+  const removed = await cleanupLegacyTestData();
+  report.removedLegacy = (removed.users || 0) + (removed.athletes || 0) + (removed.coaches || 0) + (removed.plans || 0);
 
   const rng = () => Math.random();
 
@@ -214,7 +284,7 @@ export async function provisionSampleData() {
   }
 
   // Assessments + Results + Achievements
-  const createdAthletes = await prisma.athlete.findMany({ take: 16, orderBy: { id: "asc" }, select: { id: true, eventId: true } });
+  const createdAthletes = await prisma.athlete.findMany({ take: 16, orderBy: { id: "asc" }, select: { id: true, sportId: true, eventId: true } });
   const coachUsers = await prisma.user.findMany({ where: { role: "coach" }, select: { id: true } });
 
   let aIndex = 0;
@@ -248,16 +318,47 @@ export async function provisionSampleData() {
         report.results += 1;
       }
     }
-    if (rng() > 0.4) {
-      await prisma.achievement.create({
+    // Seed default points config (idempotent) so standings/points compute correctly.
+    await seedPointsConfig();
+
+    if (rng() > 0.25) {
+      const medals = ["gold", "silver", "bronze", "participation"];
+      const levels = ["intramural", "district", "regional", "national", "international"];
+      const medal = medals[aIndex % medals.length];
+      const level = levels[(aIndex * 2) % levels.length];
+      const achievement = await prisma.achievement.create({
         data: {
-          athleteId: athlete.id, achievementTitle: "Champion - " + (athlete.eventId ? "" : "Cauayan City"),
-          achievementType: ["Champion", "Finalist", "MVP", "Gold Medal"][aIndex % 4],
-          achievementDate: new Date(2026, aIndex % 12, 1), organization: "Cauayan City Division",
-          description: "Sample achievement for testing",
+          athleteId: athlete.id,
+          achievementTitle: `${medal.charAt(0).toUpperCase() + medal.slice(1)} - Cauayan City ${level.charAt(0).toUpperCase() + level.slice(1)} Meet`,
+          achievementType: medal === "gold" ? "Gold Medal" : medal.charAt(0).toUpperCase() + medal.slice(1),
+          achievementDate: new Date(2026, aIndex % 12, 1),
+          organization: "Cauayan City Division",
+          description: "Sample achievement demonstrating medal and level tracking",
+          medal, level,
+          sportId: athlete.sportId ?? undefined,
+          eventId: athlete.eventId ?? undefined,
+          certificateUrl: null,
         },
       });
       report.achievements += 1;
+      // Give a few top athletes a second, higher achievement so the leaderboard varies.
+      if (aIndex % 4 === 0) {
+        await prisma.achievement.create({
+          data: {
+            athleteId: athlete.id,
+            achievementTitle: `National Qualifier - ${(athlete.eventId ? "Open" : "Cauayan City")}`,
+            achievementType: "National Qualifier",
+            achievementDate: new Date(2026, (aIndex + 2) % 12, 10),
+            organization: "DepEd Cauayan City",
+            description: "Second sample achievement for points demonstration",
+            medal: "silver", level: "regional",
+            sportId: athlete.sportId ?? undefined,
+            eventId: athlete.eventId ?? undefined,
+            certificateUrl: null,
+          },
+        }).catch(() => {});
+        report.achievements += 1;
+      }
     }
     aIndex += 1;
   }

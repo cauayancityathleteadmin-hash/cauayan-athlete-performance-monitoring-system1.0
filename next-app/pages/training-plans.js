@@ -189,13 +189,14 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
 
 function CreatePlanForm({ isAdmin, sports, coaches, athletes, templates, onCreated, onCancel }) {
   const [sportId, setSportId] = React.useState(sports[0]?.id || "");
+  const [coachId, setCoachId] = React.useState("");
   const [templateId, setTemplateId] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState("");
   const [selectedAthletes, setSelectedAthletes] = React.useState([]);
 
   const coachOptions = coaches.filter((c) => !c.sports?.length || c.sports.some((s) => s.sportId === Number(sportId)));
-  const athleteOptions = athletes.filter((a) => !sportId || a.sportId === Number(sportId));
+  const athleteOptions = athletes.filter((a) => (!sportId || a.sportId === Number(sportId)) && (!isAdmin || !coachId || a.coachId === Number(coachId)));
 
   function toggleAthlete(id) {
     setSelectedAthletes((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
@@ -237,7 +238,7 @@ function CreatePlanForm({ isAdmin, sports, coaches, athletes, templates, onCreat
       <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Create</p><h2>New training plan</h2></div></div>
       <form onSubmit={submit} className={styles.formGrid}>
         <label className={styles.fullField}>Plan name *<input name="planName" required maxLength="191" placeholder="e.g. Pre-season conditioning month" /></label>
-        <label>Sport *<select name="sportId" value={sportId} required onChange={(e) => { setSportId(e.target.value); setSelectedAthletes([]); }}>{sports.map((s) => <option key={s.id} value={s.id}>{s.sportName}</option>)}</select></label>
+        <label>Sport *<select name="sportId" value={sportId} required onChange={(e) => { setSportId(e.target.value); setCoachId(""); setSelectedAthletes([]); }}>{sports.map((s) => <option key={s.id} value={s.id}>{s.sportName}</option>)}</select></label>
 
         {templates.length > 0 && (
           <label className={styles.fullField}>
@@ -250,7 +251,7 @@ function CreatePlanForm({ isAdmin, sports, coaches, athletes, templates, onCreat
           </label>
         )}
 
-        {isAdmin && <label>Coach *<select name="coachId" required><option value="">Select a coach</option>{coachOptions.map((c) => <option key={c.id} value={c.id}>{c.lastName}, {c.firstName}{c.coachCode ? ` (${c.coachCode})` : ""}</option>)}</select></label>}
+        {isAdmin && <label>Coach *<select name="coachId" required value={coachId} onChange={(e) => { setCoachId(e.target.value); setSelectedAthletes([]); }}><option value="">Select a coach</option>{coachOptions.map((c) => <option key={c.id} value={c.id}>{c.lastName}, {c.firstName}{c.coachCode ? ` (${c.coachCode})` : ""}</option>)}</select></label>}
         <label>Frequency *<select name="frequency" defaultValue="day"><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option></select></label>
         <label>Start date *<input name="startDate" type="date" required /></label>
         <label>End date (optional)<input name="endDate" type="date" /></label>
@@ -302,12 +303,12 @@ function EditPlanForm({ isAdmin, plan, sports, coaches, athletes, onSaved, onCan
   });
 
   const coachOptions = coaches.filter((c) => !c.sports?.length || c.sports.some((s) => s.sportId === Number(formData.sportId)));
-  const athleteOptions = athletes.filter((a) => !formData.sportId || a.sportId === Number(formData.sportId));
+  const athleteOptions = athletes.filter((a) => (!formData.sportId || a.sportId === Number(formData.sportId)) && (!isAdmin || !formData.coachId || a.coachId === Number(formData.coachId)));
 
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
-    if (name === "sportId") setSelectedAthletes([]);
+    if (name === "sportId" || name === "coachId") setSelectedAthletes([]);
   }
 
   function toggleAthlete(id) {
