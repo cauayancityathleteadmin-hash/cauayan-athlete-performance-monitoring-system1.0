@@ -11,8 +11,8 @@
   --warning: #fbbf24;
   --warning-dark: #d6b26e;
   --brand: #cae47a;
-  --font: "Trebuchet MS", "Segoe UI", sans-serif;
-  --font-heading: "Trebuchet MS", "Segoe UI", sans-serif;
+  --font: "Segoe UI", "Segoe UI Variable", "Aptos", "Helvetica Neue", Arial, sans-serif;
+  --font-heading: "Segoe UI", "Segoe UI Variable", "Aptos", "Helvetica Neue", Arial, sans-serif;
   --max-width: 1280px;
   --header-height: 80px;
 }
@@ -145,7 +145,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .login-page label {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   display: flex;
   flex-direction: column;
@@ -156,11 +156,11 @@ h1, h2, h3, h4, h5, h6 {
 .login-page button,
 .login-page select {
   width: 100%;
-  padding: 12px;
+  padding: 13px;
   border: 1px solid var(--border);
   border-radius: 6px;
   font: inherit;
-  font-size: 15px;
+  font-size: 16px;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -237,7 +237,7 @@ h1, h2, h3, h4, h5, h6 {
   color: #041f18;
   cursor: pointer;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 15px;
   transition: background 0.2s, transform 0.1s;
 }
 
@@ -250,13 +250,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .login-page button:disabled { opacity: .65; cursor: wait; }
-.login-page [role="alert"] { color: var(--danger); font-size: 14px; }
-.login-page [role="status"] { color: var(--accent); font-size: 14px; }
-.auth-kicker { margin: 0; color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
-.auth-subtitle { margin: 0 0 20px; color: var(--muted); font-size: 13px; text-align: center; }
-.auth-register { margin: 20px 0 0; text-align: center; font-size: 15px; }
+.login-page [role="alert"] { color: var(--danger); font-size: 15px; }
+.login-page [role="status"] { color: var(--accent); font-size: 15px; }
+.auth-kicker { margin: 0; color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.auth-subtitle { margin: 0 0 20px; color: var(--muted); font-size: 15px; text-align: center; }
+.auth-register { margin: 20px 0 0; text-align: center; font-size: 16px; }
 .login-page fieldset { display: grid; gap: 10px; margin: 8px 0; padding: 14px; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); }
-.login-page fieldset label { font-weight: 400; font-size: 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.login-page fieldset label { font-weight: 400; font-size: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
 .login-page fieldset input { width: auto; margin: 0; padding: 0; }
 .login-page fieldset input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); flex-shrink: 0; }
 
@@ -271,7 +271,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .register-sports legend {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -293,7 +293,7 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid var(--border);
   border-radius: 8px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--foreground);
   background: rgba(10, 50, 40, .6);
