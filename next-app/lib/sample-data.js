@@ -180,7 +180,7 @@ async function cleanupLegacyTestData() {
 // exists even before the full sample data load is run. Returns the created admin.
 export async function provisionAdminOnly() {
   const a = ADMIN_ACCOUNTS[0];
-  const passwordHash = await bcrypt.hash(a.password, 12);
+  const passwordHash = await bcrypt.hash(a.password, 10);
   const admin = await prisma.user.upsert({
     where: { email: a.email },
     update: { username: a.username, role: "admin", status: "active", mustChangePassword: false, passwordHash },
@@ -220,25 +220,32 @@ export async function provisionSampleData() {
   const schoolIds = {};
   for (const name of SCHOOLS) { schoolIds[name] = await upsertSchool(name); report.schools += 1; }
 
-  // Admins
+  // Admins (password hashed once, reused) - keep cost low so provisioning stays
+  // within the serverless function time limit.
+  const adminMemos = new Map();
   for (const a of ADMIN_ACCOUNTS) {
+    if (!adminMemos.has(a.password)) adminMemos.set(a.password, await bcrypt.hash(a.password, 10));
+    const passwordHash = adminMemos.get(a.password);
     await prisma.user.upsert({
       where: { email: a.email },
-      update: { username: a.username, role: "admin", status: "active", mustChangePassword: false, passwordHash: await bcrypt.hash(a.password, 12) },
-      create: { username: a.username, email: a.email, role: "admin", status: "active", mustChangePassword: false, passwordHash: await bcrypt.hash(a.password, 12) },
+      update: { username: a.username, role: "admin", status: "active", mustChangePassword: false, passwordHash },
+      create: { username: a.username, email: a.email, role: "admin", status: "active", mustChangePassword: false, passwordHash },
     });
     report.admins += 1;
   }
 
   // Coaches
   const coachList = [];
+  const coachMemos = new Map();
   for (let i = 0; i < COACHES.length; i += 1) {
     const [username, email, password, first, last, sports] = COACHES[i];
     const coachCode = `COA-${String(100000 + i + 1)}`;
+    if (!coachMemos.has(password)) coachMemos.set(password, await bcrypt.hash(password, 10));
+    const passwordHash = coachMemos.get(password);
     const user = await prisma.user.upsert({
       where: { email },
-      update: { username, role: "coach", status: "active", mustChangePassword: false, passwordHash: await bcrypt.hash(password, 12) },
-      create: { username, email, role: "coach", status: "active", mustChangePassword: false, passwordHash: await bcrypt.hash(password, 12) },
+      update: { username, role: "coach", status: "active", mustChangePassword: false, passwordHash },
+      create: { username, email, role: "coach", status: "active", mustChangePassword: false, passwordHash },
       select: { id: true },
     });
     const schoolName = SCHOOLS[i % SCHOOLS.length];
