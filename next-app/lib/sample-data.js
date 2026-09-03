@@ -133,36 +133,42 @@ async function cleanupLegacyTestData() {
     // uses @cauayan.local emails / ATH- / COA- codes / demo plans. Real production
     // accounts and records never match these and are preserved.
 
+    // 0) Reference lists.
+    const demoEmail = { endsWith: "@cauayan.local" };
+
     // 1) Demo athletes (by email domain) - cascades achievements/assessments/notes/
-    //    health/training per the schema.
-    state.athletes = (await prisma.athlete.deleteMany({ where: { email: { endsWith: "@cauayan.local" } } }).catch(() => ({ count: 0 }))).count || 0;
+    //    health/training + deanonymizes coach history (athlete-side cascade).
+    state.athletes = (await prisma.athlete.deleteMany({ where: { email: demoEmail } }).catch(() => ({ count: 0 }))).count || 0;
 
     // 2) Demo event plans.
     state.plans = (await prisma.eventPlan.deleteMany({
       where: { OR: [{ eventName: { contains: "TEST" } }, { description: "Sample event program for testing" }, { eventName: { startsWith: "Cauayan City Meet" } }] },
     }).catch(() => ({ count: 0 }))).count || 0;
 
-    // 3) Demo users (any @cauayan.local account) -> cascades their coaches.
-    const demoUserIds = (await prisma.user.findMany({ where: { email: { endsWith: "@cauayan.local" } }, select: { id: true } })).map((u) => u.id);
-    if (demoUserIds.length) {
-      // Clear any row-level references to demo coaches first (athletes are already gone,
-      // but clear participant/application/coachSport leftovers to avoid FK surprises).
-      const demoCoachIds = (await prisma.coach.findMany({ where: { userId: { in: demoUserIds } }, select: { id: true } })).map((c) => c.id);
-      if (demoCoachIds.length) {
-        await prisma.eventParticipant.deleteMany({ where: { coachId: { in: demoCoachIds } } }).catch(() => {});
-        await prisma.eventApplication.deleteMany({ where: { coachId: { in: demoCoachIds } } }).catch(() => {});
-        await prisma.coachSport.deleteMany({ where: { coachId: { in: demoCoachIds } } }).catch(() => {});
-      }
-      state.users = (await prisma.user.deleteMany({ where: { id: { in: demoUserIds } } }).catch(() => ({ count: 0 }))).count || 0;
+    // 3) Demo users (any @cauayan.local account) and the coaches under them.
+    const demoUserIds = (await prisma.user.findMany({ where: { email: demoEmail }, select: { id: true } })).map((u) => u.id);
+    const reservedCodes = ["COA-100001", "COA-100002", "COA-100003", "COA-100004", "COA-100005", "COA-100006", "COA-TEST01", "COA-TEST02", "COA-TEST03"];
+    const demoCoachIds = (await prisma.coach.findMany({
+      where: { OR: [{ userId: { in: demoUserIds } }, { coachCode: { in: reservedCodes } }] },
+      select: { id: true },
+    })).map((c) => c.id);
+
+    if (demoCoachIds.length) {
+      // 4) Clear EVERY coach dependency (many are Restrict -> must remove explicitly).
+      await prisma.athleteCoachHistory.deleteMany({ where: { coachId: { in: demoCoachIds } } }).catch(() => {});
+      await prisma.trainingSession.deleteMany({ where: { coachId: { in: demoCoachIds } } }).catch(() => {});
+      await prisma.trainingPlan.deleteMany({ where: { coachId: { in: demoCoachIds } } }).catch(() => {});
+      await prisma.coachPerformance.deleteMany({ where: { coachId: { in: demoCoachIds } } }).catch(() => {});
+      await prisma.coachSport.deleteMany({ where: { coachId: { in: demoCoachIds } } }).catch(() => {});
+      await prisma.eventParticipant.deleteMany({ where: { coachId: { in: demoCoachIds } } }).catch(() => {});
+      await prisma.eventApplication.deleteMany({ where: { coachId: { in: demoCoachIds } } }).catch(() => {});
+      await prisma.athlete.deleteMany({ where: { coachId: { in: demoCoachIds } } }).catch(() => {});
+      state.coaches = (await prisma.coach.deleteMany({ where: { id: { in: demoCoachIds } } }).catch(() => ({ count: 0 }))).count || 0;
     }
 
-    // 4) Any leftover demo coaches still present by code prefix (belt & suspenders).
-    const leftover = (await prisma.coach.findMany({ where: { coachCode: { in: ["COA-100001", "COA-100002", "COA-100003", "COA-100004", "COA-100005", "COA-100006", "COA-TEST01", "COA-TEST02", "COA-TEST03"] } }, select: { id: true } })).map((c) => c.id);
-    if (leftover.length) {
-      await prisma.eventParticipant.deleteMany({ where: { coachId: { in: leftover } } }).catch(() => {});
-      await prisma.eventApplication.deleteMany({ where: { coachId: { in: leftover } } }).catch(() => {});
-      await prisma.coachSport.deleteMany({ where: { coachId: { in: leftover } } }).catch(() => {});
-      state.coaches = (await prisma.coach.deleteMany({ where: { id: { in: leftover } } }).catch(() => ({ count: 0 }))).count || 0;
+    // 5) Demo users (cascades anything still attached).
+    if (demoUserIds.length) {
+      state.users = (await prisma.user.deleteMany({ where: { id: { in: demoUserIds } } }).catch(() => ({ count: 0 }))).count || 0;
     }
   } catch (e) {
     console.warn("[sample-data] legacy cleanup skipped (non-fatal):", e && e.message);
@@ -246,10 +252,16 @@ export async function provisionSampleData() {
     });
     const targetIds = targets.map((t) => t.id);
     if (targetIds.length) {
+      // Clear every dependency (many coach FKs are Restrict, so remove them explicitly)
+      // before deleting the leftover row, then create fresh (no collision).
+      await prisma.athleteCoachHistory.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
+      await prisma.trainingSession.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
+      await prisma.trainingPlan.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
+      await prisma.coachPerformance.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
       await prisma.eventParticipant.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
       await prisma.eventApplication.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
       await prisma.coachSport.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
-      await prisma.athlete.updateMany({ where: { coachId: { in: targetIds } }, data: { coachId: null } }).catch(() => {});
+      await prisma.athlete.deleteMany({ where: { coachId: { in: targetIds } } }).catch(() => {});
       await prisma.coach.deleteMany({ where: { id: { in: targetIds } } }).catch(() => {});
     }
     const coach = await prisma.coach.create({
