@@ -57,6 +57,7 @@ export default function AdminCoaches({ coaches, session }) {
   const [list, setList] = React.useState(coaches);
   const [view, setView] = React.useState("sport");
   const [filter, setFilter] = React.useState("all");
+  const [search, setSearch] = React.useState("");
   const [sortKey, setSortKey] = React.useState("name");
   const [sortDir, setSortDir] = React.useState("asc");
   const [message, setMessage] = React.useState("");
@@ -118,7 +119,18 @@ export default function AdminCoaches({ coaches, session }) {
     return isNaN(date) ? value : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
   }
 
-  const visible = list.filter((coach) => filter === "all" || coach.user.status === filter);
+  const visible = list.filter((coach) => {
+    if (filter !== "all" && coach.user.status !== filter) return false;
+    if (!search.trim()) return true;
+    const q = search.trim().toLowerCase();
+    return (
+      `${coach.firstName} ${coach.lastName}${coach.suffix ? " " + coach.suffix : ""}`.toLowerCase().includes(q) ||
+      (coach.coachCode || "").toLowerCase().includes(q) ||
+      (coach.school?.schoolName || "").toLowerCase().includes(q) ||
+      ((coach.sports || []).map((cs) => cs.sport?.sportName).join(" ")).toLowerCase().includes(q) ||
+      (coach.user?.email || "").toLowerCase().includes(q)
+    );
+  });
   const sorted = sortCoaches(visible, sortKey, sortDir);
 
   const grouped = React.useMemo(() => {
@@ -142,7 +154,8 @@ export default function AdminCoaches({ coaches, session }) {
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
             <div>
-              <h2>Coaches</h2>
+              <p className={styles.eyebrow}>Registered coaches</p>
+              <h2>{view === "list" ? "All coaches" : "All coaches by sport"}</h2>
             </div>
             <div className={styles.segmented}>
               <button className={view === "sport" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("sport")}>By sport</button>
@@ -150,6 +163,7 @@ export default function AdminCoaches({ coaches, session }) {
             </div>
           </div>
           <div className={styles.toolbar}>
+            <label style={{ minWidth: 240 }}>Search coaches<input type="text" placeholder="Name, code, sport, school, email…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
             {FILTERS.map((item) => (
               <button key={item} type="button" onClick={() => setFilter(item)} className={filter === item ? styles.primary : styles.secondary} style={{ textTransform: "capitalize" }}>{item}</button>
             ))}

@@ -177,7 +177,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
 
         {view === "sport" && (
           <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Roster by sport</p><h2>{isAdmin ? "All athletes by sport" : "My athletes by sport"}</h2></div><span className={styles.formHint} style={{ alignSelf: "center" }}>{filteredAthletes.length} athlete{filteredAthletes.length === 1 ? "" : "s"}</span></div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registered athletes</p><h2>{isAdmin ? "All athletes by sport" : "My athletes by sport"}</h2></div><span className={styles.formHint} style={{ alignSelf: "center" }}>{filteredAthletes.length} athlete{filteredAthletes.length === 1 ? "" : "s"}</span></div>
             {grouped.length ? grouped.map(([sportName, roster]) => (
               <div key={sportName} style={{ marginBottom: 22 }}>
                 <h3 className={styles.sectionTitle}>{sportName} <span className={styles.formHint}>({roster.length})</span></h3>

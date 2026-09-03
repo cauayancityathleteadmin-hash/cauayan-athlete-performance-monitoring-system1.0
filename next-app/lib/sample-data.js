@@ -326,6 +326,7 @@ export async function provisionSampleData() {
   const coachUsers = await prisma.user.findMany({ where: { role: "coach" }, select: { id: true } });
 
   let aIndex = 0;
+  let pointsSeeded = false;
   for (const athlete of createdAthletes) {
     const recorder = coachUsers[aIndex % coachUsers.length];
     for (const type of ["Regular Assessment", "Competition Assessment"]) {
@@ -356,9 +357,6 @@ export async function provisionSampleData() {
         report.results += 1;
       }
     }
-    // Seed default points config (idempotent) so standings/points compute correctly.
-    await seedPointsConfig();
-
     if (rng() > 0.25) {
       const medals = ["gold", "silver", "bronze", "participation"];
       const levels = ["intramural", "district", "regional", "national", "international"];
@@ -400,6 +398,9 @@ export async function provisionSampleData() {
     }
     aIndex += 1;
   }
+
+  // Seed default points config once (idempotent) so standings/points compute correctly.
+  await seedPointsConfig();
 
   // Event plans (draft/open/closed) + applications + participants
   const planStatuses = ["draft", "open"];
