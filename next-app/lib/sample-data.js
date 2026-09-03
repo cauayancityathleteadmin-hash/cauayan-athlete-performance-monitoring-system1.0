@@ -104,7 +104,7 @@ async function upsertMetric(eventId, def) {
 
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-// Default points per medal x level (idempotent). Keeps the standings formula non-empty.
+// Default points per medal x level (idempotent). Keeps the standings formula populated.
 const DEFAULT_POINTS = [
   ["gold", "intramural", 3], ["gold", "district", 5], ["gold", "regional", 10], ["gold", "national", 20], ["gold", "international", 40],
   ["silver", "intramural", 2], ["silver", "district", 3], ["silver", "regional", 6], ["silver", "national", 12], ["silver", "international", 24],
