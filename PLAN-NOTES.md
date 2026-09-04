@@ -170,3 +170,18 @@ the old way, training plan and assessment":
   page already calls `refresh()` after bulk add, bulk assess, activity edit/delete. No extra
   wiring needed beyond confirming it.
 
+
+## 6. Date defaults + mobile responsive (2026-09-04)
+
+- Training-plan create: "Start date" defaults to today; if a "Duration (weeks)" is
+  entered (and the end date hasn't been manually set), the end date auto-fills to
+  start + N weeks. End date stays editable; a "Suggested: <date>" hint shows the
+  computed value. Edit form keeps saved dates (never overwrites).
+- Defaults-to-today added (targeted, not blanket): training session date, event-plan
+  start date, achievement date, and per-activity "Log progress" date. EXCLUDED on
+  purpose: birthdates and reports from/to date (would hide history / be nonsense).
+- Mobile responsive CSS (Dashboard.module.css @max-width:700px): forms collapse to one
+  column, buttons get full-width tap targets, and tables with data-label cells collapse
+  into labeled cards. data-labels added to: training-plan list + assessments, sessions,
+  plan-detail recent-progress, athletes list (both views), event-plans list. Tables
+  without labels fall back to horizontal scroll so nothing breaks.

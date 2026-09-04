@@ -105,14 +105,14 @@ export default function TrainingSessions({ session, sports, coaches, athletes })
                 <tbody>
                   {filtered.map((tr) => (
                     <tr key={tr.id}>
-                      <td><strong>{fmtDate(tr.sessionDate)}</strong></td>
-                      <td>{typeChip(tr.sessionType)}</td>
-                      <td>{tr.sport?.sportName || "—"}</td>
-                      <td>{tr.coach ? `${tr.coach.lastName}, ${tr.coach.firstName}` : "—"}</td>
-                      <td>{fmtTime(tr.startTime)}{tr.endTime ? ` – ${fmtTime(tr.endTime)}` : ""}</td>
-                      <td>{tr.venue || "—"}</td>
-                      <td>{tr.exercises?.length ?? 0}</td>
-                      <td>{tr.attendances?.length ?? 0}</td>
+                      <td data-label="Date"><strong>{fmtDate(tr.sessionDate)}</strong></td>
+                      <td data-label="Type">{typeChip(tr.sessionType)}</td>
+                      <td data-label="Sport">{tr.sport?.sportName || "—"}</td>
+                      <td data-label="Coach">{tr.coach ? `${tr.coach.lastName}, ${tr.coach.firstName}` : "—"}</td>
+                      <td data-label="Time">{fmtTime(tr.startTime)}{tr.endTime ? ` – ${fmtTime(tr.endTime)}` : ""}</td>
+                      <td data-label="Venue">{tr.venue || "—"}</td>
+                      <td data-label="Exercises">{tr.exercises?.length ?? 0}</td>
+                      <td data-label="Athletes">{tr.attendances?.length ?? 0}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -129,6 +129,7 @@ function CreateSession({ sports, coaches, athletes, onCreated }) {
   const router = useRouter();
   const [message, setMessage] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  const [today] = React.useState(() => { const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000); return d.toISOString().slice(0, 10); });
   const [sportId, setSportId] = React.useState(sports[0]?.id || "");
   const [selectedAthletes, setSelectedAthletes] = React.useState([]);
   const [exercises, setExercises] = React.useState([]);
@@ -179,7 +180,7 @@ function CreateSession({ sports, coaches, athletes, onCreated }) {
       <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Create</p><h2>New training session</h2></div></div>
       <p className={styles.formHint} style={{ marginTop: 0 }}>Record a planned or held training session, its exercises, and the athletes expected to attend.</p>
       <form onSubmit={submit} className={styles.formGrid}>
-        <label>Date *<input name="sessionDate" type="date" required /></label>
+        <label>Date *<input name="sessionDate" type="date" required defaultValue={today} /></label>
         <label>Type *<select name="sessionType" defaultValue="regular">{Object.keys(TYPE_META).map((k) => <option key={k} value={k}>{TYPE_META[k].label}</option>)}</select></label>
         <label>Start time<input name="startTime" type="time" /></label>
         <label>End time<input name="endTime" type="time" /></label>

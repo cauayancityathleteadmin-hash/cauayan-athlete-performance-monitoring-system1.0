@@ -228,13 +228,13 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
               <tbody>
                 {logs.slice(0, 100).map((log) => (
                   <tr key={log.id}>
-                    <td>{fmtDate(log.performedAt)}</td>
-                    <td><strong>{log.athlete?.lastName}, {log.athlete?.firstName}</strong><small>{log.athlete?.athleteCode}</small></td>
-                    <td>{log.activity?.activityName || "â€”"}</td>
-                    <td>{renderStatus(log.status)}</td>
-                    <td>{log.quantityDone != null ? `${log.quantityDone}` : "â€”"}</td>
-                    <td>{log.notes || "â€”"}</td>
-                    <td>{log.logger?.email || "â€”"}</td>
+                    <td data-label="Date">{fmtDate(log.performedAt)}</td>
+                    <td data-label="Athlete"><strong>{log.athlete?.lastName}, {log.athlete?.firstName}</strong><small>{log.athlete?.athleteCode}</small></td>
+                    <td data-label="Activity">{log.activity?.activityName || "—"}</td>
+                    <td data-label="Status">{renderStatus(log.status)}</td>
+                    <td data-label="Done">{log.quantityDone != null ? `${log.quantityDone}` : "—"}</td>
+                    <td data-label="Notes">{log.notes || "—"}</td>
+                    <td data-label="Logged by">{log.logger?.email || "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -295,6 +295,7 @@ function ActivityRow({ activity, athletes, assignedMap, logCountFor, onCreateLog
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+  const [today] = React.useState(() => { const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000); return d.toISOString().slice(0, 10); });
   const targets = activity.targets || [];
   const targetText = activity.targetQuantity != null ? `${activity.targetQuantity}${activity.targetUnit ? ` ${activity.targetUnit}` : ""}` : null;
 
@@ -426,7 +427,7 @@ function ActivityRow({ activity, athletes, assignedMap, logCountFor, onCreateLog
                           <option value="done">Done</option><option value="partial">Partial</option><option value="missed">Missed</option>
                         </select>
                         <input className={styles.fieldControl} name={`qty-${activity.id}-${a.id}`} type="number" min="0" step="any" placeholder={t?.targetUnit ? `Done (${t.targetUnit})` : "Done (qty)"} style={{ width: 130 }} />
-                        <input className={styles.fieldControl} name={`date-${activity.id}-${a.id}`} type="date" style={{ width: 140 }} />
+                        <input className={styles.fieldControl} name={`date-${activity.id}-${a.id}`} type="date" defaultValue={today} style={{ width: 140 }} />
                         <input className={styles.fieldControl} name={`note-${activity.id}-${a.id}`} placeholder="Note" style={{ flex: 1, minWidth: 140 }} />
                         <button className={`${styles.primary} ${styles.btnSm}`}>Save</button>
                       </div>

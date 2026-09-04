@@ -161,13 +161,13 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
             <div className={styles.tableWrap}><table><thead><tr><th>Code</th><th>Athlete</th><th>Sport / event</th><th>School</th><th>Coach</th><th>Health</th><th>Status</th><th></th></tr></thead><tbody>
               {clientPaginated.map((athlete) => (
                 <tr key={athlete.id}>
-                  <td>{athlete.athleteCode}</td>
-                  <td style={{ display: "flex", alignItems: "center", gap: 10 }}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></span></td>
-                  <td>{athlete.sport.sportName}<small>{athlete.event?.eventName || "No event"}</small></td>
-                  <td>{athlete.school?.schoolName || "Unassigned"}</td>
-                  <td>{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
-                  <td><HealthBadge status={athlete.healthStatus} /></td>
-                  <td><StatusBadge status={athlete.status} /></td>
+                  <td data-label="Code">{athlete.athleteCode}</td>
+                  <td data-label="Athlete" style={{ display: "flex", alignItems: "center", gap: 10 }}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></span></td>
+                  <td data-label="Sport / event">{athlete.sport.sportName}<small>{athlete.event?.eventName || "No event"}</small></td>
+                  <td data-label="School">{athlete.school?.schoolName || "Unassigned"}</td>
+                  <td data-label="Coach">{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
+                  <td data-label="Health"><HealthBadge status={athlete.healthStatus} /></td>
+                  <td data-label="Status"><StatusBadge status={athlete.status} /></td>
                   <td><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
                 </tr>
               ))}
@@ -187,13 +187,13 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
                   <tbody>
                     {roster.map((athlete) => (
                       <tr key={athlete.id}>
-                        <td>{athlete.athleteCode}</td>
-                        <td style={{ display: "flex", alignItems: "center", gap: 10 }}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></span></td>
-                        <td>{athlete.event?.eventName || "No event"}</td>
-                        <td>{athlete.school?.schoolName || "Unassigned"}</td>
-                        <td>{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
-                        <td><HealthBadge status={athlete.healthStatus} /></td>
-                        <td><StatusBadge status={athlete.status} /></td>
+                        <td data-label="Code">{athlete.athleteCode}</td>
+                        <td data-label="Athlete" style={{ display: "flex", alignItems: "center", gap: 10 }}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></span></td>
+                        <td data-label="Event / discipline">{athlete.event?.eventName || "No event"}</td>
+                        <td data-label="School">{athlete.school?.schoolName || "Unassigned"}</td>
+                        <td data-label="Coach">{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
+                        <td data-label="Health"><HealthBadge status={athlete.healthStatus} /></td>
+                        <td data-label="Status"><StatusBadge status={athlete.status} /></td>
                         <td><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
                       </tr>
                     ))}

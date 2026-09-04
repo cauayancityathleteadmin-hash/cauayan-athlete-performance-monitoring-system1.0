@@ -561,6 +561,7 @@ function StatusForm({ athleteId, currentStatus, onComplete }) {
 function AchievementForm({ athleteId, catalog, onComplete }) {
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState("");
+  const [today] = React.useState(() => { const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000); return d.toISOString().slice(0, 10); });
   const [sportId, setSportId] = React.useState(athleteId ? "" : "");
   const eventsForSport = catalog?.events?.filter((e) => e.sportId === Number(sportId)) || [];
   const currentSport = Number(sportId);
@@ -622,7 +623,7 @@ function AchievementForm({ athleteId, catalog, onComplete }) {
           </select>
         </label>
         <label style={{ flex: "1 1 160px" }}>Date
-          <input name="achievementDate" className={styles.fieldControl} type="date" />
+          <input name="achievementDate" className={styles.fieldControl} type="date" defaultValue={today} />
         </label>
       </div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>

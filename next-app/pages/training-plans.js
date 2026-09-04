@@ -126,16 +126,16 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
               <tbody>
                 {plans.map((p) => (
                   <tr key={p.id}>
-                    <td><strong>{p.planName}</strong>{p.description ? <small>{p.description}</small> : null}{p.isTemplate && <span className={`${styles.badge} ${styles.badgePending}`} style={{ marginLeft: 8 }}>Template</span>}</td>
-                    <td>{FREQ_META[p.frequency] || p.frequency}{p.durationWeeks ? <small> · {p.durationWeeks} wk</small> : null}</td>
-                    <td>{p.sport?.sportName || "—"}</td>
-                    <td>{p.coach ? `${p.coach.firstName} ${p.coach.lastName}` : "—"}</td>
-                    <td>{fmtDate(p.startDate)}{p.endDate ? ` – ${fmtDate(p.endDate)}` : ""}</td>
-                    <td>{p.athletes?.length ?? 0}</td>
-                    <td>{p.assessments?.filter((a) => a.planId === p.id).length ?? 0}</td>
-                    <td><span className={`${styles.badge} ${styles[STATUS_META[p.status]?.cls || "badgeMuted"]}`}>{STATUS_META[p.status]?.label || p.status}</span></td>
+                    <td data-label="Plan"><strong>{p.planName}</strong>{p.description ? <small>{p.description}</small> : null}{p.isTemplate && <span className={`${styles.badge} ${styles.badgePending}`} style={{ marginLeft: 8 }}>Template</span>}</td>
+                    <td data-label="Frequency">{FREQ_META[p.frequency] || p.frequency}{p.durationWeeks ? <small> · {p.durationWeeks} wk</small> : null}</td>
+                    <td data-label="Sport">{p.sport?.sportName || "—"}</td>
+                    <td data-label="Coach">{p.coach ? `${p.coach.firstName} ${p.coach.lastName}` : "—"}</td>
+                    <td data-label="Period">{fmtDate(p.startDate)}{p.endDate ? ` – ${fmtDate(p.endDate)}` : ""}</td>
+                    <td data-label="Athletes">{p.athletes?.length ?? 0}</td>
+                    <td data-label="Assessments">{p.assessments?.filter((a) => a.planId === p.id).length ?? 0}</td>
+                    <td data-label="Status"><span className={`${styles.badge} ${styles[STATUS_META[p.status]?.cls || "badgeMuted"]}`}>{STATUS_META[p.status]?.label || p.status}</span></td>
                     <td>
-                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                         <Link className={styles.expandBtn} href={`/training-plans/${p.id}`}>Manage</Link>
                         <button className={styles.secondary} onClick={() => setEditingPlan(p)} style={{ padding: "4px 8px", fontSize: "12px" }}>Edit</button>
                         <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => deletePlan(p.id)} style={{ padding: "4px 8px", fontSize: "12px" }}>Delete</button>
@@ -169,13 +169,13 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
               <tbody>
                 {assessments.map((a) => (
                   <tr key={a.id}>
-                    <td><strong>{a.athlete?.firstName} {a.athlete?.lastName}</strong><small>{a.athlete?.sport?.sportName || "—"}</small></td>
-                    <td>{a.plan?.planName || "—"}</td>
-                    <td>{ratingChip(a.rating)}</td>
-                    <td>{a.fitnessDimension ? a.fitnessDimension.replace("_", " ") : "—"}</td>
-                    <td>{a.comments || "—"}</td>
-                    <td>{fmtDate(a.assessmentDate)}</td>
-                    <td>{a.assessor?.email || "—"}</td>
+                    <td data-label="Athlete"><strong>{a.athlete?.firstName} {a.athlete?.lastName}</strong><small>{a.athlete?.sport?.sportName || "—"}</small></td>
+                    <td data-label="Plan">{a.plan?.planName || "—"}</td>
+                    <td data-label="Rating">{ratingChip(a.rating)}</td>
+                    <td data-label="Fitness">{a.fitnessDimension ? a.fitnessDimension.replace("_", " ") : "—"}</td>
+                    <td data-label="Comments">{a.comments || "—"}</td>
+                    <td data-label="Date">{fmtDate(a.assessmentDate)}</td>
+                    <td data-label="Recorded by">{a.assessor?.email || "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -187,6 +187,21 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
   );
 }
 
+function toDateInput(date) {
+  const d = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+  return isNaN(d) ? "" : d.toISOString().slice(0, 10);
+}
+
+function addDaysISO(dateStr, days) {
+  if (!dateStr) return "";
+  const [y, m, dd] = dateStr.split("-").map(Number);
+  if (!y || !m || !dd) return "";
+  const d = new Date(y, m - 1, dd);
+  if (isNaN(d)) return "";
+  d.setDate(d.getDate() + (Number(days) || 0));
+  return toDateInput(d);
+}
+
 function CreatePlanForm({ isAdmin, sports, coaches, athletes, templates, onCreated, onCancel }) {
   const [sportId, setSportId] = React.useState(sports[0]?.id || "");
   const [coachId, setCoachId] = React.useState("");
@@ -194,9 +209,30 @@ function CreatePlanForm({ isAdmin, sports, coaches, athletes, templates, onCreat
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState("");
   const [selectedAthletes, setSelectedAthletes] = React.useState([]);
+  const [startDate, setStartDate] = React.useState(() => toDateInput(new Date()));
+  const [endDate, setEndDate] = React.useState("");
+  const [endAutoSet, setEndAutoSet] = React.useState(false);
+  const [durationWeeks, setDurationWeeks] = React.useState("");
+
+  const suggestedEnd = durationWeeks && startDate ? addDaysISO(startDate, Number(durationWeeks) * 7) : "";
 
   const coachOptions = coaches.filter((c) => !c.sports?.length || c.sports.some((s) => s.sportId === Number(sportId)));
   const athleteOptions = athletes.filter((a) => (!sportId || a.sportId === Number(sportId)) && (!isAdmin || !coachId || a.coachId === Number(coachId)));
+
+  function handleEndChange(value) {
+    setEndDate(value);
+    setEndAutoSet(false);
+  }
+
+  function onDurationChange(value) {
+    setDurationWeeks(value);
+    if (endAutoSet || !endDate) setEndDate(addDaysISO(startDate, Number(value) * 7));
+  }
+
+  function onStartChange(value) {
+    setStartDate(value);
+    if (endAutoSet || !endDate) setEndDate(addDaysISO(value, Number(durationWeeks) * 7));
+  }
 
   function toggleAthlete(id) {
     setSelectedAthletes((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
@@ -213,8 +249,8 @@ function CreatePlanForm({ isAdmin, sports, coaches, athletes, templates, onCreat
       coachId: Number(form.get("coachId") || (isAdmin ? 0 : athletes[0]?.coachId)),
       frequency: form.get("frequency"),
       durationWeeks: form.get("durationWeeks") ? Number(form.get("durationWeeks")) : null,
-      startDate: form.get("startDate"),
-      endDate: form.get("endDate") || null,
+      startDate,
+      endDate: endDate || null,
       status: form.get("status"),
       athleteIds: selectedAthletes,
       isTemplate: isAdmin && form.get("isTemplate") === "on",
@@ -254,9 +290,9 @@ function CreatePlanForm({ isAdmin, sports, coaches, athletes, templates, onCreat
 
         {isAdmin && <label>Coach *<select name="coachId" required value={coachId} onChange={(e) => { setCoachId(e.target.value); setSelectedAthletes([]); }}><option value="">Select a coach</option>{coachOptions.map((c) => <option key={c.id} value={c.id}>{c.lastName}, {c.firstName}{c.coachCode ? ` (${c.coachCode})` : ""}</option>)}</select></label>}
         <label>Frequency *<select name="frequency" defaultValue="day"><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option></select></label>
-        <label>Duration (weeks)<input name="durationWeeks" type="number" min="1" max="104" placeholder="e.g. 8" /></label>
-        <label>Start date *<input name="startDate" type="date" required /></label>
-        <label>End date (optional)<input name="endDate" type="date" /></label>
+        <label>Duration (weeks)<input name="durationWeeks" type="number" min="1" max="104" placeholder="e.g. 8" value={durationWeeks} onChange={(e) => onDurationChange(e.target.value)} /></label>
+        <label>Start date *<input name="startDate" type="date" required value={startDate} onChange={(e) => onStartChange(e.target.value)} /></label>
+        <label>End date (optional)<input name="endDate" type="date" value={endDate} onChange={(e) => handleEndChange(e.target.value)} />{suggestedEnd ? <small className={styles.formHint}>Suggested: {suggestedEnd}</small> : null}</label>
         {isAdmin && <label>Status<select name="status" defaultValue="active"><option value="active">Active</option><option value="completed">Completed</option></select></label>}
         {isAdmin && <label style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="checkbox" name="isTemplate" /> <span>Save as template (admin only)</span></label>}
         <label className={styles.fullField}>Description<textarea name="description" rows="2" maxLength="2000" placeholder="Goals and focus of the plan" /></label>

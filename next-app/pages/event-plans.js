@@ -90,10 +90,10 @@ export default function EventPlans({ plans, session, page, totalPages, sports, a
                   {plans.map((plan) => (
                     <React.Fragment key={plan.id}>
                       <tr>
-                        <td><strong>{plan.eventName}</strong></td>
-                        <td>{formatRange(plan.startDate, plan.endDate)}</td>
-                        <td>{plan.venue}</td>
-                        <td>
+                        <td data-label="Event"><strong>{plan.eventName}</strong></td>
+                        <td data-label="Schedule">{formatRange(plan.startDate, plan.endDate)}</td>
+                        <td data-label="Venue">{plan.venue}</td>
+                        <td data-label="Sports">
                           {plan.sports.length > 0 ? (
                             plan.sports.map((item) => (
                               <span key={item.sportId} style={{ display: "inline-block", background: "rgba(45,212,168,.16)", color: "var(--accent)", padding: "2px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, margin: "2px 4px 2px 0" }}>{item.sport.sportName}</span>
@@ -102,7 +102,7 @@ export default function EventPlans({ plans, session, page, totalPages, sports, a
                             <span style={{ color: "var(--muted)", fontSize: 13 }}>No sports</span>
                           )}
                         </td>
-                        <td><StatusChip status={plan.status} /></td>
+                        <td data-label="Status"><StatusChip status={plan.status} /></td>
                         <td>
                           <button type="button" className={styles.expandBtn} onClick={() => setOpenId((current) => (current === plan.id ? null : plan.id))}>
                             {openId === plan.id ? "Hide details ▲" : "View details ▼"}
@@ -437,6 +437,7 @@ function CreatePlan({ sports }) {
   const router = useRouter();
   const [message, setMessage] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  const [today] = React.useState(() => { const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000); return d.toISOString().slice(0, 10); });
   async function submit(event) {
     event.preventDefault();
     setBusy(true); setMessage("");
@@ -458,7 +459,7 @@ function CreatePlan({ sports }) {
       <form onSubmit={submit} className={styles.formGrid}>
         <label>Event name *<input name="eventName" required maxLength="191" placeholder="e.g. City Sports Festival" /></label>
         <label>Status<select name="status" defaultValue="open"><option value="draft">Draft</option><option value="open">Open</option><option value="closed">Closed</option></select></label>
-        <label>Start date *<input name="startDate" type="date" required /></label>
+        <label>Start date *<input name="startDate" type="date" required defaultValue={today} /></label>
         <label>End date<input name="endDate" type="date" /></label>
         <label>Venue *<input name="venue" required maxLength="191" placeholder="e.g. City Sports Complex" /></label>
         <label>Description<textarea name="description" rows="3" maxLength="2000" /></label>
