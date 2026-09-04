@@ -185,3 +185,12 @@ the old way, training plan and assessment":
   into labeled cards. data-labels added to: training-plan list + assessments, sessions,
   plan-detail recent-progress, athletes list (both views), event-plans list. Tables
   without labels fall back to horizontal scroll so nothing breaks.
+
+## 7. Activity-add UI cleanup + athlete-first framing (2026-09-04)
+
+- Removed the long hint text under "Planned activities" ("Add the work athletes should
+  do in this ... period ...") and the "Bulk" / "Add several activities at once" heading.
+- Replaced with athlete-first framing: panel headings "For athletes / Add activities for
+  this plan's athletes"; the per-athlete section is now headed "Per athlete - set each
+  athlete's target" (activities stay SHARED across the plan, per user choice, but the add
+  screen is presented athlete-first so the coach works athlete by athlete).

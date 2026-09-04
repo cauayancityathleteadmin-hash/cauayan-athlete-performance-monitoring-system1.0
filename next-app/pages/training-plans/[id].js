@@ -200,14 +200,13 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
             <div><p className={styles.eyebrow}>Training plan &amp; assessment</p><h2>Planned activities</h2></div>
             <button className={styles.secondary} onClick={() => setShowBulkAdd((c) => !c)}>{showBulkAdd ? "Close add" : "Add activities"}</button>
           </div>
-          <p className={styles.formHint} style={{ marginTop: 0 }}>Add the work athletes should do in this {plan.frequency} period (e.g. endurance, strength, power). Add several activities at once; each shared target applies to every athlete on the plan.</p>
 
           {showBulkAdd && (
             <BulkAddActivitiesForm key={activities.length} planId={plan.id} athletes={athletes} onCreated={() => { refresh(); }} />
           )}
 
           {loading ? <p className={styles.empty}>Loading plan details...</p> : error ? <p className={styles.empty}>{error}</p> : activities.length === 0 ? (
-            <p className={styles.empty}>No activities yet. Use the form above to add the first activities to this plan.</p>
+            <p className={styles.empty}>No activities yet. Add the first activities for this plan&apos;s athletes.</p>
           ) : (
             <div className={styles.tableWrap}><table>
               <thead><tr><th>Activity</th><th>Fitness</th><th>Target</th><th>Athletes with custom target</th><th>Log progress</th><th></th></tr></thead>
@@ -500,8 +499,7 @@ function BulkAddActivitiesForm({ planId, athletes, onCreated }) {
 
   return (
     <>
-      <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Bulk</p><h2>Add several activities at once</h2></div></div>
-      <p className={styles.formHint} style={{ marginTop: 0 }}>Each activity&apos;s shared target is applied to every athlete on the plan. Optionally set a different target per athlete below (applies to all activities).</p>
+      <div className={styles.panelHeader}><div><p className={styles.eyebrow}>For athletes</p><h2>Add activities for this plan&apos;s athletes</h2></div></div>
       <form onSubmit={submit} className={styles.formGrid}>
         {rows.map((r) => (
           <div key={r.id} className={styles.fullField} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 14 }}>
@@ -528,8 +526,8 @@ function BulkAddActivitiesForm({ planId, athletes, onCreated }) {
         </div>
 
         <div className={styles.fullField} style={{ borderTop: "1px solid rgba(26,92,74,.5)", paddingTop: 16 }}>
-          <p className={styles.eyebrow}>Per-athlete targets (optional, applies to all listed activities)</p>
-          <p className={styles.formHint}>Leave blank to use the shared target for everyone.</p>
+          <p className={styles.eyebrow}>Per athlete — set each athlete&apos;s target</p>
+          <p className={styles.formHint}>Every athlete gets the activities above. Tweak each one here, or leave blank to use the shared target for everyone.</p>
           {athletes.length ? (
             <div className={styles.checkboxList} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
               {athletes.map((a) => (
