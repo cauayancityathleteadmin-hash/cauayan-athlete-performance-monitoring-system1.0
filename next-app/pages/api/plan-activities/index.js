@@ -27,9 +27,8 @@ async function canAccessPlan(prismaClient, session, planId) {
 
 export default async function handler(req, res) {
   setSecurityHeaders(res);
-  try {
-    const session = await requireSession(req, res);
-    if (!session) return;
+  const session = await requireSession(req, res);
+  if (!session) return;
 
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || "unknown";
   const rate = rateLimiters.api(`api:${ip}:${req.method}`);
@@ -46,11 +45,14 @@ export default async function handler(req, res) {
       const activities = await prisma.planActivity.findMany({
         where: { planId },
         orderBy: { orderIndex: "asc" },
-        include: { athlete: { select: { id: true, athleteCode: true, firstName: true, lastName: true } } },
+        include: {
+          athlete: { select: { id: true, athleteCode: true, firstName: true, lastName: true } },
+          logs: { orderBy: { performedAt: "desc" }, include: { athlete: { select: { id: true, firstName: true, lastName: true } }, logger: { select: { email: true, username: true } } } },
+        },
       });
-      return res.status(200).json({ diag: "athlete-include OK", count: activities.length });
+      return res.status(200).json(JSON.parse(JSON.stringify(activities)));
     } catch (e) {
-      return res.status(500).json({ diag: true, code: e?.code, message: String(e?.message || e) });
+      return res.status(500).json({ error: "Failed to fetch activities." });
     }
   }
 
@@ -196,7 +198,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(400).json({ error: "Unknown action." });
-  } catch (e) {
-    return res.status(500).json({ ok: false, _diag: true, at: "top", code: e?.code, name: e?.name, message: String(e?.message || e) });
-  }
 }
