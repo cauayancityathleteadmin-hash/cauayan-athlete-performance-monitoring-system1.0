@@ -49,7 +49,7 @@ export default async function handler(req, res) {
   const onPlan = await prisma.trainingPlanAthlete.findFirst({ where: { planId, athleteId } });
   if (!onPlan) return res.status(409).json({ error: "This athlete is not part of the plan." });
 
-  const activities = await prisma.planActivity.findMany({ where: { planId }, select: { id: true } });
+  const activities = await prisma.planActivity.findMany({ where: { planId, athleteId }, select: { id: true } });
   const activityIds = activities.map((a) => a.id);
   if (!activityIds.length) return res.status(400).json({ error: "This plan has no activities to assess." });
 

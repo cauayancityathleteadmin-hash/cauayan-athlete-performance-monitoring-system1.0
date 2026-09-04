@@ -45,7 +45,7 @@ export default async function handler(req, res) {
       where: { planId },
       orderBy: { orderIndex: "asc" },
       include: {
-        targets: { include: { athlete: { select: { id: true, athleteCode: true, firstName: true, lastName: true } } } },
+        athlete: { select: { id: true, athleteCode: true, firstName: true, lastName: true } },
         logs: { orderBy: { performedAt: "desc" }, include: { athlete: { select: { id: true, firstName: true, lastName: true } }, logger: { select: { email: true, username: true } } } },
       },
     });
@@ -70,9 +70,10 @@ export default async function handler(req, res) {
     for (const item of list) {
       const name = text(item.activityName, 191, true);
       if (!name) continue;
-      let targets = Array.isArray(item.athleteTargets) ? item.athleteTargets : [];
-      targets = targets.map((t) => ({ athleteId: validId(t.athleteId) })).filter((t) => t.athleteId && allowedAthleteIds.has(t.athleteId));
+      const athleteId = validId(item.athleteId);
+      if (!athleteId || !allowedAthleteIds.has(athleteId)) continue;
       cleaned.push({
+        athleteId,
         activityName: name,
         fitnessType: FITNESS_TYPES.includes(item.fitnessType) ? item.fitnessType : "endurance",
         targetQuantity: toDecimal(item.targetQuantity),
@@ -82,20 +83,19 @@ export default async function handler(req, res) {
         targetDistance: toDecimal(item.targetDistance),
         targetLoad: toDecimal(item.targetLoad),
         instructions: text(item.instructions, 2000) || null,
-        targets,
       });
     }
-    if (!cleaned.length) return res.status(400).json({ error: "Enter at least one activity with a name." });
+    if (!cleaned.length) return res.status(400).json({ error: "Enter at least one activity with a name for an athlete on this plan." });
     if (cleaned.length > 50) return res.status(400).json({ error: "Please limit a bulk add to 50 activities at a time." });
 
     const createdIds = await prisma.$transaction(async (tx) => {
-      const count = await tx.planActivity.count({ where: { planId } });
       const ids = [];
       for (let i = 0; i < cleaned.length; i++) {
         const item = cleaned[i];
         const activity = await tx.planActivity.create({
           data: {
             planId,
+            athleteId: item.athleteId,
             activityName: item.activityName,
             fitnessType: item.fitnessType,
             targetQuantity: item.targetQuantity,
@@ -105,25 +105,10 @@ export default async function handler(req, res) {
             targetDistance: item.targetDistance,
             targetLoad: item.targetLoad,
             instructions: item.instructions,
-            orderIndex: count + i,
+            orderIndex: i,
           },
           select: { id: true },
         });
-        if (item.targets.length) {
-          await tx.planActivityTarget.createMany({
-            data: item.targets.map((t) => ({
-              activityId: activity.id,
-              athleteId: t.athleteId,
-              targetQuantity: toDecimal(t.targetQuantity),
-              targetUnit: text(t.targetUnit, 50) || null,
-              targetSets: toInt(t.targetSets),
-              targetReps: toInt(t.targetReps),
-              targetDistance: toDecimal(t.targetDistance),
-              targetLoad: toDecimal(t.targetLoad),
-              note: text(t.note, 2000) || null,
-            })),
-          });
-        }
         ids.push(activity.id);
       }
       return ids;
@@ -131,7 +116,7 @@ export default async function handler(req, res) {
 
     const full = await prisma.planActivity.findMany({
       where: { id: { in: createdIds } },
-      include: { targets: true },
+      include: { athlete: { select: { id: true, firstName: true, lastName: true } } },
       orderBy: { orderIndex: "asc" },
     });
     return res.status(201).json(JSON.parse(JSON.stringify({ created: full, count: full.length })));
@@ -141,51 +126,29 @@ export default async function handler(req, res) {
     const name = text(body.activityName, 191, true);
     if (!name) return res.status(400).json({ error: "An activity name is required." });
     const fitnessType = FITNESS_TYPES.includes(body.fitnessType) ? body.fitnessType : "endurance";
-    const planAthletes = await prisma.trainingPlanAthlete.findMany({ where: { planId }, select: { athleteId: true } });
-    const allowedAthleteIds = planAthletes.map((a) => a.athleteId);
+    const athleteId = validId(body.athleteId);
+    if (!athleteId) return res.status(400).json({ error: "A valid athleteId is required." });
+    const onPlan = await prisma.trainingPlanAthlete.findFirst({ where: { planId, athleteId } });
+    if (!onPlan) return res.status(409).json({ error: "This athlete is not part of the plan." });
 
-    let targets = Array.isArray(body.targets) ? body.targets : [];
-    targets = targets
-      .map((t) => ({ athleteId: validId(t.athleteId) }))
-      .filter((t) => t.athleteId && allowedAthleteIds.includes(t.athleteId));
-
-    const created = await prisma.$transaction(async (tx) => {
-      const count = await tx.planActivity.count({ where: { planId } });
-      const activity = await tx.planActivity.create({
-        data: {
-          planId,
-          activityName: name,
-          fitnessType,
-          targetQuantity: toDecimal(body.targetQuantity),
-          targetUnit: text(body.targetUnit, 50) || null,
-          targetSets: toInt(body.targetSets),
-          targetReps: toInt(body.targetReps),
-          targetDistance: toDecimal(body.targetDistance),
-          targetLoad: toDecimal(body.targetLoad),
-          instructions: text(body.instructions, 2000) || null,
-          orderIndex: count,
-        },
-        select: { id: true },
-      });
-      if (targets.length) {
-        await tx.planActivityTarget.createMany({
-          data: targets.map((t) => ({
-            activityId: activity.id,
-            athleteId: t.athleteId,
-            targetQuantity: toDecimal(t.targetQuantity),
-            targetUnit: text(t.targetUnit, 50) || null,
-            targetSets: toInt(t.targetSets),
-            targetReps: toInt(t.targetReps),
-            targetDistance: toDecimal(t.targetDistance),
-            targetLoad: toDecimal(t.targetLoad),
-            note: text(t.note, 2000) || null,
-          })),
-        });
-      }
-      return activity.id;
+    const created = await prisma.planActivity.create({
+      data: {
+        planId,
+        athleteId,
+        activityName: name,
+        fitnessType,
+        targetQuantity: toDecimal(body.targetQuantity),
+        targetUnit: text(body.targetUnit, 50) || null,
+        targetSets: toInt(body.targetSets),
+        targetReps: toInt(body.targetReps),
+        targetDistance: toDecimal(body.targetDistance),
+        targetLoad: toDecimal(body.targetLoad),
+        instructions: text(body.instructions, 2000) || null,
+      },
+      select: { id: true },
     });
 
-    const full = await prisma.planActivity.findUnique({ where: { id: created }, include: { targets: true } });
+    const full = await prisma.planActivity.findUnique({ where: { id: created.id }, include: { athlete: { select: { id: true, firstName: true, lastName: true } } } });
     return res.status(201).json(JSON.parse(JSON.stringify(full)));
   }
 
@@ -208,36 +171,15 @@ export default async function handler(req, res) {
     if ("targetLoad" in body) data.targetLoad = toDecimal(body.targetLoad);
     if ("instructions" in body) data.instructions = text(body.instructions, 2000) || null;
 
-    const hasTargets = Array.isArray(body.targets);
-    let cleanedTargets = [];
-    if (hasTargets) {
-      const planAthletes = await prisma.trainingPlanAthlete.findMany({ where: { planId }, select: { athleteId: true } });
-      const allowedTargetAthleteIds = new Set(planAthletes.map((a) => a.athleteId));
-      cleanedTargets = body.targets
-        .map((t) => ({
-          athleteId: validId(t.athleteId),
-          targetQuantity: t.targetQuantity === null || t.targetQuantity === undefined ? null : toDecimal(t.targetQuantity),
-          targetUnit: text(t.targetUnit, 50) || null,
-          targetSets: t.targetSets === null || t.targetSets === undefined ? null : toInt(t.targetSets),
-          targetReps: t.targetReps === null || t.targetReps === undefined ? null : toInt(t.targetReps),
-          targetDistance: t.targetDistance === null || t.targetDistance === undefined ? null : toDecimal(t.targetDistance),
-          targetLoad: t.targetLoad === null || t.targetLoad === undefined ? null : toDecimal(t.targetLoad),
-          note: text(t.note, 2000) || null,
-        }))
-        .filter((t) => t.athleteId && allowedTargetAthleteIds.has(t.athleteId));
+    if (body.athleteId != null) {
+      const newAthleteId = validId(body.athleteId);
+      if (!newAthleteId) return res.status(400).json({ error: "A valid athleteId is required." });
+      const onPlan = await prisma.trainingPlanAthlete.findFirst({ where: { planId, athleteId: newAthleteId } });
+      if (!onPlan) return res.status(409).json({ error: "This athlete is not part of the plan." });
+      data.athleteId = newAthleteId;
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.planActivity.update({ where: { id: activityId }, data });
-      if (hasTargets) {
-        await tx.planActivityTarget.deleteMany({ where: { activityId } });
-        if (cleanedTargets.length) {
-          await tx.planActivityTarget.createMany({
-            data: cleanedTargets.map((t) => ({ activityId, ...t })),
-          });
-        }
-      }
-    });
+    await prisma.planActivity.update({ where: { id: activityId }, data });
     return res.status(200).json({ success: true, message: "Activity updated." });
   }
 

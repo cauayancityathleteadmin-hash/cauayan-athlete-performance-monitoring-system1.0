@@ -194,3 +194,20 @@ the old way, training plan and assessment":
   this plan's athletes"; the per-athlete section is now headed "Per athlete - set each
   athlete's target" (activities stay SHARED across the plan, per user choice, but the add
   screen is presented athlete-first so the coach works athlete by athlete).
+
+## 8. True per-athlete training activities (2026-09-04)
+
+- Moved PlanActivity from plan-shared (with per-athlete target overrides) to
+  PER-ATHLETE: each activity row now carries athlete_id and belongs to one athlete
+  in the plan. Removed the plan_activity_targets table (and PlanActivityTarget model).
+- Planned activities section now lists each athlete on the plan with their OWN
+  'Add activities' button (AddAthleteActivitiesForm) and their per-athlete activity
+  table (name/fitness/target + Log progress + edit/remove).
+- Progress logs unchanged (activity + athlete + logged_by). Added integrity check so a
+  log's athlete must equal the activity's owner. Bulk-assess now scopes to the selected
+  athlete's own activities. Template duplicate copies only activities whose athlete is
+  carried over to the new plan.
+- Live DB had no persistent activity data, so the migration is clean.
+- Migration: prisma/migrations/20260904170000_per_athlete_activities/ (add athlete_id,
+  backfill, set NOT NULL, index+FK, drop plan_activity_targets). Applied by Vercel
+  'prisma migrate deploy' on next deploy.

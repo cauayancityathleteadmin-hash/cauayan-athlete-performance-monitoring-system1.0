@@ -72,7 +72,6 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
   const [showAddActivity, setShowAddActivity] = React.useState(false);
-  const [showBulkAdd, setShowBulkAdd] = React.useState(true);
   const [showBulkAssess, setShowBulkAssess] = React.useState(true);
   const [message, setMessage] = React.useState(null);
 
@@ -166,8 +165,6 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
     );
   }
 
-  const assignedMap = new Map(athletes.map((a) => [a.id, a]));
-
   return (
     <>
       <Head><title>{plan.planName} | Cauayan Athlete Performance</title></Head>
@@ -198,24 +195,26 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Training plan &amp; assessment</p><h2>Planned activities</h2></div>
-            <button className={styles.secondary} onClick={() => setShowBulkAdd((c) => !c)}>{showBulkAdd ? "Close add" : "Add activities"}</button>
           </div>
 
-          {showBulkAdd && (
-            <BulkAddActivitiesForm key={activities.length} planId={plan.id} athletes={athletes} onCreated={() => { refresh(); }} />
-          )}
-
-          {loading ? <p className={styles.empty}>Loading plan details...</p> : error ? <p className={styles.empty}>{error}</p> : activities.length === 0 ? (
-            <p className={styles.empty}>No activities yet. Add the first activities for this plan&apos;s athletes.</p>
+          {loading ? <p className={styles.empty}>Loading plan details...</p> : error ? <p className={styles.empty}>{error}</p> : athletes.length === 0 ? (
+            <p className={styles.empty}>No athletes on this plan.</p>
           ) : (
-            <div className={styles.tableWrap}><table>
-              <thead><tr><th>Activity</th><th>Fitness</th><th>Target</th><th>Athletes with custom target</th><th>Log progress</th><th></th></tr></thead>
-              <tbody>
-                {activities.map((activity) => (
-                  <ActivityRow key={activity.id} activity={activity} athletes={athletes} assignedMap={assignedMap} logCountFor={logCountFor} onCreateLog={createLog} onRemove={removeActivity} onEdit={updateActivity} isAdmin={isAdmin} />
-                ))}
-              </tbody>
-            </table></div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              {athletes.map((athlete) => (
+                <AthleteActivitiesBlock
+                  key={athlete.id}
+                  planId={plan.id}
+                  athlete={athlete}
+                  activities={activities.filter((act) => act.athleteId === athlete.id)}
+                  logCountFor={logCountFor}
+                  onCreateLog={createLog}
+                  onRemove={removeActivity}
+                  onEdit={updateActivity}
+                  onChanged={refresh}
+                />
+              ))}
+            </div>
           )}
         </section>
 
@@ -290,12 +289,51 @@ function renderStatus(status) {
   return <span className={`${styles.badge} ${styles[meta.cls]}`}>{meta.label}</span>;
 }
 
-function ActivityRow({ activity, athletes, assignedMap, logCountFor, onCreateLog, onRemove, onEdit }) {
+function AthleteActivitiesBlock({ planId, athlete, activities, logCountFor, onCreateLog, onRemove, onEdit, onChanged }) {
+  const [adding, setAdding] = React.useState(false);
+  return (
+    <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "14px 16px", background: "rgba(6,38,30,.35)" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <strong>{athlete.lastName}, {athlete.firstName}</strong>
+          {athlete.athleteCode ? <small style={{ color: "var(--muted)", display: "block" }}>{athlete.athleteCode}</small> : null}
+        </div>
+        <button className={styles.secondary} onClick={() => setAdding((c) => !c)}>{adding ? "Close add" : "Add activities"}</button>
+      </div>
+
+      {adding && (
+        <AddAthleteActivitiesForm
+          key={activities.length}
+          planId={planId}
+          athlete={athlete}
+          onCreated={() => { setAdding(false); onChanged && onChanged(); }}
+        />
+      )}
+
+      {activities.length === 0 ? (
+        <p className={styles.empty} style={{ marginTop: 12 }}>No activities for this athlete yet.</p>
+      ) : (
+        <div className={styles.tableWrap} style={{ marginTop: 12 }}>
+          <table>
+            <thead><tr><th>Activity</th><th>Fitness</th><th>Target</th><th>Log progress</th><th></th></tr></thead>
+            <tbody>
+              {activities.map((activity) => (
+                <ActivityRow key={activity.id} athlete={athlete} activity={activity} logCountFor={logCountFor} onCreateLog={onCreateLog} onRemove={onRemove} onEdit={onEdit} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ActivityRow({ athlete, activity, logCountFor, onCreateLog, onRemove, onEdit }) {
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [today] = React.useState(() => { const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000); return d.toISOString().slice(0, 10); });
-  const targets = activity.targets || [];
+
   const targetText = activity.targetQuantity != null ? `${activity.targetQuantity}${activity.targetUnit ? ` ${activity.targetUnit}` : ""}` : null;
 
   const [draft, setDraft] = React.useState(() => ({
@@ -308,37 +346,10 @@ function ActivityRow({ activity, athletes, assignedMap, logCountFor, onCreateLog
     targetDistance: activity.targetDistance != null ? String(activity.targetDistance) : "",
     targetLoad: activity.targetLoad != null ? String(activity.targetLoad) : "",
     instructions: activity.instructions || "",
-    targetOverrides: Object.fromEntries(targets.map((t) => [t.athleteId, { targetQuantity: t.targetQuantity != null ? String(t.targetQuantity) : "", targetUnit: t.targetUnit || "" }])),
   }));
 
   function setField(name, value) {
     setDraft((d) => ({ ...d, [name]: value }));
-  }
-  function setOverride(athleteId, key, value) {
-    setDraft((d) => ({ ...d, targetOverrides: { ...(d.targetOverrides || {}), [athleteId]: { ...(d.targetOverrides?.[athleteId] || {}), [key]: value } } }));
-  }
-
-  function submitEdit(e) {
-    e.preventDefault();
-    const targetOverrides = Object.fromEntries(Object.entries(draft.targetOverrides || {}).filter(([, v]) => v.targetQuantity !== "" || v.targetUnit !== ""));
-    setSaving(true);
-    onEdit(activity.id, {
-      activityName: draft.activityName,
-      fitnessType: draft.fitnessType,
-      targetQuantity: draft.targetQuantity || null,
-      targetUnit: draft.targetUnit || null,
-      targetSets: draft.targetSets || null,
-      targetReps: draft.targetReps || null,
-      targetDistance: draft.targetDistance || null,
-      targetLoad: draft.targetLoad || null,
-      instructions: draft.instructions || null,
-      targets: athletes.map((a) => {
-        const o = targetOverrides[a.id];
-        return { athleteId: a.id, targetQuantity: o ? o.targetQuantity : null, targetUnit: o ? o.targetUnit : null };
-      }),
-    });
-    setEditing(false);
-    setSaving(false);
   }
 
   function startEdit() {
@@ -352,9 +363,26 @@ function ActivityRow({ activity, athletes, assignedMap, logCountFor, onCreateLog
       targetDistance: activity.targetDistance != null ? String(activity.targetDistance) : "",
       targetLoad: activity.targetLoad != null ? String(activity.targetLoad) : "",
       instructions: activity.instructions || "",
-      targetOverrides: Object.fromEntries((activity.targets || []).map((t) => [t.athleteId, { targetQuantity: t.targetQuantity != null ? String(t.targetQuantity) : "", targetUnit: t.targetUnit || "" }])),
     });
     setEditing(true);
+  }
+
+  function submitEdit(e) {
+    e.preventDefault();
+    setSaving(true);
+    onEdit(activity.id, {
+      activityName: draft.activityName,
+      fitnessType: draft.fitnessType,
+      targetQuantity: draft.targetQuantity || null,
+      targetUnit: draft.targetUnit || null,
+      targetSets: draft.targetSets || null,
+      targetReps: draft.targetReps || null,
+      targetDistance: draft.targetDistance || null,
+      targetLoad: draft.targetLoad || null,
+      instructions: draft.instructions || null,
+    });
+    setEditing(false);
+    setSaving(false);
   }
 
   return (
@@ -363,18 +391,17 @@ function ActivityRow({ activity, athletes, assignedMap, logCountFor, onCreateLog
         <td><strong>{activity.activityName}</strong>{activity.instructions ? <small>{activity.instructions}</small> : null}</td>
         <td><span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)" }}>{FITNESS_META[activity.fitnessType] || activity.fitnessType}</span></td>
         <td>
-          {targetText ? <strong>{targetText}</strong> : "â€”"}
+          {targetText ? <strong>{targetText}</strong> : "—"}
           {activity.targetSets ? <small>{activity.targetSets} sets</small> : null}
           {activity.targetReps ? <small>{activity.targetReps} reps</small> : null}
           {activity.targetDistance != null ? <small>{activity.targetDistance} m</small> : null}
           {activity.targetLoad != null ? <small>{activity.targetLoad} kg</small> : null}
         </td>
-        <td>{targets.length ? targets.map((t) => `${assignedMap.get(t.athleteId)?.lastName || "?"}`).join(", ") : "All athletes (same target)"}</td>
-        <td><button className={styles.expandBtn} onClick={() => setOpen((c) => !c)}>{open ? "Close logging â–²" : "Log progress â–¼"}</button></td>
+        <td><button className={styles.expandBtn} onClick={() => setOpen((c) => !c)}>{open ? "Close logging ▲" : "Log progress ▼"}</button></td>
         <td><button className={`${styles.secondary} ${styles.btnSm}`} onClick={() => { if (editing) setEditing(false); else startEdit(); }} style={{ padding: "4px 8px", fontSize: "12px" }}>{editing ? "Cancel" : "Edit"}</button> <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => onRemove(activity.id)}>Remove</button></td>
       </tr>
       {editing && (
-        <tr><td colSpan="6" style={{ padding: 0, background: "transparent" }}>
+        <tr><td colSpan="5" style={{ padding: 0, background: "transparent" }}>
           <div className={styles.detailPanel}>
             <form onSubmit={submitEdit} className={styles.formGrid} style={{ marginTop: 0 }}>
               <label className={styles.fullField}>Activity name *<input className={styles.fieldControl} value={draft.activityName} onChange={(e) => setField("activityName", e.target.value)} required maxLength="191" /></label>
@@ -387,21 +414,6 @@ function ActivityRow({ activity, athletes, assignedMap, logCountFor, onCreateLog
               <label>Load (kg)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetLoad} onChange={(e) => setField("targetLoad", e.target.value)} /></label>
               <label className={styles.fullField}>Instructions<textarea className={styles.fieldControl} rows="2" maxLength="2000" value={draft.instructions} onChange={(e) => setField("instructions", e.target.value)} /></label>
 
-              <div className={styles.fullField} style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
-                <p className={styles.eyebrow}>Per-athlete target overrides (optional)</p>
-                {athletes.length === 0 ? <p className={styles.empty}>No athletes on this plan.</p> : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {athletes.map((a) => (
-                      <div key={a.id} style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                        <strong style={{ minWidth: 150 }}>{a.lastName}, {a.firstName}</strong>
-                        <input className={styles.fieldControl} type="number" min="0" step="any" style={{ width: 110 }} placeholder="Target qty" value={draft.targetOverrides?.[a.id]?.targetQuantity || ""} onChange={(e) => setOverride(a.id, "targetQuantity", e.target.value)} />
-                        <input className={styles.fieldControl} style={{ width: 90 }} placeholder="Unit" value={draft.targetOverrides?.[a.id]?.targetUnit || ""} onChange={(e) => setOverride(a.id, "targetUnit", e.target.value)} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
               <div className={styles.formActions}>
                 <button type="button" className={styles.secondary} onClick={() => setEditing(false)} disabled={saving}>Cancel</button>
                 <button className={styles.primary} disabled={saving}>{saving ? "Saving..." : "Save changes"}</button>
@@ -411,31 +423,21 @@ function ActivityRow({ activity, athletes, assignedMap, logCountFor, onCreateLog
         </td></tr>
       )}
       {open && (
-        <tr><td colSpan="6" style={{ padding: 0, background: "transparent" }}>
+        <tr><td colSpan="5" style={{ padding: 0, background: "transparent" }}>
           <div className={styles.detailPanel}>
-            {athletes.length === 0 ? <div className={styles.detailEmpty}>No athletes on this plan.</div> : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {athletes.map((a) => {
-                  const t = targets.find((x) => x.athleteId === a.id);
-                  return (
-                    <form key={a.id} onSubmit={(e) => { e.preventDefault(); onCreateLog(activity.id, a.id, e.currentTarget); e.currentTarget.reset(); }} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px", background: "rgba(6,38,30,.25)" }}>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-                        <strong style={{ minWidth: 150 }}>{a.lastName}, {a.firstName}</strong>
-                        <small style={{ color: "var(--muted)" }}>{t ? `Custom: ${t.targetQuantity != null ? `${t.targetQuantity}${t.targetUnit ? ` ${t.targetUnit}` : ""}` : "â€”"}` : "Plan target"}</small>
-                        <select className={styles.fieldControl} name={`status-${activity.id}-${a.id}`} defaultValue="done" style={{ width: 110 }}>
-                          <option value="done">Done</option><option value="partial">Partial</option><option value="missed">Missed</option>
-                        </select>
-                        <input className={styles.fieldControl} name={`qty-${activity.id}-${a.id}`} type="number" min="0" step="any" placeholder={t?.targetUnit ? `Done (${t.targetUnit})` : "Done (qty)"} style={{ width: 130 }} />
-                        <input className={styles.fieldControl} name={`date-${activity.id}-${a.id}`} type="date" defaultValue={today} style={{ width: 140 }} />
-                        <input className={styles.fieldControl} name={`note-${activity.id}-${a.id}`} placeholder="Note" style={{ flex: 1, minWidth: 140 }} />
-                        <button className={`${styles.primary} ${styles.btnSm}`}>Save</button>
-                      </div>
-                      {logCountFor(activity.id, a.id) > 0 && <small style={{ color: "var(--accent)" }}>{logCountFor(activity.id, a.id)} log(s)</small>}
-                    </form>
-                  );
-                })}
+            <form onSubmit={(e) => { e.preventDefault(); onCreateLog(activity.id, athlete.id, e.currentTarget); e.currentTarget.reset(); }} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px", background: "rgba(6,38,30,.25)" }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+                <strong style={{ minWidth: 150 }}>{athlete.lastName}, {athlete.firstName}</strong>
+                <select className={styles.fieldControl} name={`status-${activity.id}-${athlete.id}`} defaultValue="done" style={{ width: 110 }}>
+                  <option value="done">Done</option><option value="partial">Partial</option><option value="missed">Missed</option>
+                </select>
+                <input className={styles.fieldControl} name={`qty-${activity.id}-${athlete.id}`} type="number" min="0" step="any" placeholder={activity.targetUnit ? `Done (${activity.targetUnit})` : "Done (qty)"} style={{ width: 130 }} />
+                <input className={styles.fieldControl} name={`date-${activity.id}-${athlete.id}`} type="date" defaultValue={today} style={{ width: 140 }} />
+                <input className={styles.fieldControl} name={`note-${activity.id}-${athlete.id}`} placeholder="Note" style={{ flex: 1, minWidth: 140 }} />
+                <button className={`${styles.primary} ${styles.btnSm}`}>Save</button>
               </div>
-            )}
+              {logCountFor(activity.id, athlete.id) > 0 && <small style={{ color: "var(--accent)" }}>{logCountFor(activity.id, athlete.id)} log(s)</small>}
+            </form>
           </div>
         </td></tr>
       )}
@@ -444,7 +446,7 @@ function ActivityRow({ activity, athletes, assignedMap, logCountFor, onCreateLog
 }
 
 
-function BulkAddActivitiesForm({ planId, athletes, onCreated }) {
+function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState("");
   const [rows, setRows] = React.useState([{ id: 0, name: "", fitness: "endurance", qty: "", unit: "", sets: "", reps: "", dist: "", load: "", instr: "" }]);
@@ -464,8 +466,8 @@ function BulkAddActivitiesForm({ planId, athletes, onCreated }) {
     const valid = rows.filter((r) => r.name.trim());
     if (!valid.length) { setMessage("Enter at least one activity with a name."); return; }
     setBusy(true); setMessage("");
-    const form = new FormData(event.currentTarget);
     const activities = valid.map((r) => ({
+      athleteId: athlete.id,
       activityName: r.name.trim(),
       fitnessType: r.fitness,
       targetQuantity: r.qty || null,
@@ -475,31 +477,19 @@ function BulkAddActivitiesForm({ planId, athletes, onCreated }) {
       targetDistance: r.dist || null,
       targetLoad: r.load || null,
       instructions: r.instr || null,
-      athleteTargets: athletes
-        .filter((a) => form.get(`tqty-${a.id}`) || form.get(`tunit-${a.id}`) || form.get(`tsets-${a.id}`) || form.get(`treps-${a.id}`) || form.get(`tdist-${a.id}`) || form.get(`tload-${a.id}`))
-        .map((a) => ({
-          athleteId: a.id,
-          targetQuantity: form.get(`tqty-${a.id}`) || null,
-          targetUnit: form.get(`tunit-${a.id}`) || null,
-          targetSets: form.get(`tsets-${a.id}`) || null,
-          targetReps: form.get(`treps-${a.id}`) || null,
-          targetDistance: form.get(`tdist-${a.id}`) || null,
-          targetLoad: form.get(`tload-${a.id}`) || null,
-        })),
     }));
     const csrf = await fetch("/api/csrf").then((r) => r.json());
     try {
       const response = await fetch("/api/plan-activities", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ planId, action: "bulk", activities }) });
       const result = await response.json().catch(() => ({}));
-      if (response.ok && !result.error) { onCreated(); return; }
+      if (response.ok && !result.error) { setRows([{ id: 0, name: "", fitness: "endurance", qty: "", unit: "", sets: "", reps: "", dist: "", load: "", instr: "" }]); onCreated(); return; }
       setMessage(result.error || "Could not add the activities.");
     } catch (e) { setMessage("Unable to reach the server."); }
     setBusy(false);
   }
 
   return (
-    <>
-      <div className={styles.panelHeader}><div><p className={styles.eyebrow}>For athletes</p><h2>Add activities for this plan&apos;s athletes</h2></div></div>
+    <div style={{ borderTop: "1px solid rgba(26,92,74,.5)", marginTop: 12, paddingTop: 12 }}>
       <form onSubmit={submit} className={styles.formGrid}>
         {rows.map((r) => (
           <div key={r.id} className={styles.fullField} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 14 }}>
@@ -525,37 +515,16 @@ function BulkAddActivitiesForm({ planId, athletes, onCreated }) {
           <button type="button" className={styles.secondary} onClick={addRow}>+ Add another activity</button>
         </div>
 
-        <div className={styles.fullField} style={{ borderTop: "1px solid rgba(26,92,74,.5)", paddingTop: 16 }}>
-          <p className={styles.eyebrow}>Per athlete — set each athlete&apos;s target</p>
-          <p className={styles.formHint}>Every athlete gets the activities above. Tweak each one here, or leave blank to use the shared target for everyone.</p>
-          {athletes.length ? (
-            <div className={styles.checkboxList} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
-              {athletes.map((a) => (
-                <div key={a.id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6 }}>
-                  <strong style={{ fontSize: 13 }}>{a.lastName}, {a.firstName}</strong>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <input className={styles.fieldControl} name={`tqty-${a.id}`} type="number" min="0" step="any" placeholder="Qty" style={{ width: "40%" }} />
-                    <input className={styles.fieldControl} name={`tunit-${a.id}`} placeholder="Unit" style={{ width: "58%" }} />
-                    <input className={styles.fieldControl} name={`tsets-${a.id}`} type="number" min="0" placeholder="Sets" style={{ width: "40%" }} />
-                    <input className={styles.fieldControl} name={`treps-${a.id}`} type="number" min="0" placeholder="Reps" style={{ width: "48%" }} />
-                    <input className={styles.fieldControl} name={`tdist-${a.id}`} type="number" min="0" placeholder="Dist (m)" style={{ width: "45%" }} />
-                    <input className={styles.fieldControl} name={`tload-${a.id}`} type="number" min="0" placeholder="Load (kg)" style={{ width: "45%" }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : <p className={styles.empty}>No athletes on this plan.</p>}
-        </div>
-
         <div className={styles.formActions}>
           <button type="button" className={styles.secondary} onClick={onCreated} disabled={busy}>Cancel</button>
-          <button className={styles.primary} disabled={busy}>{busy ? "Adding..." : `Add ${rows.filter((r) => r.name.trim()).length || rows.length} activit${rows.length === 1 ? "y" : "ies"}`}</button>
+          <button className={styles.primary} disabled={busy}>{busy ? "Adding..." : `Add ${rows.filter((r) => r.name.trim()).length || rows.length} activit${rows.length === 1 ? "y" : "ies"} for ${athlete.firstName}`}</button>
         </div>
         {message && <p role="status" className={`${styles.fullField} ${styles.formError}`}>{message}</p>}
       </form>
-    </>
+    </div>
   );
 }
+
 
 function BulkAssessForm({ planId, athletes, activities, logs, onDone }) {
   const [selectedAthlete, setSelectedAthlete] = React.useState("");
@@ -566,7 +535,7 @@ function BulkAssessForm({ planId, athletes, activities, logs, onDone }) {
   function pickAthlete(id) {
     setSelectedAthlete(id);
     const draftsFor = {};
-    for (const activity of activities) {
+    for (const activity of activities.filter((a) => a.athleteId === Number(id))) {
       const existing = logs.find((l) => l.athleteId === Number(id) && l.activityId === activity.id);
       draftsFor[activity.id] = {
         status: existing?.status || "done",
@@ -590,6 +559,7 @@ function BulkAssessForm({ planId, athletes, activities, logs, onDone }) {
     setBusy(true); setMessage(null);
     const form = new FormData(event.currentTarget);
     const rows = activities
+      .filter((a) => a.athleteId === Number(selectedAthlete))
       .filter((a) => drafts[a.id])
       .map((a) => ({
         activityId: a.id,
@@ -619,6 +589,7 @@ function BulkAssessForm({ planId, athletes, activities, logs, onDone }) {
   }
 
   const athlete = athletes.find((a) => a.id === Number(selectedAthlete)) || null;
+  const athleteActivities = activities.filter((a) => a.athleteId === Number(selectedAthlete));
 
   return (
     <form onSubmit={submit} className={styles.formGrid}>
@@ -630,9 +601,9 @@ function BulkAssessForm({ planId, athletes, activities, logs, onDone }) {
       {selectedAthlete ? (
         <div className={styles.fullField} style={{ borderTop: "1px solid rgba(26,92,74,.5)", paddingTop: 14 }}>
           <p className={styles.eyebrow}>Activities for {athlete ? `${athlete.firstName} ${athlete.lastName}` : ""}</p>
-          {activities.length ? (
+          {athleteActivities.length ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {activities.map((activity) => {
+              {athleteActivities.map((activity) => {
                 const d = drafts[activity.id] || { status: "done", qty: "", sets: "", reps: "", note: "" };
                 return (
                   <div key={activity.id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px", background: "rgba(6,38,30,.25)" }}>
@@ -650,14 +621,14 @@ function BulkAssessForm({ planId, athletes, activities, logs, onDone }) {
                 );
               })}
             </div>
-          ) : <p className={styles.empty}>This plan has no activities yet.</p>}
+          ) : <p className={styles.empty}>This athlete has no activities yet.</p>}
         </div>
       ) : null}
 
       <label className={styles.fullField}>Summary comment (optional)<textarea name="summaryComments" rows="2" maxLength="2000" placeholder="Overall observations about this athlete's effort and progress." /></label>
 
       <div className={styles.formActions}>
-        <button className={styles.primary} disabled={busy || !selectedAthlete || !activities.length}>{busy ? "Saving..." : "Save assessment"}</button>
+        <button className={styles.primary} disabled={busy || !selectedAthlete || !athleteActivities.length}>{busy ? "Saving..." : "Save assessment"}</button>
       </div>
       {message && <p role="status" className={`${styles.fullField} ${message.kind === "error" ? styles.formError : ""}`} style={message.kind === "success" ? { color: "var(--accent)" } : undefined}>{message.text}</p>}
     </form>

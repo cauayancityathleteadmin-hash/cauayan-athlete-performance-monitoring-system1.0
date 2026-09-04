@@ -304,7 +304,7 @@ model Athlete {
   trainingAttendances TrainingAttendance[]
   trainingPlans       TrainingPlanAthlete[]
   trainingAssessments TrainingAssessment[]
-  planActivityTargets PlanActivityTarget[]
+  planActivities      PlanActivity[]   @relation("ActivityAthlete")
   planActivityLogs    PlanActivityLog[]
   @@map("athletes")
   @@index([coachId, status])
@@ -664,6 +664,7 @@ model TrainingPlanAthlete {
 model PlanActivity {
   id             Int             @id @default(autoincrement())
   planId         Int             @map("plan_id")
+  athleteId      Int             @map("athlete_id")
   activityName   String          @map("activity_name")
   fitnessType    FitnessDimension @map("fitness_type")
   targetQuantity Decimal?        @map("target_quantity")
@@ -676,28 +677,10 @@ model PlanActivity {
   orderIndex     Int             @default(0) @map("order_index")
   createdAt      DateTime        @default(now()) @map("created_at")
   plan           TrainingPlan    @relation(fields: [planId], references: [id], onDelete: Cascade)
-  targets        PlanActivityTarget[]
+  athlete        Athlete         @relation("ActivityAthlete", fields: [athleteId], references: [id], onDelete: Cascade)
   logs           PlanActivityLog[]
   @@map("plan_activities")
-  @@index([planId, orderIndex])
-}
-
-model PlanActivityTarget {
-  id              Int         @id @default(autoincrement())
-  activityId      Int         @map("activity_id")
-  athleteId       Int         @map("athlete_id")
-  targetQuantity Decimal?    @map("target_quantity")
-  targetUnit      String?     @map("target_unit")
-  targetSets      Int?        @map("target_sets")
-  targetReps      Int?        @map("target_reps")
-  targetDistance  Decimal?    @map("target_distance")
-  targetLoad      Decimal?    @map("target_load")
-  note            String?
-  activity        PlanActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  athlete         Athlete      @relation(fields: [athleteId], references: [id], onDelete: Cascade)
-  @@unique([activityId, athleteId])
-  @@map("plan_activity_targets")
-  @@index([athleteId])
+  @@index([planId, athleteId, orderIndex])
 }
 
 model PlanActivityLog {

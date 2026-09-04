@@ -74,6 +74,7 @@ export default async function handler(req, res) {
   if (!athleteId) return res.status(400).json({ error: "A valid athleteId is required." });
   const onPlan = await prisma.trainingPlanAthlete.findFirst({ where: { planId: access.activity.plan.id, athleteId } });
   if (!onPlan) return res.status(409).json({ error: "This athlete is not part of the plan." });
+  if (access.activity.athleteId !== athleteId) return res.status(409).json({ error: "This activity is for a different athlete." });
 
   const status = STATUSES.includes(body.status) ? body.status : "planned";
   const performedAtBody = text(body.performedAt, 30);

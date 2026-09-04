@@ -150,7 +150,7 @@ export default async function handler(req, res) {
       if (!sourcePlanId) return res.status(400).json({ error: "A valid source plan ID is required." });
       const sourcePlan = await prisma.trainingPlan.findUnique({
         where: { id: sourcePlanId },
-        include: { activities: { include: { targets: true } }, athletes: { select: { athleteId: true } } },
+        include: { activities: true, athletes: { select: { athleteId: true } } },
       });
       if (!sourcePlan) return res.status(404).json({ error: "Source plan not found." });
       const access = await canAccessPlan(prisma, session, sourcePlanId);
@@ -201,10 +201,13 @@ export default async function handler(req, res) {
           select: { id: true },
         });
         await tx.trainingPlanAthlete.createMany({ data: athleteIds.map((id) => ({ planId: plan.id, athleteId: id })) });
+        const destAthleteIds = new Set(athleteIds);
         for (const activity of sourcePlan.activities) {
-          const newActivity = await tx.planActivity.create({
+          if (!destAthleteIds.has(activity.athleteId)) continue;
+          await tx.planActivity.create({
             data: {
               planId: plan.id,
+              athleteId: activity.athleteId,
               activityName: activity.activityName,
               fitnessType: activity.fitnessType,
               targetQuantity: activity.targetQuantity,
@@ -218,21 +221,6 @@ export default async function handler(req, res) {
             },
             select: { id: true },
           });
-          if (activity.targets.length) {
-            await tx.planActivityTarget.createMany({
-              data: activity.targets.map((t) => ({
-                activityId: newActivity.id,
-                athleteId: t.athleteId,
-                targetQuantity: t.targetQuantity,
-                targetUnit: t.targetUnit,
-                targetSets: t.targetSets,
-                targetReps: t.targetReps,
-                targetDistance: t.targetDistance,
-                targetLoad: t.targetLoad,
-                note: t.note,
-              })),
-            });
-          }
         }
         await tx.auditLog.create({ data: { userId: Number(session.user.id), action: "create", entityType: "trainingPlan", entityId: plan.id, description: `Duplicated training plan from #${sourcePlanId}` } });
         return plan.id;
