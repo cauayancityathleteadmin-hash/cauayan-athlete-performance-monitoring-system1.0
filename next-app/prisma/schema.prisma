@@ -630,6 +630,7 @@ model TrainingPlan {
   sportId     Int                    @map("sport_id")
   coachId     Int                    @map("coach_id")
   frequency   String                 @default("day") @map("frequency")
+  durationWeeks Int?                 @map("duration_weeks")
   startDate   DateTime               @map("start_date")
   endDate     DateTime?              @map("end_date")
   status      String                 @default("active") @map("status")

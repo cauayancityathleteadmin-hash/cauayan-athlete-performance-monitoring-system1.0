@@ -9,6 +9,7 @@ import { prisma } from "./prisma";
 const STMTS = [
   `ALTER TABLE "coaches" ADD COLUMN IF NOT EXISTS "picture_url" TEXT`,
   `ALTER TABLE "athletes" ADD COLUMN IF NOT EXISTS "picture_url" TEXT`,
+  `ALTER TABLE "training_plans" ADD COLUMN IF NOT EXISTS "duration_weeks" INTEGER`,
 ];
 
 let checked = false;

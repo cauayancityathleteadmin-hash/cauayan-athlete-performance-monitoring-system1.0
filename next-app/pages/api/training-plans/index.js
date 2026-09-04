@@ -5,6 +5,12 @@ import { rateLimiters } from "../../../lib/rate-limit";
 const FREQUENCIES = ["day", "week", "month"];
 const STATUSES = ["active", "completed"];
 
+function toDurationWeeks(v) {
+  if (v === "" || v == null) return null;
+  const n = Number(v);
+  return Number.isSafeInteger(n) && n >= 1 ? n : null;
+}
+
 async function resolveCoach(session) {
   return prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
 }
@@ -87,6 +93,7 @@ export default async function handler(req, res) {
       const endDate = text(body.endDate, 10) || null;
       if (endDate && new Date(endDate) < new Date(startDate)) return res.status(400).json({ error: "End date must be on or after the start date." });
       const frequency = FREQUENCIES.includes(body.frequency) ? body.frequency : "day";
+      const durationWeeks = toDurationWeeks(body.durationWeeks);
       const isTemplate = Boolean(body.isTemplate);
       if (isTemplate && !isAdmin) return res.status(403).json({ error: "Only admins can create template plans." });
 
@@ -112,6 +119,7 @@ export default async function handler(req, res) {
             sportId,
             coachId,
             frequency,
+            durationWeeks,
             startDate: new Date(startDate),
             endDate: endDate ? new Date(endDate) : null,
             status: STATUSES.includes(body.status) ? body.status : "active",
@@ -184,6 +192,7 @@ export default async function handler(req, res) {
             sportId: sourcePlan.sportId,
             coachId,
             frequency: sourcePlan.frequency,
+            durationWeeks: sourcePlan.durationWeeks,
             startDate: new Date(startDate),
             endDate: endDate ? new Date(endDate) : null,
             status: "active",
@@ -272,6 +281,9 @@ export default async function handler(req, res) {
     if (body.frequency !== undefined) {
       const frequency = FREQUENCIES.includes(body.frequency) ? body.frequency : "day";
       data.frequency = frequency;
+    }
+    if (body.durationWeeks !== undefined) {
+      data.durationWeeks = toDurationWeeks(body.durationWeeks);
     }
     if (body.startDate !== undefined) {
       const startDate = text(body.startDate, 10, true);

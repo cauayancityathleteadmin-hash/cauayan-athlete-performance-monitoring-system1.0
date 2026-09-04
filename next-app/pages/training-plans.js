@@ -127,7 +127,7 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
                 {plans.map((p) => (
                   <tr key={p.id}>
                     <td><strong>{p.planName}</strong>{p.description ? <small>{p.description}</small> : null}{p.isTemplate && <span className={`${styles.badge} ${styles.badgePending}`} style={{ marginLeft: 8 }}>Template</span>}</td>
-                    <td>{FREQ_META[p.frequency] || p.frequency}</td>
+                    <td>{FREQ_META[p.frequency] || p.frequency}{p.durationWeeks ? <small> · {p.durationWeeks} wk</small> : null}</td>
                     <td>{p.sport?.sportName || "—"}</td>
                     <td>{p.coach ? `${p.coach.firstName} ${p.coach.lastName}` : "—"}</td>
                     <td>{fmtDate(p.startDate)}{p.endDate ? ` – ${fmtDate(p.endDate)}` : ""}</td>
@@ -212,6 +212,7 @@ function CreatePlanForm({ isAdmin, sports, coaches, athletes, templates, onCreat
       sportId: Number(form.get("sportId")),
       coachId: Number(form.get("coachId") || (isAdmin ? 0 : athletes[0]?.coachId)),
       frequency: form.get("frequency"),
+      durationWeeks: form.get("durationWeeks") ? Number(form.get("durationWeeks")) : null,
       startDate: form.get("startDate"),
       endDate: form.get("endDate") || null,
       status: form.get("status"),
@@ -253,6 +254,7 @@ function CreatePlanForm({ isAdmin, sports, coaches, athletes, templates, onCreat
 
         {isAdmin && <label>Coach *<select name="coachId" required value={coachId} onChange={(e) => { setCoachId(e.target.value); setSelectedAthletes([]); }}><option value="">Select a coach</option>{coachOptions.map((c) => <option key={c.id} value={c.id}>{c.lastName}, {c.firstName}{c.coachCode ? ` (${c.coachCode})` : ""}</option>)}</select></label>}
         <label>Frequency *<select name="frequency" defaultValue="day"><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option></select></label>
+        <label>Duration (weeks)<input name="durationWeeks" type="number" min="1" max="104" placeholder="e.g. 8" /></label>
         <label>Start date *<input name="startDate" type="date" required /></label>
         <label>End date (optional)<input name="endDate" type="date" /></label>
         {isAdmin && <label>Status<select name="status" defaultValue="active"><option value="active">Active</option><option value="completed">Completed</option></select></label>}
@@ -296,6 +298,7 @@ function EditPlanForm({ isAdmin, plan, sports, coaches, athletes, onSaved, onCan
     sportId: plan.sportId,
     coachId: plan.coachId,
     frequency: plan.frequency,
+    durationWeeks: plan.durationWeeks ?? "",
     startDate: plan.startDate?.slice(0, 10) || "",
     endDate: plan.endDate?.slice(0, 10) || "",
     status: plan.status,
@@ -338,6 +341,7 @@ function EditPlanForm({ isAdmin, plan, sports, coaches, athletes, onSaved, onCan
         <label>Sport *<select name="sportId" value={formData.sportId} required onChange={handleChange}>{sports.map((s) => <option key={s.id} value={s.id}>{s.sportName}</option>)}</select></label>
         {isAdmin && <label>Coach *<select name="coachId" value={formData.coachId} required onChange={handleChange}><option value="">Select a coach</option>{coachOptions.map((c) => <option key={c.id} value={c.id}>{c.lastName}, {c.firstName}{c.coachCode ? ` (${c.coachCode})` : ""}</option>)}</select></label>}
         <label>Frequency *<select name="frequency" value={formData.frequency} onChange={handleChange}><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option></select></label>
+        <label>Duration (weeks)<input name="durationWeeks" type="number" min="1" max="104" defaultValue={formData.durationWeeks} onChange={handleChange} placeholder="e.g. 8" /></label>
         <label>Start date *<input name="startDate" type="date" required defaultValue={formData.startDate} onChange={handleChange} /></label>
         <label>End date (optional)<input name="endDate" type="date" defaultValue={formData.endDate} onChange={handleChange} /></label>
         {isAdmin && <label>Status<select name="status" value={formData.status} onChange={handleChange}><option value="active">Active</option><option value="completed">Completed</option></select></label>}

@@ -26,6 +26,7 @@ export default async function handler(req, res) {
     const parsedBirthdate = birthdate && new Date(`${birthdate}T00:00:00Z`);
     const age = parsedBirthdate && Math.floor((Date.now() - parsedBirthdate.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
     const contactNumber = isCoach ? text(body.contactNumber, 30) : "";
+    const pictureUrl = isCoach && typeof body.pictureUrl === "string" && /^https?:\/\/.+/.test(body.pictureUrl) ? body.pictureUrl.slice(0, 2000) : null;
     const validContact = !contactNumber || /^[0-9+\-\s()]{7,30}$/.test(contactNumber);
 
     if (!firstName || !lastName || !email) {
@@ -82,6 +83,7 @@ export default async function handler(req, res) {
               email,
               contactNumber: contactNumber || null,
               schoolId: schoolId || null,
+              pictureUrl,
             },
           });
           await tx.coachSport.deleteMany({ where: { coachId: coach.id } });

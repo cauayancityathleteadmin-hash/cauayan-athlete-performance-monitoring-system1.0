@@ -6,6 +6,7 @@ import { prisma } from "../lib/prisma";
 import styles from "../styles/Dashboard.module.css";
 import PasswordInput from "../components/PasswordInput";
 import AppShell from "../components/AppShell";
+import IdPhotoUpload from "../components/IdPhotoUpload";
 import { checkPasswordStrength } from "../lib/password";
 
 export async function getServerSideProps(context) {
@@ -57,6 +58,7 @@ export default function Account({ user, sports, session }) {
     contactNumber: coach?.contactNumber || "",
     sportIds: coach ? coach.sports.map((cs) => cs.sportId) : [],
   });
+  const [pictureUrl, setPictureUrl] = React.useState(coach?.pictureUrl || "");
   const initials = ((coach?.firstName?.[0] || "") + (coach?.lastName?.[0] || "")).toUpperCase() || (user.email ? user.email[0].toUpperCase() : "A");
   const profileName = isCoach ? [view.firstName, view.middleName, view.lastName].filter(Boolean).join(" ") : user.name || user.email;
 
@@ -93,6 +95,7 @@ export default function Account({ user, sports, session }) {
     const form = new FormData(event.currentTarget);
     const body = Object.fromEntries(form.entries());
     if (isCoach) body.sportIds = form.getAll("sportIds").map(Number);
+    if (isCoach) body.pictureUrl = pictureUrl || null;
     try {
       const csrf = await fetch("/api/csrf").then((r) => r.json());
       const response = await fetch("/api/account/update-profile", {
@@ -182,7 +185,7 @@ export default function Account({ user, sports, session }) {
       </Head>
       <AppShell session={session} isAdmin={session?.user?.role === "admin"} eyebrow="Cauayan City" title="My Account" active="/account">
         <div className={styles.profileHeader}>
-          <span className={styles.avatar}>{initials}</span>
+          <span className={styles.avatar}>{pictureUrl ? <img src={pictureUrl} alt="ID photo" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} /> : initials}</span>
           <div className={styles.profileMeta}>
             <h2>{profileName}</h2>
             <small>{user.email} · {user.role}</small>
@@ -235,6 +238,9 @@ export default function Account({ user, sports, session }) {
                         <label key={sport.id}><input type="checkbox" name="sportIds" value={sport.id} defaultChecked={view.sportIds.includes(sport.id)} /><span>{sport.sportName}</span></label>
                       ))}</div>
                     </fieldset>
+                    <div className={styles.fullField}>
+                      <IdPhotoUpload value={pictureUrl} onChange={setPictureUrl} label="Change/edit photo" />
+                    </div>
                   </>
                 )}
                 <div className={styles.stackedActions} style={{ gridColumn: "1 / -1" }}>

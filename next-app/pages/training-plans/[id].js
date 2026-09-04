@@ -138,6 +138,14 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
     );
   }
 
+  function updateActivity(activityId, payload) {
+    fetch("/api/csrf").then((r) => r.json()).then((csrf) =>
+      fetch("/api/plan-activities", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ planId: plan.id, action: "update", activityId, ...payload }) })
+        .then((r) => r.json()).then((res) => { if (res.error) setMessage({ kind: "error", text: res.error }); else { setMessage({ kind: "success", text: "Activity updated." }); refresh(); } })
+        .catch(() => setMessage({ kind: "error", text: "Could not update activity." }))
+    );
+  }
+
   function postNote(event) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -205,7 +213,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
               <thead><tr><th>Activity</th><th>Fitness</th><th>Target</th><th>Athletes with custom target</th><th>Log progress</th><th></th></tr></thead>
               <tbody>
                 {activities.map((activity) => (
-                  <ActivityRow key={activity.id} activity={activity} athletes={athletes} assignedMap={assignedMap} logCountFor={logCountFor} onCreateLog={createLog} onRemove={removeActivity} isAdmin={isAdmin} />
+                  <ActivityRow key={activity.id} activity={activity} athletes={athletes} assignedMap={assignedMap} logCountFor={logCountFor} onCreateLog={createLog} onRemove={removeActivity} onEdit={updateActivity} isAdmin={isAdmin} />
                 ))}
               </tbody>
             </table></div>
@@ -283,10 +291,71 @@ function renderStatus(status) {
   return <span className={`${styles.badge} ${styles[meta.cls]}`}>{meta.label}</span>;
 }
 
-function ActivityRow({ activity, athletes, assignedMap, logCountFor, onCreateLog, onRemove }) {
+function ActivityRow({ activity, athletes, assignedMap, logCountFor, onCreateLog, onRemove, onEdit }) {
   const [open, setOpen] = React.useState(false);
+  const [editing, setEditing] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
   const targets = activity.targets || [];
   const targetText = activity.targetQuantity != null ? `${activity.targetQuantity}${activity.targetUnit ? ` ${activity.targetUnit}` : ""}` : null;
+
+  const [draft, setDraft] = React.useState(() => ({
+    activityName: activity.activityName,
+    fitnessType: activity.fitnessType,
+    targetQuantity: activity.targetQuantity != null ? String(activity.targetQuantity) : "",
+    targetUnit: activity.targetUnit || "",
+    targetSets: activity.targetSets != null ? String(activity.targetSets) : "",
+    targetReps: activity.targetReps != null ? String(activity.targetReps) : "",
+    targetDistance: activity.targetDistance != null ? String(activity.targetDistance) : "",
+    targetLoad: activity.targetLoad != null ? String(activity.targetLoad) : "",
+    instructions: activity.instructions || "",
+    targetOverrides: Object.fromEntries(targets.map((t) => [t.athleteId, { targetQuantity: t.targetQuantity != null ? String(t.targetQuantity) : "", targetUnit: t.targetUnit || "" }])),
+  }));
+
+  function setField(name, value) {
+    setDraft((d) => ({ ...d, [name]: value }));
+  }
+  function setOverride(athleteId, key, value) {
+    setDraft((d) => ({ ...d, targetOverrides: { ...(d.targetOverrides || {}), [athleteId]: { ...(d.targetOverrides?.[athleteId] || {}), [key]: value } } }));
+  }
+
+  function submitEdit(e) {
+    e.preventDefault();
+    const targetOverrides = Object.fromEntries(Object.entries(draft.targetOverrides || {}).filter(([, v]) => v.targetQuantity !== "" || v.targetUnit !== ""));
+    setSaving(true);
+    onEdit(activity.id, {
+      activityName: draft.activityName,
+      fitnessType: draft.fitnessType,
+      targetQuantity: draft.targetQuantity || null,
+      targetUnit: draft.targetUnit || null,
+      targetSets: draft.targetSets || null,
+      targetReps: draft.targetReps || null,
+      targetDistance: draft.targetDistance || null,
+      targetLoad: draft.targetLoad || null,
+      instructions: draft.instructions || null,
+      targets: athletes.map((a) => {
+        const o = targetOverrides[a.id];
+        return { athleteId: a.id, targetQuantity: o ? o.targetQuantity : null, targetUnit: o ? o.targetUnit : null };
+      }),
+    });
+    setEditing(false);
+    setSaving(false);
+  }
+
+  function startEdit() {
+    setDraft({
+      activityName: activity.activityName,
+      fitnessType: activity.fitnessType,
+      targetQuantity: activity.targetQuantity != null ? String(activity.targetQuantity) : "",
+      targetUnit: activity.targetUnit || "",
+      targetSets: activity.targetSets != null ? String(activity.targetSets) : "",
+      targetReps: activity.targetReps != null ? String(activity.targetReps) : "",
+      targetDistance: activity.targetDistance != null ? String(activity.targetDistance) : "",
+      targetLoad: activity.targetLoad != null ? String(activity.targetLoad) : "",
+      instructions: activity.instructions || "",
+      targetOverrides: Object.fromEntries((activity.targets || []).map((t) => [t.athleteId, { targetQuantity: t.targetQuantity != null ? String(t.targetQuantity) : "", targetUnit: t.targetUnit || "" }])),
+    });
+    setEditing(true);
+  }
 
   return (
     <React.Fragment>
@@ -302,8 +371,45 @@ function ActivityRow({ activity, athletes, assignedMap, logCountFor, onCreateLog
         </td>
         <td>{targets.length ? targets.map((t) => `${assignedMap.get(t.athleteId)?.lastName || "?"}`).join(", ") : "All athletes (same target)"}</td>
         <td><button className={styles.expandBtn} onClick={() => setOpen((c) => !c)}>{open ? "Close logging â–²" : "Log progress â–¼"}</button></td>
-        <td><button className={`${styles.danger} ${styles.btnSm}`} onClick={() => onRemove(activity.id)}>Remove</button></td>
+        <td><button className={`${styles.secondary} ${styles.btnSm}`} onClick={() => { if (editing) setEditing(false); else startEdit(); }} style={{ padding: "4px 8px", fontSize: "12px" }}>{editing ? "Cancel" : "Edit"}</button> <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => onRemove(activity.id)}>Remove</button></td>
       </tr>
+      {editing && (
+        <tr><td colSpan="6" style={{ padding: 0, background: "transparent" }}>
+          <div className={styles.detailPanel}>
+            <form onSubmit={submitEdit} className={styles.formGrid} style={{ marginTop: 0 }}>
+              <label className={styles.fullField}>Activity name *<input className={styles.fieldControl} value={draft.activityName} onChange={(e) => setField("activityName", e.target.value)} required maxLength="191" /></label>
+              <label>Fitness dimension<select className={styles.fieldControl} value={draft.fitnessType} onChange={(e) => setField("fitnessType", e.target.value)}>{Object.keys(FITNESS_META).map((k) => <option key={k} value={k}>{FITNESS_META[k]}</option>)}</select></label>
+              <label>Target quantity<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetQuantity} onChange={(e) => setField("targetQuantity", e.target.value)} placeholder="e.g. 20" /></label>
+              <label>Target unit<input className={styles.fieldControl} value={draft.targetUnit} onChange={(e) => setField("targetUnit", e.target.value)} placeholder="e.g. min" /></label>
+              <label>Sets<input className={styles.fieldControl} type="number" min="0" value={draft.targetSets} onChange={(e) => setField("targetSets", e.target.value)} /></label>
+              <label>Reps<input className={styles.fieldControl} type="number" min="0" value={draft.targetReps} onChange={(e) => setField("targetReps", e.target.value)} /></label>
+              <label>Distance (m)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetDistance} onChange={(e) => setField("targetDistance", e.target.value)} /></label>
+              <label>Load (kg)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetLoad} onChange={(e) => setField("targetLoad", e.target.value)} /></label>
+              <label className={styles.fullField}>Instructions<textarea className={styles.fieldControl} rows="2" maxLength="2000" value={draft.instructions} onChange={(e) => setField("instructions", e.target.value)} /></label>
+
+              <div className={styles.fullField} style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+                <p className={styles.eyebrow}>Per-athlete target overrides (optional)</p>
+                {athletes.length === 0 ? <p className={styles.empty}>No athletes on this plan.</p> : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {athletes.map((a) => (
+                      <div key={a.id} style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                        <strong style={{ minWidth: 150 }}>{a.lastName}, {a.firstName}</strong>
+                        <input className={styles.fieldControl} type="number" min="0" step="any" style={{ width: 110 }} placeholder="Target qty" value={draft.targetOverrides?.[a.id]?.targetQuantity || ""} onChange={(e) => setOverride(a.id, "targetQuantity", e.target.value)} />
+                        <input className={styles.fieldControl} style={{ width: 90 }} placeholder="Unit" value={draft.targetOverrides?.[a.id]?.targetUnit || ""} onChange={(e) => setOverride(a.id, "targetUnit", e.target.value)} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.formActions}>
+                <button type="button" className={styles.secondary} onClick={() => setEditing(false)} disabled={saving}>Cancel</button>
+                <button className={styles.primary} disabled={saving}>{saving ? "Saving..." : "Save changes"}</button>
+              </div>
+            </form>
+          </div>
+        </td></tr>
+      )}
       {open && (
         <tr><td colSpan="6" style={{ padding: 0, background: "transparent" }}>
           <div className={styles.detailPanel}>

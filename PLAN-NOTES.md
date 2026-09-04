@@ -2,7 +2,9 @@
 
 Last updated: 2026-09-04. Status: **All three queued features (camera capture, bulk
 add activities, bulk per-athlete assessment) are BUILT and DEPLOYED** (see below).
-Blob upload now working with the new public store `store_kD9QHCbt1Ht5TQBJ`.
+The plan page is now **bulk-by-default** (bulk add + bulk assess are the ONLY add/assess
+methods), grouped under "Training plan and assessment". Blob upload now working with the
+new public store `store_kD9QHCbt1Ht5TQBJ`.
 
 ---
 
@@ -137,3 +139,34 @@ at once, saving once.
    (all athletes on one activity) — or only per **athlete across activities** (as stated)?
 3. For the camera feature, prefer live-preview capture (nicer) vs. simple OS-camera
    (simplest)? Recommend live-preview capture.
+
+---
+
+## 4. Plan-page restructure: bulk-by-default + rename (2026-09-04)
+
+Per user directive "lets only use the bulk adding of activities and assessment... name it
+the old way, training plan and assessment":
+- **Bulk add activities** and **bulk assess athlete** are now the ONLY add/assess methods
+  on the plan detail page (single-item forms removed; `showBulkAdd`/`showBulkAssess`
+  default true).
+- Sections grouped under headings "Training plan & assessment" / "Planned activities" /
+  "Assess an athlete".
+- Committed as `7a7d585` (deployed, verified live).
+
+## 5. Restructure follow-ups (2026-09-04)
+
+- **Explicit "Duration (weeks)" field** added to create/edit plan (new nullable
+  `durationWeeks` column via self-heal DDL in `lib/db-schema.js`; handled in the
+  training-plans create/duplicate/update API; shown in the list as "· N wk").
+- **Activity edit** added: an "Edit" button on each activity row opens an inline form to
+  change name, fitness, shared target, instructions, and per-athlete target overrides.
+  The `update` action in `pages/api/plan-activities/index.js` was extended to replace
+  per-athlete `PlanActivityTarget` rows.
+- **"Change/edit photo"** control added to the coach "Edit profile" form on the account
+  page (reuses `IdPhotoUpload`; label "Change/edit photo"; choose/camera/remove). Persisted
+  via the `update-profile` API to the coach `picture_url`. The profile header shows the
+  photo when present.
+- **Refresh behavior**: list page already reloads after create/edit/delete; the plan detail
+  page already calls `refresh()` after bulk add, bulk assess, activity edit/delete. No extra
+  wiring needed beyond confirming it.
+

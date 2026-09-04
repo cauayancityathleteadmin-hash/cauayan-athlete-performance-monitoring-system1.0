@@ -208,7 +208,36 @@ export default async function handler(req, res) {
     if ("targetLoad" in body) data.targetLoad = toDecimal(body.targetLoad);
     if ("instructions" in body) data.instructions = text(body.instructions, 2000) || null;
 
-    await prisma.planActivity.update({ where: { id: activityId }, data });
+    const hasTargets = Array.isArray(body.targets);
+    let cleanedTargets = [];
+    if (hasTargets) {
+      const planAthletes = await prisma.trainingPlanAthlete.findMany({ where: { planId }, select: { athleteId: true } });
+      const allowedTargetAthleteIds = new Set(planAthletes.map((a) => a.athleteId));
+      cleanedTargets = body.targets
+        .map((t) => ({
+          athleteId: validId(t.athleteId),
+          targetQuantity: t.targetQuantity === null || t.targetQuantity === undefined ? null : toDecimal(t.targetQuantity),
+          targetUnit: text(t.targetUnit, 50) || null,
+          targetSets: t.targetSets === null || t.targetSets === undefined ? null : toInt(t.targetSets),
+          targetReps: t.targetReps === null || t.targetReps === undefined ? null : toInt(t.targetReps),
+          targetDistance: t.targetDistance === null || t.targetDistance === undefined ? null : toDecimal(t.targetDistance),
+          targetLoad: t.targetLoad === null || t.targetLoad === undefined ? null : toDecimal(t.targetLoad),
+          note: text(t.note, 2000) || null,
+        }))
+        .filter((t) => t.athleteId && allowedTargetAthleteIds.has(t.athleteId));
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.planActivity.update({ where: { id: activityId }, data });
+      if (hasTargets) {
+        await tx.planActivityTarget.deleteMany({ where: { activityId } });
+        if (cleanedTargets.length) {
+          await tx.planActivityTarget.createMany({
+            data: cleanedTargets.map((t) => ({ activityId, ...t })),
+          });
+        }
+      }
+    });
     return res.status(200).json({ success: true, message: "Activity updated." });
   }
 
