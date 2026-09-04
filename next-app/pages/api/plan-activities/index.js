@@ -41,15 +41,19 @@ export default async function handler(req, res) {
   if (access === false) return res.status(403).json({ error: "You do not have permission to manage this plan's activities." });
 
   if (req.method === "GET") {
-    const activities = await prisma.planActivity.findMany({
-      where: { planId },
-      orderBy: { orderIndex: "asc" },
-      include: {
-        athlete: { select: { id: true, athleteCode: true, firstName: true, lastName: true } },
-        logs: { orderBy: { performedAt: "desc" }, include: { athlete: { select: { id: true, firstName: true, lastName: true } }, logger: { select: { email: true, username: true } } } },
-      },
-    });
-    return res.status(200).json(JSON.parse(JSON.stringify(activities)));
+    try {
+      const activities = await prisma.planActivity.findMany({
+        where: { planId },
+        orderBy: { orderIndex: "asc" },
+        include: {
+          athlete: { select: { id: true, athleteCode: true, firstName: true, lastName: true } },
+          logs: { orderBy: { performedAt: "desc" }, include: { athlete: { select: { id: true, firstName: true, lastName: true } }, logger: { select: { email: true, username: true } } } },
+        },
+      });
+      return res.status(200).json({ ok: true, _diag: false, data: JSON.parse(JSON.stringify(activities)) });
+    } catch (e) {
+      return res.status(500).json({ ok: false, _diag: true, code: e?.code, message: String(e?.message || e) });
+    }
   }
 
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
