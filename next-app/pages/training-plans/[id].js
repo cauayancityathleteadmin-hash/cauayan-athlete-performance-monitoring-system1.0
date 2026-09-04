@@ -72,7 +72,7 @@ const LOG_STATUS = {
 
 function fmtDate(value) {
   const d = new Date(value);
-  return isNaN(d) ? "â€”" : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  return isNaN(d) ? "—" : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
 export default function PlanDetail({ session, isAdmin, plan, athletes }) {
@@ -181,7 +181,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
       <Head><title>{plan.planName} | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Training" title={plan.planName} active="/training-plans">
         <div className={styles.pageActions}>
-          <span className={styles.eyebrow}>{plan.sport?.sportName || "â€”"} Â· {isAdmin ? `Run by ${plan.coach?.firstName || ""} ${plan.coach?.lastName || ""}` : "Your plan"}</span>
+          <span className={styles.eyebrow}>{plan.sport?.sportName || "—"} · {isAdmin ? `Run by ${plan.coach?.firstName || ""} ${plan.coach?.lastName || ""}` : "Your plan"}</span>
           <button className={styles.secondary} onClick={() => router.push("/training-plans")}>Back to plans</button>
         </div>
 
@@ -190,7 +190,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
             <div>
               <p className={styles.eyebrow}>Plan</p>
               <h2>{plan.planName}</h2>
-              <p style={{ color: "var(--muted)" }}>{fmtDate(plan.startDate)}{plan.endDate ? ` â€“ ${fmtDate(plan.endDate)}` : ""}</p>
+              <p style={{ color: "var(--muted)" }}>{fmtDate(plan.startDate)}{plan.endDate ? ` – ${fmtDate(plan.endDate)}` : ""}</p>
             </div>
             <span className={styles.badge}>{plan.status === "completed" ? "Completed" : "Active"}</span>
           </div>
@@ -285,7 +285,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
             <div><p className={styles.eyebrow}>Training plan &amp; assessment</p><h2>Assess an athlete</h2></div>
             <button className={styles.secondary} onClick={() => setShowBulkAssess((c) => !c)}>{showBulkAssess ? "Close assessment" : "Assess an athlete"}</button>
           </div>
-          <p className={styles.formHint} style={{ marginTop: 0 }}>Pick an athlete and set status + effort for every activity in one go, then save once. Optionally add an overall rating (1â€“10) and summary comment for the athlete&apos;s training assessment.</p>
+          <p className={styles.formHint} style={{ marginTop: 0 }}>Pick an athlete and set status + effort for every activity in one go, then save once. Optionally add an overall rating (1–10) and summary comment for the athlete's training assessment.</p>
           {showBulkAssess && (
             <BulkAssessForm planId={plan.id} athletes={athletes} activities={activities} logs={logs} onDone={refresh} />
           )}
@@ -624,7 +624,7 @@ function BulkAssessForm({ planId, athletes, activities, logs, onDone }) {
     <form onSubmit={submit} className={styles.formGrid}>
       <label className={styles.fullField}>Athlete *<select value={selectedAthlete} onChange={(e) => pickAthlete(e.target.value)} required defaultValue=""><option value="">Select an athlete on this plan</option>{athletes.map((a) => <option key={a.id} value={a.id}>{a.lastName}, {a.firstName} ({a.athleteCode})</option>)}</select></label>
       <label>Date performed<input name="performedAt" type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></label>
-      <label>Overall rating (1â€“10, optional)<select name="summaryRating" defaultValue=""><option value="">No summary rating</option>{[1,2,3,4,5,6,7,8,9,10].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
+      <label>Overall rating (1–10, optional)<select name="summaryRating" defaultValue=""><option value="">No summary rating</option>{[1,2,3,4,5,6,7,8,9,10].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
       <label>Fitness dimension (for summary)<select name="summaryFitness" defaultValue=""><option value="">General</option>{Object.keys(FITNESS_META).map((k) => <option key={k} value={k}>{FITNESS_META[k]}</option>)}</select></label>
 
       {selectedAthlete ? (
