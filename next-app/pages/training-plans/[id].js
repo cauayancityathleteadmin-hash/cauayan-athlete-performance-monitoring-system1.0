@@ -181,7 +181,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
       <Head><title>{plan.planName} | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Training" title={plan.planName} active="/training-plans">
         <div className={styles.pageActions}>
-          <span className={styles.eyebrow}>{plan.sport?.sportName || "—"} &middot; {isAdmin ? `Run by ${plan.coach?.firstName || ""} ${plan.coach?.lastName || ""}` : "Your plan"}</span>
+          <span className={styles.eyebrow}>{plan.sport?.sportName || "—"} {"\u00B7"} {isAdmin ? `Run by ${plan.coach?.firstName || ""} ${plan.coach?.lastName || ""}` : "Your plan"}</span>
           <button className={styles.secondary} onClick={() => router.push("/training-plans")}>Back to plans</button>
         </div>
 
