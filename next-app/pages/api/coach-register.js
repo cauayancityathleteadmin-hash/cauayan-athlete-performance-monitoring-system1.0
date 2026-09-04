@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "../../lib/prisma";
+import { ensureSchema } from "../../lib/db-schema";
 import { sendCoachRegistrationNotice } from "../../lib/email";
 import { requireCsrf, text, validId } from "../../lib/api-security";
 import { checkPasswordStrength } from "../../lib/password";
@@ -10,6 +11,11 @@ import { verifyTurnstile } from "../../lib/turnstile";
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
   if (!requireCsrf(req, res)) return;
+  try {
+    await ensureSchema();
+  } catch (e) {
+    console.warn("[coach-register] schema self-heal skipped:", e && e.message);
+  }
 
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || "unknown";
   if (!rateLimiters.register(`register:${ip}`).allowed) {
@@ -42,9 +48,6 @@ export default async function handler(req, res) {
 
   if (!firstName || !lastName || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 12 || password.length > 200 || !birthdate || Number.isNaN(parsedBirthdate?.getTime()) || parsedBirthdate > new Date() || age < 18 || !schoolName || sportIds.length === 0 || sportIds.length > 20 || !validContact) {
     return res.status(400).json({ error: "Complete all fields. Coaches must be at least 18 and select one or more sports." });
-  }
-  if (!pictureUrl || !/^https?:\/\//.test(pictureUrl)) {
-    return res.status(400).json({ error: "A 2x2 ID picture is required." });
   }
 
   const passwordStrength = checkPasswordStrength(password);

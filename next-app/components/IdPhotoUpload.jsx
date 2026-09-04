@@ -7,7 +7,7 @@ const SIZE = 600;
  * Crops the chosen image to a square (2x2 ratio), resizes to 600x600,
  * compresses to JPEG, uploads to Vercel Blob, and reports the public URL.
  */
-export default function IdPhotoUpload({ value, onChange, required = true, label = "2x2 ID picture" }) {
+export default function IdPhotoUpload({ value, onChange, required = false, label = "2x2 ID picture" }) {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
   const inputRef = React.useRef(null);

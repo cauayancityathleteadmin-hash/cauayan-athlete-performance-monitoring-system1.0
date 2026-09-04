@@ -1,4 +1,5 @@
 import { prisma } from "../../../lib/prisma";
+import { ensureSchema } from "../../../lib/db-schema";
 import { requireCsrf, requireSession, text, validateEmail, setSecurityHeaders } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
 
@@ -6,6 +7,11 @@ export default async function handler(req, res) {
   setSecurityHeaders(res);
   const session = await requireSession(req, res);
   if (!session) return;
+  try {
+    await ensureSchema();
+  } catch (e) {
+    console.warn("[athletes] schema self-heal skipped:", e && e.message);
+  }
 
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || "unknown";
   const rate = rateLimiters.api(`api:${ip}:${req.method}`);
@@ -40,9 +46,6 @@ export default async function handler(req, res) {
 
   if (!firstName || !lastName || !birthdate || !["male", "female", "other", "prefer_not_to_say"].includes(gender) || !Number.isInteger(sportId) || (eventId !== null && !Number.isInteger(eventId))) {
     return res.status(400).json({ error: "Complete the required athlete fields with valid values." });
-  }
-  if (!pictureUrl || !/^https?:\/\//.test(pictureUrl)) {
-    return res.status(400).json({ error: "A 2x2 ID picture is required." });
   }
 
   let coachId = Number(body.coachId);

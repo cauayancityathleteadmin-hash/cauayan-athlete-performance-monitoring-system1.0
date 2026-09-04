@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "../../../lib/prisma";
+import { ensureSchema } from "../../../lib/db-schema";
 import { rateLimiters } from "../../../lib/rate-limit";
 import { checkRateLimitDb } from "../../../lib/rate-limit-db";
 import { isLocked, recordFailure, recordSuccess } from "../../../lib/login-protection";
@@ -64,4 +65,11 @@ export const authOptions = {
   },
 };
 
-export default NextAuth(authOptions);
+export default async function handler(req, res) {
+  try {
+    await ensureSchema();
+  } catch (e) {
+    console.warn("[nextauth] schema self-heal skipped:", e && e.message);
+  }
+  return NextAuth(authOptions)(req, res);
+}

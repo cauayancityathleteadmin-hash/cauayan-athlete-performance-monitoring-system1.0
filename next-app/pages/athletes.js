@@ -244,11 +244,6 @@ function AthleteForm({ catalog, isAdmin, onDone }) {
 
   async function submit(event) {
     event.preventDefault();
-    if (!pictureUrl) {
-      setMessage("A 2x2 ID picture is required.");
-      setCreatedCode("");
-      return;
-    }
     setBusy(true);
     setMessage("");
     setCreatedCode("");
@@ -260,6 +255,7 @@ function AthleteForm({ catalog, isAdmin, onDone }) {
     if (response && response.ok && !result.error) {
       setMessage("Athlete registered successfully.");
       setCreatedCode(result.athleteCode || "");
+      setPictureUrl("");
       event.currentTarget.reset();
     } else {
       setMessage(result.error || "Could not register athlete.");
@@ -271,7 +267,7 @@ function AthleteForm({ catalog, isAdmin, onDone }) {
     <form onSubmit={submit} className={styles.formGrid}>
       <p className={`${styles.fullField} ${styles.formHint}`}>Athlete code is generated automatically.</p>
       <div className={styles.fullField}>
-        <IdPhotoUpload value={pictureUrl} onChange={setPictureUrl} required={true} label="2x2 ID picture" />
+        <IdPhotoUpload value={pictureUrl} onChange={setPictureUrl} label="2x2 ID picture" />
         <input type="hidden" name="pictureUrl" value={pictureUrl} />
       </div>
       <label>First name<input name="firstName" required maxLength="100" /></label>
