@@ -72,6 +72,8 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
   const [showAddActivity, setShowAddActivity] = React.useState(false);
+  const [showBulkAdd, setShowBulkAdd] = React.useState(false);
+  const [showBulkAssess, setShowBulkAssess] = React.useState(false);
   const [message, setMessage] = React.useState(null);
 
   const loadActivities = React.useCallback((show) => {
@@ -188,9 +190,16 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Activities</p><h2>Planned activities</h2></div>
-            <button className={styles.primary} onClick={() => setShowAddActivity((c) => !c)}>{showAddActivity ? "Close form" : "Add activity"}</button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <button className={styles.secondary} onClick={() => { setShowBulkAdd((c) => !c); setShowAddActivity(false); }}>{showBulkAdd ? "Close bulk add" : "Bulk add"}</button>
+              <button className={styles.primary} onClick={() => { setShowAddActivity((c) => !c); setShowBulkAdd(false); }}>{showAddActivity ? "Close form" : "Add activity"}</button>
+            </div>
           </div>
           <p className={styles.formHint} style={{ marginTop: 0 }}>Add the work athletes should do in this {plan.frequency} period (e.g. endurance, strength, power). Set a target and, optionally, a different target per athlete.</p>
+
+          {showBulkAdd && (
+            <BulkAddActivitiesForm planId={plan.id} athletes={athletes} onCreated={() => { setShowBulkAdd(false); refresh(); }} />
+          )}
 
           {showAddActivity && (
             <AddActivityForm planId={plan.id} athletes={athletes} onCreated={() => { setShowAddActivity(false); refresh(); }} />
@@ -258,6 +267,17 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
               <label className={styles.fullField}>Comment for the coach<textarea name="body" rows="2" maxLength="2000" required placeholder="e.g. Please add more recovery work for the injured athletes." /></label>
               <div className={styles.formActions}><button className={styles.primary}>Post comment</button></div>
             </form>
+          )}
+        </section>
+
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div><p className={styles.eyebrow}>Bulk assess</p><h2>Assess all activities for an athlete</h2></div>
+            <button className={styles.secondary} onClick={() => setShowBulkAssess((c) => !c)}>{showBulkAssess ? "Close assessment" : "Bulk assess athlete"}</button>
+          </div>
+          <p className={styles.formHint} style={{ marginTop: 0 }}>Pick an athlete and set status + effort for every activity in one go. Saves once. Optionally add an overall rating summary (1–10) that is written to the athlete&apos;s training assessments.</p>
+          {showBulkAssess && (
+            <BulkAssessForm planId={plan.id} athletes={athletes} activities={activities} logs={logs} onDone={refresh} />
           )}
         </section>
 
@@ -402,6 +422,227 @@ function AddActivityForm({ planId, athletes, onCreated }) {
 }
 
 const ASSESS_FITNESS = ["endurance", "strength", "power", "speed_agility", "skill_technique", "mobility", "recovery"];
+
+function BulkAddActivitiesForm({ planId, athletes, onCreated }) {
+  const [busy, setBusy] = React.useState(false);
+  const [message, setMessage] = React.useState("");
+  const [rows, setRows] = React.useState([{ id: 0, name: "", fitness: "endurance", qty: "", unit: "", sets: "", reps: "", dist: "", load: "", instr: "" }]);
+
+  function addRow() {
+    setRows((cur) => [...cur, { id: Date.now(), name: "", fitness: "endurance", qty: "", unit: "", sets: "", reps: "", dist: "", load: "", instr: "" }]);
+  }
+  function removeRow(id) {
+    setRows((cur) => cur.filter((r) => r.id !== id));
+  }
+  function updateRow(id, key, value) {
+    setRows((cur) => cur.map((r) => (r.id === id ? { ...r, [key]: value } : r)));
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    const valid = rows.filter((r) => r.name.trim());
+    if (!valid.length) { setMessage("Enter at least one activity with a name."); return; }
+    setBusy(true); setMessage("");
+    const form = new FormData(event.currentTarget);
+    const activities = valid.map((r) => ({
+      activityName: r.name.trim(),
+      fitnessType: r.fitness,
+      targetQuantity: r.qty || null,
+      targetUnit: r.unit || null,
+      targetSets: r.sets || null,
+      targetReps: r.reps || null,
+      targetDistance: r.dist || null,
+      targetLoad: r.load || null,
+      instructions: r.instr || null,
+      athleteTargets: athletes
+        .filter((a) => form.get(`tqty-${a.id}`) || form.get(`tunit-${a.id}`) || form.get(`tsets-${a.id}`) || form.get(`treps-${a.id}`) || form.get(`tdist-${a.id}`) || form.get(`tload-${a.id}`))
+        .map((a) => ({
+          athleteId: a.id,
+          targetQuantity: form.get(`tqty-${a.id}`) || null,
+          targetUnit: form.get(`tunit-${a.id}`) || null,
+          targetSets: form.get(`tsets-${a.id}`) || null,
+          targetReps: form.get(`treps-${a.id}`) || null,
+          targetDistance: form.get(`tdist-${a.id}`) || null,
+          targetLoad: form.get(`tload-${a.id}`) || null,
+        })),
+    }));
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    try {
+      const response = await fetch("/api/plan-activities", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ planId, action: "bulk", activities }) });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok && !result.error) { onCreated(); return; }
+      setMessage(result.error || "Could not add the activities.");
+    } catch (e) { setMessage("Unable to reach the server."); }
+    setBusy(false);
+  }
+
+  return (
+    <>
+      <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Bulk</p><h2>Add several activities at once</h2></div></div>
+      <p className={styles.formHint} style={{ marginTop: 0 }}>Each activity&apos;s shared target is applied to every athlete on the plan. Optionally set a different target per athlete below (applies to all activities).</p>
+      <form onSubmit={submit} className={styles.formGrid}>
+        {rows.map((r) => (
+          <div key={r.id} className={styles.fullField} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <strong style={{ fontSize: 13 }}>Activity {rows.indexOf(r) + 1}</strong>
+              {rows.length > 1 && <button type="button" className={`${styles.danger} ${styles.btnSm}`} onClick={() => removeRow(r.id)}>Remove</button>}
+            </div>
+            <label className={styles.fullField} style={{ marginBottom: 8 }}>Name *<input value={r.name} onChange={(e) => updateRow(r.id, "name", e.target.value)} maxLength="191" placeholder="e.g. Endurance run" /></label>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
+              <label style={{ flex: "1 1 150px" }}>Fitness type<select value={r.fitness} onChange={(e) => updateRow(r.id, "fitness", e.target.value)}>{Object.keys(FITNESS_META).map((k) => <option key={k} value={k}>{FITNESS_META[k]}</option>)}</select></label>
+              <label style={{ flex: "0 1 110px" }}>Quantity<input value={r.qty} onChange={(e) => updateRow(r.id, "qty", e.target.value)} type="number" min="0" step="any" placeholder="e.g. 1" /></label>
+              <label style={{ flex: "0 1 120px" }}>Unit<input value={r.unit} onChange={(e) => updateRow(r.id, "unit", e.target.value)} maxLength="50" placeholder="e.g. km" /></label>
+              <label style={{ flex: "0 1 90px" }}>Sets<input value={r.sets} onChange={(e) => updateRow(r.id, "sets", e.target.value)} type="number" min="0" /></label>
+              <label style={{ flex: "0 1 90px" }}>Reps<input value={r.reps} onChange={(e) => updateRow(r.id, "reps", e.target.value)} type="number" min="0" /></label>
+              <label style={{ flex: "0 1 100px" }}>Dist (m)<input value={r.dist} onChange={(e) => updateRow(r.id, "dist", e.target.value)} type="number" min="0" step="any" /></label>
+              <label style={{ flex: "0 1 90px" }}>Load (kg)<input value={r.load} onChange={(e) => updateRow(r.id, "load", e.target.value)} type="number" min="0" step="any" /></label>
+            </div>
+            <label className={styles.fullField}>Instructions<textarea value={r.instr} onChange={(e) => updateRow(r.id, "instr", e.target.value)} rows="1" maxLength="2000" placeholder="How to do it, safety notes, etc." /></label>
+          </div>
+        ))}
+
+        <div className={styles.fullField}>
+          <button type="button" className={styles.secondary} onClick={addRow}>+ Add another activity</button>
+        </div>
+
+        <div className={styles.fullField} style={{ borderTop: "1px solid rgba(26,92,74,.5)", paddingTop: 16 }}>
+          <p className={styles.eyebrow}>Per-athlete targets (optional, applies to all listed activities)</p>
+          <p className={styles.formHint}>Leave blank to use the shared target for everyone.</p>
+          {athletes.length ? (
+            <div className={styles.checkboxList} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+              {athletes.map((a) => (
+                <div key={a.id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6 }}>
+                  <strong style={{ fontSize: 13 }}>{a.lastName}, {a.firstName}</strong>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <input className={styles.fieldControl} name={`tqty-${a.id}`} type="number" min="0" step="any" placeholder="Qty" style={{ width: "40%" }} />
+                    <input className={styles.fieldControl} name={`tunit-${a.id}`} placeholder="Unit" style={{ width: "58%" }} />
+                    <input className={styles.fieldControl} name={`tsets-${a.id}`} type="number" min="0" placeholder="Sets" style={{ width: "40%" }} />
+                    <input className={styles.fieldControl} name={`treps-${a.id}`} type="number" min="0" placeholder="Reps" style={{ width: "48%" }} />
+                    <input className={styles.fieldControl} name={`tdist-${a.id}`} type="number" min="0" placeholder="Dist (m)" style={{ width: "45%" }} />
+                    <input className={styles.fieldControl} name={`tload-${a.id}`} type="number" min="0" placeholder="Load (kg)" style={{ width: "45%" }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : <p className={styles.empty}>No athletes on this plan.</p>}
+        </div>
+
+        <div className={styles.formActions}>
+          <button type="button" className={styles.secondary} onClick={onCreated} disabled={busy}>Cancel</button>
+          <button className={styles.primary} disabled={busy}>{busy ? "Adding..." : `Add ${rows.filter((r) => r.name.trim()).length || rows.length} activit${rows.length === 1 ? "y" : "ies"}`}</button>
+        </div>
+        {message && <p role="status" className={`${styles.fullField} ${styles.formError}`}>{message}</p>}
+      </form>
+    </>
+  );
+}
+
+function BulkAssessForm({ planId, athletes, activities, logs, onDone }) {
+  const [selectedAthlete, setSelectedAthlete] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [message, setMessage] = React.useState(null);
+  const [drafts, setDrafts] = React.useState({});
+
+  function pickAthlete(id) {
+    setSelectedAthlete(id);
+    const draftsFor = {};
+    for (const activity of activities) {
+      const existing = logs.find((l) => l.athleteId === Number(id) && l.activityId === activity.id);
+      draftsFor[activity.id] = {
+        status: existing?.status || "done",
+        qty: existing?.quantityDone != null ? String(existing.quantityDone) : "",
+        sets: existing?.setsDone != null ? String(existing.setsDone) : "",
+        reps: existing?.repsDone != null ? String(existing.repsDone) : "",
+        note: existing?.notes || "",
+      };
+    }
+    setDrafts(draftsFor);
+    setMessage(null);
+  }
+
+  function update(activityId, key, value) {
+    setDrafts((cur) => ({ ...cur, [activityId]: { ...cur[activityId], [key]: value } }));
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    if (!selectedAthlete) { setMessage({ kind: "error", text: "Select an athlete first." }); return; }
+    setBusy(true); setMessage(null);
+    const form = new FormData(event.currentTarget);
+    const rows = activities
+      .filter((a) => drafts[a.id])
+      .map((a) => ({
+        activityId: a.id,
+        status: drafts[a.id].status,
+        quantityDone: drafts[a.id].qty || null,
+        setsDone: drafts[a.id].sets || null,
+        repsDone: drafts[a.id].reps || null,
+        notes: drafts[a.id].note || null,
+      }));
+    const body = {
+      planId,
+      athleteId: Number(selectedAthlete),
+      performedAt: form.get("performedAt") || null,
+      rows,
+      summaryRating: form.get("summaryRating") || null,
+      summaryFitness: form.get("summaryFitness") || null,
+      summaryComments: form.get("summaryComments") || null,
+    };
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    try {
+      const response = await fetch("/api/plan-activity-logs/bulk-assess", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify(body) });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok && !result.error) { setMessage({ kind: "success", text: `Assessment saved for ${rows.length} activit${rows.length === 1 ? "y" : "ies"}.` }); onDone(); return; }
+      setMessage({ kind: "error", text: result.error || "Could not save the assessment." });
+    } catch (e) { setMessage({ kind: "error", text: "Unable to reach the server." }); }
+    setBusy(false);
+  }
+
+  const athlete = athletes.find((a) => a.id === Number(selectedAthlete)) || null;
+
+  return (
+    <form onSubmit={submit} className={styles.formGrid}>
+      <label className={styles.fullField}>Athlete *<select value={selectedAthlete} onChange={(e) => pickAthlete(e.target.value)} required defaultValue=""><option value="">Select an athlete on this plan</option>{athletes.map((a) => <option key={a.id} value={a.id}>{a.lastName}, {a.firstName} ({a.athleteCode})</option>)}</select></label>
+      <label>Date performed<input name="performedAt" type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></label>
+      <label>Overall rating (1–10, optional)<select name="summaryRating" defaultValue=""><option value="">No summary rating</option>{[1,2,3,4,5,6,7,8,9,10].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
+      <label>Fitness dimension (for summary)<select name="summaryFitness" defaultValue=""><option value="">General</option>{Object.keys(FITNESS_META).map((k) => <option key={k} value={k}>{FITNESS_META[k]}</option>)}</select></label>
+
+      {selectedAthlete ? (
+        <div className={styles.fullField} style={{ borderTop: "1px solid rgba(26,92,74,.5)", paddingTop: 14 }}>
+          <p className={styles.eyebrow}>Activities for {athlete ? `${athlete.firstName} ${athlete.lastName}` : ""}</p>
+          {activities.length ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {activities.map((activity) => {
+                const d = drafts[activity.id] || { status: "done", qty: "", sets: "", reps: "", note: "" };
+                return (
+                  <div key={activity.id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px", background: "rgba(6,38,30,.25)" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                      <strong style={{ minWidth: 170, flex: "1 1 170px" }}>{activity.activityName}</strong>
+                      <select className={styles.fieldControl} value={d.status} onChange={(e) => update(activity.id, "status", e.target.value)} style={{ width: 110 }}>
+                        <option value="done">Done</option><option value="partial">Partial</option><option value="missed">Missed</option>
+                      </select>
+                      <input className={styles.fieldControl} value={d.qty} onChange={(e) => update(activity.id, "qty", e.target.value)} type="number" min="0" step="any" placeholder="Qty done" style={{ width: 110 }} />
+                      <input className={styles.fieldControl} value={d.sets} onChange={(e) => update(activity.id, "sets", e.target.value)} type="number" min="0" placeholder="Sets" style={{ width: 80 }} />
+                      <input className={styles.fieldControl} value={d.reps} onChange={(e) => update(activity.id, "reps", e.target.value)} type="number" min="0" placeholder="Reps" style={{ width: 80 }} />
+                      <input className={styles.fieldControl} value={d.note} onChange={(e) => update(activity.id, "note", e.target.value)} placeholder="Note (optional)" style={{ flex: "1 1 140px", minWidth: 120 }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : <p className={styles.empty}>This plan has no activities yet.</p>}
+        </div>
+      ) : null}
+
+      <label className={styles.fullField}>Summary comment (optional)<textarea name="summaryComments" rows="2" maxLength="2000" placeholder="Overall observations about this athlete's effort and progress." /></label>
+
+      <div className={styles.formActions}>
+        <button className={styles.primary} disabled={busy || !selectedAthlete || !activities.length}>{busy ? "Saving..." : "Save assessment"}</button>
+      </div>
+      {message && <p role="status" className={`${styles.fullField} ${message.kind === "error" ? styles.formError : ""}`} style={message.kind === "success" ? { color: "var(--accent)" } : undefined}>{message.text}</p>}
+    </form>
+  );
+}
 
 function AssessmentForm({ planId, athletes, onDone }) {
   const [busy, setBusy] = React.useState(false);

@@ -1,7 +1,8 @@
 # PLANNING NOTES — Cauayan Athlete Performance Monitoring System
 
-Last updated: 2026-09-04. These are agreed/under-discussion plans. Nothing here is
-deployed unless stated. Wait for the user's go signal before building each item.
+Last updated: 2026-09-04. Status: **All three queued features (camera capture, bulk
+add activities, bulk per-athlete assessment) are BUILT and DEPLOYED** (see below).
+Blob upload now working with the new public store `store_kD9QHCbt1Ht5TQBJ`.
 
 ---
 
@@ -33,6 +34,13 @@ deployed unless stated. Wait for the user's go signal before building each item.
 
 ## 1. Camera capture for ID photo (agreed direction, WAIT for go)
 
+**✅ BUILT & DEPLOYED.** Added to `components/IdPhotoUpload.jsx`:
+- A "Take photo" button beside "Choose photo" that opens the device camera via
+  `navigator.mediaDevices.getUserMedia`, shows a live preview with Capture/Cancel.
+- Captured frame is drawn to a square canvas, then runs the same crop/resize/upload
+  path (2x2 square → 600×600 → JPEG → Vercel Blob).
+- Graceful fallback message if camera is unavailable/usupported/permission denied.
+
 **Plan in simple words:** Let coaches/athletes use their device camera to take their
 ID photo directly, as an alternative to choosing a file.
 
@@ -53,6 +61,16 @@ without a webcam silently lacks the option (Choose photo still works).
 
 ## 2. "Add all activities for all athletes at once" (under discussion)
 
+**✅ BUILT & DEPLOYED.**
+- New `bulk` action in `pages/api/plan-activities/index.js`: accepts an array of
+  activities (each with shared plan target + optional `athleteTargets[]` overrides)
+  and creates them all in ONE transaction. Shared target lives on the activity row
+  (applies to all plan athletes); per-athlete overrides go to `PlanActivityTarget`.
+  No duplicate activity rows per athlete. Cap of 50 activities per request.
+- New "Bulk add" UI in `pages/training-plans/[id].js` (`BulkAddActivitiesForm`):
+  add/remove several activity rows at once, each with name + fitness + shared target,
+  plus per-athlete target overrides entered once (applies to all listed activities).
+
 **What already exists:** functions at plan level — add an activity to a plan and all
 plan athletes get it; per-athlete target overrides via `PlanActivityTarget`.
 
@@ -69,7 +87,22 @@ bulk endpoint. Medium effort.
 
 ---
 
-## 3. Coach assesses/scores each athlete on ALL their activities in ONE screen (agreed, WAIT for go)
+## 3. Coach assesses/scored each athlete on ALL their activities in ONE screen (agreed, WAIT for go)
+
+**✅ BUILT & DEPLOYED.** Confirmed approach (open question #1): completion/effort +
+optional comment per activity (writes to `PlanActivityLog`), NOT a forced numeric score
+per row. An optional overall rating (1–10) + summary comment writes a single
+`TrainingAssessment` per athlete (kept separate, avoids grade inflation).
+Scope per user clarification: per **athlete** across activities, ONE screen, save once.
+- New API `pages/api/plan-activity-logs/bulk-assess.js` (POST):
+  `{ planId, athleteId, performedAt, rows: [{activityId, status, quantityDone, setsDone,
+  repsDone, notes}], summaryRating?, summaryFitness?, summaryComments? }`.
+  Replaces the athlete's existing logs for the plan's activities (delete + recreate) so
+  re-saving overwrites rather than duplicating; optionally writes the summary assessment.
+  Plan-ownership + on-plan checks enforced.
+- New "Bulk assess athlete" panel in `pages/training-plans/[id].js` (`BulkAssessForm`):
+  pick a plan athlete → see all their activities → set status (done/partial/missed),
+  qty/sets/reps done, note for each → one Save. Pre-fills from any existing logs.
 
 **User clarification:** NOT one assessment per activity. A coach opens ONE screen showing
 an athlete's FULL set of training activities and fills a score/completion for all of them

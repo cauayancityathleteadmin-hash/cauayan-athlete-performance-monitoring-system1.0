@@ -10,7 +10,87 @@ const SIZE = 600;
 export default function IdPhotoUpload({ value, onChange, required = false, label = "2x2 ID picture" }) {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [cameraOpen, setCameraOpen] = React.useState(false);
   const inputRef = React.useRef(null);
+  const videoRef = React.useRef(null);
+  const streamRef = React.useRef(null);
+
+  function stopCamera() {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+  }
+
+  React.useEffect(() => {
+    return () => stopCamera();
+  }, []);
+
+  function closeCamera() {
+    stopCamera();
+    setCameraOpen(false);
+  }
+
+  async function openCamera() {
+    setError("");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("Camera not supported on this device or browser.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 1280 }, facingMode: "user" }, audio: false });
+      streamRef.current = stream;
+      setCameraOpen(true);
+      requestAnimationFrame(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
+        }
+      });
+    } catch (e) {
+      setError("Could not open the camera. Please allow camera permission or use 'Choose photo' instead.");
+    }
+  }
+
+  async function capturePhoto() {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+    setBusy(true);
+    setError("");
+    try {
+      const file = canvasToFile(video);
+      const url = await processAndUpload(file);
+      closeCamera();
+      onChange(url);
+    } catch (e) {
+      setError(e.message || "Could not upload the captured photo.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function canvasToFile(video) {
+    const side = Math.min(video.videoWidth, video.videoHeight);
+    const canvas = document.createElement("canvas");
+    canvas.width = SIZE;
+    canvas.height = SIZE;
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(video, (video.videoWidth - side) / 2, (video.videoHeight - side) / 2, side, side, 0, 0, SIZE, SIZE);
+    const blob = canvas.toDataURL("image/jpeg", 0.9);
+    return dataURLtoFile(blob, "capture.jpg", "image/jpeg");
+  }
+
+  function dataURLtoFile(dataUrl, filename, mime) {
+    const arr = dataUrl.split(",");
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    const mimeType = mimeMatch ? mimeMatch[1] : mime;
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) u8arr[n] = bstr.charCodeAt(n);
+    return new File([u8arr], filename, { type: mimeType });
+  }
 
   async function handleFile(file) {
     setError("");
@@ -131,12 +211,22 @@ export default function IdPhotoUpload({ value, onChange, required = false, label
               ref={inputRef}
               type="file"
               accept="image/jpeg,image/png,image/webp"
-              disabled={busy}
+              disabled={busy || cameraOpen}
               onChange={(e) => handleFile(e.target.files?.[0])}
               style={{ display: "none" }}
             />
           </label>
-          {value && !required && (
+          {!cameraOpen && (
+            <button
+              type="button"
+              onClick={openCamera}
+              disabled={busy}
+              style={{ display: "inline-block", padding: "10px 14px", border: "1px solid var(--border)", borderRadius: "6px", background: "rgba(127,199,175,.1)", color: "var(--foreground)", fontWeight: 600, cursor: "pointer", fontSize: "14px", textAlign: "left" }}
+            >
+              {busy ? "Uploading..." : "Take photo"}
+            </button>
+          )}
+          {value && !required && !cameraOpen && (
             <button
               type="button"
               onClick={() => onChange("")}
@@ -147,6 +237,24 @@ export default function IdPhotoUpload({ value, onChange, required = false, label
           )}
         </div>
       </div>
+
+      {cameraOpen && (
+        <div style={{ marginTop: "12px", border: "1px solid var(--border)", borderRadius: "10px", padding: "14px", background: "rgba(6,38,30,.35)", maxWidth: 420 }}>
+          <p style={{ margin: "0 0 10px", color: "var(--muted)", fontSize: "13px" }}>Line up your face in the square, then take the photo. Your photo is saved as a 2x2 ID picture.</p>
+          <div style={{ position: "relative", width: "100%", maxWidth: 320, borderRadius: "8px", overflow: "hidden" }}>
+            <video ref={videoRef} playsInline muted autoPlay style={{ width: "100%", display: "block", background: "#000" }} />
+            <div style={{ position: "absolute", inset: 0, pointerEvents: "none", boxShadow: "inset 0 0 0 3px rgba(45,212,168,.8)", borderRadius: "8px", margin: "8%" }} />
+          </div>
+          <div style={{ display: "flex", gap: "10px", marginTop: "12px", flexWrap: "wrap" }}>
+            <button type="button" onClick={capturePhoto} disabled={busy} style={{ padding: "10px 16px", border: "none", borderRadius: "6px", background: "var(--accent)", color: "#041f18", fontWeight: 700, cursor: "pointer", fontSize: "14px" }}>
+              {busy ? "Uploading..." : "Capture photo"}
+            </button>
+            <button type="button" onClick={closeCamera} disabled={busy} style={{ padding: "10px 16px", border: "1px solid var(--border)", borderRadius: "6px", background: "transparent", color: "var(--foreground)", fontWeight: 600, cursor: "pointer", fontSize: "14px" }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
       {error && <p style={{ color: "var(--danger)", fontSize: "12px", marginTop: "6px" }}>{error}</p>}
     </div>
   );

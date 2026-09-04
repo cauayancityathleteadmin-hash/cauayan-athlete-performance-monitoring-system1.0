@@ -62,6 +62,81 @@ export default async function handler(req, res) {
 
   const action = body.action || "create";
 
+  if (action === "bulk") {
+    const planAthletes = await prisma.trainingPlanAthlete.findMany({ where: { planId }, select: { athleteId: true } });
+    const allowedAthleteIds = new Set(planAthletes.map((a) => a.athleteId));
+    const list = Array.isArray(body.activities) ? body.activities : [];
+    const cleaned = [];
+    for (const item of list) {
+      const name = text(item.activityName, 191, true);
+      if (!name) continue;
+      let targets = Array.isArray(item.athleteTargets) ? item.athleteTargets : [];
+      targets = targets.map((t) => ({ athleteId: validId(t.athleteId) })).filter((t) => t.athleteId && allowedAthleteIds.has(t.athleteId));
+      cleaned.push({
+        activityName: name,
+        fitnessType: FITNESS_TYPES.includes(item.fitnessType) ? item.fitnessType : "endurance",
+        targetQuantity: toDecimal(item.targetQuantity),
+        targetUnit: text(item.targetUnit, 50) || null,
+        targetSets: toInt(item.targetSets),
+        targetReps: toInt(item.targetReps),
+        targetDistance: toDecimal(item.targetDistance),
+        targetLoad: toDecimal(item.targetLoad),
+        instructions: text(item.instructions, 2000) || null,
+        targets,
+      });
+    }
+    if (!cleaned.length) return res.status(400).json({ error: "Enter at least one activity with a name." });
+    if (cleaned.length > 50) return res.status(400).json({ error: "Please limit a bulk add to 50 activities at a time." });
+
+    const createdIds = await prisma.$transaction(async (tx) => {
+      const count = await tx.planActivity.count({ where: { planId } });
+      const ids = [];
+      for (let i = 0; i < cleaned.length; i++) {
+        const item = cleaned[i];
+        const activity = await tx.planActivity.create({
+          data: {
+            planId,
+            activityName: item.activityName,
+            fitnessType: item.fitnessType,
+            targetQuantity: item.targetQuantity,
+            targetUnit: item.targetUnit,
+            targetSets: item.targetSets,
+            targetReps: item.targetReps,
+            targetDistance: item.targetDistance,
+            targetLoad: item.targetLoad,
+            instructions: item.instructions,
+            orderIndex: count + i,
+          },
+          select: { id: true },
+        });
+        if (item.targets.length) {
+          await tx.planActivityTarget.createMany({
+            data: item.targets.map((t) => ({
+              activityId: activity.id,
+              athleteId: t.athleteId,
+              targetQuantity: toDecimal(t.targetQuantity),
+              targetUnit: text(t.targetUnit, 50) || null,
+              targetSets: toInt(t.targetSets),
+              targetReps: toInt(t.targetReps),
+              targetDistance: toDecimal(t.targetDistance),
+              targetLoad: toDecimal(t.targetLoad),
+              note: text(t.note, 2000) || null,
+            })),
+          });
+        }
+        ids.push(activity.id);
+      }
+      return ids;
+    });
+
+    const full = await prisma.planActivity.findMany({
+      where: { id: { in: createdIds } },
+      include: { targets: true },
+      orderBy: { orderIndex: "asc" },
+    });
+    return res.status(201).json(JSON.parse(JSON.stringify({ created: full, count: full.length })));
+  }
+
   if (action === "create") {
     const name = text(body.activityName, 191, true);
     if (!name) return res.status(400).json({ error: "An activity name is required." });
