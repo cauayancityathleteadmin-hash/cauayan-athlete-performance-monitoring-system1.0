@@ -52,6 +52,17 @@ const FITNESS_META = {
   mobility: "Mobility",
   recovery: "Recovery",
 };
+
+const UNITS_BY_FITNESS = {
+  endurance: ["km", "m", "miles", "min", "hr"],
+  strength: ["kg", "lb", "reps", "sets"],
+  power: ["w", "kg", "lb", "reps"],
+  speed_agility: ["sec", "m", "reps"],
+  skill_technique: ["reps", "attempts", "rating"],
+  mobility: ["min", "sec", "deg", "reps"],
+  recovery: ["min", "hr", "sessions"],
+};
+
 const LOG_STATUS = {
   planned: { label: "Planned", cls: "badgeMuted" },
   done: { label: "Done", cls: "badgeActive" },
@@ -349,7 +360,14 @@ function ActivityRow({ athlete, activity, logCountFor, onCreateLog, onRemove, on
   }));
 
   function setField(name, value) {
-    setDraft((d) => ({ ...d, [name]: value }));
+    setDraft((d) => {
+      const next = { ...d, [name]: value };
+      if (name === "fitnessType") {
+        const allowed = UNITS_BY_FITNESS[value] || [];
+        if (!allowed.includes(next.targetUnit)) next.targetUnit = allowed[0] || "";
+      }
+      return next;
+    });
   }
 
   function startEdit() {
@@ -407,7 +425,7 @@ function ActivityRow({ athlete, activity, logCountFor, onCreateLog, onRemove, on
               <label className={styles.fullField}>Activity name *<input className={styles.fieldControl} value={draft.activityName} onChange={(e) => setField("activityName", e.target.value)} required maxLength="191" /></label>
               <label>Fitness dimension<select className={styles.fieldControl} value={draft.fitnessType} onChange={(e) => setField("fitnessType", e.target.value)}>{Object.keys(FITNESS_META).map((k) => <option key={k} value={k}>{FITNESS_META[k]}</option>)}</select></label>
               <label>Target quantity<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetQuantity} onChange={(e) => setField("targetQuantity", e.target.value)} placeholder="e.g. 20" /></label>
-              <label>Target unit<input className={styles.fieldControl} value={draft.targetUnit} onChange={(e) => setField("targetUnit", e.target.value)} placeholder="e.g. min" /></label>
+              <label>Target unit<select className={styles.fieldControl} value={draft.targetUnit} onChange={(e) => setField("targetUnit", e.target.value)}><option value="">— select —</option>{(UNITS_BY_FITNESS[draft.fitnessType] || []).map((u) => <option key={u} value={u}>{u}</option>)}</select></label>
               <label>Sets<input className={styles.fieldControl} type="number" min="0" value={draft.targetSets} onChange={(e) => setField("targetSets", e.target.value)} /></label>
               <label>Reps<input className={styles.fieldControl} type="number" min="0" value={draft.targetReps} onChange={(e) => setField("targetReps", e.target.value)} /></label>
               <label>Distance (m)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetDistance} onChange={(e) => setField("targetDistance", e.target.value)} /></label>
@@ -458,7 +476,15 @@ function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
     setRows((cur) => cur.filter((r) => r.id !== id));
   }
   function updateRow(id, key, value) {
-    setRows((cur) => cur.map((r) => (r.id === id ? { ...r, [key]: value } : r)));
+    setRows((cur) => cur.map((r) => {
+      if (r.id !== id) return r;
+      const next = { ...r, [key]: value };
+      if (key === "fitness") {
+        const allowed = UNITS_BY_FITNESS[value] || [];
+        if (!allowed.includes(next.unit)) next.unit = allowed[0] || "";
+      }
+      return next;
+    }));
   }
 
   async function submit(event) {
@@ -491,25 +517,28 @@ function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
   return (
     <div style={{ borderTop: "1px solid rgba(26,92,74,.5)", marginTop: 12, paddingTop: 12 }}>
       <form onSubmit={submit} className={styles.formGrid}>
-        {rows.map((r) => (
-          <div key={r.id} className={styles.fullField} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <strong style={{ fontSize: 13 }}>Activity {rows.indexOf(r) + 1}</strong>
-              {rows.length > 1 && <button type="button" className={`${styles.danger} ${styles.btnSm}`} onClick={() => removeRow(r.id)}>Remove</button>}
+        {rows.map((r) => {
+          const allowedUnits = UNITS_BY_FITNESS[r.fitness] || [];
+          return (
+            <div key={r.id} className={styles.fullField} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <strong style={{ fontSize: 13 }}>Activity {rows.indexOf(r) + 1}</strong>
+                {rows.length > 1 && <button type="button" className={`${styles.danger} ${styles.btnSm}`} onClick={() => removeRow(r.id)}>Remove</button>}
+              </div>
+              <label className={styles.fullField} style={{ marginBottom: 8 }}>Name *<input value={r.name} onChange={(e) => updateRow(r.id, "name", e.target.value)} maxLength="191" placeholder="e.g. Endurance run" /></label>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
+                <label style={{ flex: "1 1 150px" }}>Fitness type<select value={r.fitness} onChange={(e) => updateRow(r.id, "fitness", e.target.value)}>{Object.keys(FITNESS_META).map((k) => <option key={k} value={k}>{FITNESS_META[k]}</option>)}</select></label>
+                <label style={{ flex: "0 1 110px" }}>Quantity<input value={r.qty} onChange={(e) => updateRow(r.id, "qty", e.target.value)} type="number" min="0" step="any" placeholder="e.g. 1" /></label>
+                <label style={{ flex: "0 1 120px" }}>Unit<select value={r.unit} onChange={(e) => updateRow(r.id, "unit", e.target.value)}><option value="">— select —</option>{allowedUnits.map((u) => <option key={u} value={u}>{u}</option>)}</select></label>
+                <label style={{ flex: "0 1 90px" }}>Sets<input value={r.sets} onChange={(e) => updateRow(r.id, "sets", e.target.value)} type="number" min="0" /></label>
+                <label style={{ flex: "0 1 90px" }}>Reps<input value={r.reps} onChange={(e) => updateRow(r.id, "reps", e.target.value)} type="number" min="0" /></label>
+                <label style={{ flex: "0 1 100px" }}>Dist (m)<input value={r.dist} onChange={(e) => updateRow(r.id, "dist", e.target.value)} type="number" min="0" step="any" /></label>
+                <label style={{ flex: "0 1 90px" }}>Load (kg)<input value={r.load} onChange={(e) => updateRow(r.id, "load", e.target.value)} type="number" min="0" step="any" /></label>
+              </div>
+              <label className={styles.fullField}>Instructions<textarea value={r.instr} onChange={(e) => updateRow(r.id, "instr", e.target.value)} rows="1" maxLength="2000" placeholder="How to do it, safety notes, etc." /></label>
             </div>
-            <label className={styles.fullField} style={{ marginBottom: 8 }}>Name *<input value={r.name} onChange={(e) => updateRow(r.id, "name", e.target.value)} maxLength="191" placeholder="e.g. Endurance run" /></label>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
-              <label style={{ flex: "1 1 150px" }}>Fitness type<select value={r.fitness} onChange={(e) => updateRow(r.id, "fitness", e.target.value)}>{Object.keys(FITNESS_META).map((k) => <option key={k} value={k}>{FITNESS_META[k]}</option>)}</select></label>
-              <label style={{ flex: "0 1 110px" }}>Quantity<input value={r.qty} onChange={(e) => updateRow(r.id, "qty", e.target.value)} type="number" min="0" step="any" placeholder="e.g. 1" /></label>
-              <label style={{ flex: "0 1 120px" }}>Unit<input value={r.unit} onChange={(e) => updateRow(r.id, "unit", e.target.value)} maxLength="50" placeholder="e.g. km" /></label>
-              <label style={{ flex: "0 1 90px" }}>Sets<input value={r.sets} onChange={(e) => updateRow(r.id, "sets", e.target.value)} type="number" min="0" /></label>
-              <label style={{ flex: "0 1 90px" }}>Reps<input value={r.reps} onChange={(e) => updateRow(r.id, "reps", e.target.value)} type="number" min="0" /></label>
-              <label style={{ flex: "0 1 100px" }}>Dist (m)<input value={r.dist} onChange={(e) => updateRow(r.id, "dist", e.target.value)} type="number" min="0" step="any" /></label>
-              <label style={{ flex: "0 1 90px" }}>Load (kg)<input value={r.load} onChange={(e) => updateRow(r.id, "load", e.target.value)} type="number" min="0" step="any" /></label>
-            </div>
-            <label className={styles.fullField}>Instructions<textarea value={r.instr} onChange={(e) => updateRow(r.id, "instr", e.target.value)} rows="1" maxLength="2000" placeholder="How to do it, safety notes, etc." /></label>
-          </div>
-        ))}
+          );
+        })}
 
         <div className={styles.fullField}>
           <button type="button" className={styles.secondary} onClick={addRow}>+ Add another activity</button>

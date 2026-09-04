@@ -4,6 +4,22 @@ import { rateLimiters } from "../../../lib/rate-limit";
 
 const FITNESS_TYPES = ["endurance", "strength", "power", "speed_agility", "skill_technique", "mobility", "recovery"];
 
+const UNITS_BY_FITNESS = {
+  endurance: ["km", "m", "miles", "min", "hr"],
+  strength: ["kg", "lb", "reps", "sets"],
+  power: ["w", "kg", "lb", "reps"],
+  speed_agility: ["sec", "m", "reps"],
+  skill_technique: ["reps", "attempts", "rating"],
+  mobility: ["min", "sec", "deg", "reps"],
+  recovery: ["min", "hr", "sessions"],
+};
+
+function validateUnit(fitnessType, unit) {
+  if (!unit) return true;
+  const allowed = UNITS_BY_FITNESS[fitnessType] || [];
+  return allowed.includes(unit);
+}
+
 function toDecimal(v) {
   if (v === "" || v == null) return null;
   const n = Number(v);
@@ -76,12 +92,15 @@ export default async function handler(req, res) {
       if (!name) continue;
       const athleteId = validId(item.athleteId);
       if (!athleteId || !allowedAthleteIds.has(athleteId)) continue;
+      const fitnessType = FITNESS_TYPES.includes(item.fitnessType) ? item.fitnessType : "endurance";
+      const targetUnit = text(item.targetUnit, 50) || null;
+      if (targetUnit && !validateUnit(fitnessType, targetUnit)) continue;
       cleaned.push({
         athleteId,
         activityName: name,
-        fitnessType: FITNESS_TYPES.includes(item.fitnessType) ? item.fitnessType : "endurance",
+        fitnessType,
         targetQuantity: toDecimal(item.targetQuantity),
-        targetUnit: text(item.targetUnit, 50) || null,
+        targetUnit,
         targetSets: toInt(item.targetSets),
         targetReps: toInt(item.targetReps),
         targetDistance: toDecimal(item.targetDistance),
@@ -135,6 +154,11 @@ export default async function handler(req, res) {
     const onPlan = await prisma.trainingPlanAthlete.findFirst({ where: { planId, athleteId } });
     if (!onPlan) return res.status(409).json({ error: "This athlete is not part of the plan." });
 
+    const targetUnit = text(body.targetUnit, 50) || null;
+    if (targetUnit && !validateUnit(fitnessType, targetUnit)) {
+      return res.status(400).json({ error: `Invalid unit for ${fitnessType}. Allowed: ${UNITS_BY_FITNESS[fitnessType].join(", ")}` });
+    }
+
     const created = await prisma.planActivity.create({
       data: {
         planId,
@@ -168,7 +192,14 @@ export default async function handler(req, res) {
     if (!data.activityName) return res.status(400).json({ error: "An activity name is required." });
     if (FITNESS_TYPES.includes(body.fitnessType)) data.fitnessType = body.fitnessType;
     if ("targetQuantity" in body) data.targetQuantity = toDecimal(body.targetQuantity);
-    if ("targetUnit" in body) data.targetUnit = text(body.targetUnit, 50) || null;
+    if ("targetUnit" in body) {
+      const newUnit = text(body.targetUnit, 50) || null;
+      const checkFitnessType = data.fitnessType || activity.fitnessType;
+      if (newUnit && !validateUnit(checkFitnessType, newUnit)) {
+        return res.status(400).json({ error: `Invalid unit for ${checkFitnessType}. Allowed: ${UNITS_BY_FITNESS[checkFitnessType].join(", ")}` });
+      }
+      data.targetUnit = newUnit;
+    }
     if ("targetSets" in body) data.targetSets = toInt(body.targetSets);
     if ("targetReps" in body) data.targetReps = toInt(body.targetReps);
     if ("targetDistance" in body) data.targetDistance = toDecimal(body.targetDistance);
