@@ -37,6 +37,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ url });
   } catch (error) {
     console.error("ID picture upload failed", error);
-    return res.status(500).json({ error: "The ID picture could not be uploaded." });
+    return res.status(500).json({ error: "The ID picture could not be uploaded.", detail: String((error && error.message) || error) });
   }
 }
