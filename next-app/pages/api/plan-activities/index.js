@@ -42,7 +42,16 @@ export default async function handler(req, res) {
   if (access === false) return res.status(403).json({ error: "You do not have permission to manage this plan's activities." });
 
   if (req.method === "GET") {
-    return res.status(200).json({ diag: "GET branch reached", planId });
+    try {
+      const activities = await prisma.planActivity.findMany({
+        where: { planId },
+        orderBy: { orderIndex: "asc" },
+        include: { athlete: { select: { id: true, athleteCode: true, firstName: true, lastName: true } } },
+      });
+      return res.status(200).json({ diag: "athlete-include OK", count: activities.length });
+    } catch (e) {
+      return res.status(500).json({ diag: true, code: e?.code, message: String(e?.message || e) });
+    }
   }
 
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
