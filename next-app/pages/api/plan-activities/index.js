@@ -27,8 +27,9 @@ async function canAccessPlan(prismaClient, session, planId) {
 
 export default async function handler(req, res) {
   setSecurityHeaders(res);
-  const session = await requireSession(req, res);
-  if (!session) return;
+  try {
+    const session = await requireSession(req, res);
+    if (!session) return;
 
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || "unknown";
   const rate = rateLimiters.api(`api:${ip}:${req.method}`);
@@ -198,4 +199,7 @@ export default async function handler(req, res) {
   }
 
   return res.status(400).json({ error: "Unknown action." });
+  } catch (e) {
+    return res.status(500).json({ ok: false, _diag: true, at: "top", code: e?.code, name: e?.name, message: String(e?.message || e) });
+  }
 }
