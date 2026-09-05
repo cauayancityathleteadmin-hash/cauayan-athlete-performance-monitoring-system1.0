@@ -84,9 +84,8 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
   const [error, setError] = React.useState("");
   const [showAddActivity, setShowAddActivity] = React.useState(false);
   const [showBulkAssess, setShowBulkAssess] = React.useState(true);
-  const [showMonitoring, setShowMonitoring] = React.useState(false);
-  const [monitoringData, setMonitoringData] = React.useState(null);
   const [currentWeek, setCurrentWeek] = React.useState(1);
+  const [monitoringData, setMonitoringData] = React.useState(null);
   const [message, setMessage] = React.useState(null);
 
   const loadActivities = React.useCallback((show) => {
@@ -111,48 +110,28 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
   }, [plan.id]);
 
   const loadMonitoring = React.useCallback(() => {
-    if (!showMonitoring) return;
     fetch(`/api/plan-activities/monitoring?planId=${plan.id}&weekNumber=${currentWeek}`)
       .then((r) => r.json())
       .then((data) => { setMonitoringData(data); setError(""); })
       .catch(() => { setError("Could not load monitoring grid."); });
-  }, [plan.id, showMonitoring, currentWeek]);
+  }, [plan.id, currentWeek]);
 
   React.useEffect(() => {
     loadActivities(true);
     loadLogs(false);
     loadNotes(false);
-  }, [loadActivities, loadLogs, loadNotes]);
+    loadMonitoring();
+  }, [loadActivities, loadLogs, loadNotes, loadMonitoring]);
 
   React.useEffect(() => {
-    if (showMonitoring) loadMonitoring();
-  }, [loadMonitoring, showMonitoring]);
+    loadMonitoring();
+  }, [loadMonitoring]);
 
   function refresh() {
     loadActivities(true);
     loadLogs(true);
     loadNotes(true);
-    if (showMonitoring) loadMonitoring();
-  }
-
-  function logCountFor(activityId, athleteId) {
-    return logs.filter((l) => l.activityId === activityId && l.athleteId === athleteId).length;
-  }
-
-  function createLog(activityId, athleteId, form) {
-    const body = {
-      activityId,
-      athleteId,
-      status: form.get(`status-${activityId}-${athleteId}`),
-      quantityDone: form.get(`qty-${activityId}-${athleteId}`) || null,
-      notes: form.get(`note-${activityId}-${athleteId}`) || null,
-      performedAt: form.get(`date-${activityId}-${athleteId}`) || null,
-    };
-    fetch("/api/csrf").then((r) => r.json()).then((csrf) =>
-      fetch("/api/plan-activity-logs", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify(body) })
-        .then((r) => r.json()).then((res) => { if (res.error) setMessage({ kind: "error", text: res.error }); else { setMessage({ kind: "success", text: "Progress saved." }); refresh(); } })
-        .catch(() => setMessage({ kind: "error", text: "Could not save progress." }))
-    );
+    loadMonitoring();
   }
 
   function removeActivity(activityId) {
@@ -234,8 +213,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
                   planId={plan.id}
                   athlete={athlete}
                   activities={activities.filter((act) => act.athleteId === athlete.id)}
-                  logCountFor={logCountFor}
-                  onCreateLog={createLog}
+                  logs={logs}
                   onRemove={removeActivity}
                   onEdit={updateActivity}
                   onChanged={refresh}
@@ -268,14 +246,11 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
           )}
         </section>
 
-        <section className={styles.panel}>
+<section className={styles.panel}>
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Monitor</p><h2>Daily training monitoring</h2></div>
-            <button className={styles.secondary} onClick={() => setShowMonitoring((c) => !c)}>
-              {showMonitoring ? "Close monitoring" : "Open monitoring grid"}
-            </button>
           </div>
-          {showMonitoring && monitoringData && (
+          {monitoringData ? (
             <MonitoringGrid
               data={monitoringData}
               athletes={athletes}
@@ -283,8 +258,9 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
               currentWeek={monitoringData.currentWeek}
               onWeekChange={setCurrentWeek}
             />
+          ) : (
+            <p className={styles.empty}>Loading daily training monitoring...</p>
           )}
-          {!showMonitoring && <p className={styles.empty}>Click &quot;Open monitoring grid&quot; to view daily progress for all athletes.</p>}
         </section>
 
         <section className={styles.panel}>
@@ -336,7 +312,7 @@ function renderStatus(status) {
   return <span className={`${styles.badge} ${styles[meta.cls]}`}>{meta.label}</span>;
 }
 
-function AthleteActivitiesBlock({ planId, athlete, activities, logCountFor, onCreateLog, onRemove, onEdit, onChanged, readOnly = false }) {
+function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, onEdit, onChanged, readOnly = false }) {
   const [adding, setAdding] = React.useState(false);
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "14px 16px", background: "rgba(6,38,30,.35)" }}>
@@ -362,10 +338,10 @@ function AthleteActivitiesBlock({ planId, athlete, activities, logCountFor, onCr
       ) : (
         <div className={styles.tableWrap} style={{ marginTop: 12 }}>
           <table>
-            <thead><tr><th>Activity</th><th>Fitness</th><th>Target</th>{!readOnly && <th>Log progress</th>}{!readOnly && <th></th>}</tr></thead>
+            <thead><tr><th>Activity</th><th>Fitness</th><th>Target</th><th>Latest status</th>{!readOnly && <th></th>}</tr></thead>
             <tbody>
               {activities.map((activity) => (
-                <ActivityRow key={activity.id} athlete={athlete} activity={activity} logCountFor={logCountFor} onCreateLog={onCreateLog} onRemove={onRemove} onEdit={onEdit} readOnly={readOnly} />
+                <ActivityRow key={activity.id} athlete={athlete} activity={activity} logs={logs} onRemove={onRemove} onEdit={onEdit} readOnly={readOnly} />
               ))}
             </tbody>
           </table>
@@ -375,13 +351,15 @@ function AthleteActivitiesBlock({ planId, athlete, activities, logCountFor, onCr
   );
 }
 
-function ActivityRow({ athlete, activity, logCountFor, onCreateLog, onRemove, onEdit, readOnly = false }) {
-  const [open, setOpen] = React.useState(false);
+function ActivityRow({ athlete, activity, logs, onRemove, onEdit, readOnly = false }) {
   const [editing, setEditing] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
-  const [today] = React.useState(() => { const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000); return d.toISOString().slice(0, 10); });
 
   const targetText = activity.targetQuantity != null ? `${activity.targetQuantity}${activity.targetUnit ? ` ${activity.targetUnit}` : ""}` : null;
+
+  // Find latest log for this activity + athlete
+  const activityLogs = logs.filter((l) => l.activityId === activity.id && l.athleteId === athlete.id);
+  const latestLog = activityLogs.length ? [...activityLogs].sort((a, b) => new Date(b.performedAt) - new Date(a.performedAt))[0] : null;
 
   const [draft, setDraft] = React.useState(() => ({
     activityName: activity.activityName,
@@ -445,6 +423,18 @@ function ActivityRow({ athlete, activity, logCountFor, onCreateLog, onRemove, on
     setSaving(false);
   }
 
+  function renderLatestStatus(log) {
+    if (!log) return <span style={{ color: "var(--muted)", fontSize: "12px" }}>Not logged</span>;
+    const meta = LOG_STATUS[log.status] || LOG_STATUS.planned;
+    return (
+      <span className={`${styles.badge} ${styles[meta.cls]}`} style={{ fontSize: "11px" }}>
+        {meta.label}
+        {log.quantityDone != null && <span style={{ marginLeft: 6, fontWeight: 400 }}>{log.quantityDone}{log.activity?.targetUnit ? ` ${log.activity.targetUnit}` : ""}</span>}
+        <small style={{ marginLeft: 6, opacity: 0.7 }}>{fmtDate(log.performedAt)}</small>
+      </span>
+    );
+  }
+
   return (
     <React.Fragment>
       <tr>
@@ -458,7 +448,7 @@ function ActivityRow({ athlete, activity, logCountFor, onCreateLog, onRemove, on
           {activity.targetLoad != null ? <small>{activity.targetLoad} kg</small> : null}
           {activity.dayIndex ? <small>Day {activity.dayIndex}{activity.weekNumber ? ` | W${activity.weekNumber}` : ""}</small> : null}
         </td>
-        {!readOnly && <td><button className={styles.expandBtn} onClick={() => setOpen((c) => !c)}>{open ? "Close logging ▲" : "Log progress ▼"}</button></td>}
+        <td>{renderLatestStatus(latestLog)}</td>
         {!readOnly && <td><button className={`${styles.secondary} ${styles.btnSm}`} onClick={() => { if (editing) setEditing(false); else startEdit(); }} style={{ padding: "4px 8px", fontSize: "12px" }}>{editing ? "Cancel" : "Edit"}</button> <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => onRemove(activity.id)}>Remove</button></td>}
       </tr>
       {editing && (
@@ -481,25 +471,6 @@ function ActivityRow({ athlete, activity, logCountFor, onCreateLog, onRemove, on
                 <button type="button" className={styles.secondary} onClick={() => setEditing(false)} disabled={saving}>Cancel</button>
                 <button className={styles.primary} disabled={saving}>{saving ? "Saving..." : "Save changes"}</button>
               </div>
-            </form>
-          </div>
-        </td></tr>
-      )}
-      {open && (
-        <tr><td colSpan="5" style={{ padding: 0, background: "transparent" }}>
-          <div className={styles.detailPanel}>
-            <form onSubmit={(e) => { e.preventDefault(); onCreateLog(activity.id, athlete.id, e.currentTarget); e.currentTarget.reset(); }} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px", background: "rgba(6,38,30,.25)" }}>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-                <strong style={{ minWidth: 150 }}>{athlete.lastName}, {athlete.firstName}</strong>
-                <select className={styles.fieldControl} name={`status-${activity.id}-${athlete.id}`} defaultValue="done" style={{ width: 110 }}>
-                  <option value="done">Done</option><option value="partial">Partial</option><option value="missed">Missed</option>
-                </select>
-                <input className={styles.fieldControl} name={`qty-${activity.id}-${athlete.id}`} type="number" min="0" step="any" placeholder={activity.targetUnit ? `Done (${activity.targetUnit})` : "Done (qty)"} style={{ width: 130 }} />
-                <input className={styles.fieldControl} name={`date-${activity.id}-${athlete.id}`} type="date" defaultValue={today} style={{ width: 140 }} />
-                <input className={styles.fieldControl} name={`note-${activity.id}-${athlete.id}`} placeholder="Note" style={{ flex: 1, minWidth: 140 }} />
-                <button className={`${styles.primary} ${styles.btnSm}`}>Save</button>
-              </div>
-              {logCountFor(activity.id, athlete.id) > 0 && <small style={{ color: "var(--accent)" }}>{logCountFor(activity.id, athlete.id)} log(s)</small>}
             </form>
           </div>
         </td></tr>
