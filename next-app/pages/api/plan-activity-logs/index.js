@@ -1,6 +1,7 @@
 import { prisma } from "../../../lib/prisma";
 import { requireCsrf, requireSession, text, validId, setSecurityHeaders } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
+import { notifyAthlete } from "../../../lib/notify";
 
 const STATUSES = ["planned", "done", "partial", "missed"];
 
@@ -94,6 +95,23 @@ export default async function handler(req, res) {
     loggedBy: Number(session.user.id),
   };
   const log = await prisma.planActivityLog.create({ data: create });
+
+  await prisma.auditLog.create({
+    data: {
+      userId: Number(session.user.id),
+      action: "create",
+      entityType: "planActivityLog",
+      entityId: log.id,
+      description: `Logged progress "${status}" for activity #${activityId}`,
+    },
+  });
+
+  const athleteForNotify = await prisma.athlete.findUnique({ where: { id: athleteId }, select: { id: true, firstName: true, lastName: true, email: true, contactNumber: true } });
+  await notifyAthlete({
+    athlete: athleteForNotify,
+    subject: "Your training progress was updated",
+    message: `Hello ${athleteForNotify ? `${athleteForNotify.firstName} ${athleteForNotify.lastName}` : ""}, your coach updated your progress for "${access.activity.activityName}" to "${status}". Keep up the good work!`,
+  });
 
   const full = await prisma.planActivityLog.findUnique({ where: { id: log.id }, include: { athlete: { select: { id: true, firstName: true, lastName: true } }, logger: { select: { email: true, username: true } }, activity: { select: { id: true, activityName: true } } } });
   return res.status(201).json(JSON.parse(JSON.stringify(full)));

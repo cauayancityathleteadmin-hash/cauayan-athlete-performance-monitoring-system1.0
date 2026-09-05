@@ -248,3 +248,39 @@ the old way, training plan and assessment":
 - Deployed (commits 9672d1e, e550652). Live verified: health 200, monitoring API 200
   with grid, plan-activities/notes/logs 200. Known note: `/api/training-plans/:id` API
   route doesn't exist (page uses query params); the UI page `/training-plans/:id` is 200.
+
+## 10. Backup & Restore, complete audit logs, SMS notifications (defense hardening) - 2026-09-05
+- **Real backup & restore (admin)**: lib/backup.js is an introspective engine that snapshots
+  every public table in FK-safe parent-first order with type casts (numeric/int/bool/timestamp/
+  jsonb), and restores via TRUNCATE ... RESTART IDENTITY CASCADE + inserts + sequence resync
+  (explicit ids do not advance serials, so setval is run per id-bearing table afterward).
+  pages/api/admin/backup.js (save off-site via @vercel/blob, list stored snapshots, download
+  file), pages/api/admin/restore.js (restore from uploaded file or from a stored snapshot;
+  keeps only last 20 snapshots; makes a pre-restore safety snapshot automatically).
+  Blob helper: lib/blob-store.js (db-backups/ prefix).
+- **Coach own-data backup/restore (fenced)**: pages/api/coach/data.js GET exports ONLY the
+  coach's rows (athletes, history, coaching notes, assessments, results, achievements, health
+  logs, training plans, plan athletes/activities/logs, notes, sessions, exercises, attendances,
+  performances, training assessments, coach performances, coach_sports) with ownership
+  validators that REJECT any file containing another coach's data, and restore deletes only
+  coach-scoped rows (reverse dependency order). UI on account.js "My data" tab.
+- **Automatic monthly backups**: ercel.json cron   3 1 * * -> pages/api/system/backup/auto.js
+  (accepts Vercel x-vercel-cron header; also keyed fallback via BACKUP_SECRET). Off-site only;
+  old ones auto-prune past 20; never stored on user devices.
+- **Complete audit logs**: new actions login / login_failed / logout (NextAuth events +
+  authorize), update_photo, bulk_assess, create/update/delete for plan activities, restore,
+  update_notification_prefs, test_notification. lastLoginAt is now updated on sign-in.
+  Audit page + API now filter server-side (action, entity, actor, role, dates, text) and the
+  summary copy now tells the truth (it previously claimed logins were tracked).
+- **SMS + email notifications**: lib/sms.js (Semaphore v4 API, PH numbers), lib/notify.js
+  dispatch, lib/email.js sendNotificationEmail. Coach toggles notifySms/notifyEmail on
+  account.js "Notifications" tab (persisted via /api/account/notification-prefs), with live
+  test buttons via /api/notifications/test. Triggers: progress log & bulk assessment notify
+  the athlete (SMS via contactNumber + email), admin training-note notifies the plan's coach.
+- **Schema/migration**: Coach.notifySms + Coach.notifyEmail + SystemSetting (system_settings)
+  in migration 20260905120000_notifications_and_settings. Live DB needs manual apply via the
+  temp admin endpoint before first use.
+- **Env vars needed (Vercel)**: SEMAPHORE_API_KEY (Semaphore), optional SEMAPHORE_SENDER,
+  BACKUP_SECRET (scheduler key), BLOB_READ_WRITE_TOKEN (already set for ID photos). OTP-free:
+  coach keeps contact number in profile.
+- **Reminder for owner**: re-organize the GitHub repository files later (cleanup task).

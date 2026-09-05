@@ -45,6 +45,13 @@ export default function Account({ user, sports, session }) {
     confirmPassword: "",
   });
   const [newPasswordStrength, setNewPasswordStrength] = React.useState(null);
+  const [notifMsg, setNotifMsg] = React.useState({ kind: "", text: "" });
+  const [notifySms, setNotifySms] = React.useState(Boolean(coach?.notifySms));
+  const [notifyEmail, setNotifyEmail] = React.useState(Boolean(coach?.notifyEmail));
+  const [notifBusy, setNotifBusy] = React.useState(false);
+  const [dataBusy, setDataBusy] = React.useState("");
+  const [dataMsg, setDataMsg] = React.useState({ kind: "", text: "" });
+  const [restoreConfirm, setRestoreConfirm] = React.useState("");
 
   const isCoach = user.role === "coach";
   const coach = user.coach;
@@ -178,6 +185,108 @@ export default function Account({ user, sports, session }) {
     setBusy(false);
   }
 
+  async function saveNotifPrefs(event) {
+    event.preventDefault();
+    setNotifBusy(true);
+    setNotifMsg({ kind: "", text: "" });
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/account/notification-prefs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify({ notifySms, notifyEmail }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.error) setNotifMsg({ kind: "danger", text: result.error || "Could not save notification settings." });
+      else setNotifMsg({ kind: "success", text: result.message });
+    } catch (err) {
+      setNotifMsg({ kind: "danger", text: "Unable to reach the server. Please try again later." });
+    }
+    setNotifBusy(false);
+  }
+
+  async function sendTest(channel) {
+    setNotifBusy(true);
+    setNotifMsg({ kind: "", text: "" });
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/notifications/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify({ channels: [channel] }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.error) {
+        setNotifMsg({ kind: "danger", text: result.error || "The test could not be sent." });
+      } else {
+        const blocked = channel === "sms" ? result.results?.smsSkipped : result.results?.email ? "" : (channel === "email" ? "Email is not configured." : "");
+        const delivered = channel === "sms" ? result.results?.sms : result.results?.email;
+        if (delivered) setNotifMsg({ kind: "success", text: `Test ${channel.toUpperCase()} sent to you.` });
+        else setNotifMsg({ kind: "danger", text: blocked || `Test ${channel.toUpperCase()} could not be sent.` });
+      }
+    } catch (err) {
+      setNotifMsg({ kind: "danger", text: "Unable to reach the server. Please try again later." });
+    }
+    setNotifBusy(false);
+  }
+
+  async function downloadMyData() {
+    setDataBusy("download");
+    setDataMsg({ kind: "", text: "" });
+    try {
+      const response = await fetch("/api/coach/data");
+      if (!response.ok) throw new Error("Your data could not be exported.");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const disposition = response.headers.get("content-disposition") || "";
+      const match = disposition.match(/filename="?([^";]+)"?/i);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = match ? match[1] : "coach-data.json";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setDataMsg({ kind: "success", text: "Your data backup was downloaded. Keep it somewhere safe." });
+    } catch (err) {
+      setDataMsg({ kind: "danger", text: err.message });
+    } finally {
+      setDataBusy("");
+    }
+  }
+
+  async function restoreMyData(event) {
+    event.preventDefault();
+    if (restoreConfirm !== "RESTORE") {
+      setDataMsg({ kind: "danger", text: 'Type "RESTORE" to confirm.' });
+      return;
+    }
+    setDataBusy("restore");
+    setDataMsg({ kind: "", text: "" });
+    const file = event.currentTarget.file.files[0];
+    if (!file) { setDataMsg({ kind: "danger", text: "Choose your data backup file first." }); setDataBusy(""); return; }
+    try {
+      const snapshot = JSON.parse(await file.text());
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/coach/data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify({ snapshot }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.error) {
+        setDataMsg({ kind: "danger", text: result.error || "Your data could not be restored." });
+      } else {
+        setDataMsg({ kind: "success", text: result.message });
+        setRestoreConfirm("");
+        event.currentTarget.reset();
+      }
+    } catch (err) {
+      setDataMsg({ kind: "danger", text: "The file is not a valid data backup: " + err.message });
+    }
+    setDataBusy("");
+  }
+
   return (
     <>
       <Head>
@@ -195,6 +304,8 @@ export default function Account({ user, sports, session }) {
         <div className={styles.tabs}>
           <button type="button" className={`${styles.tabBtn} ${tab === "profile" ? styles.active : ""}`} onClick={() => setTab("profile")}>Profile</button>
           <button type="button" className={`${styles.tabBtn} ${tab === "password" ? styles.active : ""}`} onClick={() => setTab("password")}>Password</button>
+          {isCoach && <button type="button" className={`${styles.tabBtn} ${tab === "notifications" ? styles.active : ""}`} onClick={() => setTab("notifications")}>Notifications</button>}
+          {isCoach && <button type="button" className={`${styles.tabBtn} ${tab === "data" ? styles.active : ""}`} onClick={() => setTab("data")}>My data</button>}
           <button type="button" className={`${styles.tabBtn} ${styles.dangerTab} ${tab === "delete" ? styles.active : ""}`} onClick={() => setTab("delete")}>Delete Account</button>
         </div>
 
@@ -260,6 +371,39 @@ export default function Account({ user, sports, session }) {
               <PasswordInput name="newPassword" label="New password (min 12 characters)" value={passwordData.newPassword} onChange={handlePasswordChange} required minLength={12} maxLength={200} autoComplete="new-password" showStrength={true} placeholder="At least 12 characters" />
               <label>Confirm new password<input name="confirmPassword" className={styles.fieldControl} type="password" value={passwordData.confirmPassword} onChange={(e) => handlePasswordChange("confirmPassword", e.target.value)} required autoComplete="new-password" minLength={12} maxLength={200} /></label>
               <div className={styles.stackedActions}><button disabled={busy} className={styles.primary}>{busy ? "Updating..." : "Update password"}</button></div>
+            </form>
+          </section>
+        )}
+
+        {tab === "notifications" && isCoach && (
+          <section className={styles.panel}>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Alerts</p><h2>Notification settings</h2></div></div>
+            <div className={styles.alertBox}>The system can alert you by SMS (Philippine mobile number) and email when the administrator posts a new note on one of your training plans. You will also receive a confirmatory SMS/email when a coach registration is approved or rejected.</div>
+            {notifMsg.text && <p role="status" className={notifMsg.kind === "success" ? styles.formSuccess : styles.formError}>{notifMsg.text}</p>}
+            <form onSubmit={saveNotifPrefs} className={styles.formStack}>
+              <label><input type="checkbox" checked={notifySms} onChange={(e) => setNotifySms(e.target.checked)} /> Receive SMS notifications (requires a contact number)</label>
+              <label><input type="checkbox" checked={notifyEmail} onChange={(e) => setNotifyEmail(e.target.checked)} /> Receive email notifications</label>
+              <div className={styles.stackedActions}><button className={styles.primary} disabled={notifBusy}>{notifBusy && notifMsg.text === "" ? "Saving..." : "Save notification settings"}</button></div>
+            </form>
+            <div className={styles.stackedActions} style={{ marginTop: 8 }}>
+              <button type="button" className={styles.secondary} disabled={notifBusy} onClick={() => sendTest("sms")}>{notifBusy && notifMsg.text === "" ? "Sending..." : "Send test SMS"}</button>
+              <button type="button" className={styles.secondary} disabled={notifBusy} onClick={() => sendTest("email")}>{notifBusy && notifMsg.text === "" ? "Sending..." : "Send test email"}</button>
+            </div>
+          </section>
+        )}
+
+        {tab === "data" && isCoach && (
+          <section className={styles.panel}>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Your records</p><h2>Back up and restore your own data</h2></div></div>
+            <div className={styles.alertBox}>You can download a backup of only your data (your athletes, their progress, plans, activities, logs, notes, and sessions). Restoring brings back only your own data and cannot change or delete any other coach&apos;s records or system-wide settings. A safety snapshot is taken automatically before a restore.</div>
+            {dataMsg.text && <p role="status" className={dataMsg.kind === "success" ? styles.formSuccess : styles.formError}>{dataMsg.text}</p>}
+            <div className={styles.formStack}>
+              <button className={styles.primary} disabled={Boolean(dataBusy)} onClick={downloadMyData}>{dataBusy === "download" ? "Preparing your data..." : "Download my data backup"}</button>
+            </div>
+            <form onSubmit={restoreMyData} className={styles.formStack} style={{ marginTop: 16 }}>
+              <label>Restore from your own data backup (.json)<input type="file" name="file" accept=".json,application/json" /></label>
+              <label>Type <strong>RESTORE</strong> to confirm<input type="text" value={restoreConfirm} onChange={(e) => setRestoreConfirm(e.target.value)} /></label>
+              <div className={styles.stackedActions}><button className={styles.secondary} disabled={restoreConfirm !== "RESTORE" || Boolean(dataBusy)}>{dataBusy === "restore" ? "Restoring..." : "Restore my data"}</button></div>
             </form>
           </section>
         )}

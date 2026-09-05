@@ -1,6 +1,7 @@
 import { prisma } from "../../../lib/prisma";
 import { requireCsrf, requireSession, text, validId, setSecurityHeaders } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
+import { notifyCoach } from "../../../lib/notify";
 
 async function canAccessPlan(prismaClient, session, planId) {
   const plan = await prismaClient.trainingPlan.findUnique({ where: { id: planId }, select: { id: true, coachId: true } });
@@ -56,6 +57,14 @@ export default async function handler(req, res) {
       prisma.trainingNote.create({ data: { planId, authorId: Number(session.user.id), body: noteBody } }),
       prisma.auditLog.create({ data: { userId: Number(session.user.id), action: "create", entityType: "trainingNote", entityId: planId, description: `Added a note to training plan #${planId}` } }),
     ]);
+
+    const planCoach = await prisma.trainingPlan.findUnique({ where: { id: planId }, select: { coach: { select: { id: true, firstName: true, lastName: true, email: true, contactNumber: true, notifySms: true, notifyEmail: true } } } });
+    await notifyCoach({
+      coach: planCoach ? planCoach.coach : null,
+      subject: `New note on training plan #${planId}`,
+      message: `Hello, the administrator added a new note to your training plan #${planId}. Sign in to the system to read it.`,
+    });
+
     const full = await prisma.trainingNote.findUnique({ where: { id: note[0].id }, include: { author: { select: { id: true, email: true, username: true, role: true } } } });
     return res.status(201).json(JSON.parse(JSON.stringify(full)));
   }
@@ -64,11 +73,14 @@ export default async function handler(req, res) {
     if (session.user.role !== "admin") return res.status(403).json({ error: "Only the administrator can remove notes." });
     const noteId = validId(body.noteId);
     if (!noteId) return res.status(400).json({ error: "A valid noteId is required." });
-    const note = await prisma.trainingNote.findUnique({ where: { id: noteId }, select: { id: true, authorId: true } });
+    const note = await prisma.trainingNote.findUnique({ where: { id: noteId }, select: { id: true, authorId: true, planId: true } });
     if (!note) return res.status(404).json({ error: "Note not found." });
     if (note.authorId !== Number(session.user.id)) return res.status(403).json({ error: "You can only remove your own notes." });
 
     await prisma.trainingNote.delete({ where: { id: noteId } });
+    await prisma.auditLog.create({
+      data: { userId: Number(session.user.id), action: "delete", entityType: "trainingNote", entityId: noteId, description: `Removed a note from training plan #${note.planId}` },
+    });
     return res.status(200).json({ success: true, message: "Note removed." });
   }
 

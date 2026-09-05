@@ -139,6 +139,32 @@ export async function sendPasswordResetLink({ email, name, resetUrl }) {
   }
 }
 
+export async function sendNotificationEmail({ email, name, subject, message }) {
+  const transporter = getTransporter();
+  if (!transporter || !email) return false;
+  try {
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || process.env.GMAIL_USER,
+      to: email,
+      subject: subject,
+      text: message,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #041f18;">Cauayan City Athlete Performance Monitoring System</h2>
+          <p>Hello<strong>${name ? ` ${name}` : ""}</strong>,</p>
+          <p style="white-space: pre-line;">${String(message || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
+          <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;" />
+          <p style="color: #666; font-size: 12px;">Cauayan City Athlete Performance Monitoring System</p>
+        </div>
+      `,
+    });
+    return true;
+  } catch (error) {
+    console.error("Failed to send notification email:", error);
+    return false;
+  }
+}
+
 export async function sendEventApplicationDecisionEmail({ email, name, eventPlanName, decision, reason }) {
   const transporter = getTransporter();
   if (!transporter) return false;

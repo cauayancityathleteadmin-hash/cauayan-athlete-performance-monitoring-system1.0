@@ -33,5 +33,14 @@ export default async function handler(req, res) {
   }
 
   const updated = await prisma.athlete.update({ where: { id }, data: { pictureUrl } });
+  await prisma.auditLog.create({
+    data: {
+      userId: Number(session.user.id),
+      action: "update_photo",
+      entityType: "athlete",
+      entityId: id,
+      description: pictureUrl ? "Updated the athlete ID photo." : "Removed the athlete ID photo.",
+    },
+  });
   return res.status(200).json({ athlete: JSON.parse(JSON.stringify(updated)) });
 }

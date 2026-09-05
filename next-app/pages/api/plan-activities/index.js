@@ -145,6 +145,9 @@ export default async function handler(req, res) {
       include: { athlete: { select: { id: true, firstName: true, lastName: true } } },
       orderBy: { orderIndex: "asc" },
     });
+    await prisma.auditLog.create({
+      data: { userId: Number(session.user.id), action: "bulk_create", entityType: "planActivity", entityId: null, description: `Added ${full.length} activities to training plan #${planId}` },
+    });
     return res.status(201).json(JSON.parse(JSON.stringify({ created: full, count: full.length })));
   }
 
@@ -182,6 +185,9 @@ export default async function handler(req, res) {
     });
 
     const full = await prisma.planActivity.findUnique({ where: { id: created.id }, include: { athlete: { select: { id: true, firstName: true, lastName: true } } } });
+    await prisma.auditLog.create({
+      data: { userId: Number(session.user.id), action: "create", entityType: "planActivity", entityId: created.id, description: `Created activity "${name}" for athlete #${athleteId} on plan #${planId}` },
+    });
     return res.status(201).json(JSON.parse(JSON.stringify(full)));
   }
 
@@ -222,6 +228,9 @@ export default async function handler(req, res) {
     }
 
     await prisma.planActivity.update({ where: { id: activityId }, data });
+    await prisma.auditLog.create({
+      data: { userId: Number(session.user.id), action: "update", entityType: "planActivity", entityId: activityId, description: `Updated activity #${activityId} on plan #${planId}` },
+    });
     return res.status(200).json({ success: true, message: "Activity updated." });
   }
 
@@ -232,6 +241,9 @@ export default async function handler(req, res) {
     if (!activity) return res.status(404).json({ error: "Activity not found." });
 
     await prisma.planActivity.delete({ where: { id: activityId } });
+    await prisma.auditLog.create({
+      data: { userId: Number(session.user.id), action: "delete", entityType: "planActivity", entityId: activityId, description: `Removed activity #${activityId} from plan #${planId}` },
+    });
     return res.status(200).json({ success: true, message: "Activity removed." });
   }
 

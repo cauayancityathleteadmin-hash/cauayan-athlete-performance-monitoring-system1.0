@@ -120,6 +120,15 @@ enum ActivityStatus {
   missed
 }
 
+model SystemSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
+
 model User {
   id                    Int                    @id @default(autoincrement())
   username              String?                @unique
@@ -206,6 +215,8 @@ model Coach {
   status               ActiveStatus @default(active)
   dateRegistered       DateTime     @map("date_registered")
   canApproveCoaches    Boolean      @default(false) @map("can_approve_coaches")
+  notifySms            Boolean      @default(true) @map("notify_sms")
+  notifyEmail          Boolean      @default(true) @map("notify_email")
   createdAt            DateTime     @default(now()) @map("created_at")
   updatedAt            DateTime     @updatedAt @map("updated_at")
   user                 User         @relation(fields: [userId], references: [id], onDelete: Cascade)

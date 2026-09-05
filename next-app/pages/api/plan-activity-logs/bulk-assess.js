@@ -1,6 +1,7 @@
 import { prisma } from "../../../lib/prisma";
 import { requireCsrf, requireSession, text, validId, setSecurityHeaders } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
+import { notifyAthlete } from "../../../lib/notify";
 
 const STATUSES = ["done", "partial", "missed"];
 const FITNESS = ["endurance", "strength", "power", "speed_agility", "skill_technique", "mobility", "recovery"];
@@ -106,6 +107,23 @@ export default async function handler(req, res) {
         },
       });
     }
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      userId: Number(session.user.id),
+      action: "bulk_assess",
+      entityType: "planActivityLog",
+      entityId: null,
+      description: `Assessed ${validRows.length} activity/activities for athlete #${athleteId} on plan #${planId}${Number.isInteger(Number(body.summaryRating)) ? ` with rating ${Number(body.summaryRating)}` : ""}.`,
+    },
+  });
+
+  const athleteForNotify = await prisma.athlete.findUnique({ where: { id: athleteId }, select: { id: true, firstName: true, lastName: true, email: true, contactNumber: true } });
+  await notifyAthlete({
+    athlete: athleteForNotify,
+    subject: "Your training assessment is ready",
+    message: `Hello ${athleteForNotify ? `${athleteForNotify.firstName} ${athleteForNotify.lastName}` : ""}, your coach completed an assessment of ${validRows.length} activity/activities.${Number.isInteger(Number(body.summaryRating)) ? ` Overall rating: ${Number(body.summaryRating)}/10.` : ""} Ask your coach for the full details.`,
   });
 
   const logs = await prisma.planActivityLog.findMany({

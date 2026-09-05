@@ -84,6 +84,8 @@ export default async function handler(req, res) {
               contactNumber: contactNumber || null,
               schoolId: schoolId || null,
               pictureUrl,
+              notifySms: typeof body.notifySms === "boolean" ? body.notifySms : undefined,
+              notifyEmail: typeof body.notifyEmail === "boolean" ? body.notifyEmail : undefined,
             },
           });
           await tx.coachSport.deleteMany({ where: { coachId: coach.id } });

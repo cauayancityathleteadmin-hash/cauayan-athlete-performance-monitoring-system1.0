@@ -7,6 +7,23 @@ import { rateLimiters } from "../../../lib/rate-limit";
 import { checkRateLimitDb } from "../../../lib/rate-limit-db";
 import { isLocked, recordFailure, recordSuccess } from "../../../lib/login-protection";
 
+async function auditLogin(identifier, success, detail) {
+  const user = await prisma.user.findFirst({
+    where: { OR: [{ email: identifier.toLowerCase() }, { username: identifier.toLowerCase() }, { coach: { coachCode: identifier.toUpperCase() } }] },
+    select: { id: true },
+  });
+  await prisma.auditLog.create({
+    data: {
+      userId: user ? user.id : null,
+      action: success ? "login" : "login_failed",
+      entityType: "user",
+      entityId: user ? user.id : null,
+      description: detail || (success ? "Signed in." : "Sign-in attempt failed."),
+    },
+  });
+  return user;
+}
+
 function normalizeHash(hash) {
   return hash?.replace(/^\$2y\$/, "$2b$");
 }
@@ -38,9 +55,12 @@ export const authOptions = {
       });
       if (!user || (user.status !== "active" && user.status !== "pending") || !(await bcrypt.compare(password, normalizeHash(user.passwordHash)))) {
         recordFailure(identifier);
+        await auditLogin(identifier, false, "Sign-in attempt failed (wrong credentials or inactive account).");
         return null;
       }
       recordSuccess(identifier);
+      await auditLogin(identifier, true, "Signed in successfully.");
+      await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
       return { id: String(user.id), role: user.role, email: user.email, name: user.coach ? `${user.coach.firstName} ${user.coach.lastName}` : user.username, mustChangePassword: user.mustChangePassword, canApproveCoaches: user.coach ? user.coach.canApproveCoaches : false };
     },
   })],
@@ -50,6 +70,18 @@ export const authOptions = {
   callbacks: {
     async jwt({ token, user, trigger, session }) { if (user) Object.assign(token, user); if (trigger === "update" && session?.mustChangePassword !== undefined) token.mustChangePassword = session.mustChangePassword; return token; },
     async session({ session, token }) { session.user = { id: token.id, name: token.name, email: token.email, role: token.role, mustChangePassword: token.mustChangePassword, canApproveCoaches: Boolean(token.canApproveCoaches) }; return session; },
+  },
+  events: {
+    async signOut({ token }) {
+      if (!token?.id) return;
+      try {
+        await prisma.auditLog.create({
+          data: { userId: Number(token.id), action: "logout", entityType: "user", entityId: Number(token.id), description: "Signed out." },
+        });
+      } catch (error) {
+        console.warn("Logout audit skipped:", error && error.message);
+      }
+    },
   },
   secret: nextAuthSecret,
   cookies: {

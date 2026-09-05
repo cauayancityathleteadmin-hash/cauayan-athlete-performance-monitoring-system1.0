@@ -1,4 +1,10 @@
 {
   "buildCommand": "prisma migrate deploy || echo \"[migrate] skipped\"; next build",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "crons": [
+    {
+      "path": "/api/system/backup/auto",
+      "schedule": "0 3 1 * *"
+    }
+  ]
 }
