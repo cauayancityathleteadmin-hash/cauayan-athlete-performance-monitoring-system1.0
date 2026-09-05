@@ -32,6 +32,11 @@ const SORT_OPTIONS = [
 
 const STATUS_RANK = { active: 0, pending: 1, rejected: 2, inactive: 3 };
 
+function initialsOf(name) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).map((p) => p.charAt(0).toUpperCase()).join("") || "?";
+}
+
 function sortCoaches(list, key, dir) {
   const factor = dir === "desc" ? -1 : 1;
   const sorted = [...list];
@@ -214,7 +219,7 @@ function CoachTable({ coaches, coachName, statusBadge, openId, setOpenId, busy, 
           {coaches.map((coach) => (
             <React.Fragment key={coach.id}>
               <tr>
-                <td style={{ display: "flex", alignItems: "center", gap: 10 }}>{coach.pictureUrl ? <img src={coach.pictureUrl} alt="" style={{ width: "34px", height: "34px", objectFit: "cover", borderRadius: "50%", flexShrink: 0 }} /> : null}<strong>{coachName(coach)}</strong></td>
+                <td style={{ display: "flex", alignItems: "center", gap: 10 }}>{coach.pictureUrl ? <img src={coach.pictureUrl} alt="" style={{ width: "34px", height: "34px", objectFit: "cover", borderRadius: "8px", flexShrink: 0 }} /> : null}<strong>{coachName(coach)}</strong></td>
                 <td>{coach.coachCode || "—"}</td>
                 <td>{coach.school?.schoolName || "Not assigned"}</td>
                 <td>
@@ -269,6 +274,13 @@ function CoachTable({ coaches, coachName, statusBadge, openId, setOpenId, busy, 
                       <div className={styles.grid}>
                         <div>
                           <h4>Personal information</h4>
+                          <div style={{ marginBottom: "12px" }}>
+                            {coach.pictureUrl ? (
+                              <img src={coach.pictureUrl} alt="2x2 ID photo" style={{ width: "128px", height: "128px", objectFit: "cover", borderRadius: "12px", border: "1px solid var(--border)", flexShrink: 0 }} />
+                            ) : (
+                              <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "128px", height: "128px", borderRadius: "12px", border: "1px dashed var(--border)", background: "rgba(6,38,30,.4)", color: "var(--muted)", fontSize: "42px", fontWeight: 700 }}>{initialsOf(coachName(coach))}</span>
+                            )}
+                          </div>
                           <dl className={styles.infoList}>
                             <div><dt>Full name</dt><dd>{coachName(coach)}</dd></div>
                             <div><dt>Coach code</dt><dd>{coach.coachCode || "—"}</dd></div>

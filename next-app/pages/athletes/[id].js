@@ -784,16 +784,15 @@ function AthletePhotoCard({ athlete }) {
 
   return (
     <div className={styles.detailPanel}>
-      <h4>Photo</h4>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
         {pictureUrl ? (
-          <img src={pictureUrl} alt="Athlete" style={{ width: "88px", height: "88px", objectFit: "cover", borderRadius: "12px", border: "1px solid var(--border)" }} />
+          <img src={pictureUrl} alt="Athlete" style={{ width: "132px", height: "132px", objectFit: "cover", borderRadius: "12px", border: "1px solid var(--border)", flexShrink: 0 }} />
         ) : (
-          <span className={styles.avatar} style={{ width: "88px", height: "88px", fontSize: "32px" }}>{initials}</span>
+          <span className={styles.avatar} style={{ width: "132px", height: "132px", fontSize: "44px", flexShrink: 0 }}>{initials}</span>
         )}
-        <div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <button type="button" className={styles.secondary} onClick={() => { setEditing((c) => !c); setMessage(""); }}>{editing ? "Cancel" : "Edit photo"}</button>
-          {!editing && pictureUrl && <p className={styles.formHint} style={{ marginTop: 6 }}>Photo shown on the athlete list and profile.</p>}
+          {!editing && pictureUrl && <p className={styles.formHint} style={{ margin: 0 }}>Shown on the athlete list and profile.</p>}
         </div>
       </div>
       {editing && (
