@@ -1,10 +1,10 @@
 # PLANNING NOTES — Cauayan Athlete Performance Monitoring System
 
-Last updated: 2026-09-04. Status: **All three queued features (camera capture, bulk
-add activities, bulk per-athlete assessment) are BUILT and DEPLOYED** (see below).
-The plan page is now **bulk-by-default** (bulk add + bulk assess are the ONLY add/assess
-methods), grouped under "Training plan and assessment". Blob upload now working with the
-new public store `store_kD9QHCbt1Ht5TQBJ`.
+Last updated: 2026-09-05. Status: **Daily monitoring grid, athlete/coach photos with edit
+buttons, role split (coach manages trainings + assesses athletes; admin comments + assesses
+coaches), and per-athlete Assess buttons are BUILT and DEPLOYED** (see section 9). Plan page
+is bulk-by-default (bulk add + bulk assess), grouped under "Training plan and assessment".
+Blob upload works with the public store `store_kD9QHCbt1Ht5TQBJ`.
 
 ---
 
@@ -211,3 +211,40 @@ the old way, training plan and assessment":
 - Migration: prisma/migrations/20260904170000_per_athlete_activities/ (add athlete_id,
   backfill, set NOT NULL, index+FK, drop plan_activity_targets). Applied by Vercel
   'prisma migrate deploy' on next deploy.
+
+## 9. Monitoring grid, photos, role split, per-athlete assess (2026-09-05)
+
+- **Daily monitoring grid**: PlanActivity now has optional `dayIndex` (1-7, "Day 1..7")
+  and `weekNumber` (null = repeats every week; periodization). Migration
+  `20260904180000_add_day_week_to_plan_activity` (idempotent, incl. composite index +
+  CHECK constraints) applied manually to live DB via a temp admin endpoint (the
+  `vercel.json` migrate/skip swallow pattern means new migrations may not auto-apply -
+  so the temp endpoint pattern may be needed again for future migrations).
+  - New API `pages/api/plan-activities/monitoring.js`: GET grid per week (done/partial/
+    pending counts + latest log per day), scoped to own plan for coaches, all for admin.
+  - Plan page: "Daily training monitoring" panel - week selector (Week 1..N from
+    durationWeeks or max weekNumber) + 7-day grid per athlete; coloured status badges.
+  - Add/edit activity forms now have optional Day (1-7) and Week fields (bulk add,
+    ActivityRow edit). Duplicate copies dayIndex/weekNumber too. Kept ASCII-safe
+    separators to avoid the live encoding bug (`|`, `-`; no middle dot / emoji).
+- **Photos with edit buttons**: Athlete profile now shows a Photo card with an
+  "Edit photo" button reusing `IdPhotoUpload` (camera / upload / paste URL); saved via
+  new `pages/api/athletes/[id]/photo.js` (PUT, CSRF-guarded). Coaches already had photo
+  editing on their account page. No schema change needed (`pictureUrl` existed).
+- **Role split (coach manages / admin comments + assesses coaches)**: enforcement added
+  server-side:
+  - `training-plans` POST: admin may only create TEMPLATE plans; duplicate blocked for
+    admin; PUT/DELETE on non-template plans blocked for admin.
+  - `plan-activities` POST (create/bulk/update/delete): admin blocked (coach-only).
+  - `plan-activity-logs` POST + `bulk-assess` POST: admin blocked (coach-only).
+  - `training-assessments` POST: coach-only (admin assesses coaches via
+    `coach-performances`, unchanged, admin-only).
+  - UI gating: admins see read-only plan list (no New/Edit/Delete), no Add activities /
+    Log progress / Assess; monitoring grid + comments remain. Comments (`training-notes`)
+    stayed admin-write, coach-read. Admin still reads everything.
+- **Per-athlete Assess UI**: "Assess an athlete" panel now lists EVERY athlete row with
+  its own "Assess" button that opens that athlete's full activity assessment form
+  (replacing the old single dropdown), mirroring the Add-activities block pattern.
+- Deployed (commits 9672d1e, e550652). Live verified: health 200, monitoring API 200
+  with grid, plan-activities/notes/logs 200. Known note: `/api/training-plans/:id` API
+  route doesn't exist (page uses query params); the UI page `/training-plans/:id` is 200.
