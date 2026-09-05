@@ -143,14 +143,23 @@ async function snapshotTables(prisma, tables, selectByTable, param) {
   const out = {};
   for (const table of tables) {
     const sql = selectByTable && selectByTable[table]
-      ? `SELECT * FROM ${quoteIdent(table)} WHERE ${selectByTable[table]}`
-      : `SELECT * FROM ${quoteIdent(table)}`;
+      ? `SELECT row_to_json(t)::text AS "_row" FROM (SELECT * FROM ${quoteIdent(table)} WHERE ${selectByTable[table]}) t`
+      : `SELECT row_to_json(t)::text AS "_row" FROM (SELECT * FROM ${quoteIdent(table)}) t`;
     const rows = selectByTable && selectByTable[table]
       ? await prisma.$queryRawUnsafe(sql, param)
       : await prisma.$queryRawUnsafe(sql);
-    out[table] = rows;
+    out[table] = rows.map((r) => r._row);
   }
   return out;
+}
+
+function decodeRows(rows) {
+  if (!Array.isArray(rows)) return [];
+  try {
+    return rows.map((r) => (typeof r === "string" ? JSON.parse(r) : r));
+  } catch {
+    throw new Error("Invalid backup file: row data is corrupted.");
+  }
 }
 
 function makeSnapshot(scope, order, tables, counts) {
@@ -226,13 +235,20 @@ export async function restoreSystem(prisma, rawSnapshot) {
   for (const table of Object.keys(snapshot.tables)) {
     if (!tables.includes(table)) throw new Error(`Backup contains table "${table}" which does not exist in this database.`);
   }
+  for (const table of tables) {
+    if (!snapshot.tables[table]) {
+      throw new Error(`Restore blocked: the backup was created before table "${table}" was added or does not include it. Nothing was changed.`);
+    }
+  }
   const order = snapshot.order.filter((t) => tables.includes(t) && snapshot.tables[t]);
+  const decoded = {};
+  for (const table of Object.keys(snapshot.tables)) decoded[table] = decodeRows(snapshot.tables[table]);
   await prisma.$transaction(async (tx) => {
     const truncateList = tables.map(quoteIdent).join(", ");
     await tx.$executeRawUnsafe(`TRUNCATE ${truncateList} RESTART IDENTITY CASCADE`);
     for (const table of order) {
-      if (!snapshot.tables[table]) continue;
-      await insertRows(tx, typeMap, table, snapshot.tables[table]);
+      if (!decoded[table]) continue;
+      await insertRows(tx, typeMap, table, decoded[table]);
     }
     await syncSequences(tx, order, typeMap);
   });
@@ -250,17 +266,17 @@ export async function restoreCoach(prisma, rawSnapshot, coachId) {
     throw new Error("This backup file belongs to a different coach. You can only restore your own data backup.");
   }
 
-  const coachRows = snapshot.tables.coaches || [];
+  const coachRows = decodeRows(snapshot.tables.coaches || []);
   if (coachRows.length !== 1 || Number(coachRows[0].id) !== Number(coachId)) {
     throw new Error("This backup file does not match your coach record.");
   }
 
-  const myAthletes = ids(snapshot.tables.athletes || []);
-  const myAssessments = ids(snapshot.tables.assessments || []);
-  const myPlans = ids(snapshot.tables.training_plans || []);
-  const myActivities = ids(snapshot.tables.plan_activities || []);
-  const mySessions = ids(snapshot.tables.training_sessions || []);
-  const myExercises = ids(snapshot.tables.training_exercises || []);
+  const myAthletes = ids(decodeRows(snapshot.tables.athletes || []));
+  const myAssessments = ids(decodeRows(snapshot.tables.assessments || []));
+  const myPlans = ids(decodeRows(snapshot.tables.training_plans || []));
+  const myActivities = ids(decodeRows(snapshot.tables.plan_activities || []));
+  const mySessions = ids(decodeRows(snapshot.tables.training_sessions || []));
+  const myExercises = ids(decodeRows(snapshot.tables.training_exercises || []));
 
   const validators = {
     coaches: (r) => Number(r.id) === Number(coachId),
@@ -297,9 +313,10 @@ export async function restoreCoach(prisma, rawSnapshot, coachId) {
       await tx.$executeRawUnsafe(`DELETE FROM ${quoteIdent(table)} WHERE ${predicate}`, coachId);
     }
     for (const table of order) {
-      const rows = (snapshot.tables[table] || []).filter((r) => validators[table] ? validators[table](r) : true);
+      const raw = snapshot.tables[table] || [];
+      const rows = decodeRows(raw).filter((r) => validators[table] ? validators[table](r) : true);
       if (!validators[table]) throw new Error(`Restore blocked: table "${table}" is not part of a coach's own data.`);
-      if (snapshot.tables[table].length !== rows.length) {
+      if (raw.length !== rows.length) {
         throw new Error(`Restore blocked: the backup contains data that is not yours in "${table}". Nothing was changed.`);
       }
       await insertRows(tx, typeMap, table, rows);
