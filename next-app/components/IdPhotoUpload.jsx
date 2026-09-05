@@ -33,9 +33,22 @@ export default function IdPhotoUpload({ value, onChange, required = false, label
 
   async function openCamera() {
     setError("");
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setError("Camera not supported on this device or browser.");
+    if (typeof window !== "undefined" && window.isSecureContext === false) {
+      setError("The camera needs a secure (HTTPS) connection. Please open this page over HTTPS and try again.");
       return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("Camera not supported on this device or browser. Please use 'Choose photo' instead.");
+      return;
+    }
+    if (navigator.permissions?.query) {
+      try {
+        const status = await navigator.permissions.query({ name: "camera" });
+        if (status.state === "denied") {
+          setError("Camera permission has been blocked in this browser. Allow camera access for this site (browser site settings), then tap 'Take photo' again.");
+          return;
+        }
+      } catch (e) { /* permission query not supported in this browser — the getUserMedia prompt still applies */ }
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 1280 }, facingMode: "user" }, audio: false });
@@ -48,7 +61,17 @@ export default function IdPhotoUpload({ value, onChange, required = false, label
         }
       });
     } catch (e) {
-      setError("Could not open the camera. Please allow camera permission or use 'Choose photo' instead.");
+      if (e && (e.name === "NotAllowedError" || e.name === "SecurityError")) {
+        setError("Camera access was denied or blocked. Please allow camera permission for this site in your browser, then tap 'Take photo' again.");
+      } else if (e && (e.name === "NotFoundError" || e.name === "OverconstrainedError")) {
+        setError("No camera was detected on this device. Use 'Choose photo' to pick a picture instead.");
+      } else if (e && e.name === "NotReadableError") {
+        setError("The camera is already in use by another app. Close it and tap 'Take photo' again.");
+      } else if (e && e.name === "AbortError") {
+        setError("The camera request was cancelled. Tap 'Take photo' to try again.");
+      } else {
+        setError("Could not open the camera. Please allow camera permission or use 'Choose photo' instead.");
+      }
     }
   }
 
