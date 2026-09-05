@@ -74,7 +74,8 @@ export default async function handler(req, res) {
 
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
   if (!requireCsrf(req, res)) return;
-  if (!["admin", "coach"].includes(session.user.role)) return res.status(403).json({ error: "You do not have permission for this action." });
+  if (session.user.role === "admin") return res.status(403).json({ error: "Only the assigned coach manages plan activities. Admins can view the plan and post comments." });
+  if (session.user.role !== "coach") return res.status(403).json({ error: "You do not have permission for this action." });
 
   const body = req.body || {};
   const plan = await prisma.trainingPlan.findUnique({ where: { id: planId }, select: { id: true } });
@@ -128,6 +129,8 @@ export default async function handler(req, res) {
             targetDistance: item.targetDistance,
             targetLoad: item.targetLoad,
             instructions: item.instructions,
+            dayIndex: toInt(item.dayIndex),
+            weekNumber: toInt(item.weekNumber),
             orderIndex: i,
           },
           select: { id: true },
@@ -172,6 +175,8 @@ export default async function handler(req, res) {
         targetDistance: toDecimal(body.targetDistance),
         targetLoad: toDecimal(body.targetLoad),
         instructions: text(body.instructions, 2000) || null,
+        dayIndex: toInt(body.dayIndex),
+        weekNumber: toInt(body.weekNumber),
       },
       select: { id: true },
     });
@@ -205,6 +210,8 @@ export default async function handler(req, res) {
     if ("targetDistance" in body) data.targetDistance = toDecimal(body.targetDistance);
     if ("targetLoad" in body) data.targetLoad = toDecimal(body.targetLoad);
     if ("instructions" in body) data.instructions = text(body.instructions, 2000) || null;
+    if ("dayIndex" in body) data.dayIndex = toInt(body.dayIndex);
+    if ("weekNumber" in body) data.weekNumber = toInt(body.weekNumber);
 
     if (body.athleteId != null) {
       const newAthleteId = validId(body.athleteId);

@@ -675,12 +675,15 @@ model PlanActivity {
   targetLoad     Decimal?        @map("target_load")
   instructions   String?
   orderIndex     Int             @default(0) @map("order_index")
+  dayIndex       Int?            @map("day_index")
+  weekNumber     Int?            @map("week_number")
   createdAt      DateTime        @default(now()) @map("created_at")
   plan           TrainingPlan    @relation(fields: [planId], references: [id], onDelete: Cascade)
   athlete        Athlete         @relation("ActivityAthlete", fields: [athleteId], references: [id], onDelete: Cascade)
   logs           PlanActivityLog[]
   @@map("plan_activities")
   @@index([planId, athleteId, orderIndex])
+  @@index([planId, athleteId, dayIndex, weekNumber])
 }
 
 model PlanActivityLog {

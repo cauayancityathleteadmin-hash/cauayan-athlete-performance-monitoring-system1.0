@@ -101,7 +101,7 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
             <div><p className={styles.eyebrow}>Coaching</p><h2>Training plans</h2></div>
             <div className={styles.actions}>
               <Link className={styles.secondary} href="/training-sessions">Sessions log</Link>
-              <button className={styles.primary} onClick={() => { setEditingPlan(null); setShowPlanForm(true); }}>New plan</button>
+              {!isAdmin && <button className={styles.primary} onClick={() => { setEditingPlan(null); setShowPlanForm(true); }}>New plan</button>}
             </div>
           </div>
           <p className={styles.formHint} style={{ marginTop: 0 }}>Coaches build a plan for their athletes over a day, week, or month. Coaches and the admin can then record assessments against it to track progress.</p>
@@ -137,8 +137,8 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
                     <td>
                       <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                         <Link className={styles.expandBtn} href={`/training-plans/${p.id}`}>Manage</Link>
-                        <button className={styles.secondary} onClick={() => setEditingPlan(p)} style={{ padding: "4px 8px", fontSize: "12px" }}>Edit</button>
-                        <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => deletePlan(p.id)} style={{ padding: "4px 8px", fontSize: "12px" }}>Delete</button>
+                        {!isAdmin && <button className={styles.secondary} onClick={() => setEditingPlan(p)} style={{ padding: "4px 8px", fontSize: "12px" }}>Edit</button>}
+                        {!isAdmin && <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => deletePlan(p.id)} style={{ padding: "4px 8px", fontSize: "12px" }}>Delete</button>}
                       </div>
                     </td>
                   </tr>
@@ -151,7 +151,7 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Progress</p><h2>Training assessments</h2></div>
-            <button className={styles.secondary} onClick={() => setShowAssessmentForm((c) => !c)}>{showAssessmentForm ? "Close form" : "Record assessment"}</button>
+            {!isAdmin && <button className={styles.secondary} onClick={() => setShowAssessmentForm((c) => !c)}>{showAssessmentForm ? "Close form" : "Record assessment"}</button>}
           </div>
           <p className={styles.formHint} style={{ marginTop: 0 }}>Rate how each athlete is performing in their training. Ratings (1–10) are used to monitor athlete progress and coaching effectiveness.</p>
 

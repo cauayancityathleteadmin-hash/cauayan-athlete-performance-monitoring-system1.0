@@ -62,6 +62,7 @@ export default async function handler(req, res) {
 
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
   if (!requireCsrf(req, res)) return;
+  if (session.user.role === "admin") return res.status(403).json({ error: "Only the assigned coach logs athlete progress. Admins view progress and post comments." });
 
   const body = req.body || {};
   const activityId = validId(body.activityId);

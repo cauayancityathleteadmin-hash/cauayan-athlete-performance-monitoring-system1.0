@@ -5,6 +5,7 @@ import { useRouter } from "next/router";
 import { getSession } from "next-auth/react";
 import { prisma } from "../../lib/prisma";
 import AppShell from "../../components/AppShell";
+import IdPhotoUpload from "../../components/IdPhotoUpload";
 import styles from "../../styles/Dashboard.module.css";
 
 export async function getServerSideProps(context) {
@@ -248,6 +249,7 @@ export default function AthleteProfile({ session, athlete, catalog }) {
           </div>
           {editOpen && <EditAthleteForm athlete={athlete} catalog={catalog} isAdmin={isAdmin} onDone={() => { setEditOpen(false); router.reload(); }} />}
           <div className={styles.grid}>
+            <AthletePhotoCard athlete={athlete} />
             <div className={styles.detailPanel}>
               <h4>Personal</h4>
               <div className={styles.infoList}>
@@ -749,6 +751,61 @@ function NoteForm({ athleteId, onComplete }) {
       <button className={styles.primary} disabled={busy || !note.trim()}>{busy ? "Saving..." : "Add note"}</button>
       {message && <p role="status" className={styles.formHint}>{message}</p>}
     </form>
+  );
+}
+
+function AthletePhotoCard({ athlete }) {
+  const [editing, setEditing] = React.useState(false);
+  const [pictureUrl, setPictureUrl] = React.useState(athlete.pictureUrl || "");
+  const [busy, setBusy] = React.useState(false);
+  const [message, setMessage] = React.useState("");
+
+  const initials = `${(athlete.firstName || "?").charAt(0)}${(athlete.lastName || "?").charAt(0)}`.toUpperCase();
+
+  async function save(event) {
+    event.preventDefault();
+    setBusy(true);
+    setMessage("");
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    const response = await fetch(`/api/athletes/${athlete.id}/photo`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+      body: JSON.stringify({ pictureUrl }),
+    }).catch(() => null);
+    const result = response ? await response.json().catch(() => ({})) : {};
+    if (response && response.ok && !result.error) {
+      setMessage("Photo saved.");
+      setEditing(false);
+    } else {
+      setMessage(result.error || "Could not save photo.");
+    }
+    setBusy(false);
+  }
+
+  return (
+    <div className={styles.detailPanel}>
+      <h4>Photo</h4>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+        {pictureUrl ? (
+          <img src={pictureUrl} alt="Athlete" style={{ width: "88px", height: "88px", objectFit: "cover", borderRadius: "12px", border: "1px solid var(--border)" }} />
+        ) : (
+          <span className={styles.avatar} style={{ width: "88px", height: "88px", fontSize: "32px" }}>{initials}</span>
+        )}
+        <div>
+          <button type="button" className={styles.secondary} onClick={() => { setEditing((c) => !c); setMessage(""); }}>{editing ? "Cancel" : "Edit photo"}</button>
+          {!editing && pictureUrl && <p className={styles.formHint} style={{ marginTop: 6 }}>Photo shown on the athlete list and profile.</p>}
+        </div>
+      </div>
+      {editing && (
+        <form onSubmit={save} className={styles.formStack} style={{ marginTop: 12 }}>
+          <IdPhotoUpload value={pictureUrl} onChange={setPictureUrl} label="Upload or paste photo URL" />
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Save photo"}</button>
+            {message && <p role="status" className={styles.formSuccess} style={{ margin: 0 }}>{message}</p>}
+          </div>
+        </form>
+      )}
+    </div>
   );
 }
 

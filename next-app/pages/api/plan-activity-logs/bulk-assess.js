@@ -31,6 +31,7 @@ export default async function handler(req, res) {
   const session = await requireSession(req, res);
   if (!session) return;
   if (!requireCsrf(req, res)) return;
+  if (session.user.role === "admin") return res.status(403).json({ error: "Only the assigned coach assesses athletes on training plans." });
 
   const ip = req.headers["x-forwarded-for"] && req.headers["x-forwarded-for"].split(",")[0].trim() || "unknown";
   const rate = rateLimiters.api(`api:${ip}:bulk-assess`);

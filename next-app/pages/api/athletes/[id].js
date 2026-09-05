@@ -128,6 +128,7 @@ async function updateAthlete(req, res, session, id) {
         eventId,
         coachId,
         status: status ?? undefined,
+        pictureUrl: body.pictureUrl !== undefined ? (text(body.pictureUrl, 2000) || null) : undefined,
       },
     });
     if (before && before.coachId !== coachId && session.user.role === "admin") {

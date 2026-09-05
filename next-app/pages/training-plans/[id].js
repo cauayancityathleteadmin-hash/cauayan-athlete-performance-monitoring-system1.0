@@ -84,6 +84,9 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
   const [error, setError] = React.useState("");
   const [showAddActivity, setShowAddActivity] = React.useState(false);
   const [showBulkAssess, setShowBulkAssess] = React.useState(true);
+  const [showMonitoring, setShowMonitoring] = React.useState(false);
+  const [monitoringData, setMonitoringData] = React.useState(null);
+  const [currentWeek, setCurrentWeek] = React.useState(1);
   const [message, setMessage] = React.useState(null);
 
   const loadActivities = React.useCallback((show) => {
@@ -107,16 +110,29 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
     }).catch(() => { setError("Could not load notes."); });
   }, [plan.id]);
 
+  const loadMonitoring = React.useCallback(() => {
+    if (!showMonitoring) return;
+    fetch(`/api/plan-activities/monitoring?planId=${plan.id}&weekNumber=${currentWeek}`)
+      .then((r) => r.json())
+      .then((data) => { setMonitoringData(data); setError(""); })
+      .catch(() => { setError("Could not load monitoring grid."); });
+  }, [plan.id, showMonitoring, currentWeek]);
+
   React.useEffect(() => {
     loadActivities(true);
     loadLogs(false);
     loadNotes(false);
   }, [loadActivities, loadLogs, loadNotes]);
 
+  React.useEffect(() => {
+    if (showMonitoring) loadMonitoring();
+  }, [loadMonitoring, showMonitoring]);
+
   function refresh() {
     loadActivities(true);
     loadLogs(true);
     loadNotes(true);
+    if (showMonitoring) loadMonitoring();
   }
 
   function logCountFor(activityId, athleteId) {
@@ -223,6 +239,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
                   onRemove={removeActivity}
                   onEdit={updateActivity}
                   onChanged={refresh}
+                  readOnly={isAdmin}
                 />
               ))}
             </div>
@@ -231,7 +248,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
 
         <section className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Monitor</p><h2>Recent progress</h2></div></div>
-          {logs.length === 0 ? <p className={styles.empty}>No progress logged yet for this plan.</p> : (
+{logs.length === 0 ? <p className={styles.empty}>No progress logged yet for this plan.</p> : (
             <div className={styles.tableWrap}><table>
               <thead><tr><th>Date</th><th>Athlete</th><th>Activity</th><th>Status</th><th>Done</th><th>Notes</th><th>Logged by</th></tr></thead>
               <tbody>
@@ -249,6 +266,25 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
               </tbody>
             </table></div>
           )}
+        </section>
+
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div><p className={styles.eyebrow}>Monitor</p><h2>Daily training monitoring</h2></div>
+            <button className={styles.secondary} onClick={() => setShowMonitoring((c) => !c)}>
+              {showMonitoring ? "Close monitoring" : "Open monitoring grid"}
+            </button>
+          </div>
+          {showMonitoring && monitoringData && (
+            <MonitoringGrid
+              data={monitoringData}
+              athletes={athletes}
+              maxWeek={monitoringData.maxWeek}
+              currentWeek={monitoringData.currentWeek}
+              onWeekChange={setCurrentWeek}
+            />
+          )}
+          {!showMonitoring && <p className={styles.empty}>Click &quot;Open monitoring grid&quot; to view daily progress for all athletes.</p>}
         </section>
 
         <section className={styles.panel}>
@@ -283,10 +319,10 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Training plan &amp; assessment</p><h2>Assess an athlete</h2></div>
-            <button className={styles.secondary} onClick={() => setShowBulkAssess((c) => !c)}>{showBulkAssess ? "Close assessment" : "Assess an athlete"}</button>
+            {!isAdmin && <button className={styles.secondary} onClick={() => setShowBulkAssess((c) => !c)}>{showBulkAssess ? "Close assessment" : "Assess an athlete"}</button>}
           </div>
-          <p className={styles.formHint} style={{ marginTop: 0 }}>Pick an athlete and set status + effort for every activity in one go, then save once. Optionally add an overall rating (1–10) and summary comment for the athlete's training assessment.</p>
-          {showBulkAssess && (
+          {isAdmin ? <p className={styles.formHint} style={{ marginTop: 0 }}>Coaches assess the athletes. You can monitor their progress above and post suggestions in the comments below.</p> : <p className={styles.formHint} style={{ marginTop: 0 }}>Pick an athlete and set status + effort for every activity in one go, then save once. Optionally add an overall rating (1&ndash;10) and summary comment for the athlete&apos;s training assessment.</p>}
+          {showBulkAssess && !isAdmin && (
             <BulkAssessForm planId={plan.id} athletes={athletes} activities={activities} logs={logs} onDone={refresh} />
           )}
         </section>
@@ -300,7 +336,7 @@ function renderStatus(status) {
   return <span className={`${styles.badge} ${styles[meta.cls]}`}>{meta.label}</span>;
 }
 
-function AthleteActivitiesBlock({ planId, athlete, activities, logCountFor, onCreateLog, onRemove, onEdit, onChanged }) {
+function AthleteActivitiesBlock({ planId, athlete, activities, logCountFor, onCreateLog, onRemove, onEdit, onChanged, readOnly = false }) {
   const [adding, setAdding] = React.useState(false);
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "14px 16px", background: "rgba(6,38,30,.35)" }}>
@@ -309,7 +345,7 @@ function AthleteActivitiesBlock({ planId, athlete, activities, logCountFor, onCr
           <strong>{athlete.lastName}, {athlete.firstName}</strong>
           {athlete.athleteCode ? <small style={{ color: "var(--muted)", display: "block" }}>{athlete.athleteCode}</small> : null}
         </div>
-        <button className={styles.secondary} onClick={() => setAdding((c) => !c)}>{adding ? "Close add" : "Add activities"}</button>
+        {!readOnly && <button className={styles.secondary} onClick={() => setAdding((c) => !c)}>{adding ? "Close add" : "Add activities"}</button>}
       </div>
 
       {adding && (
@@ -322,14 +358,14 @@ function AthleteActivitiesBlock({ planId, athlete, activities, logCountFor, onCr
       )}
 
       {activities.length === 0 ? (
-        <p className={styles.empty} style={{ marginTop: 12 }}>No activities for this athlete yet.</p>
+        <p className={styles.empty} style={{ marginTop: 12 }}>{readOnly ? "No activities defined yet for this athlete." : "No activities for this athlete yet."}</p>
       ) : (
         <div className={styles.tableWrap} style={{ marginTop: 12 }}>
           <table>
-            <thead><tr><th>Activity</th><th>Fitness</th><th>Target</th><th>Log progress</th><th></th></tr></thead>
+            <thead><tr><th>Activity</th><th>Fitness</th><th>Target</th>{!readOnly && <th>Log progress</th>}{!readOnly && <th></th>}</tr></thead>
             <tbody>
               {activities.map((activity) => (
-                <ActivityRow key={activity.id} athlete={athlete} activity={activity} logCountFor={logCountFor} onCreateLog={onCreateLog} onRemove={onRemove} onEdit={onEdit} />
+                <ActivityRow key={activity.id} athlete={athlete} activity={activity} logCountFor={logCountFor} onCreateLog={onCreateLog} onRemove={onRemove} onEdit={onEdit} readOnly={readOnly} />
               ))}
             </tbody>
           </table>
@@ -339,7 +375,7 @@ function AthleteActivitiesBlock({ planId, athlete, activities, logCountFor, onCr
   );
 }
 
-function ActivityRow({ athlete, activity, logCountFor, onCreateLog, onRemove, onEdit }) {
+function ActivityRow({ athlete, activity, logCountFor, onCreateLog, onRemove, onEdit, readOnly = false }) {
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -357,6 +393,8 @@ function ActivityRow({ athlete, activity, logCountFor, onCreateLog, onRemove, on
     targetDistance: activity.targetDistance != null ? String(activity.targetDistance) : "",
     targetLoad: activity.targetLoad != null ? String(activity.targetLoad) : "",
     instructions: activity.instructions || "",
+    dayIndex: activity.dayIndex != null ? String(activity.dayIndex) : "",
+    weekNumber: activity.weekNumber != null ? String(activity.weekNumber) : "",
   }));
 
   function setField(name, value) {
@@ -381,6 +419,8 @@ function ActivityRow({ athlete, activity, logCountFor, onCreateLog, onRemove, on
       targetDistance: activity.targetDistance != null ? String(activity.targetDistance) : "",
       targetLoad: activity.targetLoad != null ? String(activity.targetLoad) : "",
       instructions: activity.instructions || "",
+      dayIndex: activity.dayIndex != null ? String(activity.dayIndex) : "",
+      weekNumber: activity.weekNumber != null ? String(activity.weekNumber) : "",
     });
     setEditing(true);
   }
@@ -398,6 +438,8 @@ function ActivityRow({ athlete, activity, logCountFor, onCreateLog, onRemove, on
       targetDistance: draft.targetDistance || null,
       targetLoad: draft.targetLoad || null,
       instructions: draft.instructions || null,
+      dayIndex: draft.dayIndex ? parseInt(draft.dayIndex) : null,
+      weekNumber: draft.weekNumber ? parseInt(draft.weekNumber) : null,
     });
     setEditing(false);
     setSaving(false);
@@ -414,9 +456,10 @@ function ActivityRow({ athlete, activity, logCountFor, onCreateLog, onRemove, on
           {activity.targetReps ? <small>{activity.targetReps} reps</small> : null}
           {activity.targetDistance != null ? <small>{activity.targetDistance} m</small> : null}
           {activity.targetLoad != null ? <small>{activity.targetLoad} kg</small> : null}
+          {activity.dayIndex ? <small>Day {activity.dayIndex}{activity.weekNumber ? ` | W${activity.weekNumber}` : ""}</small> : null}
         </td>
-        <td><button className={styles.expandBtn} onClick={() => setOpen((c) => !c)}>{open ? "Close logging ▲" : "Log progress ▼"}</button></td>
-        <td><button className={`${styles.secondary} ${styles.btnSm}`} onClick={() => { if (editing) setEditing(false); else startEdit(); }} style={{ padding: "4px 8px", fontSize: "12px" }}>{editing ? "Cancel" : "Edit"}</button> <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => onRemove(activity.id)}>Remove</button></td>
+        {!readOnly && <td><button className={styles.expandBtn} onClick={() => setOpen((c) => !c)}>{open ? "Close logging ▲" : "Log progress ▼"}</button></td>}
+        {!readOnly && <td><button className={`${styles.secondary} ${styles.btnSm}`} onClick={() => { if (editing) setEditing(false); else startEdit(); }} style={{ padding: "4px 8px", fontSize: "12px" }}>{editing ? "Cancel" : "Edit"}</button> <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => onRemove(activity.id)}>Remove</button></td>}
       </tr>
       {editing && (
         <tr><td colSpan="5" style={{ padding: 0, background: "transparent" }}>
@@ -430,6 +473,8 @@ function ActivityRow({ athlete, activity, logCountFor, onCreateLog, onRemove, on
               <label>Reps<input className={styles.fieldControl} type="number" min="0" value={draft.targetReps} onChange={(e) => setField("targetReps", e.target.value)} /></label>
               <label>Distance (m)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetDistance} onChange={(e) => setField("targetDistance", e.target.value)} /></label>
               <label>Load (kg)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetLoad} onChange={(e) => setField("targetLoad", e.target.value)} /></label>
+              <label>Day (1–7)<input className={styles.fieldControl} type="number" min="1" max="7" value={draft.dayIndex} onChange={(e) => setField("dayIndex", e.target.value)} placeholder="Day" /></label>
+              <label>Week<input className={styles.fieldControl} type="number" min="1" value={draft.weekNumber} onChange={(e) => setField("weekNumber", e.target.value)} placeholder="Week" /></label>
               <label className={styles.fullField}>Instructions<textarea className={styles.fieldControl} rows="2" maxLength="2000" value={draft.instructions} onChange={(e) => setField("instructions", e.target.value)} /></label>
 
               <div className={styles.formActions}>
@@ -467,10 +512,10 @@ function ActivityRow({ athlete, activity, logCountFor, onCreateLog, onRemove, on
 function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState("");
-  const [rows, setRows] = React.useState([{ id: 0, name: "", fitness: "endurance", qty: "", unit: "", sets: "", reps: "", dist: "", load: "", instr: "" }]);
+  const [rows, setRows] = React.useState([{ id: 0, name: "", fitness: "endurance", qty: "", unit: "", sets: "", reps: "", dist: "", load: "", instr: "", day: "", week: "" }]);
 
   function addRow() {
-    setRows((cur) => [...cur, { id: Date.now(), name: "", fitness: "endurance", qty: "", unit: "", sets: "", reps: "", dist: "", load: "", instr: "" }]);
+    setRows((cur) => [...cur, { id: Date.now(), name: "", fitness: "endurance", qty: "", unit: "", sets: "", reps: "", dist: "", load: "", instr: "", day: "", week: "" }]);
   }
   function removeRow(id) {
     setRows((cur) => cur.filter((r) => r.id !== id));
@@ -503,12 +548,14 @@ function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
       targetDistance: r.dist || null,
       targetLoad: r.load || null,
       instructions: r.instr || null,
+      dayIndex: r.day ? parseInt(r.day) : null,
+      weekNumber: r.week ? parseInt(r.week) : null,
     }));
     const csrf = await fetch("/api/csrf").then((r) => r.json());
     try {
       const response = await fetch("/api/plan-activities", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ planId, action: "bulk", activities }) });
       const result = await response.json().catch(() => ({}));
-      if (response.ok && !result.error) { setRows([{ id: 0, name: "", fitness: "endurance", qty: "", unit: "", sets: "", reps: "", dist: "", load: "", instr: "" }]); onCreated(); return; }
+      if (response.ok && !result.error) { setRows([{ id: 0, name: "", fitness: "endurance", qty: "", unit: "", sets: "", reps: "", dist: "", load: "", instr: "", day: "", week: "" }]); onCreated(); return; }
       setMessage(result.error || "Could not add the activities.");
     } catch (e) { setMessage("Unable to reach the server."); }
     setBusy(false);
@@ -535,6 +582,10 @@ function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
                 <label style={{ flex: "0 1 100px" }}>Dist (m)<input value={r.dist} onChange={(e) => updateRow(r.id, "dist", e.target.value)} type="number" min="0" step="any" /></label>
                 <label style={{ flex: "0 1 90px" }}>Load (kg)<input value={r.load} onChange={(e) => updateRow(r.id, "load", e.target.value)} type="number" min="0" step="any" /></label>
               </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
+                <label style={{ flex: "0 1 90px" }}>Day (1–7)<input value={r.day} onChange={(e) => updateRow(r.id, "day", e.target.value)} type="number" min="1" max="7" placeholder="Day" /></label>
+                <label style={{ flex: "0 1 90px" }}>Week<input value={r.week} onChange={(e) => updateRow(r.id, "week", e.target.value)} type="number" min="1" placeholder="Week" /></label>
+              </div>
               <label className={styles.fullField}>Instructions<textarea value={r.instr} onChange={(e) => updateRow(r.id, "instr", e.target.value)} rows="1" maxLength="2000" placeholder="How to do it, safety notes, etc." /></label>
             </div>
           );
@@ -556,17 +607,45 @@ function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
 
 
 function BulkAssessForm({ planId, athletes, activities, logs, onDone }) {
-  const [selectedAthlete, setSelectedAthlete] = React.useState("");
+  const [openAthleteId, setOpenAthleteId] = React.useState(null);
+
+  if (!athletes.length) return <p className={styles.empty}>No athletes on this plan to assess.</p>;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {athletes.map((athlete) => {
+        const isOpen = openAthleteId === athlete.id;
+        return (
+          <div key={athlete.id} style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "12px 14px", background: "rgba(6,38,30,.35)" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <strong>{athlete.lastName}, {athlete.firstName}</strong>
+                {athlete.athleteCode ? <small style={{ color: "var(--muted)", display: "block" }}>{athlete.athleteCode}</small> : null}
+              </div>
+              <button className={isOpen ? styles.secondary : styles.primary} onClick={() => setOpenAthleteId(isOpen ? null : athlete.id)}>
+                {isOpen ? "Close assessment" : "Assess"}
+              </button>
+            </div>
+            {isOpen && (
+              <div style={{ borderTop: "1px solid rgba(26,92,74,.5)", marginTop: 12, paddingTop: 12 }}>
+                <AthleteAssessForm planId={planId} athlete={athlete} activities={activities} logs={logs} onDone={onDone} />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AthleteAssessForm({ planId, athlete, activities, logs, onDone }) {
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState(null);
-  const [drafts, setDrafts] = React.useState({});
-
-  function pickAthlete(id) {
-    setSelectedAthlete(id);
-    const draftsFor = {};
-    for (const activity of activities.filter((a) => a.athleteId === Number(id))) {
-      const existing = logs.find((l) => l.athleteId === Number(id) && l.activityId === activity.id);
-      draftsFor[activity.id] = {
+  const [drafts, setDrafts] = React.useState(() => {
+    const out = {};
+    for (const activity of activities.filter((a) => a.athleteId === athlete.id)) {
+      const existing = logs.find((l) => l.athleteId === athlete.id && l.activityId === activity.id);
+      out[activity.id] = {
         status: existing?.status || "done",
         qty: existing?.quantityDone != null ? String(existing.quantityDone) : "",
         sets: existing?.setsDone != null ? String(existing.setsDone) : "",
@@ -574,9 +653,8 @@ function BulkAssessForm({ planId, athletes, activities, logs, onDone }) {
         note: existing?.notes || "",
       };
     }
-    setDrafts(draftsFor);
-    setMessage(null);
-  }
+    return out;
+  });
 
   function update(activityId, key, value) {
     setDrafts((cur) => ({ ...cur, [activityId]: { ...cur[activityId], [key]: value } }));
@@ -584,11 +662,10 @@ function BulkAssessForm({ planId, athletes, activities, logs, onDone }) {
 
   async function submit(event) {
     event.preventDefault();
-    if (!selectedAthlete) { setMessage({ kind: "error", text: "Select an athlete first." }); return; }
     setBusy(true); setMessage(null);
     const form = new FormData(event.currentTarget);
     const rows = activities
-      .filter((a) => a.athleteId === Number(selectedAthlete))
+      .filter((a) => a.athleteId === athlete.id)
       .filter((a) => drafts[a.id])
       .map((a) => ({
         activityId: a.id,
@@ -600,7 +677,7 @@ function BulkAssessForm({ planId, athletes, activities, logs, onDone }) {
       }));
     const body = {
       planId,
-      athleteId: Number(selectedAthlete),
+      athleteId: athlete.id,
       performedAt: form.get("performedAt") || null,
       rows,
       summaryRating: form.get("summaryRating") || null,
@@ -617,50 +694,139 @@ function BulkAssessForm({ planId, athletes, activities, logs, onDone }) {
     setBusy(false);
   }
 
-  const athlete = athletes.find((a) => a.id === Number(selectedAthlete)) || null;
-  const athleteActivities = activities.filter((a) => a.athleteId === Number(selectedAthlete));
+  const athleteActivities = activities.filter((a) => a.athleteId === athlete.id);
 
   return (
     <form onSubmit={submit} className={styles.formGrid}>
-      <label className={styles.fullField}>Athlete *<select value={selectedAthlete} onChange={(e) => pickAthlete(e.target.value)} required defaultValue=""><option value="">Select an athlete on this plan</option>{athletes.map((a) => <option key={a.id} value={a.id}>{a.lastName}, {a.firstName} ({a.athleteCode})</option>)}</select></label>
       <label>Date performed<input name="performedAt" type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></label>
       <label>Overall rating (1–10, optional)<select name="summaryRating" defaultValue=""><option value="">No summary rating</option>{[1,2,3,4,5,6,7,8,9,10].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
       <label>Fitness dimension (for summary)<select name="summaryFitness" defaultValue=""><option value="">General</option>{Object.keys(FITNESS_META).map((k) => <option key={k} value={k}>{FITNESS_META[k]}</option>)}</select></label>
 
-      {selectedAthlete ? (
-        <div className={styles.fullField} style={{ borderTop: "1px solid rgba(26,92,74,.5)", paddingTop: 14 }}>
-          <p className={styles.eyebrow}>Activities for {athlete ? `${athlete.firstName} ${athlete.lastName}` : ""}</p>
-          {athleteActivities.length ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {athleteActivities.map((activity) => {
-                const d = drafts[activity.id] || { status: "done", qty: "", sets: "", reps: "", note: "" };
-                return (
-                  <div key={activity.id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px", background: "rgba(6,38,30,.25)" }}>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                      <strong style={{ minWidth: 170, flex: "1 1 170px" }}>{activity.activityName}</strong>
-                      <select className={styles.fieldControl} value={d.status} onChange={(e) => update(activity.id, "status", e.target.value)} style={{ width: 110 }}>
-                        <option value="done">Done</option><option value="partial">Partial</option><option value="missed">Missed</option>
-                      </select>
-                      <input className={styles.fieldControl} value={d.qty} onChange={(e) => update(activity.id, "qty", e.target.value)} type="number" min="0" step="any" placeholder="Qty done" style={{ width: 110 }} />
-                      <input className={styles.fieldControl} value={d.sets} onChange={(e) => update(activity.id, "sets", e.target.value)} type="number" min="0" placeholder="Sets" style={{ width: 80 }} />
-                      <input className={styles.fieldControl} value={d.reps} onChange={(e) => update(activity.id, "reps", e.target.value)} type="number" min="0" placeholder="Reps" style={{ width: 80 }} />
-                      <input className={styles.fieldControl} value={d.note} onChange={(e) => update(activity.id, "note", e.target.value)} placeholder="Note (optional)" style={{ flex: "1 1 140px", minWidth: 120 }} />
-                    </div>
+      <div className={styles.fullField} style={{ borderTop: "1px solid rgba(26,92,74,.5)", paddingTop: 14 }}>
+        <p className={styles.eyebrow}>Activities for {athlete.firstName} {athlete.lastName}</p>
+        {athleteActivities.length ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {athleteActivities.map((activity) => {
+              const d = drafts[activity.id] || { status: "done", qty: "", sets: "", reps: "", note: "" };
+              return (
+                <div key={activity.id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px", background: "rgba(6,38,30,.25)" }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                    <strong style={{ minWidth: 170, flex: "1 1 170px" }}>{activity.activityName}</strong>
+                    <select className={styles.fieldControl} value={d.status} onChange={(e) => update(activity.id, "status", e.target.value)} style={{ width: 110 }}>
+                      <option value="done">Done</option><option value="partial">Partial</option><option value="missed">Missed</option>
+                    </select>
+                    <input className={styles.fieldControl} value={d.qty} onChange={(e) => update(activity.id, "qty", e.target.value)} type="number" min="0" step="any" placeholder="Qty done" style={{ width: 110 }} />
+                    <input className={styles.fieldControl} value={d.sets} onChange={(e) => update(activity.id, "sets", e.target.value)} type="number" min="0" placeholder="Sets" style={{ width: 80 }} />
+                    <input className={styles.fieldControl} value={d.reps} onChange={(e) => update(activity.id, "reps", e.target.value)} type="number" min="0" placeholder="Reps" style={{ width: 80 }} />
+                    <input className={styles.fieldControl} value={d.note} onChange={(e) => update(activity.id, "note", e.target.value)} placeholder="Note (optional)" style={{ flex: "1 1 140px", minWidth: 120 }} />
                   </div>
-                );
-              })}
-            </div>
-          ) : <p className={styles.empty}>This athlete has no activities yet.</p>}
-        </div>
-      ) : null}
+                </div>
+              );
+            })}
+          </div>
+        ) : <p className={styles.empty}>This athlete has no activities yet.</p>}
+      </div>
 
       <label className={styles.fullField}>Summary comment (optional)<textarea name="summaryComments" rows="2" maxLength="2000" placeholder="Overall observations about this athlete's effort and progress." /></label>
 
       <div className={styles.formActions}>
-        <button className={styles.primary} disabled={busy || !selectedAthlete || !athleteActivities.length}>{busy ? "Saving..." : "Save assessment"}</button>
+        <button className={styles.primary} disabled={busy || !athleteActivities.length}>{busy ? "Saving..." : "Save assessment"}</button>
       </div>
       {message && <p role="status" className={`${styles.fullField} ${message.kind === "error" ? styles.formError : ""}`} style={message.kind === "success" ? { color: "var(--accent)" } : undefined}>{message.text}</p>}
     </form>
+  );
+}
+
+function MonitoringGrid({ data, athletes, maxWeek, currentWeek, onWeekChange }) {
+  const days = ["Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7"];
+  const grid = data?.grid || {};
+
+  const getDayStatus = (dayData) => {
+    if (dayData.total === 0) return "none";
+    if (dayData.done === dayData.total) return "done";
+    if (dayData.done > 0 || dayData.partial > 0) return "partial";
+    return "pending";
+  };
+
+  const getStatusClass = (status) => {
+    switch (status) {
+      case "done": return "day-done";
+      case "partial": return "day-partial";
+      case "pending": return "day-pending";
+      default: return "day-none";
+    }
+  };
+
+  const getStatusLabel = (dayData) => {
+    if (dayData.total === 0) return "—";
+    return `${dayData.done}/${dayData.total}${dayData.partial > 0 ? ` +${dayData.partial} pending` : ""}`;
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+        <div className={styles.fullField} style={{ minWidth: 160 }}>
+          <label>Week<select value={currentWeek} onChange={(e) => onWeekChange(parseInt(e.target.value))} className={styles.fieldControl}>
+            {[...Array(maxWeek)].map((_, i) => <option key={i + 1} value={i + 1}>Week {i + 1}</option>)}
+          </select></label>
+        </div>
+        <p className={styles.formHint} style={{ margin: 0, color: "var(--muted)" }}>
+          {maxWeek ? `Plan weeks: ${maxWeek}` : "No duration set"}
+        </p>
+      </div>
+
+      <div className={styles.tableWrap}>
+        <table>
+          <thead>
+            <tr>
+              <th style={{ minWidth: 180 }}>Athlete</th>
+              {days.map((d, i) => <th key={i} style={{ textAlign: "center" }}>{d}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {athletes.map((athlete) => {
+              const row = grid[athlete.id];
+              return (
+                <tr key={athlete.id}>
+                  <td data-label="Athlete"><strong>{athlete.lastName}, {athlete.firstName}</strong><br /><small>{athlete.athleteCode}</small></td>
+                  {days.map((_, i) => {
+                    const dayData = row?.days[i + 1] || { total: 0, done: 0, partial: 0 };
+                    const status = getDayStatus(dayData);
+                    const label = getStatusLabel(dayData);
+                    return (
+                      <td key={i} style={{ textAlign: "center", verticalAlign: "middle" }}>
+                        <span className={`day-badge ${getStatusClass(status)}`} title={label}>
+                          {label}
+                        </span>
+                        {dayData.total > 0 && (
+                          <div style={{ marginTop: 6, fontSize: 10, color: "var(--muted)" }}>
+                            {dayData.activities.map(a => (
+                              <div key={a.id} title={a.activityName}>
+                                <span style={a.log ? { color: "var(--accent)", fontWeight: 600 } : { color: "var(--muted)" }}>
+                                  {a.log ? "DONE" : "open"} {a.activityName}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <style jsx>{`
+        .day-badge { display: inline-block; min-width: 48px; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; }
+        .day-done { background: rgba(45,212,168,.2); color: var(--accent); border: 1px solid rgba(45,212,168,.4); }
+        .day-partial { background: rgba(255,193,7,.2); color: #ffc107; border: 1px solid rgba(255,193,7,.4); }
+        .day-pending { background: rgba(26,92,74,.1); color: var(--muted); border: 1px solid rgba(26,92,74,.2); }
+        .day-none { background: transparent; color: var(--muted); border: 1px dashed var(--border); }
+      `}</style>
+    </div>
   );
 }
 

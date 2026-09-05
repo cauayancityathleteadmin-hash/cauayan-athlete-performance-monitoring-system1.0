@@ -96,6 +96,7 @@ export default async function handler(req, res) {
       const durationWeeks = toDurationWeeks(body.durationWeeks);
       const isTemplate = Boolean(body.isTemplate);
       if (isTemplate && !isAdmin) return res.status(403).json({ error: "Only admins can create template plans." });
+      if (isAdmin && !isTemplate) return res.status(403).json({ error: "Only coaches manage training plans. Admins create templates and post suggestions as comments." });
 
       let athleteIds = Array.isArray(body.athleteIds) ? [...new Set(body.athleteIds.map(validId).filter(Boolean))] : [];
       if (isTemplate) {
@@ -146,6 +147,7 @@ export default async function handler(req, res) {
     }
 
     if (action === "duplicate") {
+      if (isAdmin) return res.status(403).json({ error: "Only coaches duplicate plans into their athletes. Admins create templates and post comments." });
       const sourcePlanId = validId(body.sourcePlanId);
       if (!sourcePlanId) return res.status(400).json({ error: "A valid source plan ID is required." });
       const sourcePlan = await prisma.trainingPlan.findUnique({
@@ -217,6 +219,8 @@ export default async function handler(req, res) {
               targetDistance: activity.targetDistance,
               targetLoad: activity.targetLoad,
               instructions: activity.instructions,
+              dayIndex: activity.dayIndex,
+              weekNumber: activity.weekNumber,
               orderIndex: activity.orderIndex,
             },
             select: { id: true },
@@ -249,6 +253,7 @@ export default async function handler(req, res) {
     const access = await canAccessPlan(prisma, session, planId);
     if (access === null) return res.status(404).json({ error: "Training plan not found." });
     if (access === false) return res.status(403).json({ error: "You do not have permission to edit this plan." });
+    if (isAdmin && !access.isTemplate) return res.status(403).json({ error: "Only the assigned coach can edit this training plan." });
 
     const body = req.body || {};
     const data = {};
@@ -327,6 +332,7 @@ export default async function handler(req, res) {
     const access = await canAccessPlan(prisma, session, planId);
     if (access === null) return res.status(404).json({ error: "Training plan not found." });
     if (access === false) return res.status(403).json({ error: "You do not have permission to delete this plan." });
+    if (isAdmin && !access.isTemplate) return res.status(403).json({ error: "Only the assigned coach can delete this training plan." });
 
     await prisma.trainingPlan.delete({ where: { id: planId } });
     await prisma.auditLog.create({ data: { userId: Number(session.user.id), action: "delete", entityType: "trainingPlan", entityId: planId, description: `Deleted training plan #${planId}` } });

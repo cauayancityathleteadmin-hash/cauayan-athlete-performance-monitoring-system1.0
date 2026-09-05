@@ -37,7 +37,8 @@ export default async function handler(req, res) {
 
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
   if (!requireCsrf(req, res)) return;
-  if (!["admin", "coach"].includes(session.user.role)) return res.status(403).json({ error: "You do not have permission for this action." });
+  if (session.user.role === "admin") return res.status(403).json({ error: "Only coaches assess athletes. Admins assess coaches via coach performance." });
+  if (session.user.role !== "coach") return res.status(403).json({ error: "You do not have permission for this action." });
 
   const body = req.body || {};
   const athleteId = validId(body.athleteId);
