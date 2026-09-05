@@ -180,7 +180,7 @@ export default function IdPhotoUpload({ value, onChange, required = false, label
       };
       img.onerror = () => {
         URL.revokeObjectURL(url);
-        reject(new Error("The selected file is not a valid image."));
+        reject(new Error("The picture could not be loaded (blocked or corrupt). Please try again or choose a different photo."));
       };
       img.src = url;
     });
