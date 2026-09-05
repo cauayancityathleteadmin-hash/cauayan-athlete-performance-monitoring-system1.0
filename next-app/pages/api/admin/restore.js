@@ -24,7 +24,8 @@ export default async function handler(req, res) {
   try {
     if (source === "blob") {
       const url = String(req.body?.url || "");
-      if (!/^https:\/\/.+\/db-backups\/system-/.test(url)) return res.status(400).json({ error: "Choose a stored full-system backup to restore." });
+      if (!/^https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)*\.blob\.vercel-storage\.com\/db-backups\/system-[^/?#]+$/i.test(url))
+        return res.status(400).json({ error: "Choose a stored full-system backup from the system backup storage to restore." });
       snapshot = await fetchBackupBlob(url);
     } else {
       snapshot = req.body?.snapshot;
