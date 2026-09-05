@@ -10,6 +10,10 @@ const STMTS = [
   `ALTER TABLE "coaches" ADD COLUMN IF NOT EXISTS "picture_url" TEXT`,
   `ALTER TABLE "athletes" ADD COLUMN IF NOT EXISTS "picture_url" TEXT`,
   `ALTER TABLE "training_plans" ADD COLUMN IF NOT EXISTS "duration_weeks" INTEGER`,
+  `ALTER TABLE "coaches" ADD COLUMN IF NOT EXISTS "notify_sms" BOOLEAN NOT NULL DEFAULT true`,
+  `ALTER TABLE "coaches" ADD COLUMN IF NOT EXISTS "notify_email" BOOLEAN NOT NULL DEFAULT true`,
+  `CREATE TABLE IF NOT EXISTS "system_settings" ("id" SERIAL PRIMARY KEY, "key" TEXT NOT NULL, "value" TEXT NOT NULL, "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "system_settings_key_key" ON "system_settings"("key")`,
 ];
 
 let checked = false;
