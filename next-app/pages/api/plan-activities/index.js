@@ -74,8 +74,7 @@ export default async function handler(req, res) {
 
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
   if (!requireCsrf(req, res)) return;
-  if (session.user.role === "admin") return res.status(403).json({ error: "Only the assigned coach manages plan activities. Admins can view the plan and post comments." });
-  if (session.user.role !== "coach") return res.status(403).json({ error: "You do not have permission for this action." });
+  if (session.user.role !== "coach" && session.user.role !== "admin") return res.status(403).json({ error: "You do not have permission for this action." });
 
   const body = req.body || {};
   const plan = await prisma.trainingPlan.findUnique({ where: { id: planId }, select: { id: true } });
