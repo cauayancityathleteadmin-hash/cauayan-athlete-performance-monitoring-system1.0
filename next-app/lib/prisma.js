@@ -8,7 +8,12 @@ function createPrisma() {
   if (!connectionString) {
     throw new Error("DATABASE_URL is not set. Configure it in your environment (use the Neon pooled URL for runtime).");
   }
-  const adapter = new PrismaPg({ connectionString });
+  const adapter = new PrismaPg({
+    connectionString,
+    max: 5,
+    connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 30000,
+  });
   return new PrismaClient({ adapter });
 }
 

@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import React from "react";
 import { getSession } from "next-auth/react";
 import { prisma } from "../../lib/prisma";
+import { buildMonitoringGrid } from "../../lib/plan-monitoring";
 import AppShell from "../../components/AppShell";
 import styles from "../../styles/Dashboard.module.css";
 
@@ -29,6 +30,43 @@ export async function getServerSideProps(context) {
     orderBy: { athlete: { lastName: "asc" } },
   });
 
+  const [allActivities, notes] = await Promise.all([
+    prisma.planActivity.findMany({
+      where: { planId: id },
+      orderBy: { orderIndex: "asc" },
+      include: {
+        athlete: { select: { id: true, athleteCode: true, firstName: true, lastName: true } },
+        logs: {
+          orderBy: { performedAt: "desc" },
+          include: { athlete: { select: { id: true, firstName: true, lastName: true } }, logger: { select: { email: true, username: true } } },
+        },
+      },
+    }),
+    prisma.trainingNote.findMany({
+      where: { planId: id },
+      orderBy: { createdAt: "desc" },
+      include: { author: { select: { id: true, email: true, username: true, role: true } } },
+    }),
+  ]);
+
+  const activityIds = allActivities.map((a) => a.id);
+  const logs = await prisma.planActivityLog.findMany({
+    where: { activityId: { in: activityIds } },
+    orderBy: [{ performedAt: "desc" }],
+    include: {
+      athlete: { select: { id: true, athleteCode: true, firstName: true, lastName: true } },
+      logger: { select: { id: true, email: true, username: true } },
+      activity: { select: { id: true, activityName: true, fitnessType: true } },
+    },
+    take: 500,
+  });
+
+  const monitoringActivities = allActivities.map((a) => {
+    const latest = a.logs.find((l) => ["done", "partial", "missed"].includes(l.status)) || null;
+    return { ...a, logs: latest ? [latest] : [] };
+  });
+  const monitoring = buildMonitoringGrid({ activities: monitoringActivities, planAthletes, week: 1 });
+
   return {
     props: {
       session,
@@ -39,6 +77,17 @@ export async function getServerSideProps(context) {
         endDate: plan.endDate ? plan.endDate.toISOString() : null,
       },
       athletes: JSON.parse(JSON.stringify(planAthletes.map((a) => a.athlete))),
+      initialActivities: JSON.parse(JSON.stringify(allActivities)),
+      initialLogs: JSON.parse(JSON.stringify(logs)),
+      initialNotes: JSON.parse(JSON.stringify(notes)),
+      initialMonitoringData: JSON.parse(
+        JSON.stringify({
+          plan: { id: plan.id, durationWeeks: plan.durationWeeks, startDate: plan.startDate.toISOString() },
+          currentWeek: 1,
+          maxWeek: plan.durationWeeks || 1,
+          ...monitoring,
+        })
+      ),
     },
   };
 }
@@ -75,17 +124,17 @@ function fmtDate(value) {
   return isNaN(d) ? "—" : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
-export default function PlanDetail({ session, isAdmin, plan, athletes }) {
+export default function PlanDetail({ session, isAdmin, plan, athletes, initialActivities = [], initialLogs = [], initialNotes = [], initialMonitoringData = null }) {
   const router = useRouter();
-  const [activities, setActivities] = React.useState([]);
-  const [logs, setLogs] = React.useState([]);
-  const [notes, setNotes] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
+  const [activities, setActivities] = React.useState(initialActivities);
+  const [logs, setLogs] = React.useState(initialLogs);
+  const [notes, setNotes] = React.useState(initialNotes);
+  const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
   const [showAddActivity, setShowAddActivity] = React.useState(false);
   const [showBulkAssess, setShowBulkAssess] = React.useState(true);
-  const [currentWeek, setCurrentWeek] = React.useState(1);
-  const [monitoringData, setMonitoringData] = React.useState(null);
+  const [currentWeek, setCurrentWeek] = React.useState(initialMonitoringData?.currentWeek || 1);
+  const [monitoringData, setMonitoringData] = React.useState(initialMonitoringData);
   const [message, setMessage] = React.useState(null);
 
   const loadActivities = React.useCallback((show) => {
@@ -116,14 +165,12 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
       .catch(() => { setError("Could not load monitoring grid."); });
   }, [plan.id, currentWeek]);
 
+  const skippedFirstMonitoringRefresh = React.useRef(false);
   React.useEffect(() => {
-    loadActivities(true);
-    loadLogs(false);
-    loadNotes(false);
-    loadMonitoring();
-  }, [loadActivities, loadLogs, loadNotes, loadMonitoring]);
-
-  React.useEffect(() => {
+    if (!skippedFirstMonitoringRefresh.current) {
+      skippedFirstMonitoringRefresh.current = true;
+      return;
+    }
     loadMonitoring();
   }, [loadMonitoring]);
 

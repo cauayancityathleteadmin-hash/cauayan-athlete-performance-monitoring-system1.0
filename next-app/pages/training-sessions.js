@@ -16,7 +16,12 @@ export async function getServerSideProps(context) {
     prisma.coach.findMany({ where: { status: "active" }, select: { id: true, coachCode: true, firstName: true, lastName: true, sports: { select: { sportId: true } } }, orderBy: { lastName: "asc" } }),
   ]);
   const athletes = await prisma.athlete.findMany({ where: { status: "active" }, select: { id: true, athleteCode: true, firstName: true, lastName: true, sportId: true }, orderBy: { lastName: "asc" } });
-  return { props: { session, sports, coaches: JSON.parse(JSON.stringify(coaches)), athletes: JSON.parse(JSON.stringify(athletes)) } };
+  const sessions = await prisma.trainingSession.findMany({
+    where: {},
+    orderBy: { sessionDate: "desc" },
+    include: { sport: { select: { id: true, sportName: true } }, coach: { select: { id: true, coachCode: true, firstName: true, lastName: true } }, exercises: true, attendances: { select: { id: true, status: true, athleteId: true } } },
+  });
+  return { props: { session, sports, coaches: JSON.parse(JSON.stringify(coaches)), athletes: JSON.parse(JSON.stringify(athletes)), initialSessions: JSON.parse(JSON.stringify(sessions)) } };
 }
 
 const TYPE_META = {
@@ -49,16 +54,12 @@ function fmtTime(value) {
 
 const emptyExercise = { exerciseName: "", category: "skill_technique", targetSets: "", targetReps: "", targetDuration: "", targetLoad: "", targetDistance: "", equipment: "", description: "" };
 
-export default function TrainingSessions({ session, sports, coaches, athletes }) {
+export default function TrainingSessions({ session, sports, coaches, athletes, initialSessions = [] }) {
   const [createOpen, setCreateOpen] = React.useState(false);
-  const [sessions, setSessions] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
+  const [sessions, setSessions] = React.useState(initialSessions);
+  const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
   const [filter, setFilter] = React.useState("");
-
-  React.useEffect(() => {
-    fetch("/api/training-sessions").then((r) => r.json()).then((data) => { setSessions(Array.isArray(data) ? data : []); setLoading(false); }).catch(() => { setLoading(false); setError("Could not load training sessions."); });
-  }, []);
 
   const filtered = filter ? sessions.filter((s) => s.sport.sportName === filter) : sessions;
 

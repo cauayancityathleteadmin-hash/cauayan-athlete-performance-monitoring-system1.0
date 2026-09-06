@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/router";
 import Link from "next/link";
@@ -8,14 +8,16 @@ export default function Login() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
+  const identifierRef = useRef(null);
+  const passwordRef = useRef(null);
 
   async function submit(event) {
     event.preventDefault();
     setBusy(true);
     setError("");
     try {
+      const identifier = identifierRef.current ? identifierRef.current.value : "";
+      const password = passwordRef.current ? passwordRef.current.value : "";
       const result = await signIn("credentials", { identifier, password, redirect: false });
       if (!result || result.error) {
         setError("Login failed. Check your credentials or try again later.");
@@ -41,8 +43,7 @@ export default function Login() {
         <input
           id="identifier"
           name="identifier"
-          value={identifier}
-          onChange={(e) => setIdentifier(e.target.value)}
+          ref={identifierRef}
           required
           autoComplete="username"
           maxLength="191"
@@ -52,9 +53,8 @@ export default function Login() {
           <input
             id="password"
             name="password"
+            ref={passwordRef}
             type={showPassword ? "text" : "password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
             required
             autoComplete="current-password"
             maxLength="200"
@@ -66,16 +66,17 @@ export default function Login() {
             disabled={busy}
             style={{
               position: "absolute",
+              top: 0,
               right: "8px",
-              top: "50%",
-              transform: "translateY(-50%)",
+              bottom: 0,
+              margin: "auto",
+              width: "40px",
+              height: "40px",
               background: "transparent",
               border: "none",
               cursor: busy ? "not-allowed" : "pointer",
               color: busy ? "var(--muted)" : "var(--foreground)",
               padding: "6px",
-              width: "40px",
-              height: "40px",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
