@@ -1,5 +1,5 @@
 import React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
@@ -86,9 +86,29 @@ export default function AppShell({
 
   const isActive = (href) => (currentPath === href ? styles.navLinkActive : undefined);
 
+useEffect(() => {
+  if (typeof window === "undefined") return;
+  let stored;
+  try {
+    stored = window.localStorage.getItem("apms.sidebarCollapsed");
+  } catch (e) {
+    return;
+  }
+  if (stored === "true") {
+    const t = window.setTimeout(() => setCollapsed(true), 0);
+    return () => window.clearTimeout(t);
+  }
+}, []);
+
   const toggleNav = () => {
     setOpen((v) => !v);
-    setCollapsed((v) => !v);
+    setCollapsed((v) => {
+      const next = !v;
+      try {
+        if (typeof window !== "undefined") window.localStorage.setItem("apms.sidebarCollapsed", String(next));
+      } catch (e) {}
+      return next;
+    });
   };
 
   const nav = (

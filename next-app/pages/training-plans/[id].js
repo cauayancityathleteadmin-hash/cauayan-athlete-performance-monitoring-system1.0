@@ -292,16 +292,18 @@ export default function PlanDetail({ session, isAdmin, plan, athletes }) {
           )}
         </section>
 
-        <section className={styles.panel}>
-          <div className={styles.panelHeader}>
-            <div><p className={styles.eyebrow}>Training plan &amp; assessment</p><h2>Assess an athlete</h2></div>
-            {!isAdmin && <button className={styles.secondary} onClick={() => setShowBulkAssess((c) => !c)}>{showBulkAssess ? "Close assessment" : "Assess an athlete"}</button>}
-          </div>
-          {isAdmin ? <p className={styles.formHint} style={{ marginTop: 0 }}>Coaches assess the athletes. You can monitor their progress above and post suggestions in the comments below.</p> : <p className={styles.formHint} style={{ marginTop: 0 }}>Pick an athlete and set status + effort for every activity in one go, then save once. Optionally add an overall rating (1&ndash;10) and summary comment for the athlete&apos;s training assessment.</p>}
-          {showBulkAssess && !isAdmin && (
-            <BulkAssessForm planId={plan.id} athletes={athletes} activities={activities} logs={logs} onDone={refresh} />
-          )}
-        </section>
+        {!isAdmin && (
+          <section className={styles.panel}>
+            <div className={styles.panelHeader}>
+              <div><p className={styles.eyebrow}>Training plan &amp; assessment</p><h2>Assess an athlete</h2></div>
+              <button className={styles.secondary} onClick={() => setShowBulkAssess((c) => !c)}>{showBulkAssess ? "Close assessment" : "Assess an athlete"}</button>
+            </div>
+            <p className={styles.formHint} style={{ marginTop: 0 }}>Pick an athlete and set status + effort for every activity in one go, then save once. Optionally add an overall rating (1&ndash;10) and summary comment for the athlete&apos;s training assessment.</p>
+            {showBulkAssess && (
+              <BulkAssessForm planId={plan.id} athletes={athletes} activities={activities} logs={logs} onDone={refresh} />
+            )}
+          </section>
+        )}
       </AppShell>
     </>
   );
@@ -312,8 +314,32 @@ function renderStatus(status) {
   return <span className={`${styles.badge} ${styles[meta.cls]}`}>{meta.label}</span>;
 }
 
+function computeProgress(activity, log) {
+  if (!log) return null;
+  const toNum = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
+  let done = null;
+  let target = null;
+  if (activity.targetQuantity != null) {
+    done = toNum(log.quantityDone);
+    target = toNum(activity.targetQuantity);
+  } else if (activity.targetDistance != null) {
+    done = toNum(log.quantityDone);
+    target = toNum(activity.targetDistance);
+  } else if (activity.targetSets != null) {
+    done = log.setsDone != null ? toNum(log.setsDone) : null;
+    target = toNum(activity.targetSets);
+  } else if (activity.targetReps != null) {
+    done = log.repsDone != null ? toNum(log.repsDone) : null;
+    target = toNum(activity.targetReps);
+  }
+  if (done == null || target == null || target <= 0) return null;
+  const percent = Math.round(Math.min(100, Math.max(0, (done / target) * 100)));
+  return { percent, done, target };
+}
+
 function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, onEdit, onChanged, readOnly = false }) {
   const [adding, setAdding] = React.useState(false);
+  const [showActivities, setShowActivities] = React.useState(true);
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "14px 16px", background: "rgba(6,38,30,.35)" }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
@@ -321,7 +347,10 @@ function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, o
           <strong>{athlete.lastName}, {athlete.firstName}</strong>
           {athlete.athleteCode ? <small style={{ color: "var(--muted)", display: "block" }}>{athlete.athleteCode}</small> : null}
         </div>
-        {!readOnly && <button className={styles.secondary} onClick={() => setAdding((c) => !c)}>{adding ? "Close add" : "Add activities"}</button>}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <button className={styles.secondary} onClick={() => setShowActivities((c) => !c)}>{showActivities ? "Hide activities" : "Show activities"}</button>
+          {!readOnly && <button className={styles.secondary} onClick={() => setAdding((c) => !c)}>{adding ? "Close add" : "Add activities"}</button>}
+        </div>
       </div>
 
       {adding && (
@@ -333,7 +362,7 @@ function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, o
         />
       )}
 
-      {activities.length === 0 ? (
+      {showActivities && (activities.length === 0 ? (
         <p className={styles.empty} style={{ marginTop: 12 }}>{readOnly ? "No activities defined yet for this athlete." : "No activities for this athlete yet."}</p>
       ) : (
         <div className={styles.tableWrap} style={{ marginTop: 12 }}>
@@ -346,7 +375,7 @@ function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, o
             </tbody>
           </table>
         </div>
-      )}
+      ))}
     </div>
   );
 }
@@ -448,7 +477,21 @@ function ActivityRow({ athlete, activity, logs, onRemove, onEdit, readOnly = fal
           {activity.targetLoad != null ? <small>{activity.targetLoad} kg</small> : null}
           {activity.dayIndex ? <small>Day {activity.dayIndex}{activity.weekNumber ? ` | W${activity.weekNumber}` : ""}</small> : null}
         </td>
-        <td>{renderLatestStatus(latestLog)}</td>
+        <td>
+          {renderLatestStatus(latestLog)}
+          {(() => {
+            const p = computeProgress(activity, latestLog);
+            if (!p) return null;
+            return (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                <div style={{ width: 90, height: 6, borderRadius: 4, background: "rgba(255,255,255,.12)", overflow: "hidden" }}>
+                  <div style={{ width: `${p.percent}%`, height: "100%", borderRadius: 4, background: p.percent >= 80 ? "var(--accent)" : p.percent >= 50 ? "#fbbf24" : "var(--danger)" }} />
+                </div>
+                <small style={{ color: "var(--muted)", fontSize: "11px", whiteSpace: "nowrap" }}>{p.percent}%</small>
+              </div>
+            );
+          })()}
+        </td>
         {!readOnly && <td><button className={`${styles.secondary} ${styles.btnSm}`} onClick={() => { if (editing) setEditing(false); else startEdit(); }} style={{ padding: "4px 8px", fontSize: "12px" }}>{editing ? "Cancel" : "Edit"}</button> <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => onRemove(activity.id)}>Remove</button></td>}
       </tr>
       {editing && (
@@ -715,7 +758,7 @@ function MonitoringGrid({ data, athletes, maxWeek, currentWeek, onWeekChange }) 
   const getDayStatus = (dayData) => {
     if (dayData.total === 0) return "none";
     if (dayData.done === dayData.total) return "done";
-    if (dayData.done > 0 || dayData.partial > 0) return "partial";
+    if (dayData.done > 0 || dayData.partial > 0 || dayData.missed > 0) return "partial";
     return "pending";
   };
 
@@ -726,11 +769,6 @@ function MonitoringGrid({ data, athletes, maxWeek, currentWeek, onWeekChange }) 
       case "pending": return "day-pending";
       default: return "day-none";
     }
-  };
-
-  const getStatusLabel = (dayData) => {
-    if (dayData.total === 0) return "—";
-    return `${dayData.done}/${dayData.total}${dayData.partial > 0 ? ` +${dayData.partial} pending` : ""}`;
   };
 
   return (
@@ -759,26 +797,42 @@ function MonitoringGrid({ data, athletes, maxWeek, currentWeek, onWeekChange }) 
               const row = grid[athlete.id];
               return (
                 <tr key={athlete.id}>
-                  <td data-label="Athlete"><strong>{athlete.lastName}, {athlete.firstName}</strong><br /><small>{athlete.athleteCode}</small></td>
+                  <td data-label="Athlete">
+                    <strong>{athlete.lastName}, {athlete.firstName}</strong><br />
+                    <small>{athlete.athleteCode}</small>
+                    {(() => { const p = data?.progress?.[athlete.id]; if (!p || p.total === 0) return null; return (
+                      <div style={{ marginTop: 6, fontSize: 11 }}>
+                        <span style={{ color: "var(--accent)", fontWeight: 700 }}>Week {currentWeek}: {p.percent}%</span>
+                        <small style={{ color: "var(--muted)" }}> ({p.completed}/{p.total})</small>
+                      </div>
+                    ); })()}
+                  </td>
                   {days.map((_, i) => {
-                    const dayData = row?.days[i + 1] || { total: 0, done: 0, partial: 0 };
+                    const dayData = row?.days[i + 1] || { total: 0, done: 0, partial: 0, missed: 0, pending: 0 };
                     const status = getDayStatus(dayData);
-                    const label = getStatusLabel(dayData);
                     return (
                       <td key={i} style={{ textAlign: "center", verticalAlign: "middle" }}>
-                        <span className={`day-badge ${getStatusClass(status)}`} title={label}>
-                          {label}
+                        <span className={`day-badge ${getStatusClass(status)}`}>
+                          {dayData.total > 0 ? `${dayData.done}/${dayData.total}` : "—"}
                         </span>
                         {dayData.total > 0 && (
-                          <div style={{ marginTop: 6, fontSize: 10, color: "var(--muted)" }}>
-                            {dayData.activities.map(a => (
-                              <div key={a.id} title={a.activityName}>
-                                <span style={a.log ? { color: "var(--accent)", fontWeight: 600 } : { color: "var(--muted)" }}>
-                                  {a.log ? "DONE" : "open"} {a.activityName}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
+                          <>
+                            <div style={{ marginTop: 6, fontSize: 10, lineHeight: 1.6, color: "var(--muted)" }}>
+                              <div>Done: <strong style={{ color: "var(--accent)" }}>{dayData.done}</strong></div>
+                              <div>Partial: <strong>{dayData.partial}</strong></div>
+                              <div>Missed: <strong style={{ color: "var(--danger)" }}>{dayData.missed}</strong></div>
+                              <div>Open: <strong>{dayData.pending}</strong></div>
+                            </div>
+                            <div style={{ marginTop: 6, fontSize: 10, color: "var(--muted)" }}>
+                              {dayData.activities.map(a => (
+                                <div key={a.id} title={a.activityName}>
+                                  <span style={a.log ? { color: "var(--accent)", fontWeight: 600 } : { color: "var(--muted)" }}>
+                                    {a.log ? "DONE" : "open"} {a.activityName}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </>
                         )}
                       </td>
                     );

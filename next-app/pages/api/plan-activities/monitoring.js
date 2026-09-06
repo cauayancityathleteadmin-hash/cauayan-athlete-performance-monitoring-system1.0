@@ -34,10 +34,10 @@ export default async function handler(req, res) {
     include: {
       athlete: { select: { id: true, athleteCode: true, firstName: true, lastName: true } },
       logs: {
-        where: { status: { in: ["done", "partial"] } },
+        where: { status: { in: ["done", "partial", "missed"] } },
         orderBy: { performedAt: "desc" },
         take: 1,
-        select: { id: true, status: true, performedAt: true, quantityDone: true, notes: true }
+        select: { id: true, status: true, performedAt: true, quantityDone: true, setsDone: true, repsDone: true, notes: true }
       }
     },
     orderBy: [{ dayIndex: "asc" }, { weekNumber: "asc" }, { orderIndex: "asc" }],
@@ -54,25 +54,36 @@ export default async function handler(req, res) {
   const maxWeek = plan.durationWeeks || Math.max(...activities.map(a => a.weekNumber || 1), 1);
   const week = weekNumber || 1;
 
-  // Build grid: athlete -> day -> activities
+  // Build grid: athlete -> day -> activities, plus weekly progress summary
   const grid = {};
+  const progress = {};
   for (const pa of planAthletes) {
     const aid = pa.athlete.id;
     grid[aid] = {
       athlete: pa.athlete,
       days: {}
     };
+    const weekActivities = activities.filter(a => a.athleteId === aid && (!a.weekNumber || a.weekNumber === week));
+    const weekDone = weekActivities.filter(a => a.logs.length > 0 && a.logs[0].status === "done").length;
+    const weekPartial = weekActivities.filter(a => a.logs.length > 0 && a.logs[0].status === "partial").length;
+    progress[aid] = {
+      completed: weekDone + weekPartial,
+      total: weekActivities.length,
+      percent: weekActivities.length ? Math.round(((weekDone + weekPartial) / weekActivities.length) * 100) : 0,
+    };
     for (let d = 1; d <= 7; d++) {
       const dayActivities = activities.filter(a => a.athleteId === aid && a.dayIndex === d && (!a.weekNumber || a.weekNumber === week));
       const done = dayActivities.filter(a => a.logs.length > 0 && a.logs[0].status === "done").length;
       const partial = dayActivities.filter(a => a.logs.length > 0 && a.logs[0].status === "partial").length;
+      const missed = dayActivities.filter(a => a.logs.length > 0 && a.logs[0].status === "missed").length;
       const total = dayActivities.length;
       grid[aid].days[d] = {
         dayIndex: d,
         total,
         done,
         partial,
-        pending: total - done - partial,
+        missed,
+        pending: total - done - partial - missed,
         activities: dayActivities.map(a => ({
           id: a.id,
           activityName: a.activityName,
@@ -94,5 +105,6 @@ export default async function handler(req, res) {
     currentWeek: week,
     maxWeek,
     grid,
+    progress,
   });
 }
