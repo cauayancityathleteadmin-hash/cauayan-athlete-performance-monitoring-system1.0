@@ -10,37 +10,50 @@ import IdPhotoUpload from "../components/IdPhotoUpload";
 import { checkPasswordStrength } from "../lib/password";
 
 export async function getServerSideProps(context) {
-  try {
-    const session = await getSession(context);
-    if (!session) return { redirect: { destination: "/login", permanent: false } };
+  const session = await getSession(context);
+  if (!session) return { redirect: { destination: "/login", permanent: false } };
 
-    const [user, sports] = await Promise.all([
-      prisma.user.findUnique({
-        where: { id: Number(session.user.id) },
-        include: { coach: { include: { sports: { include: { sport: true } }, school: true } } },
-      }),
-      prisma.sport.findMany({ where: { status: "active" }, select: { id: true, sportName: true }, orderBy: { sportName: "asc" } }),
-    ]);
+  const [user, sports] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: Number(session.user.id) },
+      include: { coach: { include: { sports: { include: { sport: true } }, school: true } } },
+    }),
+    prisma.sport.findMany({ where: { status: "active" }, select: { id: true, sportName: true }, orderBy: { sportName: "asc" } }),
+  ]);
 
-    if (!user) return { redirect: { destination: "/login", permanent: false } };
+  if (!user) return { redirect: { destination: "/login", permanent: false } };
 
-    return {
-      props: {
-        session,
-        user: { ...user, coach: user.coach ? { ...user.coach, birthdate: user.coach.birthdate.toISOString(), sports: user.coach.sports.map((cs) => ({ ...cs, sport: cs.sport })) } : null },
-        sports,
+  const iso = (d) => (d instanceof Date ? d.toISOString() : d);
+  const coach = user.coach
+    ? {
+        ...user.coach,
+        birthdate: iso(user.coach.birthdate),
+        dateRegistered: iso(user.coach.dateRegistered),
+        createdAt: iso(user.coach.createdAt),
+        updatedAt: iso(user.coach.updatedAt),
+        sports: user.coach.sports.map((cs) => ({ ...cs, sport: cs.sport })),
+      }
+    : null;
+
+  return {
+    props: {
+      session,
+      user: {
+        ...user,
+        lastLoginAt: iso(user.lastLoginAt),
+        passwordChangedAt: iso(user.passwordChangedAt),
+        createdAt: iso(user.createdAt),
+        updatedAt: iso(user.updatedAt),
+        coach,
       },
-    };
-  } catch (error) {
-    console.error("account gssp failed:", error);
-    return { props: { session: null, user: null, sports: [], __ssrError: String((error && (error.stack || error.message)) || error) } };
-  }
+      sports,
+    },
+  };
 }
 
-export default function Account({ user, sports, session, __ssrError }) {
+export default function Account({ user, sports, session }) {
   const router = useRouter();
-  const safeUser = user || {};
-  const isCoach = safeUser.role === "coach";
+  const isCoach = user.role === "coach";
   const [tab, setTab] = React.useState("profile");
   const [editing, setEditing] = React.useState(false);
   const [message, setMessage] = React.useState("");
@@ -60,20 +73,20 @@ export default function Account({ user, sports, session, __ssrError }) {
   const [dataMsg, setDataMsg] = React.useState({ kind: "", text: "" });
   const [restoreConfirm, setRestoreConfirm] = React.useState("");
 
-  const coach = safeUser.coach;
+  const coach = user.coach;
   const [view, setView] = React.useState({
     firstName: coach?.firstName || "",
     middleName: coach?.middleName || "",
     lastName: coach?.lastName || "",
-    email: safeUser.email,
+    email: user.email,
     birthdate: coach?.birthdate?.split("T")[0] || "",
     school: coach?.school?.schoolName || "",
     contactNumber: coach?.contactNumber || "",
     sportIds: coach ? coach.sports.map((cs) => cs.sportId) : [],
   });
   const [pictureUrl, setPictureUrl] = React.useState(coach?.pictureUrl || "");
-  const initials = ((coach?.firstName?.[0] || "") + (coach?.lastName?.[0] || "")).toUpperCase() || (safeUser.email ? safeUser.email[0].toUpperCase() : "A");
-  const profileName = isCoach ? [view.firstName, view.middleName, view.lastName].filter(Boolean).join(" ") : safeUser.name || safeUser.email;
+  const initials = ((coach?.firstName?.[0] || "") + (coach?.lastName?.[0] || "")).toUpperCase() || (user.email ? user.email[0].toUpperCase() : "A");
+  const profileName = isCoach ? [view.firstName, view.middleName, view.lastName].filter(Boolean).join(" ") : user.name || user.email;
 
   function formatBirthdate(value) {
     if (!value) return "—";
@@ -293,11 +306,7 @@ export default function Account({ user, sports, session, __ssrError }) {
     setDataBusy("");
   }
 
-  try {
-    if (__ssrError) {
-      return <pre data-diag="account-error" style={{ padding: 24, whiteSpace: "pre-wrap", color: "#e11d48" }}>{String(__ssrError)}</pre>;
-    }
-    return (
+  return (
       <>
         <Head>
         <title>My Account | Cauayan Athlete Performance</title>
@@ -307,7 +316,7 @@ export default function Account({ user, sports, session, __ssrError }) {
           <span className={styles.avatar} style={{ borderRadius: 10 }}>{pictureUrl ? <img src={pictureUrl} alt="ID photo" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 10 }} /> : initials}</span>
           <div className={styles.profileMeta}>
             <h2>{profileName}</h2>
-            <small>{safeUser.email} · {safeUser.role}</small>
+            <small>{user.email} · {user.role}</small>
           </div>
         </div>
 
@@ -331,7 +340,7 @@ export default function Account({ user, sports, session, __ssrError }) {
               <dl className={styles.infoList}>
                 <div><dt>Full name</dt><dd>{profileName}</dd></div>
                 <div><dt>Email</dt><dd>{view.email}</dd></div>
-                <div><dt>Role</dt><dd>{safeUser.role}</dd></div>
+                <div><dt>Role</dt><dd>{user.role}</dd></div>
                 {isCoach && (
                   <>
                     <div><dt>Coach code</dt><dd>{coach.coachCode}</dd></div>
@@ -435,8 +444,4 @@ export default function Account({ user, sports, session, __ssrError }) {
       </AppShell>
       </>
     );
-  } catch (error) {
-    console.error("account render failed:", error);
-    return <pre data-diag="account-error" style={{ padding: 24, whiteSpace: "pre-wrap", color: "#e11d48" }}>{String((error && (error.stack || error.message)) || error) || __ssrError}</pre>;
-  }
 }

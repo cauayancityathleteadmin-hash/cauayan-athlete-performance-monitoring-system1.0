@@ -789,21 +789,19 @@ function AthletePhotoCard({ athlete }) {
   }
 
   return (
-    <div style={{ display: "flex", alignItems: "flex-start", gap: 18, flexWrap: "wrap" }}>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
       <ProfilePhoto url={pictureUrl} firstName={athlete.firstName} lastName={athlete.lastName} size={112} radius={10} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <button type="button" className={styles.secondary} onClick={() => { setEditing((c) => !c); setMessage(""); }}>{editing ? "Cancel" : "Edit photo"}</button>
-        {!editing && pictureUrl && <p className={styles.formHint} style={{ margin: 0 }}>2x2 ID picture</p>}
-        {editing && (
-          <form onSubmit={save} className={styles.formStack}>
-            <IdPhotoUpload value={pictureUrl} onChange={setPictureUrl} label="Upload or paste photo URL" />
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Save photo"}</button>
-              {message && <p role="status" className={styles.formSuccess} style={{ margin: 0 }}>{message}</p>}
-            </div>
-          </form>
-        )}
-      </div>
+      <button type="button" className={styles.secondary} style={{ alignSelf: "center" }} onClick={() => { setEditing((c) => !c); setMessage(""); }}>{editing ? "Cancel" : "Edit photo"}</button>
+      {!editing && pictureUrl && <p className={styles.formHint} style={{ margin: 0 }}>2x2 ID picture</p>}
+      {editing && (
+        <form onSubmit={save} className={styles.formStack} style={{ width: "100%" }}>
+          <IdPhotoUpload value={pictureUrl} onChange={setPictureUrl} label="Upload or paste photo URL" />
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Save photo"}</button>
+            {message && <p role="status" className={styles.formSuccess} style={{ margin: 0 }}>{message}</p>}
+          </div>
+        </form>
+      )}
     </div>
   );
 }
