@@ -41,6 +41,8 @@ export const config = {
     "/analytics/:path*",
     "/event-plans",
     "/event-plans/:path*",
+    "/account",
+    "/account/:path*",
     "/change-password",
     "/admin",
     "/admin/:path*",
