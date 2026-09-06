@@ -47,6 +47,7 @@ export async function getServerSideProps(context) {
         coach,
       },
       sports,
+      probe: context.query.diag || "",
     },
   };
 }
@@ -65,9 +66,10 @@ class ErrorBarrier extends React.Component {
   }
 }
 
-export default function Account({ user, sports, session }) {
+export default function Account({ user, sports, session, probe = "" }) {
   const router = useRouter();
   const isCoach = user.role === "coach";
+  const diagLevel = probe || "";
   const [tab, setTab] = React.useState("profile");
   const [editing, setEditing] = React.useState(false);
   const [message, setMessage] = React.useState("");
@@ -320,32 +322,38 @@ export default function Account({ user, sports, session }) {
     setDataBusy("");
   }
 
-  return (
+return (
     <ErrorBarrier>
-      <>
-        <Head>
+      <Head>
         <title>My Account | Cauayan Athlete Performance</title>
       </Head>
-      <AppShell session={session} isAdmin={session?.user?.role === "admin"} eyebrow="Cauayan City" title="My Account" active="/account">
-        <div className={styles.profileHeader}>
-          <span className={styles.avatar} style={{ borderRadius: 10 }}>{pictureUrl ? <img src={pictureUrl} alt="ID photo" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 10 }} /> : initials}</span>
-          <div className={styles.profileMeta}>
-            <h2>{profileName}</h2>
-            <small>{user.email} · {user.role}</small>
-          </div>
-        </div>
-
-        <div className={styles.tabs}>
-          <button type="button" className={`${styles.tabBtn} ${tab === "profile" ? styles.active : ""}`} onClick={() => setTab("profile")}>Profile</button>
-          <button type="button" className={`${styles.tabBtn} ${tab === "password" ? styles.active : ""}`} onClick={() => setTab("password")}>Password</button>
-          {isCoach && <button type="button" className={`${styles.tabBtn} ${tab === "notifications" ? styles.active : ""}`} onClick={() => setTab("notifications")}>Notifications</button>}
-          {isCoach && <button type="button" className={`${styles.tabBtn} ${tab === "data" ? styles.active : ""}`} onClick={() => setTab("data")}>My data</button>}
-          <button type="button" className={`${styles.tabBtn} ${styles.dangerTab} ${tab === "delete" ? styles.active : ""}`} onClick={() => setTab("delete")}>Delete Account</button>
-        </div>
-
-<p data-diag="bisect-a" style={{ padding: 24 }}>BISECT-A: chrome+header+tabs OK. sports0={sports[0]?.sportName} coach={Boolean(user.coach) ? "yes" : "no"} canApprove={String(session?.user?.canApproveCoaches)}</p>
-      </AppShell>
-      </>
-      </ErrorBarrier>
-    );
+      {diagLevel.includes("shell") ? (
+        <AppShell session={session} isAdmin={session?.user?.role === "admin"} eyebrow="Cauayan City" title="My Account" active="/account">
+          {diagLevel.includes("header") && (
+            <div className={styles.profileHeader}>
+              <span className={styles.avatar} style={{ borderRadius: 10 }}>{pictureUrl ? <img src={pictureUrl} alt="ID photo" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 10 }} /> : initials}</span>
+              <div className={styles.profileMeta}>
+                <h2>{profileName}</h2>
+                <small>{user.email} · {user.role}</small>
+              </div>
+            </div>
+          )}
+          {diagLevel.includes("tabs") && (
+            <div className={styles.tabs}>
+              <button type="button" className={`${styles.tabBtn} ${tab === "profile" ? styles.active : ""}`} onClick={() => setTab("profile")}>Profile</button>
+              <button type="button" className={`${styles.tabBtn} ${tab === "password" ? styles.active : ""}`} onClick={() => setTab("password")}>Password</button>
+              {isCoach && <button type="button" className={`${styles.tabBtn} ${tab === "notifications" ? styles.active : ""}`} onClick={() => setTab("notifications")}>Notifications</button>}
+              {isCoach && <button type="button" className={`${styles.tabBtn} ${tab === "data" ? styles.active : ""}`} onClick={() => setTab("data")}>My data</button>}
+              <button type="button" className={`${styles.tabBtn} ${styles.dangerTab} ${tab === "delete" ? styles.active : ""}`} onClick={() => setTab("delete")}>Delete Account</button>
+            </div>
+          )}
+          {diagLevel.includes("marker") && <p data-diag="bisect-b" style={{ padding: 24 }}>BISECT-B: end-of-levels. sports0={sports[0]?.sportName} coach={Boolean(user.coach) ? "yes" : "no"} canApprove={String(session?.user?.canApproveCoaches)} profileName={profileName}</p>}
+        </AppShell>
+      ) : (
+        <main>
+          <p data-diag="render-none">BASELINE OK role={user.role} sports={sports.length} email={user.email}</p>
+        </main>
+      )}
+    </ErrorBarrier>
+  );
 }
