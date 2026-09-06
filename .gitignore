@@ -1,2 +1,8 @@
 # Local database exports may contain credentials and personal data.
-/database/legacy-backup.sql
+/archive/php-legacy/database/legacy-backup.sql
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.log
+~$*

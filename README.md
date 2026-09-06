@@ -1,20 +1,31 @@
 # Cauayan City Athlete Performance Monitoring System
 
 A web-based system for tracking and managing athlete performance in Cauayan City,
-Isabela. Coaches and administrators monitor progress, record performance data,
-and analyze results through an easy-to-use dashboard.
+Isabela. Coaches and administrators monitor progress, record performance data, and
+analyze results through a dashboard.
 
-This repository is a monorepo containing two implementations:
+## Repository structure
 
-- **`next-app/` — ACTIVE production system.** A modern Next.js 16 (Pages Router)
-  application with a Neon cloud PostgreSQL database. This is the system you deploy
-  and maintain. See [`next-app/README.md`](next-app/README.md) for the full runbook
-  (env vars, migrations, backups, security, health checks, CI/CD, deploy checklist).
-- **Legacy PHP system** (root-level PHP files, `admin/`, `coach/`, `includes/`,
-  `database/schema.sql`). Deprecated; retained for historical reference. **Do not
-  run or modify these in production.**
+```
+.
+├── next-app/    ACTIVE production system (Next.js, deployed to Vercel)
+├── archive/     Legacy and offline versions — read-only, not deployed
+├── docs/        Project documentation including the full runbook and upgrade plan
+├── .github/     CI and live-smoke workflows
+└── README.md
+```
 
-## Quick start (active system)
+## Active system — `next-app/`
+
+The **only** deploy source. A modern Next.js (Pages Router) application backed by a
+Neon cloud PostgreSQL database. See:
+
+- [`next-app/README.md`](next-app/README.md) — full runbook: env vars, migrations,
+  backups, security, health checks, CI/CD, deploy checklist.
+- [`docs/PLAN-NOTES.md`](docs/PLAN-NOTES.md) — working notes and roadmap.
+- [`docs/UPGRADE-PLAN.md`](docs/UPGRADE-PLAN.md) — upgrade history.
+
+### Quick start
 
 ```bash
 cd next-app
@@ -22,19 +33,22 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-Production is deployed to Vercel with Neon PostgreSQL. Live app and health check:
+### Live
 
 ```text
 GET /api/health
 ```
 
-## Repository layout
+## Archive — `archive/`
 
-- `next-app/` — active Next.js application (see its README)
-- `.github/workflows/ci.yml` — CI (lint + build) on push to `main` and PRs
-- `admin/`, `coach/`, `includes/`, `database/` — legacy PHP (deprecated)
+Everything that is no longer in production, preserved for historical reference and
+rollback. Includes the original PHP system, an early Next.js rewrite, and a master
+ZIP with the original git history. **Do not deploy or modify it.**
 
-## Originating docs (legacy)
+See [`archive/ARCHIVE-README.md`](archive/ARCHIVE-README.md).
 
-The legacy system's setup and role documentation are preserved in the original
-repository. For the modern system, follow `next-app/README.md`.
+## Deployment
+
+- Repository: `https://github.com/cauayancityathleteadmin-hash/cauayan-athlete-performance-monitoring-system1.0`
+- Branch `main` auto-deploys to Vercel (project root directory: `next-app`).
+- CI runs lint + build on every push to `main` via `.github/workflows/ci.yml`.
