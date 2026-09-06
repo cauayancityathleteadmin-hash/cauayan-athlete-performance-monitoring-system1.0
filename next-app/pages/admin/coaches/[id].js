@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { getSession } from "next-auth/react";
 import { prisma } from "../../../lib/prisma";
+import ProfilePhoto from "../../../components/ProfilePhoto";
 import AppShell from "../../../components/AppShell";
 import styles from "../../../styles/Dashboard.module.css";
 
@@ -31,18 +32,8 @@ export async function getServerSideProps(context) {
   return { props: { session, coach: JSON.parse(JSON.stringify(coach)) } };
 }
 
-function initialsOf(firstName, lastName) {
-  const a = (firstName || "?");
-  const b = (lastName || "?");
-  return (a.charAt(0) + b.charAt(0)).toUpperCase();
-}
-
 function CoachAvi({ coach }) {
-  const initials = initialsOf(coach.firstName, coach.lastName);
-  if (coach.pictureUrl) {
-    return <img src={coach.pictureUrl} alt="" style={{ width: "34px", height: "34px", objectFit: "cover", borderRadius: "50%", flexShrink: 0, verticalAlign: "middle" }} />;
-  }
-  return <span className={styles.avatar} style={{ width: "34px", height: "34px", fontSize: "13px", flexShrink: 0 }}>{initials}</span>;
+  return <ProfilePhoto url={coach.pictureUrl} firstName={coach.firstName} lastName={coach.lastName} size={36} radius={8} />;
 }
 
 function StatusBadge({ status }) {
@@ -132,22 +123,18 @@ export default function CoachProfile({ session, coach }) {
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Information</p><h2>Overview</h2></div></div>
           <div className={styles.grid}>
             <div className={styles.detailPanel}>
-              <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
-                {coach.pictureUrl ? (
-                  <img src={coach.pictureUrl} alt="Coach" style={{ width: "132px", height: "132px", objectFit: "cover", borderRadius: "12px", border: "1px solid var(--border)", flexShrink: 0 }} />
-                ) : (
-                  <span className={styles.avatar} style={{ width: "132px", height: "132px", fontSize: "44px", flexShrink: 0 }}>{initialsOf(coach.firstName, coach.lastName)}</span>
-                )}
-              </div>
-            </div>
-            <div className={styles.detailPanel}>
-              <h4>Personal</h4>
-              <div className={styles.infoList}>
-                <div><dt>Full name</dt><dd>{name}</dd></div>
-                <div><dt>Coach code</dt><dd>{coach.coachCode || "—"}</dd></div>
-                <div><dt>Birthdate</dt><dd>{fmtBirthdate(coach.birthdate)}</dd></div>
-                <div><dt>Email</dt><dd>{coach.user.email || coach.email || "—"}</dd></div>
-                <div><dt>Contact number</dt><dd>{coach.contactNumber || "—"}</dd></div>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 18, flexWrap: "wrap" }}>
+                <ProfilePhoto url={coach.pictureUrl} firstName={coach.firstName} lastName={coach.lastName} size={120} radius={10} />
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <h4>Personal</h4>
+                  <div className={styles.infoList}>
+                    <div><dt>Full name</dt><dd>{name}</dd></div>
+                    <div><dt>Coach code</dt><dd>{coach.coachCode || "—"}</dd></div>
+                    <div><dt>Birthdate</dt><dd>{fmtBirthdate(coach.birthdate)}</dd></div>
+                    <div><dt>Email</dt><dd>{coach.user.email || coach.email || "—"}</dd></div>
+                    <div><dt>Contact number</dt><dd>{coach.contactNumber || "—"}</dd></div>
+                  </div>
+                </div>
               </div>
             </div>
             <div className={styles.detailPanel}>
@@ -155,7 +142,6 @@ export default function CoachProfile({ session, coach }) {
               <div className={styles.infoList}>
                 <div><dt>School</dt><dd>{coach.school?.schoolName || "Not assigned"}</dd></div>
                 <div><dt>Sports coached</dt><dd>{coach.sports.length ? coach.sports.map((cs) => cs.sport.sportName).join(", ") : "No sports"}</dd></div>
-                <div><dt>Profile status</dt><dd><StatusBadge status={status} /></dd></div>
               </div>
             </div>
             <div className={styles.detailPanel}>
@@ -167,6 +153,13 @@ export default function CoachProfile({ session, coach }) {
                 <div><dt>Notify by SMS</dt><dd>{coach.notifySms ? "On" : "Off"}</dd></div>
                 <div><dt>Notify by email</dt><dd>{coach.notifyEmail ? "On" : "Off"}</dd></div>
                 {coach.user.mustChangePassword && <div><dt>Password</dt><dd><span className={`${styles.badge} ${styles.badgePending}`}>Must change</span></dd></div>}
+              </div>
+            </div>
+            <div className={styles.detailPanel}>
+              <h4>Athletes &amp; status</h4>
+              <div className={styles.infoList}>
+                <div><dt>Profile status</dt><dd><StatusBadge status={status} /></dd></div>
+                <div><dt>Assigned athletes</dt><dd>{coach.athletes.length}</dd></div>
               </div>
             </div>
           </div>

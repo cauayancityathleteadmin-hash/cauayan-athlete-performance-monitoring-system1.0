@@ -294,7 +294,7 @@ export default function Account({ user, sports, session }) {
       </Head>
       <AppShell session={session} isAdmin={session?.user?.role === "admin"} eyebrow="Cauayan City" title="My Account" active="/account">
         <div className={styles.profileHeader}>
-          <span className={styles.avatar}>{pictureUrl ? <img src={pictureUrl} alt="ID photo" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} /> : initials}</span>
+          <span className={styles.avatar} style={{ borderRadius: 10 }}>{pictureUrl ? <img src={pictureUrl} alt="ID photo" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 10 }} /> : initials}</span>
           <div className={styles.profileMeta}>
             <h2>{profileName}</h2>
             <small>{user.email} · {user.role}</small>

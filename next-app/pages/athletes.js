@@ -6,6 +6,7 @@ import { getSession } from "next-auth/react";
 import { prisma } from "../lib/prisma";
 import Pagination from "../components/Pagination";
 import IdPhotoUpload from "../components/IdPhotoUpload";
+import ProfilePhoto from "../components/ProfilePhoto";
 import AppShell from "../components/AppShell";
 import styles from "../styles/Dashboard.module.css";
 
@@ -224,11 +225,8 @@ const HEALTH_META = {
 };
 
 function Avi({ name, url }) {
-  const initials = (name || "A").split(" ").filter(Boolean).map((s) => s[0]).slice(0, 2).join("").toUpperCase();
-  if (url) {
-    return <img src={url} alt="" style={{ width: "34px", height: "34px", objectFit: "cover", borderRadius: "50%", flexShrink: 0, verticalAlign: "middle" }} />;
-  }
-  return <span style={{ width: "34px", height: "34px", borderRadius: "50%", background: "rgba(45,212,168,.18)", color: "var(--accent)", fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: "13px" }}>{initials}</span>;
+  const parts = (name || "").split(" ").filter(Boolean);
+  return <ProfilePhoto url={url} firstName={parts[0]} lastName={parts[1]} size={36} radius={8} style={{ verticalAlign: "middle" }} />;
 }
 
 function HealthBadge({ status }) {

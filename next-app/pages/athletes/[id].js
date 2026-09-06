@@ -6,6 +6,7 @@ import { getSession } from "next-auth/react";
 import { prisma } from "../../lib/prisma";
 import AppShell from "../../components/AppShell";
 import IdPhotoUpload from "../../components/IdPhotoUpload";
+import ProfilePhoto from "../../components/ProfilePhoto";
 import styles from "../../styles/Dashboard.module.css";
 
 export async function getServerSideProps(context) {
@@ -247,16 +248,20 @@ export default function AthleteProfile({ session, athlete, catalog }) {
             <div><p className={styles.eyebrow}>Information</p><h2>Overview</h2></div>
             <button type="button" className={styles.secondary} onClick={() => setEditOpen(!editOpen)}>{editOpen ? "Cancel" : "Edit athlete"}</button>
           </div>
-          {editOpen && <EditAthleteForm athlete={athlete} catalog={catalog} isAdmin={isAdmin} onDone={() => { setEditOpen(false); router.reload(); }} />}
+{editOpen && <EditAthleteForm athlete={athlete} catalog={catalog} isAdmin={isAdmin} onDone={() => { setEditOpen(false); router.reload(); }} />}
           <div className={styles.grid}>
-            <AthletePhotoCard athlete={athlete} />
             <div className={styles.detailPanel}>
-              <h4>Personal</h4>
-              <div className={styles.infoList}>
-                <div><dt>Athlete code</dt><dd>{athlete.athleteCode}</dd></div>
-                <div><dt>Gender</dt><dd>{athlete.gender || "—"}</dd></div>
-                <div><dt>Birthdate</dt><dd>{fmtDate(athlete.birthdate)}</dd></div>
-                <div><dt>Address</dt><dd>{athlete.address || "—"}</dd></div>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 18, flexWrap: "wrap" }}>
+                <AthletePhotoCard athlete={athlete} />
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <h4>Personal</h4>
+                  <div className={styles.infoList}>
+                    <div><dt>Athlete code</dt><dd>{athlete.athleteCode}</dd></div>
+                    <div><dt>Gender</dt><dd>{athlete.gender || "—"}</dd></div>
+                    <div><dt>Birthdate</dt><dd>{fmtDate(athlete.birthdate)}</dd></div>
+                    <div><dt>Address</dt><dd>{athlete.address || "—"}</dd></div>
+                  </div>
+                </div>
               </div>
             </div>
             <div className={styles.detailPanel}>
@@ -277,11 +282,14 @@ export default function AthleteProfile({ session, athlete, catalog }) {
                 <div><dt>Weight</dt><dd>{athlete.weight ? `${fmtNum(athlete.weight)} kg` : "—"}</dd></div>
               </div>
             </div>
-          </div>
-<div className={styles.infoList} style={{ marginTop: 14 }}>
-            <div><dt>Health status</dt><dd><HealthBadge status={athlete.healthStatus} /></dd></div>
-            {athlete.healthNotes ? <div><dt>Health notes</dt><dd>{athlete.healthNotes}</dd></div> : null}
-            <div><dt>Registered</dt><dd>{fmtDate(athlete.dateRegistered)}</dd></div>
+            <div className={styles.detailPanel}>
+              <h4>Health &amp; registration</h4>
+              <div className={styles.infoList}>
+                <div><dt>Health status</dt><dd><HealthBadge status={athlete.healthStatus} /></dd></div>
+                {athlete.healthNotes ? <div><dt>Health notes</dt><dd>{athlete.healthNotes}</dd></div> : null}
+                <div><dt>Registered</dt><dd>{fmtDate(athlete.dateRegistered)}</dd></div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -760,8 +768,6 @@ function AthletePhotoCard({ athlete }) {
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState("");
 
-  const initials = `${(athlete.firstName || "?").charAt(0)}${(athlete.lastName || "?").charAt(0)}`.toUpperCase();
-
   async function save(event) {
     event.preventDefault();
     setBusy(true);
@@ -783,27 +789,21 @@ function AthletePhotoCard({ athlete }) {
   }
 
   return (
-    <div className={styles.detailPanel}>
-      <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
-        {pictureUrl ? (
-          <img src={pictureUrl} alt="Athlete" style={{ width: "132px", height: "132px", objectFit: "cover", borderRadius: "12px", border: "1px solid var(--border)", flexShrink: 0 }} />
-        ) : (
-          <span className={styles.avatar} style={{ width: "132px", height: "132px", fontSize: "44px", flexShrink: 0 }}>{initials}</span>
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 18, flexWrap: "wrap" }}>
+      <ProfilePhoto url={pictureUrl} firstName={athlete.firstName} lastName={athlete.lastName} size={112} radius={10} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <button type="button" className={styles.secondary} onClick={() => { setEditing((c) => !c); setMessage(""); }}>{editing ? "Cancel" : "Edit photo"}</button>
+        {!editing && pictureUrl && <p className={styles.formHint} style={{ margin: 0 }}>2x2 ID picture</p>}
+        {editing && (
+          <form onSubmit={save} className={styles.formStack}>
+            <IdPhotoUpload value={pictureUrl} onChange={setPictureUrl} label="Upload or paste photo URL" />
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Save photo"}</button>
+              {message && <p role="status" className={styles.formSuccess} style={{ margin: 0 }}>{message}</p>}
+            </div>
+          </form>
         )}
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <button type="button" className={styles.secondary} onClick={() => { setEditing((c) => !c); setMessage(""); }}>{editing ? "Cancel" : "Edit photo"}</button>
-          {!editing && pictureUrl && <p className={styles.formHint} style={{ margin: 0 }}>Shown on the athlete list and profile.</p>}
-        </div>
       </div>
-      {editing && (
-        <form onSubmit={save} className={styles.formStack} style={{ marginTop: 12 }}>
-          <IdPhotoUpload value={pictureUrl} onChange={setPictureUrl} label="Upload or paste photo URL" />
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Save photo"}</button>
-            {message && <p role="status" className={styles.formSuccess} style={{ margin: 0 }}>{message}</p>}
-          </div>
-        </form>
-      )}
     </div>
   );
 }

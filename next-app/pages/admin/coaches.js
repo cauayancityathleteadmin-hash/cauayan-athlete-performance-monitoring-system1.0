@@ -3,6 +3,7 @@ import React from "react";
 import Link from "next/link";
 import { getSession } from "next-auth/react";
 import { prisma } from "../../lib/prisma";
+import ProfilePhoto from "../../components/ProfilePhoto";
 import AppShell from "../../components/AppShell";
 import styles from "../../styles/Dashboard.module.css";
 
@@ -33,16 +34,9 @@ const SORT_OPTIONS = [
 
 const STATUS_RANK = { active: 0, pending: 1, rejected: 2, inactive: 3 };
 
-function initialsOf(name) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return parts.slice(0, 2).map((p) => p.charAt(0).toUpperCase()).join("") || "?";
-}
-
 function CoachAvi({ name, url }) {
-  if (url) {
-    return <img src={url} alt="" style={{ width: "34px", height: "34px", objectFit: "cover", borderRadius: "50%", flexShrink: 0, verticalAlign: "middle" }} />;
-  }
-  return <span className={styles.avatar} style={{ width: "34px", height: "34px", fontSize: "13px", flexShrink: 0 }}>{initialsOf(name)}</span>;
+  const parts = (name || "").split(" ").filter(Boolean);
+  return <ProfilePhoto url={url} firstName={parts[0]} lastName={parts[1]} size={36} radius={8} style={{ verticalAlign: "middle" }} />;
 }
 
 function StatusBadge({ status }) {
