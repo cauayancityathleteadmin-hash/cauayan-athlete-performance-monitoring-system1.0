@@ -10,29 +10,34 @@ import IdPhotoUpload from "../components/IdPhotoUpload";
 import { checkPasswordStrength } from "../lib/password";
 
 export async function getServerSideProps(context) {
-  const session = await getSession(context);
-  if (!session) return { redirect: { destination: "/login", permanent: false } };
+  try {
+    const session = await getSession(context);
+    if (!session) return { redirect: { destination: "/login", permanent: false } };
 
-  const [user, sports] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: Number(session.user.id) },
-      include: { coach: { include: { sports: { include: { sport: true } }, school: true } } },
-    }),
-    prisma.sport.findMany({ where: { status: "active" }, select: { id: true, sportName: true }, orderBy: { sportName: "asc" } }),
-  ]);
+    const [user, sports] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: Number(session.user.id) },
+        include: { coach: { include: { sports: { include: { sport: true } }, school: true } } },
+      }),
+      prisma.sport.findMany({ where: { status: "active" }, select: { id: true, sportName: true }, orderBy: { sportName: "asc" } }),
+    ]);
 
-  if (!user) return { redirect: { destination: "/login", permanent: false } };
+    if (!user) return { redirect: { destination: "/login", permanent: false } };
 
-  return {
-    props: {
-      session,
-      user: { ...user, coach: user.coach ? { ...user.coach, birthdate: user.coach.birthdate.toISOString(), sports: user.coach.sports.map((cs) => ({ ...cs, sport: cs.sport })) } : null },
-      sports,
-    },
-  };
+    return {
+      props: {
+        session,
+        user: { ...user, coach: user.coach ? { ...user.coach, birthdate: user.coach.birthdate.toISOString(), sports: user.coach.sports.map((cs) => ({ ...cs, sport: cs.sport })) } : null },
+        sports,
+      },
+    };
+  } catch (error) {
+    console.error("account gssp failed:", error);
+    return { props: { session: null, user: null, sports: [], __ssrError: String((error && (error.stack || error.message)) || error) } };
+  }
 }
 
-export default function Account({ user, sports, session }) {
+export default function Account({ user, sports, session, __ssrError }) {
   const router = useRouter();
   const [tab, setTab] = React.useState("profile");
   const [editing, setEditing] = React.useState(false);
@@ -287,9 +292,10 @@ export default function Account({ user, sports, session }) {
     setDataBusy("");
   }
 
-  return (
-    <>
-      <Head>
+  try {
+    return (
+      <>
+        <Head>
         <title>My Account | Cauayan Athlete Performance</title>
       </Head>
       <AppShell session={session} isAdmin={session?.user?.role === "admin"} eyebrow="Cauayan City" title="My Account" active="/account">
@@ -423,6 +429,10 @@ export default function Account({ user, sports, session }) {
           </section>
         )}
       </AppShell>
-    </>
-  );
+      </>
+    );
+  } catch (error) {
+    console.error("account render failed:", error);
+    return <pre data-diag="account-error" style={{ padding: 24, whiteSpace: "pre-wrap", color: "#e11d48" }}>{String((error && (error.stack || error.message)) || error) || __ssrError}</pre>;
+  }
 }
