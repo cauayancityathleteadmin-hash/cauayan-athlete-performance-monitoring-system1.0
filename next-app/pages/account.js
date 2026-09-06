@@ -39,6 +39,8 @@ export async function getServerSideProps(context) {
 
 export default function Account({ user, sports, session, __ssrError }) {
   const router = useRouter();
+  const safeUser = user || {};
+  const isCoach = safeUser.role === "coach";
   const [tab, setTab] = React.useState("profile");
   const [editing, setEditing] = React.useState(false);
   const [message, setMessage] = React.useState("");
@@ -58,21 +60,20 @@ export default function Account({ user, sports, session, __ssrError }) {
   const [dataMsg, setDataMsg] = React.useState({ kind: "", text: "" });
   const [restoreConfirm, setRestoreConfirm] = React.useState("");
 
-  const isCoach = user.role === "coach";
-  const coach = user.coach;
+  const coach = safeUser.coach;
   const [view, setView] = React.useState({
     firstName: coach?.firstName || "",
     middleName: coach?.middleName || "",
     lastName: coach?.lastName || "",
-    email: user.email,
+    email: safeUser.email,
     birthdate: coach?.birthdate?.split("T")[0] || "",
     school: coach?.school?.schoolName || "",
     contactNumber: coach?.contactNumber || "",
     sportIds: coach ? coach.sports.map((cs) => cs.sportId) : [],
   });
   const [pictureUrl, setPictureUrl] = React.useState(coach?.pictureUrl || "");
-  const initials = ((coach?.firstName?.[0] || "") + (coach?.lastName?.[0] || "")).toUpperCase() || (user.email ? user.email[0].toUpperCase() : "A");
-  const profileName = isCoach ? [view.firstName, view.middleName, view.lastName].filter(Boolean).join(" ") : user.name || user.email;
+  const initials = ((coach?.firstName?.[0] || "") + (coach?.lastName?.[0] || "")).toUpperCase() || (safeUser.email ? safeUser.email[0].toUpperCase() : "A");
+  const profileName = isCoach ? [view.firstName, view.middleName, view.lastName].filter(Boolean).join(" ") : safeUser.name || safeUser.email;
 
   function formatBirthdate(value) {
     if (!value) return "—";
@@ -293,6 +294,9 @@ export default function Account({ user, sports, session, __ssrError }) {
   }
 
   try {
+    if (__ssrError) {
+      return <pre data-diag="account-error" style={{ padding: 24, whiteSpace: "pre-wrap", color: "#e11d48" }}>{String(__ssrError)}</pre>;
+    }
     return (
       <>
         <Head>
@@ -303,7 +307,7 @@ export default function Account({ user, sports, session, __ssrError }) {
           <span className={styles.avatar} style={{ borderRadius: 10 }}>{pictureUrl ? <img src={pictureUrl} alt="ID photo" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 10 }} /> : initials}</span>
           <div className={styles.profileMeta}>
             <h2>{profileName}</h2>
-            <small>{user.email} · {user.role}</small>
+            <small>{safeUser.email} · {safeUser.role}</small>
           </div>
         </div>
 
@@ -327,7 +331,7 @@ export default function Account({ user, sports, session, __ssrError }) {
               <dl className={styles.infoList}>
                 <div><dt>Full name</dt><dd>{profileName}</dd></div>
                 <div><dt>Email</dt><dd>{view.email}</dd></div>
-                <div><dt>Role</dt><dd>{user.role}</dd></div>
+                <div><dt>Role</dt><dd>{safeUser.role}</dd></div>
                 {isCoach && (
                   <>
                     <div><dt>Coach code</dt><dd>{coach.coachCode}</dd></div>
