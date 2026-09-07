@@ -81,7 +81,7 @@ h1, h2, h3, h4, h5, h6 {
   justify-content: center;
   align-items: center;
   width: min(100% - 32px, 420px);
-  margin: auto;
+  margin: clamp(2rem, 6vh, 4rem) auto;
   padding: 40px;
   background: rgba(10, 50, 40, .93);
   border: 1px solid var(--border);

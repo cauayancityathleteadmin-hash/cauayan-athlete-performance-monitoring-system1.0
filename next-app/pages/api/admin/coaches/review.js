@@ -2,6 +2,15 @@ import { prisma } from "../../../../lib/prisma";
 import { requireCsrf, requireRole, requireSession, text, validId, setSecurityHeaders } from "../../../../lib/api-security";
 import { rateLimiters } from "../../../../lib/rate-limit";
 import { sendCoachApprovalEmail, sendCoachRejectionEmail } from "../../../../lib/email";
+import { notifyCoach } from "../../../../lib/notify";
+
+function smsPayloadFor(coach) {
+  return { coach: { firstName: coach.firstName, lastName: coach.lastName, email: coach.email, contactNumber: coach.contactNumber, notifySms: coach.notifySms, notifyEmail: false } };
+}
+
+function smsNoteFor(coach, result) {
+  return coach.notifySms && coach.contactNumber && !result.sms ? " A confirmation SMS could not be sent." : "";
+}
 
 export default async function handler(req, res) {
   setSecurityHeaders(res);
@@ -63,7 +72,10 @@ export default async function handler(req, res) {
       coachCode: coach.coachCode,
     });
 
-    return res.status(200).json({ success: true, status, message: emailed ? "Coach approved. Sign in with the password you registered with." : "Coach approved. A confirmation email could not be sent." });
+    const approvalSms = await notifyCoach({ ...smsPayloadFor(coach), subject: "Coach application approved", message: "Your coach application has been approved. You can now sign in." });
+    const approvalSmsNote = smsNoteFor(coach, approvalSms);
+
+    return res.status(200).json({ success: true, status, message: emailed ? `Coach approved. Sign in with the password you registered with.${approvalSmsNote}` : `Coach approved. A confirmation email could not be sent.${approvalSmsNote}` });
   }
 
   if (decision === "approved" && isRejected) {
@@ -79,7 +91,10 @@ export default async function handler(req, res) {
       coachCode: coach.coachCode,
     });
 
-    return res.status(200).json({ success: true, status: "active", message: emailed ? "Coach reapproved. Sign in with the password you registered with." : "Coach reapproved. A confirmation email could not be sent." });
+    const reapprovalSms = await notifyCoach({ ...smsPayloadFor(coach), subject: "Coach application approved", message: "Your coach application has been approved. You can now sign in." });
+    const reapprovalSmsNote = smsNoteFor(coach, reapprovalSms);
+
+    return res.status(200).json({ success: true, status: "active", message: emailed ? `Coach reapproved. Sign in with the password you registered with.${reapprovalSmsNote}` : `Coach reapproved. A confirmation email could not be sent.${reapprovalSmsNote}` });
   }
 
   await prisma.$transaction([
@@ -95,5 +110,8 @@ export default async function handler(req, res) {
     reason,
   });
 
-  return res.status(200).json({ success: true, status, message: "Coach rejected. Notification sent via email." });
+  const rejectionSms = await notifyCoach({ ...smsPayloadFor(coach), subject: "Coach application rejected", message: reason ? `Your coach application has been rejected. Reason: ${reason}` : "Your coach application has been rejected." });
+  const rejectionSmsNote = smsNoteFor(coach, rejectionSms);
+
+  return res.status(200).json({ success: true, status, message: `Coach rejected. Notification sent via email.${rejectionSmsNote}` });
 }

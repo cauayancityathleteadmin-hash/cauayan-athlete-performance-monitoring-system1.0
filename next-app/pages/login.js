@@ -20,7 +20,11 @@ export default function Login() {
       const password = passwordRef.current ? passwordRef.current.value : "";
       const result = await signIn("credentials", { identifier, password, redirect: false });
       if (!result || result.error) {
-        setError("Login failed. Check your credentials or try again later.");
+        if (result?.error === "PENDING_APPROVAL") {
+          setError("Your application is still under review. You'll receive an email or SMS once an admin or authorized coach approves your account.");
+        } else {
+          setError("Login failed. Check your credentials or try again later.");
+        }
       } else if (result.ok) {
         router.push("/dashboard");
       } else {

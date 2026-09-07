@@ -53,7 +53,17 @@ export const authOptions = {
         where: { OR: [{ email: identifier }, { username: identifier }, { coach: { coachCode: identifier.toUpperCase() } }] },
         include: { coach: true },
       });
-      if (!user || (user.status !== "active" && user.status !== "pending") || !(await bcrypt.compare(password, normalizeHash(user.passwordHash)))) {
+      if (!user) {
+        recordFailure(identifier);
+        await auditLogin(identifier, false, "Sign-in attempt failed (account not found).");
+        return null;
+      }
+      if (user.status === "pending") {
+        recordFailure(identifier);
+        await auditLogin(identifier, false, "Sign-in attempt blocked: coach application pending approval.");
+        throw new Error("PENDING_APPROVAL");
+      }
+      if (user.status !== "active" || !(await bcrypt.compare(password, normalizeHash(user.passwordHash)))) {
         recordFailure(identifier);
         await auditLogin(identifier, false, "Sign-in attempt failed (wrong credentials or inactive account).");
         return null;

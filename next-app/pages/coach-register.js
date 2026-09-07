@@ -1,6 +1,5 @@
 import Head from "next/head";
 import Link from "next/link";
-import { useRouter } from "next/router";
 import React from "react";
 import { prisma } from "../lib/prisma";
 import styles from "../styles/Dashboard.module.css";
@@ -23,11 +22,12 @@ export async function getServerSideProps() {
 }
 
 export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }) {
-  const router = useRouter();
   const [message, setMessage] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [reviewing, setReviewing] = React.useState(false);
   const [submitted, setSubmitted] = React.useState(false);
+  const [applicantName, setApplicantName] = React.useState("");
+  const [applicantCoachCode, setApplicantCoachCode] = React.useState("");
   const [captchaToken, setCaptchaToken] = React.useState("");
   const captchaRef = React.useRef(null);
   const [formData, setFormData] = React.useState({
@@ -144,12 +144,11 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
         if (result.field) setErrors((prev) => ({ ...prev, [result.field]: result.error }));
       } else if (response.ok && result.success) {
         setMessage(result.message);
+        setApplicantName(fullName || `${formData.firstName} ${formData.lastName}`.trim());
+        setApplicantCoachCode(result.coachCode || "");
         setSubmitted(true);
         setReviewing(false);
         resetForm();
-        setTimeout(() => {
-          router.push("/login");
-        }, 1200);
       } else {
         setMessage("Registration could not be completed. Please try again.");
       }
@@ -224,7 +223,40 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
         <h1>Coach registration</h1>
         <p className="auth-subtitle">Request access to the athlete performance system</p>
 
-        {reviewing ? (
+        {submitted ? (
+          <div style={{ width: "100%", textAlign: "center" }}>
+            <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block", margin: "0 auto 18px" }}>
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M8 12.5l2.6 2.6L16 9.5"></path>
+            </svg>
+            <h2 style={{ fontSize: "22px", margin: "0 0 8px" }}>Application received!</h2>
+            <p style={{ color: "var(--muted)", fontSize: "15px", margin: "0 0 18px" }}>
+              Thank you, {applicantName}. Your coach application is now under review.
+            </p>
+            <div style={{ margin: "0 0 18px", padding: "14px 16px", border: "1px dashed var(--accent)", borderRadius: "10px", background: "rgba(45,212,168,.08)", fontSize: "15px" }}>
+              Your coach code:{" "}
+              <strong style={{ color: "var(--accent)", letterSpacing: ".5px" }}>{applicantCoachCode}</strong>
+              <span style={{ display: "block", marginTop: "4px", color: "var(--muted)", fontSize: "13px" }}>Keep this handy — you can also sign in with your email.</span>
+            </div>
+            <div style={{ width: "100%" }}>
+              {[
+                "An admin or an authorized coach will review your application.",
+                "You'll receive an email or SMS the moment it's approved (or rejected).",
+                "You can sign in only after approval. Until then, this screen is your confirmation.",
+              ].map((step, index) => (
+                <div key={index} style={{ display: "flex", gap: "12px", alignItems: "flex-start", textAlign: "left" }}>
+                  <span style={{ flex: "0 0 auto", width: "28px", height: "28px", borderRadius: "50%", background: "rgba(45,212,168,.16)", border: "1px solid var(--accent)", color: "var(--accent)", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", marginTop: "1px" }}>
+                    {index + 1}
+                  </span>
+                  <span style={{ color: "var(--foreground)", fontSize: "14px", lineHeight: "1.55" }}>{step}</span>
+                </div>
+              ))}
+            </div>
+            <Link href="/login" style={{ display: "inline-block", marginTop: "22px", background: "var(--accent)", color: "#041f18", padding: "12px 28px", borderRadius: "8px", fontWeight: 700, textDecoration: "none", fontSize: "15px", width: "100%" }}>
+              Go to sign in
+            </Link>
+          </div>
+        ) : reviewing ? (
           <div style={{ width: "100%" }}>
             <section
               style={{
@@ -431,7 +463,7 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
           </form>
         )}
 
-        {!reviewing && (
+        {!reviewing && !submitted && (
           <p className="auth-register" style={{ margin: "22px 0 0" }}><Link href="/login">Back to sign in</Link></p>
         )}
       </main>

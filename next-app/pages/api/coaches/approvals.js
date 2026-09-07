@@ -2,6 +2,7 @@ import { prisma } from "../../../lib/prisma";
 import { requireCsrf, requireSession, text, validId, setSecurityHeaders } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
 import { sendCoachApprovalEmail, sendCoachRejectionEmail } from "../../../lib/email";
+import { notifyCoach } from "../../../lib/notify";
 
 export default async function handler(req, res) {
   setSecurityHeaders(res);
@@ -64,7 +65,11 @@ export default async function handler(req, res) {
         name: `${target.firstName} ${target.lastName}`,
         coachCode: target.coachCode,
       });
-      return res.status(200).json({ success: true, status, message: emailed ? `Coach ${target.coachCode} approved.` : `Coach ${target.coachCode} approved. A confirmation email could not be sent.` });
+      const smsPayload = { coach: { firstName: target.firstName, lastName: target.lastName, email: target.email, contactNumber: target.contactNumber, notifySms: target.notifySms, notifyEmail: false } };
+      const smsResult = await notifyCoach({ ...smsPayload, subject: "Coach application approved", message: "Your coach application has been approved. You can now sign in." });
+      const smsFailed = target.notifySms && target.contactNumber && !smsResult.sms;
+      const smsNote = smsFailed ? " A confirmation SMS could not be sent." : "";
+      return res.status(200).json({ success: true, status, message: emailed ? `Coach ${target.coachCode} approved.${smsNote}` : `Coach ${target.coachCode} approved. A confirmation email could not be sent.${smsNote}` });
     }
 
     await sendCoachRejectionEmail({
@@ -73,7 +78,11 @@ export default async function handler(req, res) {
       coachCode: target.coachCode,
       reason,
     });
-    return res.status(200).json({ success: true, status, message: `Coach ${target.coachCode} rejected.` });
+    const smsPayload = { coach: { firstName: target.firstName, lastName: target.lastName, email: target.email, contactNumber: target.contactNumber, notifySms: target.notifySms, notifyEmail: false } };
+    const smsResult = await notifyCoach({ ...smsPayload, subject: "Coach application rejected", message: reason ? `Your coach application has been rejected. Reason: ${reason}` : "Your coach application has been rejected." });
+    const smsFailed = target.notifySms && target.contactNumber && !smsResult.sms;
+    const smsNote = smsFailed ? " A confirmation SMS could not be sent." : "";
+    return res.status(200).json({ success: true, status, message: `Coach ${target.coachCode} rejected.${smsNote}` });
   }
 
   return res.status(405).json({ error: "Method not allowed." });
