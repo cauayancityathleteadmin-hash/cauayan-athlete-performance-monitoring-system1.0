@@ -174,7 +174,7 @@ const NAV_GROUPS = [
     caption: true,
     links: [
       { href: "/event-plans", label: "Event plans", icon: "calendar" },
-      { href: "/admin/catalog", label: "Sports & Events", icon: "flag", adminOnly: true },
+      { href: "/admin/catalog", label: "Sports & Discipline", icon: "flag", adminOnly: true },
     ],
   },
   {
