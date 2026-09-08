@@ -2,6 +2,7 @@ import Head from "next/head";
 import React from "react";
 import { getSession } from "next-auth/react";
 import { prisma } from "../lib/prisma";
+import { gsspData } from "../lib/gssp-cache";
 import { computeInsights, toCsvRows } from "../lib/performance-insights";
 import AppShell from "../components/AppShell";
 import styles from "../styles/Dashboard.module.css";
@@ -31,6 +32,8 @@ export async function getServerSideProps(context) {
   if (!session) return { redirect: { destination: "/login", permanent: false } };
   const isAdmin = session.user.role === "admin";
   const userId = Number(session.user.id);
+
+  const payload = await gsspData(`analytics:${isAdmin ? "a" : "c:" + userId}`, 30000, async () => {
   const athleteWhere = isAdmin ? {} : { coach: { userId } };
   const assessmentWhere = isAdmin ? {} : { athlete: { coach: { userId } } };
   const resultWhere = isAdmin ? { valueDecimal: { not: null } } : { valueDecimal: { not: null }, assessment: { athlete: { coach: { userId } } } };
@@ -136,8 +139,6 @@ export async function getServerSideProps(context) {
   const achievementsPerAthlete = athletes.filter((a) => a._count.achievements > 0).map((a) => ({ name: `${a.firstName} ${a.lastName}`, value: a._count.achievements })).sort((a, b) => b.value - a.value).slice(0, 5);
 
   return {
-    props: {
-      session,
       data: EMPTY_DATA && {
         isAdmin,
         kpi: { totalAthletes, activeAthletes, totalAssessments, totalResults, avgPerAthlete, achievements: achievementCount },
@@ -162,6 +163,13 @@ export async function getServerSideProps(context) {
       },
       insights,
       csv,
+    };
+  });
+
+  return {
+    props: {
+      session,
+      ...payload,
     },
   };
 }

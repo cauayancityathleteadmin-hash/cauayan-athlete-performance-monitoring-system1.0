@@ -6,6 +6,7 @@ import {
   LineChart, Line, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend,
 } from "recharts";
 import { prisma } from "../lib/prisma";
+import { gsspData } from "../lib/gssp-cache";
 import AppShell from "../components/AppShell";
 import styles from "../styles/Dashboard.module.css";
 
@@ -14,13 +15,49 @@ export async function getServerSideProps(context) {
   if (!session) return { redirect: { destination: "/login", permanent: false } };
   const isAdmin = session.user.role === "admin";
 
-  let athletes = [];
-  let coaches = [];
-  if (isAdmin) {
-    const where = {};
-    [athletes, coaches] = await Promise.all([
-      prisma.athlete.findMany({
-        where,
+  let cacheKey = isAdmin ? "reports:a" : null;
+  if (!isAdmin) {
+    const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
+    if (!coach) return { redirect: { destination: "/dashboard", permanent: false } };
+    cacheKey = `reports:c:${coach.id}`;
+  }
+
+  const data = await gsspData(cacheKey, 30000, async () => {
+    let athletes = [];
+    let coaches = [];
+    if (isAdmin) {
+      const where = {};
+      [athletes, coaches] = await Promise.all([
+        prisma.athlete.findMany({
+          where,
+          orderBy: { lastName: "asc" },
+          include: {
+            school: true,
+            sport: true,
+            event: true,
+            coach: { select: { firstName: true, lastName: true } },
+            achievements: { orderBy: { achievementDate: "desc" }, take: 500 },
+            notes: { orderBy: { createdAt: "desc" }, take: 20 },
+            trainingAssessments: { orderBy: { assessmentDate: "desc" }, include: { plan: { select: { planName: true } } }, take: 20 },
+            _count: { select: { assessments: true, achievements: true } },
+            assessments: { orderBy: { assessmentDate: "desc" }, include: { recorder: { select: { email: true } }, results: { include: { metric: true } } }, take: 500 },
+          },
+        }),
+        prisma.coach.findMany({
+          orderBy: { lastName: "asc" },
+          include: {
+            school: true,
+            sports: { include: { sport: true } },
+            _count: { select: { athletes: true, performances: true, trainingPlans: true } },
+            athletes: { select: { id: true, athleteCode: true, firstName: true, lastName: true, sport: { select: { sportName: true } }, status: true } },
+            performances: { orderBy: { createdAt: "desc" }, include: { evaluator: { select: { username: true } } }, take: 50 },
+            trainingPlans: { select: { id: true, planName: true, status: true } },
+          },
+        }),
+      ]);
+    } else {
+      athletes = await prisma.athlete.findMany({
+        where: { coach: { userId: Number(session.user.id) } },
         orderBy: { lastName: "asc" },
         include: {
           school: true,
@@ -33,134 +70,109 @@ export async function getServerSideProps(context) {
           _count: { select: { assessments: true, achievements: true } },
           assessments: { orderBy: { assessmentDate: "desc" }, include: { recorder: { select: { email: true } }, results: { include: { metric: true } } }, take: 500 },
         },
-      }),
-      prisma.coach.findMany({
-        orderBy: { lastName: "asc" },
-        include: {
-          school: true,
-          sports: { include: { sport: true } },
-          _count: { select: { athletes: true, performances: true, trainingPlans: true } },
-          athletes: { select: { id: true, athleteCode: true, firstName: true, lastName: true, sport: { select: { sportName: true } }, status: true } },
-          performances: { orderBy: { createdAt: "desc" }, include: { evaluator: { select: { username: true } } }, take: 50 },
-          trainingPlans: { select: { id: true, planName: true, status: true } },
-        },
-      }),
+      });
+    }
+
+    const athleteIds = athletes.map((a) => a.id);
+    const [activityCounts, logCounts] = await Promise.all([
+      athleteIds.length ? prisma.planActivity.groupBy({ by: ["athleteId"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
+      athleteIds.length ? prisma.planActivityLog.groupBy({ by: ["athleteId", "status"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
     ]);
-  } else {
-    const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
-    if (!coach) return { redirect: { destination: "/dashboard", permanent: false } };
-    athletes = await prisma.athlete.findMany({
-      where: { coach: { userId: Number(session.user.id) } },
-      orderBy: { lastName: "asc" },
-      include: {
-        school: true,
-        sport: true,
-        event: true,
-        coach: { select: { firstName: true, lastName: true } },
-        achievements: { orderBy: { achievementDate: "desc" }, take: 500 },
-        notes: { orderBy: { createdAt: "desc" }, take: 20 },
-        trainingAssessments: { orderBy: { assessmentDate: "desc" }, include: { plan: { select: { planName: true } } }, take: 20 },
-        _count: { select: { assessments: true, achievements: true } },
-        assessments: { orderBy: { assessmentDate: "desc" }, include: { recorder: { select: { email: true } }, results: { include: { metric: true } } }, take: 500 },
-      },
+    const activityCountMap = new Map(activityCounts.map((x) => [x.athleteId, x._count._all]));
+    const logCountMap = new Map();
+    for (const row of logCounts) {
+      if (!logCountMap.has(row.athleteId)) logCountMap.set(row.athleteId, { done: 0, partial: 0, missed: 0 });
+      const entry = logCountMap.get(row.athleteId);
+      if (["done", "partial", "missed"].includes(row.status)) entry[row.status] += row._count._all;
+    }
+
+    const serializeAthlete = (athlete) => ({
+      id: athlete.id,
+      athleteCode: athlete.athleteCode,
+      firstName: athlete.firstName,
+      middleName: athlete.middleName,
+      lastName: athlete.lastName,
+      suffix: athlete.suffix || null,
+      birthdate: athlete.birthdate.toISOString(),
+      gender: athlete.gender,
+      contactNumber: athlete.contactNumber || null,
+      email: athlete.email || null,
+      address: athlete.address || null,
+      school: athlete.school?.schoolName || null,
+      sport: athlete.sport.sportName,
+      event: athlete.event?.eventName || null,
+      coach: athlete.coach ? `${athlete.coach.lastName}, ${athlete.coach.firstName}` : null,
+      status: athlete.status,
+      height: athlete.height?.toString?.() || null,
+      weight: athlete.weight?.toString?.() || null,
+      healthStatus: athlete.healthStatus,
+      healthNotes: athlete.healthNotes || null,
+      dateRegistered: athlete.dateRegistered?.toISOString() || null,
+      assessmentCount: athlete._count.assessments,
+      achievementCount: athlete._count.achievements,
+      achievements: athlete.achievements.map((a) => ({ title: a.achievementTitle, type: a.achievementType || null, medal: a.medal || null, level: a.level || null, date: a.achievementDate?.toISOString() || null, organization: a.organization || null, description: a.description || null })),
+      notes: athlete.notes.map((n) => ({ note: n.note, author: n.author?.email || null, date: n.createdAt.toISOString() })),
+      trainingAssessments: athlete.trainingAssessments.map((t) => ({ rating: t.rating, fitness: t.fitnessDimension || "general", dates: t.assessmentDate.toISOString(), plan: t.plan?.planName || null })),
+      assessments: athlete.assessments.map((assessment) => ({
+        id: assessment.id,
+        assessmentDate: assessment.assessmentDate.toISOString(),
+        assessmentType: assessment.assessmentType,
+        remarks: assessment.remarks || null,
+        recorder: assessment.recorder?.email || null,
+        results: assessment.results.map((result) => ({ metricName: result.metric.metricName, unit: result.metric.unit, valueDecimal: result.valueDecimal?.toString() || null, valueText: result.valueText || null, notes: result.notes || null })),
+      })),
+      completion: (() => {
+        const log = logCountMap.get(athlete.id) || { done: 0, partial: 0, missed: 0 };
+        const planned = activityCountMap.get(athlete.id) || 0;
+        return {
+          planned,
+          done: log.done,
+          partial: log.partial,
+          missed: log.missed,
+          open: planned - (log.done + log.partial + log.missed),
+          percent: planned ? Math.round(((log.done + log.partial) / planned) * 100) : null,
+        };
+      })(),
     });
-  }
 
-  const athleteIds = athletes.map((a) => a.id);
-  const [activityCounts, logCounts] = await Promise.all([
-    athleteIds.length ? prisma.planActivity.groupBy({ by: ["athleteId"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
-    athleteIds.length ? prisma.planActivityLog.groupBy({ by: ["athleteId", "status"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
-  ]);
-  const activityCountMap = new Map(activityCounts.map((x) => [x.athleteId, x._count._all]));
-  const logCountMap = new Map();
-  for (const row of logCounts) {
-    if (!logCountMap.has(row.athleteId)) logCountMap.set(row.athleteId, { done: 0, partial: 0, missed: 0 });
-    const entry = logCountMap.get(row.athleteId);
-    if (["done", "partial", "missed"].includes(row.status)) entry[row.status] += row._count._all;
-  }
+    const serializeCoach = (coach) => ({
+      id: coach.id,
+      coachCode: coach.coachCode,
+      firstName: coach.firstName,
+      middleName: coach.middleName,
+      lastName: coach.lastName,
+      suffix: coach.suffix || null,
+      birthdate: coach.birthdate.toISOString(),
+      email: coach.email,
+      contactNumber: coach.contactNumber || null,
+      school: coach.school?.schoolName || null,
+      status: coach.status,
+      dateRegistered: coach.dateRegistered.toISOString(),
+      sports: coach.sports.map((s) => s.sport.sportName),
+      athleteCount: coach._count.athletes,
+      evalCount: coach._count.performances,
+      planCount: coach._count.trainingPlans,
+      athletes: coach.athletes.map((a) => ({ athleteCode: a.athleteCode, name: `${a.lastName}, ${a.firstName}`, sport: a.sport.sportName, status: a.status })),
+      performances: coach.performances.map((p) => ({
+        periodStart: p.periodStart.toISOString(),
+        periodEnd: p.periodEnd.toISOString(),
+        overallScore: p.overallScore.toString(),
+        evaluator: p.evaluator?.username || null,
+      })),
+      trainingPlans: coach.trainingPlans.map((p) => ({ title: p.planName, status: p.status })),
+    });
 
-  const serializeAthlete = (athlete) => ({
-    id: athlete.id,
-    athleteCode: athlete.athleteCode,
-    firstName: athlete.firstName,
-    middleName: athlete.middleName,
-    lastName: athlete.lastName,
-    suffix: athlete.suffix || null,
-    birthdate: athlete.birthdate.toISOString(),
-    gender: athlete.gender,
-    contactNumber: athlete.contactNumber || null,
-    email: athlete.email || null,
-    address: athlete.address || null,
-    school: athlete.school?.schoolName || null,
-    sport: athlete.sport.sportName,
-    event: athlete.event?.eventName || null,
-    coach: athlete.coach ? `${athlete.coach.lastName}, ${athlete.coach.firstName}` : null,
-    status: athlete.status,
-    height: athlete.height?.toString?.() || null,
-    weight: athlete.weight?.toString?.() || null,
-    healthStatus: athlete.healthStatus,
-    healthNotes: athlete.healthNotes || null,
-    dateRegistered: athlete.dateRegistered?.toISOString() || null,
-    assessmentCount: athlete._count.assessments,
-    achievementCount: athlete._count.achievements,
-    achievements: athlete.achievements.map((a) => ({ title: a.achievementTitle, type: a.achievementType || null, medal: a.medal || null, level: a.level || null, date: a.achievementDate?.toISOString() || null, organization: a.organization || null, description: a.description || null })),
-    notes: athlete.notes.map((n) => ({ note: n.note, author: n.author?.email || null, date: n.createdAt.toISOString() })),
-    trainingAssessments: athlete.trainingAssessments.map((t) => ({ rating: t.rating, fitness: t.fitnessDimension || "general", dates: t.assessmentDate.toISOString(), plan: t.plan?.planName || null })),
-    assessments: athlete.assessments.map((assessment) => ({
-      id: assessment.id,
-      assessmentDate: assessment.assessmentDate.toISOString(),
-      assessmentType: assessment.assessmentType,
-      remarks: assessment.remarks || null,
-      recorder: assessment.recorder?.email || null,
-      results: assessment.results.map((result) => ({ metricName: result.metric.metricName, unit: result.metric.unit, valueDecimal: result.valueDecimal?.toString() || null, valueText: result.valueText || null, notes: result.notes || null })),
-    })),
-    completion: (() => {
-      const log = logCountMap.get(athlete.id) || { done: 0, partial: 0, missed: 0 };
-      const planned = activityCountMap.get(athlete.id) || 0;
-      return {
-        planned,
-        done: log.done,
-        partial: log.partial,
-        missed: log.missed,
-        open: planned - (log.done + log.partial + log.missed),
-        percent: planned ? Math.round(((log.done + log.partial) / planned) * 100) : null,
-      };
-    })(),
-  });
-
-  const serializeCoach = (coach) => ({
-    id: coach.id,
-    coachCode: coach.coachCode,
-    firstName: coach.firstName,
-    middleName: coach.middleName,
-    lastName: coach.lastName,
-    suffix: coach.suffix || null,
-    birthdate: coach.birthdate.toISOString(),
-    email: coach.email,
-    contactNumber: coach.contactNumber || null,
-    school: coach.school?.schoolName || null,
-    status: coach.status,
-    dateRegistered: coach.dateRegistered.toISOString(),
-    sports: coach.sports.map((s) => s.sport.sportName),
-    athleteCount: coach._count.athletes,
-    evalCount: coach._count.performances,
-    planCount: coach._count.trainingPlans,
-    athletes: coach.athletes.map((a) => ({ athleteCode: a.athleteCode, name: `${a.lastName}, ${a.firstName}`, sport: a.sport.sportName, status: a.status })),
-    performances: coach.performances.map((p) => ({
-      periodStart: p.periodStart.toISOString(),
-      periodEnd: p.periodEnd.toISOString(),
-      overallScore: p.overallScore.toString(),
-      evaluator: p.evaluator?.username || null,
-    })),
-    trainingPlans: coach.trainingPlans.map((p) => ({ title: p.planName, status: p.status })),
+    return {
+      athletes: athletes.map(serializeAthlete),
+      coaches: coaches.map(serializeCoach),
+    };
   });
 
   return {
     props: {
       session,
       isAdmin,
-      athletes: athletes.map(serializeAthlete),
-      coaches: coaches.map(serializeCoach),
+      ...data,
     },
   };
 }

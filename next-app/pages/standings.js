@@ -3,6 +3,7 @@ import Link from "next/link";
 import React from "react";
 import { getSession } from "next-auth/react";
 import { prisma } from "../lib/prisma";
+import { gsspData } from "../lib/gssp-cache";
 import { computeTotalPoints, medalCounts } from "../lib/points";
 import AppShell from "../components/AppShell";
 import styles from "../styles/Dashboard.module.css";
@@ -20,41 +21,49 @@ export async function getServerSideProps(context) {
 
   const where = coachId ? { status: "active", coachId } : { status: "active" };
 
-  const [athletes, pointsConfig, sports] = await Promise.all([
-    prisma.athlete.findMany({
-      where,
-      select: {
-        id: true,
-        athleteCode: true,
-        firstName: true,
-        middleName: true,
-        lastName: true,
-        sportId: true,
-        sport: { select: { sportName: true } },
-        coach: { select: { firstName: true, lastName: true } },
-        school: { select: { schoolName: true } },
-        achievements: { select: { medal: true, level: true, achievementTitle: true } },
-      },
-      orderBy: { lastName: "asc" },
-    }),
-    prisma.pointsConfig.findMany(),
-    prisma.sport.findMany({ where: { status: "active" }, select: { id: true, sportName: true }, orderBy: { sportName: "asc" } }),
-  ]);
+  const payload = await gsspData(`standings:${isAdmin ? "a" : (coachId ? `c:${coachId}` : "none")}`, 30000, async () => {
+    const [athletes, pointsConfig, sports] = await Promise.all([
+      prisma.athlete.findMany({
+        where,
+        select: {
+          id: true,
+          athleteCode: true,
+          firstName: true,
+          middleName: true,
+          lastName: true,
+          sportId: true,
+          sport: { select: { sportName: true } },
+          coach: { select: { firstName: true, lastName: true } },
+          school: { select: { schoolName: true } },
+          achievements: { select: { medal: true, level: true, achievementTitle: true } },
+        },
+        orderBy: { lastName: "asc" },
+      }),
+      prisma.pointsConfig.findMany(),
+      prisma.sport.findMany({ where: { status: "active" }, select: { id: true, sportName: true }, orderBy: { sportName: "asc" } }),
+    ]);
 
-  const standings = athletes.map((athlete) => {
-    const points = computeTotalPoints(athlete.achievements, pointsConfig);
-    const medals = medalCounts(athlete.achievements);
+    const standings = athletes.map((athlete) => {
+      const points = computeTotalPoints(athlete.achievements, pointsConfig);
+      const medals = medalCounts(athlete.achievements);
+      return {
+        id: athlete.id,
+        athleteCode: athlete.athleteCode,
+        name: `${athlete.firstName} ${athlete.middleName ? athlete.middleName + " " : ""}${athlete.lastName}`,
+        sport: athlete.sport?.sportName || "—",
+        sportId: athlete.sportId,
+        coach: athlete.coach ? `${athlete.coach.firstName} ${athlete.coach.lastName}` : "—",
+        school: athlete.school?.schoolName || "—",
+        awardCount: athlete.achievements.length,
+        points,
+        medals,
+      };
+    });
+
     return {
-      id: athlete.id,
-      athleteCode: athlete.athleteCode,
-      name: `${athlete.firstName} ${athlete.middleName ? athlete.middleName + " " : ""}${athlete.lastName}`,
-      sport: athlete.sport?.sportName || "—",
-      sportId: athlete.sportId,
-      coach: athlete.coach ? `${athlete.coach.firstName} ${athlete.coach.lastName}` : "—",
-      school: athlete.school?.schoolName || "—",
-      awardCount: athlete.achievements.length,
-      points,
-      medals,
+      standings: JSON.parse(JSON.stringify(standings)),
+      sports: JSON.parse(JSON.stringify(sports)),
+      coachScoped: !!coachId,
     };
   });
 
@@ -62,9 +71,7 @@ export async function getServerSideProps(context) {
     props: {
       session,
       isAdmin,
-      standings: JSON.parse(JSON.stringify(standings)),
-      sports: JSON.parse(JSON.stringify(sports)),
-      coachScoped: !!coachId,
+      ...payload,
     },
   };
 }
