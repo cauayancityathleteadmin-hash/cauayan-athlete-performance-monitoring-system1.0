@@ -8,6 +8,7 @@ import styles from "../styles/Dashboard.module.css";
 const NAV_GROUPS = [
   {
     label: "Home",
+    small: true,
     links: [
       { href: "/dashboard", label: "Dashboard" },
     ],
@@ -29,12 +30,14 @@ const NAV_GROUPS = [
   },
   {
     label: "Training & Assessment",
+    small: true,
     links: [
       { href: "/training-plans", label: "Training" },
     ],
   },
   {
     label: "Analytics",
+    small: true,
     links: [
       { href: "/analytics", label: "Analytics" },
       { href: "/standings", label: "Standings" },
@@ -42,6 +45,7 @@ const NAV_GROUPS = [
   },
   {
     label: "Events & Program",
+    small: true,
     links: [
       { href: "/event-plans", label: "Event plans" },
       { href: "/admin/catalog", label: "Sports & Events", adminOnly: true },
@@ -55,6 +59,7 @@ const NAV_GROUPS = [
   },
   {
     label: "System",
+    small: true,
     links: [
       { href: "/admin/metrics", label: "Metrics", adminOnly: true },
       { href: "/admin/audit-logs", label: "Audit logs", adminOnly: true },
@@ -63,6 +68,7 @@ const NAV_GROUPS = [
   },
   {
     label: "Account",
+    small: true,
     links: [
       { href: "/account", label: "My account" },
     ],
@@ -118,7 +124,7 @@ useEffect(() => {
         if (!links.length) return null;
         return (
           <React.Fragment key={group.label}>
-            <p className={styles.navHeading}>{group.label.toUpperCase()}</p>
+            <p className={group.small ? `${styles.navHeading} ${styles.navHeadingSmall}` : styles.navHeading}>{group.label.toUpperCase()}</p>
             {links.map((link) => (
               <Link key={link.href} href={link.href} className={isActive(link.href)} onClick={() => setOpen(false)}>
                 {link.label}

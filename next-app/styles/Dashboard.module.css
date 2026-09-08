@@ -201,7 +201,7 @@
 
 .sidebar a {
   display: block;
-  padding: var(--space-2) var(--space-5);
+  padding: var(--space-2) var(--space-5) var(--space-2) calc(var(--space-5) + 20px);
   color: var(--muted);
   font-size: var(--text-base);
   font-weight: 500;
@@ -226,6 +226,13 @@
   color: var(--muted);
   font-weight: 700;
   opacity: 0.7;
+}
+
+.navHeadingSmall {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  opacity: 0.55;
 }
 
 .content {
