@@ -188,7 +188,7 @@
 }
 
 .sidebarCollapsed {
-  width: 40px;
+  width: 30px;
 }
 .sidebarCollapsed .navHeading {
   display: none;
@@ -201,6 +201,7 @@
 .sidebarCollapsed .navIcon {
   margin-right: 0;
   width: 18px;
+  height: 18px;
 }
 .sidebarCollapsed .navLabel {
   display: none;
