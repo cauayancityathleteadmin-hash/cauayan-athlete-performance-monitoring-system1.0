@@ -187,26 +187,6 @@
   min-width: 0;
 }
 
-.sidebarCollapsed {
-  width: 30px;
-}
-.sidebarCollapsed .navHeading {
-  display: none;
-}
-.sidebarCollapsed a {
-  justify-content: center;
-  padding-left: 0;
-  padding-right: 0;
-}
-.sidebarCollapsed .navIcon {
-  margin-right: 0;
-  width: 18px;
-  height: 18px;
-}
-.sidebarCollapsed .navLabel {
-  display: none;
-}
-
 .sidebar {
   width: 220px;
   background: rgba(10, 50, 40, .95);

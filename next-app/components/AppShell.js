@@ -242,12 +242,12 @@ useEffect(() => {
     });
   };
 
-  const nav = (compact) => (
-    <nav className={compact ? `${styles.sidebar} ${styles.sidebarCollapsed}` : styles.sidebar} aria-label="Primary navigation">
+  const nav = (
+    <nav className={styles.sidebar} aria-label="Primary navigation">
       {NAV_GROUPS.map((group) => {
         const links = group.links.filter((link) => (!link.adminOnly || isAdmin) && (!link.coachApproveOnly || canApproveCoaches || isAdmin));
         if (!links.length) return null;
-        const showCaption = !compact && group.caption && links.length > 1;
+        const showCaption = group.caption && links.length > 1;
         return (
           <React.Fragment key={group.label}>
             {showCaption && <p className={styles.navHeading}>{group.label.toUpperCase()}</p>}
@@ -295,9 +295,9 @@ useEffect(() => {
           </button>
         </div>
       </header>
-      {open && <div className={styles.mobileNav}>{nav(false)}</div>}
+      {open && <div className={styles.mobileNav}>{nav}</div>}
       <div className={styles.layout}>
-        {nav(collapsed)}
+        {!collapsed && nav}
         <main className={styles.content}>{children}</main>
       </div>
     </div>
