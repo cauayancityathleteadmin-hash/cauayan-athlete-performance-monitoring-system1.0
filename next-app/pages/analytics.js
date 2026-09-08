@@ -282,40 +282,40 @@ export default function Analytics({ data, insights = [], csv = "", session }) {
 
         <section className={styles.grid}>
           <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Population</p><h2>Athletes by sport</h2></div></div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by sport</h2></div></div>
             {sportDist.length ? <HBars data={sportDist} axisLabel="Sport" axisValue="Athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
           </div>
           <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Population</p><h2>Share by status</h2></div></div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Share by status</h2></div></div>
             <Donut segments={statusSegments} ariaLabel="Share of athletes by status" label="athletes" />
           </div>
         </section>
 
         <section className={styles.grid}>
           <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Population</p><h2>Athletes by gender</h2></div></div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by gender</h2></div></div>
             {genderDist.length ? <Donut segments={genderSegments} ariaLabel="Share of athletes by gender" label="athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
           </div>
           <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Population</p><h2>Athletes by school</h2></div></div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by school</h2></div></div>
             {schoolDist.length ? <HBars data={schoolDist} axisLabel="School" axisValue="Athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
           </div>
         </section>
 
         <section className={styles.grid}>
           <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Population</p><h2>Athletes by event discipline</h2></div></div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by event discipline</h2></div></div>
             {eventDist.length ? <HBars data={eventDist} axisLabel="Event" axisValue="Athletes" /> : <p className={styles.empty}>No athletes assigned to events yet.</p>}
           </div>
           <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Population</p><h2>Athletes by coach</h2></div></div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by coach</h2></div></div>
             {coachDist.length ? <HBars data={coachDist} axisLabel="Coach" axisValue="Athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
           </div>
         </section>
 
         <section className={styles.grid}>
           <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Population</p><h2>By status — roster</h2></div></div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>By status — roster</h2></div></div>
             <div className={styles.statusPanel}>
               {statusDist.map((item) => {
                 const expanded = openStatus[item.name] ?? false;
@@ -345,23 +345,23 @@ export default function Analytics({ data, insights = [], csv = "", session }) {
             </div>
           </div>
           <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Activity</p><h2>Assessments by type</h2></div></div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Assessments by type</h2></div></div>
             {assessmentTypeDist.length ? <Donut segments={assessmentTypeDist} ariaLabel="Assessments by type" label="assessments" /> : <p className={styles.empty}>No assessments yet.</p>}
           </div>
         </section>
 
         <section className={styles.panel}>
-          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Activity</p><h2>Assessments recorded per month</h2></div></div>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Assessments recorded per month</h2></div></div>
           {monthly.length ? <HBars data={monthly} colors={PALETTE} axisLabel="Month" axisValue="Assessments" /> : <p className={styles.empty}>No assessments yet.</p>}
         </section>
 
         <section className={styles.grid}>
           <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Activity</p><h2>Most assessments per athlete</h2></div></div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Most assessments per athlete</h2></div></div>
             {assessmentsPerAthlete.length ? <HBars data={assessmentsPerAthlete} axisLabel="Athlete" axisValue="Assessments" /> : <p className={styles.empty}>No assessments yet.</p>}
           </div>
           <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Activity</p><h2>Recent assessments</h2></div></div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Recent assessments</h2></div></div>
             {recentAssessments.length ? <div className={styles.tableWrap}><table><thead><tr><th scope="col">Date</th><th scope="col">Athlete</th><th scope="col">Sport</th><th scope="col">Type</th><th scope="col">Metrics</th></tr></thead><tbody>{recentAssessments.map((a, i) => <tr key={i}><td>{formatDate(a.date)}</td><td><strong>{a.athlete}</strong><small>{a.athleteCode}</small></td><td>{a.sport}</td><td>{a.type}</td><td>{a.results}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No recent assessments.</p>}
           </div>
         </section>
@@ -389,28 +389,28 @@ export default function Analytics({ data, insights = [], csv = "", session }) {
           <>
             <section className={styles.grid}>
               <div className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Ecosystem</p><h2>Coaches by school</h2></div></div>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Program</p><h2>Coaches by school</h2></div></div>
                 {coachSchoolDist.length ? <HBars data={coachSchoolDist} axisLabel="School" axisValue="Coaches" /> : <p className={styles.empty}>No coaches registered.</p>}
               </div>
               <div className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Ecosystem</p><h2>Achievements by type</h2></div></div>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Program</p><h2>Achievements by type</h2></div></div>
                 {achievementTypeDist.length ? <HBars data={achievementTypeDist} axisLabel="Achievement type" axisValue="Count" /> : <p className={styles.empty}>No achievements recorded.</p>}
               </div>
             </section>
 
             <section className={styles.grid}>
               <div className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Ecosystem</p><h2>Event programs by status</h2></div></div>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Program</p><h2>Event programs by status</h2></div></div>
                 {eventPlans.total ? <HBars data={eventPlans.byStatus} axisLabel="Status" axisValue="Programs" /> : <p className={styles.empty}>No event programs yet.</p>}
               </div>
               <div className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Ecosystem</p><h2>Applications by status</h2></div></div>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Program</p><h2>Applications by status</h2></div></div>
                 {applications.total ? <HBars data={applications.byStatus} axisLabel="Status" axisValue="Applications" /> : <p className={styles.empty}>No applications yet.</p>}
               </div>
             </section>
 
             <section className={styles.panel}>
-              <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Ecosystem</p><h2>Event participants by type</h2></div></div>
+              <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Program</p><h2>Event participants by type</h2></div></div>
               {participants.total ? <HBars data={participants.byType} axisLabel="Participant type" axisValue="Participants" /> : <p className={styles.empty}>No participants added yet.</p>}
             </section>
           </>

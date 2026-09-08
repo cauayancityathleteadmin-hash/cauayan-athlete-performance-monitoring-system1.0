@@ -125,11 +125,11 @@ export default function Catalog({ session, sports, events, schools }) {
 
   return (
     <>
-      <Head><title>Sports &amp; Events | Administration</title></Head>
-      <AppShell session={session} isAdmin eyebrow="System catalog" title="Sports & Events" active="/admin/catalog">
+      <Head><title>Sports &amp; Discipline | Administration</title></Head>
+      <AppShell session={session} isAdmin eyebrow="Catalog" title="Sports & Discipline" active="/admin/catalog">
         <section className={styles["grid-2"]}>
           <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Taxonomy</p><h2>Add sport</h2></div></div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Sport</p><h2>Add sport</h2></div></div>
             <form onSubmit={addSport} className={styles.formStack}>
               <label>Sport name *<input name="sportName" required maxLength="100" placeholder="e.g. Basketball" /></label>
               <label>Description<textarea name="description" maxLength="2000" rows="3" /></label>
@@ -140,7 +140,7 @@ export default function Catalog({ session, sports, events, schools }) {
             </form>
           </div>
           <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Disciplines</p><h2>Add event / discipline</h2></div></div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Discipline</p><h2>Add event / discipline</h2></div></div>
             <form onSubmit={addEvent} className={styles.formStack}>
               <label>Sport *<select name="sportId" required defaultValue="">{sports.map((sport) => <option value={sport.id} key={sport.id}>{sport.sportName}</option>)}</select></label>
               <label>Event name *<input name="eventName" required maxLength="150" placeholder="e.g. 100m sprint" /></label>
@@ -185,7 +185,7 @@ export default function Catalog({ session, sports, events, schools }) {
         </section>
 
         <section className={styles.panel}>
-          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Institutions</p><h2>Schools</h2></div></div>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Schools</p><h2>Schools</h2></div></div>
           <form onSubmit={addSchool} className={styles.formStack} style={{ marginBottom: 16 }}>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
               <label style={{ flex: "1 1 220px", minWidth: 0 }}>School name *<input name="schoolName" className={styles.fieldControl} required maxLength="191" placeholder="e.g. Cauayan National High School" /></label>

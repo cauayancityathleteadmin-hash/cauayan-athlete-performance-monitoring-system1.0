@@ -532,7 +532,7 @@ function TransferPanel({ athletes, coaches, onDone }) {
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
-        <div><p className={styles.eyebrow}>Admin · Reassignment</p><h2>Transfer athletes</h2></div>
+        <div><p className={styles.eyebrow}>Admin · Transfer</p><h2>Transfer athletes</h2></div>
         <span className={styles.formHint} style={{ alignSelf: "center" }}>{selected.size} selected</span>
       </div>
       <p className={styles.formHint} style={{ marginTop: 0 }}>Reassign athletes to a different coach. Each athlete keeps exactly one coach — selected athletes already under the target coach are skipped automatically. A history entry records every transfer.</p>
