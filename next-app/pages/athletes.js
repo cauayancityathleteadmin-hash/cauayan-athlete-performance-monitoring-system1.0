@@ -46,15 +46,17 @@ export async function getServerSideProps(context) {
   const student = { orderBy: athleteOrderBy(sort, dir), include: { school: true, sport: true, event: true, coach: true } };
   if (health === "flagged") student.where = { healthStatus: { in: ["sick", "injured", "recovering", "inactive"] } };
   else if (health) student.where = { healthStatus: health };
-  if (session.user.role === "coach") {
-    const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
-    if (coach) student.where = { ...(student.where || {}), coachId: coach.id };
-  }
   const isCoach = session.user.role === "coach";
+  const ownCoach = isCoach ? await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } }) : null;
+  if (ownCoach) student.where = { ...(student.where || {}), coachId: ownCoach.id };
   const [athletesResult, allAthletesResult, sports, events, coaches, coachList] = await Promise.all([
     prisma.athlete.findMany(student),
     isCoach
-      ? prisma.athlete.findMany({ orderBy: { lastName: "asc" }, include: { school: true, sport: true, event: true, coach: true } })
+      ? prisma.athlete.findMany({
+          orderBy: { lastName: "asc" },
+          include: { school: true, sport: true, event: true, coach: true },
+          where: { coachId: ownCoach ? { not: ownCoach.id } : undefined },
+        })
       : Promise.resolve([]),
     prisma.sport.findMany({ where: { status: "active" }, orderBy: { sportName: "asc" } }),
     prisma.event.findMany({ where: { status: "active" }, include: { sport: true }, orderBy: { eventName: "asc" } }),
@@ -68,7 +70,8 @@ export async function getServerSideProps(context) {
   const perPage = 25;
   const totalPages = Math.max(1, Math.ceil(athletes.length / perPage));
   const paginated = athletes.slice((page - 1) * perPage, page * perPage);
-  return { props: { session, catalog: { sports, events, coaches }, athletes, paginated, page: Math.min(page, totalPages), totalPages, total: athletes.length, sort, dir, health, allAthletes: JSON.parse(JSON.stringify(allAthletes)), coachList: JSON.parse(JSON.stringify(coachList)) } };
+  const otherCoaches = isCoach && ownCoach ? coachList.filter((c) => c.id !== ownCoach.id) : coachList;
+  return { props: { session, catalog: { sports, events, coaches }, athletes, paginated, page: Math.min(page, totalPages), totalPages, total: athletes.length, sort, dir, health, allAthletes: JSON.parse(JSON.stringify(allAthletes)), coachList: JSON.parse(JSON.stringify(otherCoaches)) } };
 }
 
 export default function Athletes({ session, athletes, paginated: serverPaginated, catalog, page: serverPage, totalPages: serverTotalPages, total, sort, dir, health, allAthletes = [], coachList = [] }) {
