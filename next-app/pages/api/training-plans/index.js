@@ -5,10 +5,10 @@ import { rateLimiters } from "../../../lib/rate-limit";
 const FREQUENCIES = ["day", "week", "month"];
 const STATUSES = ["active", "completed"];
 
-function toDurationWeeks(v) {
+function toDurationDays(v) {
   if (v === "" || v == null) return null;
   const n = Number(v);
-  return Number.isSafeInteger(n) && n >= 1 ? n : null;
+  return Number.isSafeInteger(n) && n >= 1 && n <= 730 ? n : null;
 }
 
 async function resolveCoach(session) {
@@ -93,7 +93,7 @@ export default async function handler(req, res) {
       const endDate = text(body.endDate, 10) || null;
       if (endDate && new Date(endDate) < new Date(startDate)) return res.status(400).json({ error: "End date must be on or after the start date." });
       const frequency = FREQUENCIES.includes(body.frequency) ? body.frequency : "day";
-      const durationWeeks = toDurationWeeks(body.durationWeeks);
+      const durationDays = toDurationDays(body.durationDays) ?? (toDurationDays(body.durationWeeks) ? toDurationDays(body.durationWeeks) * 7 : toDurationDays(body.durationWeeks));
       const isTemplate = Boolean(body.isTemplate);
       if (isTemplate && !isAdmin) return res.status(403).json({ error: "Only admins can create template plans." });
       if (isAdmin && !isTemplate) return res.status(403).json({ error: "Only coaches manage training plans. Admins create templates and post suggestions as comments." });
@@ -120,7 +120,7 @@ export default async function handler(req, res) {
             sportId,
             coachId,
             frequency,
-            durationWeeks,
+            durationDays,
             startDate: new Date(startDate),
             endDate: endDate ? new Date(endDate) : null,
             status: STATUSES.includes(body.status) ? body.status : "active",
@@ -195,6 +195,7 @@ export default async function handler(req, res) {
             coachId,
             frequency: sourcePlan.frequency,
             durationWeeks: sourcePlan.durationWeeks,
+            durationDays: sourcePlan.durationDays,
             startDate: new Date(startDate),
             endDate: endDate ? new Date(endDate) : null,
             status: "active",
@@ -275,8 +276,12 @@ export default async function handler(req, res) {
       const frequency = FREQUENCIES.includes(body.frequency) ? body.frequency : "day";
       data.frequency = frequency;
     }
-    if (body.durationWeeks !== undefined) {
-      data.durationWeeks = toDurationWeeks(body.durationWeeks);
+    if (body.durationDays !== undefined) {
+      data.durationDays = toDurationDays(body.durationDays);
+      if (toDurationDays(body.durationDays)) data.durationWeeks = null;
+    } else if (body.durationWeeks !== undefined) {
+      data.durationDays = toDurationDays(body.durationWeeks) ? toDurationDays(body.durationWeeks) * 7 : null;
+      data.durationWeeks = toDurationDays(body.durationWeeks);
     }
     if (body.startDate !== undefined) {
       const startDate = text(body.startDate, 10, true);

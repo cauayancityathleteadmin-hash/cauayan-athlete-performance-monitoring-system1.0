@@ -50,21 +50,30 @@ export async function getServerSideProps(context) {
     const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
     if (coach) student.where = { ...(student.where || {}), coachId: coach.id };
   }
-  const [allAthletes, sports, events, coaches] = await Promise.all([
+  const isCoach = session.user.role === "coach";
+  const [athletesResult, allAthletesResult, sports, events, coaches, coachList] = await Promise.all([
     prisma.athlete.findMany(student),
+    isCoach
+      ? prisma.athlete.findMany({ orderBy: { lastName: "asc" }, include: { school: true, sport: true, event: true, coach: true } })
+      : Promise.resolve([]),
     prisma.sport.findMany({ where: { status: "active" }, orderBy: { sportName: "asc" } }),
     prisma.event.findMany({ where: { status: "active" }, include: { sport: true }, orderBy: { eventName: "asc" } }),
     session.user.role === "admin" ? prisma.coach.findMany({ where: { status: "active" }, orderBy: { lastName: "asc" }, select: { id: true, coachCode: true, firstName: true, lastName: true, schoolId: true, school: { select: { schoolName: true } } } }) : Promise.resolve([]),
+    prisma.coach.findMany({ where: { status: "active" }, orderBy: { firstName: "asc" }, select: { id: true, coachCode: true, firstName: true, lastName: true } }),
   ]);
-  const athletes = allAthletes.map((athlete) => ({ ...athlete, birthdate: athlete.birthdate.toISOString(), dateRegistered: athlete.dateRegistered.toISOString() }));
+  const athletes = athletesResult.map((athlete) => ({ ...athlete, birthdate: athlete.birthdate.toISOString(), dateRegistered: athlete.dateRegistered.toISOString() }));
+  const allAthletes = isCoach
+    ? allAthletesResult.map((athlete) => ({ ...athlete, birthdate: athlete.birthdate.toISOString(), dateRegistered: athlete.dateRegistered.toISOString() }))
+    : athletesResult;
   const perPage = 25;
   const totalPages = Math.max(1, Math.ceil(athletes.length / perPage));
   const paginated = athletes.slice((page - 1) * perPage, page * perPage);
-  return { props: { session, catalog: { sports, events, coaches }, athletes, paginated, page: Math.min(page, totalPages), totalPages, total: athletes.length, sort, dir, health } };
+  return { props: { session, catalog: { sports, events, coaches }, athletes, paginated, page: Math.min(page, totalPages), totalPages, total: athletes.length, sort, dir, health, allAthletes: JSON.parse(JSON.stringify(allAthletes)), coachList: JSON.parse(JSON.stringify(coachList)) } };
 }
 
-export default function Athletes({ session, athletes, paginated: serverPaginated, catalog, page: serverPage, totalPages: serverTotalPages, total, sort, dir, health }) {
+export default function Athletes({ session, athletes, paginated: serverPaginated, catalog, page: serverPage, totalPages: serverTotalPages, total, sort, dir, health, allAthletes = [], coachList = [] }) {
   const isAdmin = session?.user?.role === "admin";
+  const isCoach = session?.user?.role === "coach";
   const [view, setView] = React.useState("sport");
   const router = useRouter();
   const [search, setSearch] = React.useState("");
@@ -107,6 +116,43 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [filteredAthletes]);
 
+  const filteredAll = React.useMemo(() => {
+    if (!search.trim()) return allAthletes;
+    const q = search.trim().toLowerCase();
+    return allAthletes.filter((a) =>
+      a.firstName.toLowerCase().includes(q) ||
+      a.lastName.toLowerCase().includes(q) ||
+      (a.middleName || "").toLowerCase().includes(q) ||
+      a.athleteCode.toLowerCase().includes(q) ||
+      (a.sport?.sportName || "").toLowerCase().includes(q) ||
+      (a.event?.eventName || "").toLowerCase().includes(q) ||
+      (a.school?.schoolName || "").toLowerCase().includes(q) ||
+      (a.coach ? `${a.coach.firstName} ${a.coach.lastName}`.toLowerCase() : "").includes(q)
+    );
+  }, [allAthletes, search]);
+
+  const groupedByCoach = React.useMemo(() => {
+    const map = new Map();
+    for (const athlete of filteredAll) {
+      const coachName = athlete.coach ? `${athlete.coach.firstName} ${athlete.coach.lastName}` : "Uncoached athletes";
+      if (!map.has(coachName)) map.set(coachName, []);
+      map.get(coachName).push(athlete);
+    }
+    const present = [...map.entries()];
+    for (const coach of coachList) {
+      const name = `${coach.firstName} ${coach.lastName}`;
+      if (!present.some(([key]) => key === name)) present.push([name, []]);
+    }
+    return present.sort((a, b) => {
+      const aEmpty = a[0] === "Uncoached athletes";
+      const bEmpty = b[0] === "Uncoached athletes";
+      if (aEmpty && bEmpty) return 0;
+      if (aEmpty) return 1;
+      if (bEmpty) return -1;
+      return a[0].localeCompare(b[0]);
+    });
+  }, [filteredAll, coachList]);
+
   const perPage = 25;
   const clientTotalPages = Math.max(1, Math.ceil(filteredAthletes.length / perPage));
   const currentPage = Math.min(serverPage, clientTotalPages);
@@ -120,6 +166,8 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
           <div className={styles.segmented}>
             <button className={view === "sport" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("sport")}>By sport</button>
             <button className={view === "list" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("list")}>List</button>
+            {isCoach && <button className={view === "all" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("all")}>All athletes</button>}
+            {isAdmin && <button className={view === "transfer" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("transfer")}>Transfer athletes</button>}
           </div>
           <button className={view === "add" ? `${styles.primary} ${styles.btnSm}` : styles.primary} onClick={() => setView(view === "add" ? "sport" : "add")}>{view === "add" ? "Close form" : "Add athlete"}</button>
           <button className={view === "import" ? `${styles.secondary} ${styles.btnSm}` : styles.secondary} onClick={() => setView(view === "import" ? "sport" : "import")}>{view === "import" ? "Close import" : "Import athletes"}</button>
@@ -175,6 +223,43 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
             </tbody></table></div>
             <Pagination page={currentPage} totalPages={clientTotalPages} query={{ sort, dir, health, search }} />
           </section>
+        )}
+
+        {view === "all" && (
+          <section className={styles.panel}>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Full directory</p><h2>All athletes by coach</h2></div><span className={styles.formHint} style={{ alignSelf: "center" }}>{filteredAll.length} athlete{filteredAll.length === 1 ? "" : "s"}</span></div>
+            <p className={styles.formHint} style={{ marginTop: 0 }}>Browse every registered athlete, grouped by their coach, including athletes with no coach assigned yet. This is a read-only directory — you can only manage the athletes assigned to you.</p>
+            <div className={styles.toolbar}>
+              <label style={{ minWidth: 240 }}>Search athletes<input type="text" placeholder="Name, code, sport, event, school, coach…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+            </div>
+            {groupedByCoach.length ? groupedByCoach.map(([coachName, roster]) => (
+              <div key={coachName} style={{ marginBottom: 22 }}>
+                <h3 className={styles.sectionTitle}>{coachName} <span className={styles.formHint}>({roster.length})</span></h3>
+                {roster.length ? (
+                  <div className={styles.tableWrap}><table>
+                    <thead><tr><th>Code</th><th>Athlete</th><th>Sport / event</th><th>School</th><th>Health</th><th>Status</th><th></th></tr></thead>
+                    <tbody>
+                      {roster.map((athlete) => (
+                        <tr key={athlete.id}>
+                          <td data-label="Code">{athlete.athleteCode}</td>
+                          <td data-label="Athlete" style={{ display: "flex", alignItems: "center", gap: 10 }}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></span></td>
+                          <td data-label="Sport / event">{athlete.sport?.sportName || "Unassigned"}<small>{athlete.event?.eventName || ""}</small></td>
+                          <td data-label="School">{athlete.school?.schoolName || "Unassigned"}</td>
+                          <td data-label="Health"><HealthBadge status={athlete.healthStatus} /></td>
+                          <td data-label="Status"><StatusBadge status={athlete.status} /></td>
+                          <td><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table></div>
+                ) : <p className={styles.empty}>No athletes yet.</p>}
+              </div>
+            )) : <p className={styles.empty}>No athletes registered yet.</p>}
+          </section>
+        )}
+
+        {view === "transfer" && isAdmin && (
+          <TransferPanel athletes={athletes} coaches={catalog.coaches || []} onDone={() => router.reload()} />
         )}
 
         {view === "sport" && (
@@ -387,6 +472,101 @@ function ImportPanel({ isAdmin, onDone }) {
         <div className={styles.formActions}>
           <button className={styles.primary} disabled={busy}>{busy ? "Importing..." : "Import athletes"}</button>
           <button type="button" className={styles.secondary} onClick={onDone}>Cancel</button>
+        </div>
+        {message.text && <p role="status" className={`${styles.fullField} ${message.kind === "success" ? styles.formSuccess : styles.formError}`}>{message.text}</p>}
+      </form>
+    </section>
+  );
+}
+
+function TransferPanel({ athletes, coaches, onDone }) {
+  const [selected, setSelected] = React.useState(new Set());
+  const [targetCoachId, setTargetCoachId] = React.useState("");
+  const [search, setSearch] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [message, setMessage] = React.useState({ kind: "", text: "" });
+
+  const filtered = React.useMemo(() => {
+    if (!search.trim()) return athletes;
+    const q = search.trim().toLowerCase();
+    return athletes.filter((a) =>
+      a.firstName.toLowerCase().includes(q) ||
+      a.lastName.toLowerCase().includes(q) ||
+      (a.middleName || "").toLowerCase().includes(q) ||
+      a.athleteCode.toLowerCase().includes(q) ||
+      (a.sport?.sportName || "").toLowerCase().includes(q) ||
+      (a.coach ? `${a.coach.firstName} ${a.coach.lastName}`.toLowerCase() : "").includes(q)
+    );
+  }, [athletes, search]);
+
+  function toggle(id) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setSelected((prev) => (prev.size === filtered.length ? new Set() : new Set(filtered.map((a) => a.id))));
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    setMessage({ kind: "", text: "" });
+    if (!selected.size) { setMessage({ kind: "danger", text: "Select at least one athlete to transfer." }); return; }
+    if (!targetCoachId) { setMessage({ kind: "danger", text: "Choose the coach to transfer the selected athletes to." }); return; }
+    setBusy(true);
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    const response = await fetch("/api/athletes/transfer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+      body: JSON.stringify({ athleteIds: [...selected], targetCoachId: Number(targetCoachId) }),
+    }).catch(() => null);
+    const result = response ? await response.json().catch(() => ({})) : {};
+    setBusy(false);
+    if (response && response.ok && result.success) {
+      setMessage({ kind: "success", text: result.message });
+      setTimeout(onDone, 1200);
+    } else {
+      setMessage({ kind: "danger", text: result.error || "Transfer failed." });
+    }
+  }
+
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div><p className={styles.eyebrow}>Admin · Reassignment</p><h2>Transfer athletes</h2></div>
+        <span className={styles.formHint} style={{ alignSelf: "center" }}>{selected.size} selected</span>
+      </div>
+      <p className={styles.formHint} style={{ marginTop: 0 }}>Reassign athletes to a different coach. Each athlete keeps exactly one coach — selected athletes already under the target coach are skipped automatically. A history entry records every transfer.</p>
+      <form onSubmit={submit}>
+        <div className={styles.toolbar}>
+          <label style={{ minWidth: 240 }}>Search athletes<input type="text" placeholder="Name, code, sport, coach…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+          <label style={{ minWidth: 240 }}>Transfer to coach
+            <select value={targetCoachId} onChange={(event) => setTargetCoachId(event.target.value)}>
+              <option value="">Choose a coach…</option>
+              {coaches.map((c) => <option value={c.id} key={c.id}>{c.firstName} {c.lastName} ({c.coachCode}){c.school?.schoolName ? ` – ${c.school.schoolName}` : ""}</option>)}
+            </select>
+          </label>
+          <button className={styles.primary} disabled={busy || !selected.size || !targetCoachId}>{busy ? "Transferring..." : `Transfer ${selected.size || ""} athlete${selected.size === 1 ? "" : "s"}`}</button>
+        </div>
+        <div className={styles.tableWrap} style={{ marginTop: 14 }}>
+          <table>
+            <thead><tr><th style={{ width: 40 }}><input type="checkbox" checked={filtered.length > 0 && selected.size === filtered.length} onChange={toggleAll} aria-label="Select all" /></th><th>Code</th><th>Athlete</th><th>Sport</th><th>Current coach</th><th>Status</th></tr></thead>
+            <tbody>
+              {filtered.map((athlete) => (
+                <tr key={athlete.id} style={{ opacity: selected.has(athlete.id) ? 1 : .82 }}>
+                  <td><input type="checkbox" checked={selected.has(athlete.id)} onChange={() => toggle(athlete.id)} aria-label={`Select ${athlete.firstName} ${athlete.lastName}`} /></td>
+                  <td data-label="Code">{athlete.athleteCode}</td>
+                  <td data-label="Athlete" style={{ display: "flex", alignItems: "center", gap: 10 }}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}<small>{athlete.gender}</small></span></td>
+                  <td data-label="Sport">{athlete.sport?.sportName || "Unassigned"}</td>
+                  <td data-label="Current coach">{athlete.coach ? `${athlete.coach.firstName} ${athlete.coach.lastName}` : "Unassigned"}</td>
+                  <td data-label="Status"><StatusBadge status={athlete.status} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
         {message.text && <p role="status" className={`${styles.fullField} ${message.kind === "success" ? styles.formSuccess : styles.formError}`}>{message.text}</p>}
       </form>

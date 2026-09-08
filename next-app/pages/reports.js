@@ -1,6 +1,10 @@
 import Head from "next/head";
 import React from "react";
 import { getSession } from "next-auth/react";
+import {
+  ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid,
+  LineChart, Line, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend,
+} from "recharts";
 import { prisma } from "../lib/prisma";
 import AppShell from "../components/AppShell";
 import styles from "../styles/Dashboard.module.css";
@@ -62,6 +66,19 @@ export async function getServerSideProps(context) {
     });
   }
 
+  const athleteIds = athletes.map((a) => a.id);
+  const [activityCounts, logCounts] = await Promise.all([
+    athleteIds.length ? prisma.planActivity.groupBy({ by: ["athleteId"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
+    athleteIds.length ? prisma.planActivityLog.groupBy({ by: ["athleteId", "status"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
+  ]);
+  const activityCountMap = new Map(activityCounts.map((x) => [x.athleteId, x._count._all]));
+  const logCountMap = new Map();
+  for (const row of logCounts) {
+    if (!logCountMap.has(row.athleteId)) logCountMap.set(row.athleteId, { done: 0, partial: 0, missed: 0 });
+    const entry = logCountMap.get(row.athleteId);
+    if (["done", "partial", "missed"].includes(row.status)) entry[row.status] += row._count._all;
+  }
+
   const serializeAthlete = (athlete) => ({
     id: athlete.id,
     athleteCode: athlete.athleteCode,
@@ -86,9 +103,9 @@ export async function getServerSideProps(context) {
     dateRegistered: athlete.dateRegistered?.toISOString() || null,
     assessmentCount: athlete._count.assessments,
     achievementCount: athlete._count.achievements,
-    achievements: athlete.achievements.map((a) => ({ title: a.achievementTitle, type: a.achievementType || null, date: a.achievementDate?.toISOString() || null, organization: a.organization || null, description: a.description || null })),
+    achievements: athlete.achievements.map((a) => ({ title: a.achievementTitle, type: a.achievementType || null, medal: a.medal || null, level: a.level || null, date: a.achievementDate?.toISOString() || null, organization: a.organization || null, description: a.description || null })),
     notes: athlete.notes.map((n) => ({ note: n.note, author: n.author?.email || null, date: n.createdAt.toISOString() })),
-    trainingAssessments: athlete.trainingAssessments.map((t) => ({ rating: t.rating, dates: t.assessmentDate.toISOString(), plan: t.plan?.planName || null })),
+    trainingAssessments: athlete.trainingAssessments.map((t) => ({ rating: t.rating, fitness: t.fitnessDimension || "general", dates: t.assessmentDate.toISOString(), plan: t.plan?.planName || null })),
     assessments: athlete.assessments.map((assessment) => ({
       id: assessment.id,
       assessmentDate: assessment.assessmentDate.toISOString(),
@@ -97,6 +114,18 @@ export async function getServerSideProps(context) {
       recorder: assessment.recorder?.email || null,
       results: assessment.results.map((result) => ({ metricName: result.metric.metricName, unit: result.metric.unit, valueDecimal: result.valueDecimal?.toString() || null, valueText: result.valueText || null, notes: result.notes || null })),
     })),
+    completion: (() => {
+      const log = logCountMap.get(athlete.id) || { done: 0, partial: 0, missed: 0 };
+      const planned = activityCountMap.get(athlete.id) || 0;
+      return {
+        planned,
+        done: log.done,
+        partial: log.partial,
+        missed: log.missed,
+        open: planned - (log.done + log.partial + log.missed),
+        percent: planned ? Math.round(((log.done + log.partial) / planned) * 100) : null,
+      };
+    })(),
   });
 
   const serializeCoach = (coach) => ({
@@ -407,6 +436,180 @@ function CoachReportCard({ coach, session, prefix }) {
   );
 }
 
+const SUMMARY_FITNESS_META = {
+  endurance: "Endurance",
+  strength: "Strength",
+  power: "Power",
+  speed_agility: "Speed / Agility",
+  skill_technique: "Skill / Technique",
+  mobility: "Mobility",
+  recovery: "Recovery",
+  general: "General",
+};
+
+function shortDate(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? "" : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" });
+}
+
+function ratingTone(r) {
+  if (r == null) return { color: "#64748b" };
+  if (r >= 8) return { color: "var(--accent)" };
+  if (r >= 6) return { color: "#facc15" };
+  return { color: "var(--danger)" };
+}
+
+function PerformanceSummary({ athlete }) {
+  const sorted = React.useMemo(() => [...athlete.trainingAssessments].sort((a, b) => new Date(a.dates) - new Date(b.dates)), [athlete.trainingAssessments]);
+  const trendData = sorted.map((t) => ({ when: shortDate(t.dates), rating: t.rating }));
+  const latest = sorted[sorted.length - 1];
+  const first = sorted[0];
+  const latestRating = latest ? latest.rating : null;
+  const delta = first && latest ? latest.rating - first.rating : null;
+
+  const fitnessSummary = React.useMemo(() => {
+    const byDim = new Map();
+    for (const t of sorted) {
+      const key = t.fitness || "general";
+      if (!byDim.has(key)) byDim.set(key, []);
+      byDim.get(key).push(t.rating);
+    }
+    return [...byDim.entries()].map(([key, ratings]) => ({
+      key,
+      label: SUMMARY_FITNESS_META[key] || key,
+      latest: ratings[ratings.length - 1],
+      avg: Math.round((ratings.reduce((s, r) => s + r, 0) / ratings.length) * 10) / 10,
+      first: ratings[0],
+      last: ratings[ratings.length - 1],
+    })).sort((a, b) => b.latest - a.latest);
+  }, [sorted]);
+
+  const radarData = fitnessSummary.map((d) => ({ fitness: d.label, value: d.latest }));
+
+  const completion = athlete.completion || { planned: 0, done: 0, partial: 0, missed: 0, open: 0, percent: null };
+  const completionStack = [{ name: "Plan", done: completion.done, partial: completion.partial, missed: completion.missed, open: completion.open }];
+  const medals = (athlete.achievements || []).filter((a) => a.medal);
+  const tone = ratingTone(latestRating);
+
+  const chartTooltip = { contentStyle: { background: "#06261e", border: "1px solid rgba(45,212,168,.35)", borderRadius: 8, fontSize: 12 }, labelStyle: { color: "#e7f7f1", fontWeight: 700 }, itemStyle: { color: "#9db6c7" } };
+
+  return (
+    <section className={styles.panel} style={{ marginBottom: 24, pageBreakInside: "avoid" }}>
+      <div className={styles.panelHeader}>
+        <div><p className={styles.eyebrow}>1-page summary</p><h2>Performance Summary — {athlete.lastName}, {athlete.firstName}</h2></div>
+        <span className={`${styles.badge} ${athlete.healthStatus === "healthy" ? styles.badgeActive : ["injured", "sick"].includes(athlete.healthStatus) ? styles.badgeRejected : styles.badgePending}`}>{String(athlete.healthStatus || "—").replace("_", " ")}</span>
+      </div>
+
+      <div className={styles.grid}>
+        <div className={styles.detailPanel}>
+          <h4>Latest training rating</h4>
+          <div style={{ fontSize: 30, fontWeight: 800, color: tone.color }}>{latestRating != null ? `${latestRating}/10` : "—"}</div>
+          <small style={{ color: "var(--muted)" }}>{sorted.length} assessment{sorted.length === 1 ? "" : "s"} on record</small>
+        </div>
+        <div className={styles.detailPanel}>
+          <h4>Rating trend</h4>
+          <div style={{ fontSize: 30, fontWeight: 800, color: delta > 0 ? "var(--accent)" : delta < 0 ? "var(--danger)" : "var(--muted)" }}>
+            {delta > 0 ? "▲" : delta < 0 ? "▼" : "→"} {delta != null ? Math.abs(delta) : "—"}
+          </div>
+          <small style={{ color: "var(--muted)" }}>{first && latest ? `${shortDate(first.dates)} → ${shortDate(latest.dates)}` : "Need 2+ assessments"}</small>
+        </div>
+        <div className={styles.detailPanel}>
+          <h4>Plan completion rate</h4>
+          <div style={{ fontSize: 30, fontWeight: 800, color: completion.percent == null ? "var(--muted)" : completion.percent >= 80 ? "var(--accent)" : completion.percent >= 50 ? "#facc15" : "var(--danger)" }}>
+            {completion.percent != null ? `${completion.percent}%` : "—"}
+          </div>
+          <small style={{ color: "var(--muted)" }}>{completion.planned} planned activit{completion.planned === 1 ? "y" : "ies"}</small>
+        </div>
+        <div className={styles.detailPanel}>
+          <h4>Medals</h4>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {medals.length ? medals.slice(0, 6).map((m, i) => (
+              <span key={i} style={{ display: "inline-flex", alignItems: "center", padding: "3px 10px", borderRadius: 12, fontSize: 12, fontWeight: 700, textTransform: "capitalize", background: m.medal === "gold" ? "rgba(250,204,21,.16)" : m.medal === "silver" ? "rgba(203,213,225,.16)" : m.medal === "bronze" ? "rgba(217,119,6,.18)" : "rgba(100,116,139,.16)", color: m.medal === "gold" ? "#facc15" : m.medal === "silver" ? "#cbd5e1" : "var(--muted)" }}>
+                {m.medal}
+              </span>
+            )) : <span style={{ color: "var(--muted)", fontSize: 14 }}>—</span>}
+          </div>
+          <small style={{ color: "var(--muted)" }}>{medals.length || 0} award{medals.length === 1 ? "" : "s"}</small>
+        </div>
+      </div>
+
+      <div className={styles.grid}>
+        <div className={styles.detailPanel}>
+          <h4>Rating trend over time</h4>
+          {trendData.length >= 2 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={trendData} margin={{ top: 6, right: 12, left: 0, bottom: 0 }}>
+                <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
+                <XAxis dataKey="when" tick={{ fill: "#9db6c7", fontSize: 11 }} />
+                <YAxis domain={[0, 10]} tick={{ fill: "#9db6c7", fontSize: 11 }} />
+                <Tooltip {...chartTooltip} formatter={(v) => [`${v}/10`, "Rating"]} />
+                <Line type="monotone" dataKey="rating" stroke="#2dd4a8" strokeWidth={2} dot={{ fill: "#2dd4a8", r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : <p className={styles.empty}>Not enough assessments to plot a trend yet.</p>}
+        </div>
+
+        <div className={styles.detailPanel}>
+          <h4>Fitness balance <small style={{ color: "var(--muted)", fontWeight: 400 }}>(latest scores)</small></h4>
+          {radarData.length ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <RadarChart data={radarData}>
+                <PolarGrid stroke="rgba(127,199,175,0.2)" />
+                <PolarAngleAxis dataKey="fitness" tick={{ fill: "#9db6c7", fontSize: 10 }} />
+                <PolarRadiusAxis domain={[0, 10]} tick={{ fill: "#9db6c7", fontSize: 9 }} tickCount={5} />
+                <Radar name="Score" dataKey="value" stroke="#2dd4a8" fill="#2dd4a8" fillOpacity={0.35} />
+                <Tooltip {...chartTooltip} formatter={(v) => [`${v}/10`, "Score"]} />
+              </RadarChart>
+            </ResponsiveContainer>
+          ) : <p className={styles.empty}>No training assessments for a fitness breakdown yet.</p>}
+        </div>
+      </div>
+
+      <div className={styles.grid}>
+        <div className={styles.detailPanel}>
+          <h4>Plan activity completion</h4>
+          {completion.planned > 0 ? (
+            <ResponsiveContainer width="100%" height={90}>
+              <BarChart data={completionStack} layout="vertical" margin={{ top: 6, right: 12, left: 0, bottom: 0 }}>
+                <XAxis type="number" hide />
+                <YAxis type="category" dataKey="name" hide />
+                <Tooltip {...chartTooltip} formatter={(v, name) => [`${v}`, name]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
+                <Bar dataKey="done" stackId="a" fill="#2dd4a8" name="Done" />
+                <Bar dataKey="partial" stackId="a" fill="#facc15" name="Partial" />
+                <Bar dataKey="missed" stackId="a" fill="#f87171" name="Missed" />
+                <Bar dataKey="open" stackId="a" fill="#334155" name="Open" radius={[0, 4, 4, 0]} />
+                <Legend iconType="circle" wrapperStyle={{ color: "#9db6c7", fontSize: 11 }} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : <p className={styles.empty}>No planned activities yet.</p>}
+        </div>
+
+        <div className={styles.detailPanel}>
+          <h4>Before → now <small style={{ color: "var(--muted)", fontWeight: 400 }}>per fitness dimension</small></h4>
+          {fitnessSummary.length ? (
+            <div className={styles.infoList}>
+              {fitnessSummary.map((d) => {
+                const diff = d.last - d.first;
+                const arrow = diff > 0 ? "▲" : diff < 0 ? "▼" : "→";
+                const cls = diff > 0 ? "var(--accent)" : diff < 0 ? "var(--danger)" : "var(--muted)";
+                return (
+                  <div key={d.key}>
+                    <dt>{d.label}</dt>
+                    <dd>
+                      <span>{d.first} → {d.last}</span>
+                      <span style={{ color: cls, marginLeft: 8 }}>{arrow} {Math.abs(diff)}</span>
+                    </dd>
+                  </div>
+                );
+              })}
+            </div>
+          ) : <p className={styles.empty}>No before/now comparison available yet.</p>}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function Reports({ session, isAdmin, athletes, coaches }) {
   const [type, setType] = React.useState(isAdmin ? "athlete" : "athlete");
   const [selected, setSelected] = React.useState([]);
@@ -588,7 +791,12 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
         <div ref={scrollRef} />
         <div id="report-workspace">
           {type === "athlete"
-            ? filtered.map((athlete) => <AthleteReportCard key={athlete.id} athlete={athlete} isAdmin={isAdmin} session={session} from={from} to={to} prefix={prefix} />)
+            ? filtered.map((athlete) => (
+              <React.Fragment key={athlete.id}>
+                <PerformanceSummary athlete={athlete} />
+                <AthleteReportCard athlete={athlete} isAdmin={isAdmin} session={session} from={from} to={to} prefix={prefix} />
+              </React.Fragment>
+            ))
             : filtered.map((coach) => <CoachReportCard key={coach.id} coach={coach} session={session} prefix={prefix} />)}
         </div>
         {filtered.length > 0 && <div className={styles.stackedActions}><button className={styles.secondary} onClick={() => window.print()}>Print all reports</button></div>}

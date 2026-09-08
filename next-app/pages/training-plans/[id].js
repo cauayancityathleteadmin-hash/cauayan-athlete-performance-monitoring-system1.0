@@ -2,6 +2,10 @@
 import { useRouter } from "next/router";
 import React from "react";
 import { getSession } from "next-auth/react";
+import {
+  ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid,
+  LineChart, Line, PieChart, Pie, Legend, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+} from "recharts";
 import { prisma } from "../../lib/prisma";
 import { buildMonitoringGrid } from "../../lib/plan-monitoring";
 import AppShell from "../../components/AppShell";
@@ -82,9 +86,9 @@ export async function getServerSideProps(context) {
       initialNotes: JSON.parse(JSON.stringify(notes)),
       initialMonitoringData: JSON.parse(
         JSON.stringify({
-          plan: { id: plan.id, durationWeeks: plan.durationWeeks, startDate: plan.startDate.toISOString() },
+          plan: { id: plan.id, durationDays: plan.durationDays, durationWeeks: plan.durationWeeks, startDate: plan.startDate.toISOString() },
           currentWeek: 1,
-          maxWeek: plan.durationWeeks || 1,
+          maxWeek: (plan.durationDays != null ? Math.ceil(plan.durationDays / 7) : null) || plan.durationWeeks || 1,
           ...monitoring,
         })
       ),
@@ -239,6 +243,14 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
           {plan.description ? <p>{plan.description}</p> : null}
         </section>
 
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div><p className={styles.eyebrow}>Overview</p><h2>Progress overview</h2></div>
+            <span className={styles.formHint} style={{ alignSelf: "center" }}>{plan.durationDays ? `${plan.durationDays} days` : plan.durationWeeks ? `${plan.durationWeeks} wks` : "No duration set"}</span>
+          </div>
+          <TrainingCharts plan={plan} athletes={athletes} activities={activities} logs={logs} />
+        </section>
+
         {message && (
           <p role="status" style={{ margin: "0 0 16px", padding: "12px 14px", borderRadius: "8px", border: `1px solid ${message.kind === "error" ? "var(--danger)" : "var(--accent)"}`, background: `rgba(${message.kind === "error" ? "248,113,113" : "45,212,168"}, .14)`, color: message.kind === "error" ? "var(--danger)" : "var(--foreground)" }}>
             {message.text}
@@ -337,6 +349,20 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
               <div className={styles.formActions}><button className={styles.primary}>Post comment</button></div>
             </form>
           )}
+        </section>
+
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Admin guidance</p><h2>Guidance per athlete</h2></div></div>
+          <p className={styles.formHint} style={{ marginTop: 0 }}>
+            {isAdmin ? "Add targeted guidance for an athlete; the implementing coach can read it." : "Guidance written by the administrator for each athlete appears here."}
+          </p>
+          {athletes.length ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {athletes.map((athlete) => (
+                <AthleteGuidanceRow key={athlete.id} planId={plan.id} athlete={athlete} isAdmin={isAdmin} />
+              ))}
+            </div>
+          ) : <p className={styles.empty}>No athletes on this plan yet.</p>}
         </section>
 
         {!isAdmin && (
@@ -898,6 +924,291 @@ function MonitoringGrid({ data, athletes, maxWeek, currentWeek, onWeekChange }) 
         .day-pending { background: rgba(26,92,74,.1); color: var(--muted); border: 1px solid rgba(26,92,74,.2); }
         .day-none { background: transparent; color: var(--muted); border: 1px dashed var(--border); }
       `}</style>
+    </div>
+  );
+}
+
+const CHART_PALETTE = ["#2dd4a8", "#86efac", "#14b8a6", "#34d399", "#4ade80", "#0d9488", "#5eead4", "#6ee7b7"];
+
+function percentColor(p) {
+  if (p == null) return "#64748b";
+  if (p >= 80) return "#2dd4a8";
+  if (p >= 50) return "#fbbf24";
+  return "#f87171";
+}
+
+const chartTooltip = {
+  contentStyle: { background: "#06261e", border: "1px solid rgba(45,212,168,.35)", borderRadius: 8, fontSize: 12 },
+  labelStyle: { color: "#e7f7f1", fontWeight: 700 },
+  itemStyle: { color: "#9db6c7" },
+};
+
+function TrainingCharts({ plan, athletes, activities, logs }) {
+  const [focusAthleteId, setFocusAthleteId] = React.useState(athletes[0]?.id ?? null);
+
+  const perAthlete = React.useMemo(() => {
+    return athletes.map((a) => {
+      const acts = activities.filter((act) => act.athleteId === a.id);
+      let done = 0, partial = 0, missed = 0, open = 0;
+      const byActivity = acts.map((act) => {
+        const al = logs.filter((l) => l.activityId === act.id && l.athleteId === a.id);
+        const latest = al.length ? [...al].sort((x, y) => new Date(y.performedAt) - new Date(x.performedAt))[0] : null;
+        const status = latest ? latest.status : "open";
+        if (status === "done") done++;
+        else if (status === "partial") partial++;
+        else if (status === "missed") missed++;
+        else open++;
+        const p = computeProgress(act, latest);
+        return { id: act.id, name: act.activityName, fitness: act.fitnessType, status, percent: p ? p.percent : 0 };
+      });
+      const total = acts.length;
+      const percent = total ? Math.round(((done + partial) / total) * 100) : 0;
+      return { id: a.id, code: a.athleteCode, name: `${a.firstName} ${a.lastName}`, total, done, partial, missed, open, percent, byActivity };
+    });
+  }, [athletes, activities, logs]);
+
+  const overallCompletion = React.useMemo(() => {
+    const withActs = perAthlete.filter((r) => r.total > 0);
+    return withActs.length ? Math.round(withActs.reduce((s, r) => s + r.percent, 0) / withActs.length) : 0;
+  }, [perAthlete]);
+
+  const barData = perAthlete.slice(0, 20).map((r) => ({ name: r.name.split(" ")[0], full: r.name, percent: r.total ? r.percent : 0, total: r.total }));
+
+  const fitnessDist = React.useMemo(() => {
+    const map = new Map();
+    for (const act of activities) map.set(act.fitnessType, (map.get(act.fitnessType) || 0) + 1);
+    const arr = [...map.entries()].map(([key, count]) => ({ key, name: FITNESS_META[key] || key, count })).sort((x, y) => y.count - x.count);
+    const top = arr.slice(0, 5);
+    const rest = arr.slice(5);
+    if (rest.length) top.push({ key: "other", name: "Other", count: rest.reduce((s, r) => s + r.count, 0) });
+    return top.map((d, i) => ({ ...d, color: CHART_PALETTE[i % CHART_PALETTE.length] }));
+  }, [activities]);
+
+  const weekly = React.useMemo(() => {
+    const maxWeek = (plan.durationDays != null ? Math.ceil(plan.durationDays / 7) : null) || plan.durationWeeks || 1;
+    const weeks = [];
+    for (let w = 1; w <= maxWeek; w++) {
+      const acts = activities.filter((act) => Number(act.weekNumber) === w);
+      if (!acts.length) { weeks.push({ week: w, percent: 0, total: 0 }); continue; }
+      let done = 0, partial = 0;
+      for (const act of acts) {
+        const latest = logs.filter((l) => l.activityId === act.id).sort((x, y) => new Date(y.performedAt) - new Date(x.performedAt))[0];
+        if (!latest) continue;
+        if (latest.status === "done") done++;
+        else if (latest.status === "partial") partial++;
+      }
+      weeks.push({ week: w, percent: Math.round(((done + partial) / acts.length) * 100), total: acts.length });
+    }
+    return weeks;
+  }, [activities, logs, plan.durationDays, plan.durationWeeks]);
+
+  const focus = perAthlete.find((r) => r.id === focusAthleteId) || perAthlete[0];
+
+  const radarData = React.useMemo(() => {
+    if (!focus) return [];
+    const byFitness = new Map();
+    for (const act of focus.byActivity) {
+      if (!byFitness.has(act.fitness)) byFitness.set(act.fitness, []);
+      byFitness.get(act.fitness).push(act.status);
+    }
+    return [...byFitness.entries()].map(([f, statuses]) => {
+      const done = statuses.filter((s) => s === "done").length;
+      const partial = statuses.filter((s) => s === "partial").length;
+      return { fitness: FITNESS_META[f] || f, value: Math.round(((done + partial) / statuses.length) * 100) };
+    });
+  }, [focus]);
+
+  return (
+    <div>
+      <div className={styles.grid} style={{ marginBottom: 20 }}>
+        <div className={styles.detailPanel}><h4>Athletes on plan</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{athletes.length}</div><small style={{ color: "var(--muted)" }}>{totalActivitiesLabel(activities)}</small></div>
+        <div className={styles.detailPanel}><h4>Overall completion</h4><div style={{ fontSize: 26, fontWeight: 800, color: percentColor(overallCompletion) }}>{overallCompletion}%</div><small style={{ color: "var(--muted)" }}>Across planned activities</small></div>
+        <div className={styles.detailPanel}><h4>Duration</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{plan.durationDays ? `${plan.durationDays}d` : plan.durationWeeks ? `${plan.durationWeeks}w` : "—"}</div><small style={{ color: "var(--muted)" }}>Plan length</small></div>
+      </div>
+
+      <div className={styles.grid}>
+        <div className={styles.detailPanel} style={{ width: "100%" }}>
+          <h4>Completion rate by athlete <small style={{ color: "var(--muted)", fontWeight: 400 }}>(green ≥ 80%, yellow ≥ 50%, red &lt; 50%)</small></h4>
+          {perAthlete.length && perAthlete.some((r) => r.total > 0) ? (
+            <ResponsiveContainer width="100%" height={Math.max(140, Math.min(barData.length * 36, 380))}>
+              <BarChart data={barData} margin={{ top: 6, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" tick={{ fill: "#9db6c7", fontSize: 12 }} />
+                <YAxis domain={[0, 100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
+                <Tooltip {...chartTooltip} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l, p) => p?.[0]?.payload?.full || l} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
+                <Bar dataKey="percent" radius={[4, 4, 0, 0]}>{barData.map((d) => <Cell key={d.full} fill={percentColor(d.percent)} />)}</Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : <p className={styles.empty}>No planned activities yet.</p>}
+          {perAthlete.length > 20 && <small style={{ color: "var(--muted)" }}>Showing first 20 of {perAthlete.length} athletes.</small>}
+        </div>
+      </div>
+
+      <div className={styles.grid}>
+        <div className={styles.detailPanel}>
+          <h4>Activities by fitness dimension</h4>
+          {fitnessDist.length ? (
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie data={fitnessDist} dataKey="count" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={95} paddingAngle={2}>
+                  {fitnessDist.map((s) => <Cell key={s.key} fill={s.color} />)}
+                </Pie>
+                <Tooltip {...chartTooltip} formatter={(v, name) => [`${v} activities`, name]} />
+                <Legend iconType="circle" wrapperStyle={{ color: "#9db6c7", fontSize: 12 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : <p className={styles.empty}>No activities on this plan yet.</p>}
+        </div>
+
+        <div className={styles.detailPanel}>
+          <h4>Weekly completion trend <small style={{ color: "var(--muted)", fontWeight: 400 }}>(done + partial ÷ planned)</small></h4>
+          {weekly.some((w) => w.total > 0) ? (
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={weekly} margin={{ top: 6, right: 12, left: 0, bottom: 0 }}>
+                <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
+                <XAxis dataKey="week" tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `W${v}`} />
+                <YAxis domain={[0, 100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
+                <Tooltip {...chartTooltip} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l) => `Week ${l}`} cursor={{ stroke: "rgba(45,212,168,0.4)" }} />
+                <Line type="monotone" dataKey="percent" name="Completion" stroke="#2dd4a8" strokeWidth={2} dot={{ fill: "#2dd4a8", r: 3 }} activeDot={{ r: 5 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : <p className={styles.empty}>Add week-numbered activities to see the weekly trend.</p>}
+        </div>
+      </div>
+
+      <div className={styles.detailPanel} style={{ marginTop: 20 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <h4 style={{ margin: 0 }}>Per-athlete drill-down</h4>
+          <label style={{ minWidth: 220 }}>Athlete
+            <select value={focusAthleteId || ""} onChange={(e) => setFocusAthleteId(Number(e.target.value))} className={styles.fieldControl}>
+              {perAthlete.map((r) => <option key={r.id} value={r.id}>{r.name} ({r.code})</option>)}
+            </select>
+          </label>
+        </div>
+        {focus && focus.total > 0 ? (
+          <div className={styles.grid}>
+            <div className={styles.detailPanel}>
+              <h4>Fitness balance <small style={{ color: "var(--muted)", fontWeight: 400 }}>{focus.name}</small></h4>
+              {radarData.length ? (
+                <ResponsiveContainer width="100%" height={260}>
+                  <RadarChart data={radarData}>
+                    <PolarGrid stroke="rgba(127,199,175,0.2)" />
+                    <PolarAngleAxis dataKey="fitness" tick={{ fill: "#9db6c7", fontSize: 12 }} />
+                    <PolarRadiusAxis domain={[0, 100]} tick={{ fill: "#9db6c7", fontSize: 10 }} tickCount={5} />
+                    <Radar name="Completion" dataKey="value" stroke="#2dd4a8" fill="#2dd4a8" fillOpacity={0.35} />
+                    <Tooltip {...chartTooltip} formatter={(v) => [`${v}%`, "Completion"]} />
+                  </RadarChart>
+                </ResponsiveContainer>
+              ) : <p className={styles.empty}>No fitness data for this athlete yet.</p>}
+            </div>
+            <div className={styles.detailPanel}>
+              <h4>Activity completion <small style={{ color: "var(--muted)", fontWeight: 400 }}>{focus.name}</small></h4>
+              <ResponsiveContainer width="100%" height={Math.max(140, Math.min(focus.byActivity.length * 34, 380))}>
+                <BarChart data={focus.byActivity} layout="vertical" margin={{ top: 6, right: 16, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" domain={[0, 100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
+                  <YAxis type="category" dataKey="name" width={170} tick={{ fill: "#9db6c7", fontSize: 12 }} />
+                  <Tooltip {...chartTooltip} formatter={(v) => [`${v}%`, "Completion"]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
+                  <Bar dataKey="percent" radius={[0, 4, 4, 0]}>{focus.byActivity.map((act) => <Cell key={act.id} fill={percentColor(act.percent)} />)}</Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              {focus.byActivity.length > 10 && <small style={{ color: "var(--muted)" }}>Showing all {focus.byActivity.length} activities.</small>}
+            </div>
+          </div>
+        ) : (
+          <p className={styles.empty}>{focus ? `${focus.name} has no planned activities yet.` : "No athletes on this plan."}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function totalActivitiesLabel(activities) {
+  return `${activities.length} planned activit${activities.length === 1 ? "y" : "ies"}`;
+}
+
+function commentAuthorName(author) {
+  if (!author) return "Admin";
+  if (author.coach?.firstName || author.coach?.lastName) return `${author.coach.firstName} ${author.coach.lastName}`.trim();
+  return author.username || author.email || "Admin";
+}
+
+function AthleteGuidanceRow({ planId, athlete, isAdmin }) {
+  const [open, setOpen] = React.useState(false);
+  const [comments, setComments] = React.useState(null);
+  const [draft, setDraft] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [msg, setMsg] = React.useState("");
+
+  async function load() {
+    const res = await fetch(`/api/training-plans/${planId}/athlete/${athlete.id}/comments`).then((r) => r.json()).catch(() => ({}));
+    setComments(Array.isArray(res.comments) ? res.comments : []);
+  }
+
+  function toggle() {
+    setOpen((o) => {
+      const next = !o;
+      if (next && comments === null) load();
+      return next;
+    });
+  }
+
+  async function post(e) {
+    e.preventDefault();
+    if (!draft.trim()) return;
+    setBusy(true);
+    setMsg("");
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    const res = await fetch(`/api/training-plans/${planId}/athlete/${athlete.id}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+      body: JSON.stringify({ body: draft.trim() }),
+    }).then((r) => r.json()).catch(() => ({}));
+    setBusy(false);
+    if (res.comment) {
+      setDraft("");
+      setComments((c) => [...(c || []), res.comment]);
+    } else {
+      setMsg(res.error || "Could not post guidance.");
+    }
+  }
+
+  return (
+    <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "12px 14px", background: "rgba(6,38,30,.35)" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <strong>{athlete.lastName}, {athlete.firstName}</strong>
+          {athlete.athleteCode ? <small style={{ color: "var(--muted)", display: "block" }}>{athlete.athleteCode}</small> : null}
+        </div>
+        <button type="button" className={styles.secondary} onClick={toggle}>{open ? "Close" : comments === null ? "View guidance" : `Guidance (${comments.length})`}</button>
+      </div>
+      {open && (
+        <div style={{ borderTop: "1px solid rgba(26,92,74,.5)", marginTop: 12, paddingTop: 12 }}>
+          {comments === null ? <p className={styles.empty}>Loading guidance...</p> : comments.length === 0 ? <p className={styles.empty}>No guidance yet for {athlete.firstName}.</p> : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
+              {comments.map((c) => (
+                <div key={c.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "rgba(6,38,30,.4)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <strong style={{ fontSize: 13 }}>{commentAuthorName(c.author)}</strong>
+                    <small style={{ color: "var(--muted)" }}>{fmtDate(c.createdAt)}</small>
+                  </div>
+                  <p style={{ margin: 0 }}>{c.body}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {isAdmin && (
+            <form onSubmit={post} className={styles.formStack} style={{ margin: 0 }}>
+              <label>Add guidance for {athlete.firstName}</label>
+              <textarea className={styles.fieldControl} rows="2" maxLength="2000" placeholder="e.g. Focus on form before adding load; watch the knee." value={draft} onChange={(e) => setDraft(e.target.value)} />
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <button className={styles.primary} disabled={busy || !draft.trim()}>{busy ? "Posting..." : "Post guidance"}</button>
+                {msg && <small style={{ color: "var(--danger)" }}>{msg}</small>}
+              </div>
+            </form>
+          )}
+        </div>
+      )}
     </div>
   );
 }

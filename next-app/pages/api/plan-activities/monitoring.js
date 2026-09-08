@@ -17,7 +17,7 @@ export default async function handler(req, res) {
 
   if (!planId) return res.status(400).json({ error: "planId required." });
 
-  const plan = await prisma.trainingPlan.findUnique({ where: { id: planId }, select: { id: true, coachId: true, durationWeeks: true, startDate: true } });
+  const plan = await prisma.trainingPlan.findUnique({ where: { id: planId }, select: { id: true, coachId: true, durationWeeks: true, durationDays: true, startDate: true } });
   if (!plan) return res.status(404).json({ error: "Training plan not found." });
 
   if (session.user.role !== "admin") {
@@ -51,14 +51,15 @@ export default async function handler(req, res) {
     orderBy: { athlete: { lastName: "asc" } },
   });
 
-  // Determine max week (from plan.durationWeeks or max weekNumber in activities)
-  const maxWeek = plan.durationWeeks || Math.max(...activities.map(a => a.weekNumber || 1), 1);
+  // Determine max week (from plan.durationDays, durationWeeks fallback, or max weekNumber in activities)
+  const durationWeeks = (plan.durationDays != null ? Math.ceil(plan.durationDays / 7) : null) || plan.durationWeeks;
+  const maxWeek = durationWeeks || Math.max(...activities.map(a => a.weekNumber || 1), 1);
   const week = weekNumber || 1;
 
   const { grid, progress } = buildMonitoringGrid({ activities, planAthletes, week });
 
   return res.status(200).json({
-    plan: { id: plan.id, durationWeeks: plan.durationWeeks, startDate: plan.startDate },
+    plan: { id: plan.id, durationDays: plan.durationDays, durationWeeks: plan.durationWeeks, startDate: plan.startDate },
     currentWeek: week,
     maxWeek,
     grid,

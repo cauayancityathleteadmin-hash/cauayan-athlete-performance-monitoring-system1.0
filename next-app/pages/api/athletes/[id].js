@@ -20,7 +20,7 @@ export default async function handler(req, res) {
   const basic = await prisma.athlete.findUnique({ where: { id }, select: { id: true, coachId: true } });
   if (!basic) return res.status(404).json({ error: "Athlete not found." });
 
-  if (session.user.role === "coach") {
+  if (req.method === "PUT" && session.user.role === "coach") {
     const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
     if (!coach || basic.coachId !== coach.id) {
       return res.status(403).json({ error: "You do not have access to this athlete." });

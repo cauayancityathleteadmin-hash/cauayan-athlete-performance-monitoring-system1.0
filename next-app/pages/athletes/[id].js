@@ -49,11 +49,10 @@ participants: {
 
   if (!athlete) return { notFound: true };
 
+  let canManage = session.user.role === "admin";
   if (session.user.role === "coach") {
     const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
-    if (!coach || athlete.coachId !== coach.id) {
-      return { redirect: { destination: "/dashboard", permanent: false } };
-    }
+    canManage = !!coach && athlete.coachId === coach.id;
   }
 
   const catalog = {
@@ -68,6 +67,7 @@ participants: {
   return {
     props: {
       session,
+      canManage,
       athlete: JSON.parse(JSON.stringify(athlete)),
       catalog: JSON.parse(JSON.stringify(catalog)),
     },
@@ -197,7 +197,7 @@ function trendBadge(betterDirection, first, last) {
     : { text: "Declining", cls: styles.badgeMuted };
 }
 
-export default function AthleteProfile({ session, athlete, catalog }) {
+export default function AthleteProfile({ session, athlete, catalog, canManage }) {
   const isAdmin = session?.user?.role === "admin";
   const router = useRouter();
   const [editOpen, setEditOpen] = React.useState(false);
@@ -246,13 +246,17 @@ export default function AthleteProfile({ session, athlete, catalog }) {
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Information</p><h2>Overview</h2></div>
-            <button type="button" className={styles.secondary} onClick={() => setEditOpen(!editOpen)}>{editOpen ? "Cancel" : "Edit athlete"}</button>
+            {canManage ? (
+              <button type="button" className={styles.secondary} onClick={() => setEditOpen(!editOpen)}>{editOpen ? "Cancel" : "Edit athlete"}</button>
+            ) : (
+              <span className={`${styles.badge} ${styles.badgePending}`} style={{ alignSelf: "center" }}>Read only</span>
+            )}
           </div>
-{editOpen && <EditAthleteForm athlete={athlete} catalog={catalog} isAdmin={isAdmin} onDone={() => { setEditOpen(false); router.reload(); }} />}
+          {editOpen && <EditAthleteForm athlete={athlete} catalog={catalog} isAdmin={isAdmin} onDone={() => { setEditOpen(false); router.reload(); }} />}
           <div className={styles.grid}>
             <div className={styles.detailPanel}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 18, flexWrap: "wrap" }}>
-                <AthletePhotoCard athlete={athlete} />
+                <AthletePhotoCard athlete={athlete} canManage={canManage} />
                 <div style={{ flex: 1, minWidth: 200 }}>
                   <h4>Personal</h4>
                   <div className={styles.infoList}>
@@ -296,7 +300,7 @@ export default function AthleteProfile({ session, athlete, catalog }) {
         {/* Health tracking */}
         <section className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Wellness</p><h2>Health tracking</h2></div><span style={{ alignSelf: "center" }}><HealthBadge status={athlete.healthStatus} /></span></div>
-          <HealthForm athleteId={athlete.id} onComplete={() => router.reload()} />
+          {canManage && <HealthForm athleteId={athlete.id} onComplete={() => router.reload()} />}
           {athlete.healthLogs?.length ? (
             <div className={styles.tableWrap}><table>
               <thead><tr><th>Status</th><th>Notes</th><th>Reported</th><th>By</th></tr></thead>
@@ -389,8 +393,8 @@ export default function AthleteProfile({ session, athlete, catalog }) {
         <div className={styles.grid}>
           {/* Status history */}
           <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Timeline</p><h2>Status history</h2></div></div>
-            <StatusForm athleteId={athlete.id} currentStatus={athlete.status} onComplete={() => router.reload()} />
+<div className={styles.panelHeader}><div><p className={styles.eyebrow}>Timeline</p><h2>Status history</h2></div></div>
+            {canManage && <StatusForm athleteId={athlete.id} currentStatus={athlete.status} onComplete={() => router.reload()} />}
             {athlete.statusHistory?.length ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {athlete.statusHistory.map((s) => (
@@ -408,8 +412,8 @@ export default function AthleteProfile({ session, athlete, catalog }) {
 
           {/* Achievements */}
           <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Recognition</p><h2>Achievements</h2></div></div>
-            <AchievementForm athleteId={athlete.id} catalog={catalog} onComplete={() => router.reload()} />
+<div className={styles.panelHeader}><div><p className={styles.eyebrow}>Recognition</p><h2>Achievements</h2></div></div>
+            {canManage && <AchievementForm athleteId={athlete.id} catalog={catalog} onComplete={() => router.reload()} />}
             {athlete.achievements?.length ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {athlete.achievements.map((a) => (
@@ -437,8 +441,8 @@ export default function AthleteProfile({ session, athlete, catalog }) {
 
         {/* Coaching notes */}
         <section className={styles.panel}>
-          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Observations</p><h2>Coaching notes</h2></div></div>
-          <NoteForm athleteId={athlete.id} onComplete={() => router.reload()} />
+<div className={styles.panelHeader}><div><p className={styles.eyebrow}>Observations</p><h2>Coaching notes</h2></div></div>
+          {canManage && <NoteForm athleteId={athlete.id} onComplete={() => router.reload()} />}
           {athlete.notes?.length ? (
             <div className={styles.tableWrap}>
               <table>
@@ -762,7 +766,7 @@ function NoteForm({ athleteId, onComplete }) {
   );
 }
 
-function AthletePhotoCard({ athlete }) {
+function AthletePhotoCard({ athlete, canManage = true }) {
   const [editing, setEditing] = React.useState(false);
   const [pictureUrl, setPictureUrl] = React.useState(athlete.pictureUrl || "");
   const [busy, setBusy] = React.useState(false);
@@ -791,7 +795,7 @@ function AthletePhotoCard({ athlete }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
       <ProfilePhoto url={pictureUrl} firstName={athlete.firstName} lastName={athlete.lastName} size={112} radius={10} />
-      <button type="button" className={styles.secondary} style={{ alignSelf: "center" }} onClick={() => { setEditing((c) => !c); setMessage(""); }}>{editing ? "Cancel" : "Edit photo"}</button>
+      {canManage && <button type="button" className={styles.secondary} style={{ alignSelf: "center" }} onClick={() => { setEditing((c) => !c); setMessage(""); }}>{editing ? "Cancel" : "Edit photo"}</button>}
       {!editing && pictureUrl && <p className={styles.formHint} style={{ margin: 0 }}>2x2 ID picture</p>}
       {editing && (
         <form onSubmit={save} className={styles.formStack} style={{ width: "100%" }}>
