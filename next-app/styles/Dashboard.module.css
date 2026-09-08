@@ -178,17 +178,32 @@
 }
 .menuToggle:hover { color: #f0fdf4; background: rgba(45, 212, 168, 0.12); }
 
-.layout {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-}
-
 /* Sidebar collapsed to give the active feature more space.
    The desktop nav is conditionally rendered by AppShell; this rule is a
    belt-and-suspenders guard (e.g. nav appearing in the mobile overlay). */
-.layout.sidebarHidden .sidebar { display: none; }
-.layout.sidebarHidden .content { max-width: none; }
+.layout {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebarCollapsed {
+  width: 60px;
+}
+.sidebarCollapsed .navHeading {
+  display: none;
+}
+.sidebarCollapsed a {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+.sidebarCollapsed .navIcon {
+  margin-right: 0;
+}
+.sidebarCollapsed .navLabel {
+  display: none;
+}
 
 .sidebar {
   width: 220px;
@@ -200,8 +215,9 @@
 }
 
 .sidebar a {
-  display: block;
-  padding: var(--space-2) var(--space-5) var(--space-2) calc(var(--space-5) + 20px);
+  display: flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-5);
   color: var(--muted);
   font-size: var(--text-base);
   font-weight: 500;
@@ -210,6 +226,21 @@
 .sidebar a:hover {
   background: rgba(45, 212, 168, 0.12);
   color: #f0fdf4;
+}
+
+.navIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+.navIcon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 .navLinkActive {
