@@ -49,7 +49,7 @@ export async function getServerSideProps(context) {
   const isCoach = session.user.role === "coach";
   const ownCoach = isCoach ? await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } }) : null;
   if (ownCoach) student.where = { ...(student.where || {}), coachId: ownCoach.id };
-  const [athletesResult, allAthletesResult, sports, events, coaches, coachList] = await Promise.all([
+  const [athletesResult, allAthletesResult, sports, events, coaches] = await Promise.all([
     prisma.athlete.findMany(student),
     isCoach
       ? prisma.athlete.findMany({
@@ -61,7 +61,6 @@ export async function getServerSideProps(context) {
     prisma.sport.findMany({ where: { status: "active" }, orderBy: { sportName: "asc" } }),
     prisma.event.findMany({ where: { status: "active" }, include: { sport: true }, orderBy: { eventName: "asc" } }),
     session.user.role === "admin" ? prisma.coach.findMany({ where: { status: "active" }, orderBy: { lastName: "asc" }, select: { id: true, coachCode: true, firstName: true, lastName: true, schoolId: true, school: { select: { schoolName: true } } } }) : Promise.resolve([]),
-    prisma.coach.findMany({ where: { status: "active" }, orderBy: { firstName: "asc" }, select: { id: true, coachCode: true, firstName: true, lastName: true } }),
   ]);
   const athletes = athletesResult.map((athlete) => ({ ...athlete, birthdate: athlete.birthdate.toISOString(), dateRegistered: athlete.dateRegistered.toISOString() }));
   const allAthletes = isCoach
@@ -70,11 +69,10 @@ export async function getServerSideProps(context) {
   const perPage = 25;
   const totalPages = Math.max(1, Math.ceil(athletes.length / perPage));
   const paginated = athletes.slice((page - 1) * perPage, page * perPage);
-  const otherCoaches = isCoach && ownCoach ? coachList.filter((c) => c.id !== ownCoach.id) : coachList;
-  return { props: { session, catalog: { sports, events, coaches }, athletes, paginated, page: Math.min(page, totalPages), totalPages, total: athletes.length, sort, dir, health, allAthletes: JSON.parse(JSON.stringify(allAthletes)), coachList: JSON.parse(JSON.stringify(otherCoaches)) } };
+  return { props: { session, catalog: { sports, events, coaches }, athletes, paginated, page: Math.min(page, totalPages), totalPages, total: athletes.length, sort, dir, health, allAthletes: JSON.parse(JSON.stringify(allAthletes)) } };
 }
 
-export default function Athletes({ session, athletes, paginated: serverPaginated, catalog, page: serverPage, totalPages: serverTotalPages, total, sort, dir, health, allAthletes = [], coachList = [] }) {
+export default function Athletes({ session, athletes, paginated: serverPaginated, catalog, page: serverPage, totalPages: serverTotalPages, total, sort, dir, health, allAthletes = [] }) {
   const isAdmin = session?.user?.role === "admin";
   const isCoach = session?.user?.role === "coach";
   const [view, setView] = React.useState("sport");
@@ -141,12 +139,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
       if (!map.has(coachName)) map.set(coachName, []);
       map.get(coachName).push(athlete);
     }
-    const present = [...map.entries()];
-    for (const coach of coachList) {
-      const name = `${coach.firstName} ${coach.lastName}`;
-      if (!present.some(([key]) => key === name)) present.push([name, []]);
-    }
-    return present.sort((a, b) => {
+    return [...map.entries()].sort((a, b) => {
       const aEmpty = a[0] === "Uncoached athletes";
       const bEmpty = b[0] === "Uncoached athletes";
       if (aEmpty && bEmpty) return 0;
@@ -154,7 +147,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
       if (bEmpty) return -1;
       return a[0].localeCompare(b[0]);
     });
-  }, [filteredAll, coachList]);
+  }, [filteredAll]);
 
   const perPage = 25;
   const clientTotalPages = Math.max(1, Math.ceil(filteredAthletes.length / perPage));
