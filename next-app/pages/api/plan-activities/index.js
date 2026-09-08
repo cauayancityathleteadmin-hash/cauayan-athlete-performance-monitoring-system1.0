@@ -111,42 +111,37 @@ export default async function handler(req, res) {
     if (!cleaned.length) return res.status(400).json({ error: "Enter at least one activity with a name for an athlete on this plan." });
     if (cleaned.length > 50) return res.status(400).json({ error: "Please limit a bulk add to 50 activities at a time." });
 
-    const createdIds = await prisma.$transaction(async (tx) => {
-      const ids = [];
-      for (let i = 0; i < cleaned.length; i++) {
-        const item = cleaned[i];
-        const activity = await tx.planActivity.create({
-          data: {
-            planId,
-            athleteId: item.athleteId,
-            activityName: item.activityName,
-            fitnessType: item.fitnessType,
-            targetQuantity: item.targetQuantity,
-            targetUnit: item.targetUnit,
-            targetSets: item.targetSets,
-            targetReps: item.targetReps,
-            targetDistance: item.targetDistance,
-            targetLoad: item.targetLoad,
-            instructions: item.instructions,
-            dayIndex: toInt(item.dayIndex),
-            weekNumber: toInt(item.weekNumber),
-            orderIndex: i,
-          },
-          select: { id: true },
-        });
-        ids.push(activity.id);
-      }
-      return ids;
+    const created = await prisma.planActivity.createManyAndReturn({
+      data: cleaned.map((item, i) => ({
+        planId,
+        athleteId: item.athleteId,
+        activityName: item.activityName,
+        fitnessType: item.fitnessType,
+        targetQuantity: item.targetQuantity,
+        targetUnit: item.targetUnit,
+        targetSets: item.targetSets,
+        targetReps: item.targetReps,
+        targetDistance: item.targetDistance,
+        targetLoad: item.targetLoad,
+        instructions: item.instructions,
+        dayIndex: toInt(item.dayIndex),
+        weekNumber: toInt(item.weekNumber),
+        orderIndex: i,
+      })),
+      select: { id: true },
     });
+    const createdIds = created.map((c) => c.id);
 
-    const full = await prisma.planActivity.findMany({
-      where: { id: { in: createdIds } },
-      include: { athlete: { select: { id: true, firstName: true, lastName: true } } },
-      orderBy: { orderIndex: "asc" },
-    });
-    await prisma.auditLog.create({
-      data: { userId: Number(session.user.id), action: "bulk_create", entityType: "planActivity", entityId: null, description: `Added ${full.length} activities to training plan #${planId}` },
-    });
+    const [full] = await Promise.all([
+      prisma.planActivity.findMany({
+        where: { id: { in: createdIds } },
+        include: { athlete: { select: { id: true, firstName: true, lastName: true } } },
+        orderBy: { orderIndex: "asc" },
+      }),
+      prisma.auditLog.create({
+        data: { userId: Number(session.user.id), action: "bulk_create", entityType: "planActivity", entityId: null, description: `Added ${createdIds.length} activities to training plan #${planId}` },
+      }),
+    ]);
     return res.status(201).json(JSON.parse(JSON.stringify({ created: full, count: full.length })));
   }
 

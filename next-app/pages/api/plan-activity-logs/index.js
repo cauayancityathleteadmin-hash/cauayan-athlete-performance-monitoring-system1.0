@@ -94,24 +94,32 @@ export default async function handler(req, res) {
     notes: text(body.notes, 2000) || null,
     loggedBy: Number(session.user.id),
   };
-  const log = await prisma.planActivityLog.create({ data: create });
-
-  await prisma.auditLog.create({
-    data: {
-      userId: Number(session.user.id),
-      action: "create",
-      entityType: "planActivityLog",
-      entityId: log.id,
-      description: `Logged progress "${status}" for activity #${activityId}`,
-    },
+  const log = await prisma.$transaction(async (tx) => {
+    const created = await tx.planActivityLog.create({ data: create });
+    await tx.auditLog.create({
+      data: {
+        userId: Number(session.user.id),
+        action: "create",
+        entityType: "planActivityLog",
+        entityId: created.id,
+        description: `Logged progress "${status}" for activity #${activityId}`,
+      },
+    });
+    return created;
   });
 
-  const athleteForNotify = await prisma.athlete.findUnique({ where: { id: athleteId }, select: { id: true, firstName: true, lastName: true, email: true, contactNumber: true } });
-  await notifyAthlete({
-    athlete: athleteForNotify,
-    subject: "Your training progress was updated",
-    message: `Hello ${athleteForNotify ? `${athleteForNotify.firstName} ${athleteForNotify.lastName}` : ""}, your coach updated your progress for "${access.activity.activityName}" to "${status}". Keep up the good work!`,
-  });
+  (async () => {
+    try {
+      const athleteForNotify = await prisma.athlete.findUnique({ where: { id: athleteId }, select: { id: true, firstName: true, lastName: true, email: true, contactNumber: true } });
+      await notifyAthlete({
+        athlete: athleteForNotify,
+        subject: "Your training progress was updated",
+        message: `Hello ${athleteForNotify ? `${athleteForNotify.firstName} ${athleteForNotify.lastName}` : ""}, your coach updated your progress for "${access.activity.activityName}" to "${status}". Keep up the good work!`,
+      });
+    } catch (e) {
+      console.warn("[plan-activity-logs] notify skipped:", e && e.message);
+    }
+  })();
 
   const full = await prisma.planActivityLog.findUnique({ where: { id: log.id }, include: { athlete: { select: { id: true, firstName: true, lastName: true } }, logger: { select: { email: true, username: true } }, activity: { select: { id: true, activityName: true } } } });
   return res.status(201).json(JSON.parse(JSON.stringify(full)));

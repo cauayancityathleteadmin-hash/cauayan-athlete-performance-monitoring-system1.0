@@ -7,21 +7,16 @@ import { rateLimiters } from "../../../lib/rate-limit";
 import { checkRateLimitDb } from "../../../lib/rate-limit-db";
 import { isLocked, recordFailure, recordSuccess } from "../../../lib/login-protection";
 
-async function auditLogin(identifier, success, detail) {
-  const user = await prisma.user.findFirst({
-    where: { OR: [{ email: identifier.toLowerCase() }, { username: identifier.toLowerCase() }, { coach: { coachCode: identifier.toUpperCase() } }] },
-    select: { id: true },
-  });
+async function auditLogin(userId, success, detail) {
   await prisma.auditLog.create({
     data: {
-      userId: user ? user.id : null,
+      userId,
       action: success ? "login" : "login_failed",
       entityType: "user",
-      entityId: user ? user.id : null,
+      entityId: userId,
       description: detail || (success ? "Signed in." : "Sign-in attempt failed."),
     },
   });
-  return user;
 }
 
 function normalizeHash(hash) {
@@ -55,22 +50,24 @@ export const authOptions = {
       });
       if (!user) {
         recordFailure(identifier);
-        await auditLogin(identifier, false, "Sign-in attempt failed (account not found).");
+        await auditLogin(null, false, "Sign-in attempt failed (account not found).");
         return null;
       }
       if (user.status === "pending") {
         recordFailure(identifier);
-        await auditLogin(identifier, false, "Sign-in attempt blocked: coach application pending approval.");
+        await auditLogin(user.id, false, "Sign-in attempt blocked: coach application pending approval.");
         throw new Error("PENDING_APPROVAL");
       }
       if (user.status !== "active" || !(await bcrypt.compare(password, normalizeHash(user.passwordHash)))) {
         recordFailure(identifier);
-        await auditLogin(identifier, false, "Sign-in attempt failed (wrong credentials or inactive account).");
+        await auditLogin(user.id, false, "Sign-in attempt failed (wrong credentials or inactive account).");
         return null;
       }
       recordSuccess(identifier);
-      await auditLogin(identifier, true, "Signed in successfully.");
-      await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+      await Promise.all([
+        auditLogin(user.id, true, "Signed in successfully."),
+        prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }),
+      ]);
       return { id: String(user.id), role: user.role, email: user.email, name: user.coach ? `${user.coach.firstName} ${user.coach.lastName}` : user.username, mustChangePassword: user.mustChangePassword, canApproveCoaches: user.coach ? user.coach.canApproveCoaches : false };
     },
   })],
@@ -108,10 +105,8 @@ export const authOptions = {
 };
 
 export default async function handler(req, res) {
-  try {
-    await ensureSchema();
-  } catch (e) {
+  ensureSchema().catch((e) => {
     console.warn("[nextauth] schema self-heal skipped:", e && e.message);
-  }
+  });
   return NextAuth(authOptions)(req, res);
 }

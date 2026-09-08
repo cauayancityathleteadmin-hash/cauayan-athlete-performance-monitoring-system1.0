@@ -41,6 +41,7 @@ export async function getServerSideProps(context) {
     results, athletes, assessmentDates, assessmentTypes,
     recentAssessments, achievementCount, achievementsByType, schools,
     coachSchoolAgg, eventPlanStatus, applicationStatus, participantType,
+    sports, events, coaches,
   ] = await Promise.all([
     prisma.athlete.groupBy({ by: ["sportId"], where: athleteWhere, _count: { _all: true } }),
     prisma.athlete.groupBy({ by: ["status"], where: athleteWhere, _count: { _all: true } }),
@@ -48,7 +49,7 @@ export async function getServerSideProps(context) {
     prisma.athlete.groupBy({ by: ["schoolId"], where: athleteWhere, _count: { _all: true } }),
     prisma.athlete.groupBy({ by: ["eventId"], where: athleteWhere, _count: { _all: true } }),
     prisma.athlete.groupBy({ by: ["coachId"], where: athleteWhere, _count: { _all: true } }),
-    prisma.assessmentResult.findMany({ where: resultWhere, include: { metric: { include: { event: { include: { sport: true } } } }, assessment: { include: { athlete: true } } } }),
+    prisma.assessmentResult.findMany({ where: resultWhere, include: { metric: { select: { metricName: true, unit: true, betterDirection: true, event: { select: { eventName: true, sport: { select: { sportName: true } } } } } }, assessment: { select: { id: true, assessmentDate: true, athlete: { select: { id: true, firstName: true, lastName: true, athleteCode: true, sport: { select: { sportName: true } } } } } } } }),
     prisma.athlete.findMany({ where: athleteWhere, select: { id: true, athleteCode: true, firstName: true, lastName: true, status: true, coach: { select: { firstName: true, lastName: true } }, sport: { select: { sportName: true } }, _count: { select: { assessments: true, achievements: true } } }, orderBy: { lastName: "asc" } }),
     prisma.assessment.findMany({ where: assessmentWhere, select: { assessmentDate: true } }),
     prisma.assessment.groupBy({ by: ["assessmentType"], where: assessmentWhere, _count: { _all: true } }),
@@ -60,11 +61,10 @@ export async function getServerSideProps(context) {
     isAdmin ? prisma.eventPlan.groupBy({ by: ["status"], _count: { _all: true } }) : Promise.resolve([]),
     isAdmin ? prisma.eventApplication.groupBy({ by: ["status"], _count: { _all: true } }) : Promise.resolve([]),
     isAdmin ? prisma.eventParticipant.groupBy({ by: ["participantType"], _count: { _all: true } }) : Promise.resolve([]),
+    prisma.sport.findMany({ select: { id: true, sportName: true } }),
+    prisma.event.findMany({ select: { id: true, eventName: true } }),
+    prisma.coach.findMany({ select: { id: true, firstName: true, lastName: true } }),
   ]);
-
-  const sports = await prisma.sport.findMany({ select: { id: true, sportName: true } });
-  const events = await prisma.event.findMany({ select: { id: true, eventName: true } });
-  const coaches = await prisma.coach.findMany({ select: { id: true, firstName: true, lastName: true } });
   const idName = (rows) => (id) => rows.find((x) => x.id === id);
 
   const averages = {};

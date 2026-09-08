@@ -43,7 +43,7 @@ export async function getServerSideProps(context) {
   const sort = Object.keys(SORT_KEYS).includes(context.query.sort) ? context.query.sort : "name";
   const dir = context.query.dir === "desc" ? "desc" : "asc";
   const health = ["flagged", "healthy", "sick", "injured", "recovering", "inactive"].includes(context.query.health) ? context.query.health : "";
-  const student = { orderBy: athleteOrderBy(sort, dir), include: { school: true, sport: true, event: true, coach: true } };
+  const student = { orderBy: athleteOrderBy(sort, dir), include: { school: { select: { schoolName: true } }, sport: { select: { sportName: true } }, event: { select: { eventName: true } }, coach: { select: { firstName: true, lastName: true } } } };
   if (health === "flagged") student.where = { healthStatus: { in: ["sick", "injured", "recovering", "inactive"] } };
   else if (health) student.where = { healthStatus: health };
   const isCoach = session.user.role === "coach";
@@ -54,7 +54,7 @@ export async function getServerSideProps(context) {
     isCoach
       ? prisma.athlete.findMany({
           orderBy: { lastName: "asc" },
-          include: { school: true, sport: true, event: true, coach: true },
+          include: { school: { select: { schoolName: true } }, sport: { select: { sportName: true } }, event: { select: { eventName: true } }, coach: { select: { firstName: true, lastName: true } } },
           where: { coachId: ownCoach ? { not: ownCoach.id } : undefined },
         })
       : Promise.resolve([]),
