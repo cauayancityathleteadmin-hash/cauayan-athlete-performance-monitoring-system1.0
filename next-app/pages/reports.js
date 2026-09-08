@@ -23,35 +23,42 @@ export async function getServerSideProps(context) {
   }
 
   const data = await gsspData(cacheKey, 30000, async () => {
+    const athleteInclude = {
+      school: true,
+      sport: true,
+      event: true,
+      coach: { select: { firstName: true, lastName: true, coachCode: true } },
+      achievements: { orderBy: { achievementDate: "desc" }, take: 500 },
+      notes: { orderBy: { createdAt: "desc" }, take: 20 },
+      trainingAssessments: { orderBy: { assessmentDate: "desc" }, include: { plan: { select: { planName: true } } }, take: 20 },
+      healthLogs: { orderBy: { reportedAt: "desc" }, include: { reporter: { select: { email: true } }, resolver: { select: { email: true } } }, take: 50 },
+      coachHistory: { orderBy: { startedAt: "desc" }, include: { coach: { select: { firstName: true, lastName: true, coachCode: true } } }, take: 50 },
+      statusHistory: { orderBy: { changedAt: "desc" }, take: 50 },
+      trainingAttendances: { orderBy: { session: { sessionDate: "desc" } }, include: { session: { select: { sessionDate: true, sessionType: true, sport: { select: { sportName: true } } } } }, take: 200 },
+      trainingPerformances: { orderBy: { recordedAt: "desc" }, include: { exercise: { select: { exerciseName: true, category: true } }, recorder: { select: { email: true } } }, take: 100 },
+      trainingPlans: { include: { plan: { include: { sport: true } } }, take: 50 },
+      participants: { orderBy: { createdAt: "desc" }, include: { eventPlan: { select: { eventName: true, venue: true, status: true, startDate: true } }, sport: true }, take: 100 },
+      _count: { select: { assessments: true, achievements: true, healthLogs: true, trainingAttendances: true } },
+      assessments: { orderBy: { assessmentDate: "desc" }, include: { recorder: { select: { email: true, username: true } }, results: { include: { metric: true } } }, take: 500 },
+    };
+
     let athletes = [];
     let coaches = [];
     if (isAdmin) {
-      const where = {};
       [athletes, coaches] = await Promise.all([
-        prisma.athlete.findMany({
-          where,
-          orderBy: { lastName: "asc" },
-          include: {
-            school: true,
-            sport: true,
-            event: true,
-            coach: { select: { firstName: true, lastName: true } },
-            achievements: { orderBy: { achievementDate: "desc" }, take: 500 },
-            notes: { orderBy: { createdAt: "desc" }, take: 20 },
-            trainingAssessments: { orderBy: { assessmentDate: "desc" }, include: { plan: { select: { planName: true } } }, take: 20 },
-            _count: { select: { assessments: true, achievements: true } },
-            assessments: { orderBy: { assessmentDate: "desc" }, include: { recorder: { select: { email: true } }, results: { include: { metric: true } } }, take: 500 },
-          },
-        }),
+        prisma.athlete.findMany({ orderBy: { lastName: "asc" }, include: athleteInclude }),
         prisma.coach.findMany({
           orderBy: { lastName: "asc" },
           include: {
             school: true,
             sports: { include: { sport: true } },
-            _count: { select: { athletes: true, performances: true, trainingPlans: true } },
-            athletes: { select: { id: true, athleteCode: true, firstName: true, lastName: true, sport: { select: { sportName: true } }, status: true } },
-            performances: { orderBy: { createdAt: "desc" }, include: { evaluator: { select: { username: true } } }, take: 50 },
-            trainingPlans: { select: { id: true, planName: true, status: true } },
+            athletes: { select: { id: true, athleteCode: true, firstName: true, middleName: true, lastName: true, suffix: true, gender: true, birthdate: true, status: true, sport: { select: { sportName: true } }, event: { select: { eventName: true } } } },
+            performances: { orderBy: { createdAt: "desc" }, include: { evaluator: { select: { username: true, email: true } } }, take: 50 },
+            trainingPlans: { include: { sport: true, athletes: { select: { athleteId: true } } }, take: 50 },
+            trainingSessions: { orderBy: { sessionDate: "desc" }, include: { sport: true, _count: { select: { attendances: true } } }, take: 100 },
+            applications: { orderBy: { appliedAt: "desc" }, include: { eventPlan: { select: { eventName: true, venue: true, status: true, startDate: true } } }, take: 100 },
+            participants: { orderBy: { createdAt: "desc" }, include: { eventPlan: { select: { eventName: true, venue: true, status: true, startDate: true } }, sport: true, athlete: { select: { firstName: true, lastName: true, athleteCode: true } } }, take: 100 },
+            _count: { select: { athletes: true, performances: true, trainingPlans: true, trainingSessions: true, applications: true, participants: true } },
           },
         }),
       ]);
@@ -59,24 +66,16 @@ export async function getServerSideProps(context) {
       athletes = await prisma.athlete.findMany({
         where: { coach: { userId: Number(session.user.id) } },
         orderBy: { lastName: "asc" },
-        include: {
-          school: true,
-          sport: true,
-          event: true,
-          coach: { select: { firstName: true, lastName: true } },
-          achievements: { orderBy: { achievementDate: "desc" }, take: 500 },
-          notes: { orderBy: { createdAt: "desc" }, take: 20 },
-          trainingAssessments: { orderBy: { assessmentDate: "desc" }, include: { plan: { select: { planName: true } } }, take: 20 },
-          _count: { select: { assessments: true, achievements: true } },
-          assessments: { orderBy: { assessmentDate: "desc" }, include: { recorder: { select: { email: true } }, results: { include: { metric: true } } }, take: 500 },
-        },
+        include: athleteInclude,
       });
     }
 
     const athleteIds = athletes.map((a) => a.id);
-    const [activityCounts, logCounts] = await Promise.all([
+    const [activityCounts, logCounts, attendanceCounts, pointsConfig] = await Promise.all([
       athleteIds.length ? prisma.planActivity.groupBy({ by: ["athleteId"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
       athleteIds.length ? prisma.planActivityLog.groupBy({ by: ["athleteId", "status"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
+      athleteIds.length ? prisma.trainingAttendance.groupBy({ by: ["athleteId", "status"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
+      prisma.pointsConfig.findMany(),
     ]);
     const activityCountMap = new Map(activityCounts.map((x) => [x.athleteId, x._count._all]));
     const logCountMap = new Map();
@@ -85,55 +84,100 @@ export async function getServerSideProps(context) {
       const entry = logCountMap.get(row.athleteId);
       if (["done", "partial", "missed"].includes(row.status)) entry[row.status] += row._count._all;
     }
+    const attendanceMap = new Map();
+    for (const row of attendanceCounts) {
+      if (!attendanceMap.has(row.athleteId)) attendanceMap.set(row.athleteId, { present: 0, late: 0, excused: 0, absent: 0 });
+      const entry = attendanceMap.get(row.athleteId);
+      if (["present", "late", "excused", "absent"].includes(row.status)) entry[row.status] += row._count._all;
+    }
+    const pointsMap = new Map(pointsConfig.map((pc) => [`${(pc.medal || "").toLowerCase().trim()}|${(pc.level || "").toLowerCase().trim()}`, pc.points]));
+    const achievementPoints = (a) => (a.medal && a.level ? pointsMap.get(`${a.medal.toLowerCase()}|${a.level.toLowerCase()}`) || 0 : 0);
 
-    const serializeAthlete = (athlete) => ({
-      id: athlete.id,
-      athleteCode: athlete.athleteCode,
-      firstName: athlete.firstName,
-      middleName: athlete.middleName,
-      lastName: athlete.lastName,
-      suffix: athlete.suffix || null,
-      birthdate: athlete.birthdate.toISOString(),
-      gender: athlete.gender,
-      contactNumber: athlete.contactNumber || null,
-      email: athlete.email || null,
-      address: athlete.address || null,
-      school: athlete.school?.schoolName || null,
-      sport: athlete.sport.sportName,
-      event: athlete.event?.eventName || null,
-      coach: athlete.coach ? `${athlete.coach.lastName}, ${athlete.coach.firstName}` : null,
-      status: athlete.status,
-      height: athlete.height?.toString?.() || null,
-      weight: athlete.weight?.toString?.() || null,
-      healthStatus: athlete.healthStatus,
-      healthNotes: athlete.healthNotes || null,
-      dateRegistered: athlete.dateRegistered?.toISOString() || null,
-      assessmentCount: athlete._count.assessments,
-      achievementCount: athlete._count.achievements,
-      achievements: athlete.achievements.map((a) => ({ title: a.achievementTitle, type: a.achievementType || null, medal: a.medal || null, level: a.level || null, date: a.achievementDate?.toISOString() || null, organization: a.organization || null, description: a.description || null })),
-      notes: athlete.notes.map((n) => ({ note: n.note, author: n.author?.email || null, date: n.createdAt.toISOString() })),
-      trainingAssessments: athlete.trainingAssessments.map((t) => ({ rating: t.rating, fitness: t.fitnessDimension || "general", dates: t.assessmentDate.toISOString(), plan: t.plan?.planName || null })),
-      assessments: athlete.assessments.map((assessment) => ({
-        id: assessment.id,
-        assessmentDate: assessment.assessmentDate.toISOString(),
-        assessmentType: assessment.assessmentType,
-        remarks: assessment.remarks || null,
-        recorder: assessment.recorder?.email || null,
-        results: assessment.results.map((result) => ({ metricName: result.metric.metricName, unit: result.metric.unit, valueDecimal: result.valueDecimal?.toString() || null, valueText: result.valueText || null, notes: result.notes || null })),
-      })),
-      completion: (() => {
-        const log = logCountMap.get(athlete.id) || { done: 0, partial: 0, missed: 0 };
-        const planned = activityCountMap.get(athlete.id) || 0;
-        return {
+    const serializeAthlete = (athlete) => {
+      const achievements = athlete.achievements.map((a) => ({
+        title: a.achievementTitle,
+        type: a.achievementType || null,
+        medal: a.medal || null,
+        level: a.level || null,
+        date: a.achievementDate?.toISOString() || null,
+        organization: a.organization || null,
+        description: a.description || null,
+        points: achievementPoints(a),
+      }));
+      const completionLog = logCountMap.get(athlete.id) || { done: 0, partial: 0, missed: 0 };
+      const planned = activityCountMap.get(athlete.id) || 0;
+      const attendance = attendanceMap.get(athlete.id) || { present: 0, late: 0, excused: 0, absent: 0 };
+      const attendanceEntries = athlete.trainingAttendances.map((ta) => ({ date: ta.session.sessionDate.toISOString(), type: ta.session.sessionType, sport: ta.session.sport.sportName }));
+      return {
+        id: athlete.id,
+        athleteCode: athlete.athleteCode,
+        firstName: athlete.firstName,
+        middleName: athlete.middleName,
+        lastName: athlete.lastName,
+        suffix: athlete.suffix || null,
+        birthdate: athlete.birthdate.toISOString(),
+        gender: athlete.gender,
+        contactNumber: athlete.contactNumber || null,
+        email: athlete.email || null,
+        address: athlete.address || null,
+        school: athlete.school?.schoolName || null,
+        sport: athlete.sport.sportName,
+        event: athlete.event?.eventName || null,
+        coach: athlete.coach ? `${athlete.coach.lastName}, ${athlete.coach.firstName}` : null,
+        coachCode: athlete.coach?.coachCode || null,
+        status: athlete.status,
+        height: athlete.height?.toString?.() || null,
+        weight: athlete.weight?.toString?.() || null,
+        healthStatus: athlete.healthStatus,
+        healthNotes: athlete.healthNotes || null,
+        dateRegistered: athlete.dateRegistered?.toISOString() || null,
+        updatedAt: athlete.updatedAt?.toISOString() || null,
+        assessmentCount: athlete._count.assessments,
+        achievementCount: athlete._count.achievements,
+        achievements,
+        pointsTotal: achievements.reduce((s, a) => s + a.points, 0),
+        notes: athlete.notes.map((n) => ({ note: n.note, author: n.author?.email || null, date: n.createdAt.toISOString() })),
+        trainingAssessments: athlete.trainingAssessments.map((t) => ({ rating: t.rating, fitness: t.fitnessDimension || "general", dates: t.assessmentDate.toISOString(), plan: t.plan?.planName || null, comments: t.comments || null })),
+        assessments: athlete.assessments.map((assessment) => ({
+          id: assessment.id,
+          assessmentDate: assessment.assessmentDate.toISOString(),
+          assessmentType: assessment.assessmentType,
+          remarks: assessment.remarks || null,
+          recorder: assessment.recorder?.username || assessment.recorder?.email || null,
+          results: assessment.results.map((result) => ({ metricName: result.metric.metricName, unit: result.metric.unit, valueDecimal: result.valueDecimal?.toString() || null, valueText: result.valueText || null, notes: result.notes || null })),
+        })),
+        healthLogs: athlete.healthLogs.map((h) => ({ status: h.status, description: h.description || null, reportedAt: h.reportedAt.toISOString(), reportedBy: h.reporter?.email || null, resolvedAt: h.resolvedAt?.toISOString() || null, resolvedBy: h.resolver?.email || null })),
+        coachHistory: athlete.coachHistory.map((h) => ({ coachName: h.coach ? `${h.coach.lastName}, ${h.coach.firstName}` : null, coachCode: h.coach?.coachCode || null, startedAt: h.startedAt.toISOString(), endedAt: h.endedAt?.toISOString() || null, reason: h.reason || null })),
+        statusHistory: athlete.statusHistory.map((s) => ({ from: s.oldStatus || null, to: s.newStatus, changedAt: s.changedAt.toISOString(), reason: s.reason || null })),
+        attendance,
+        attendanceCount: athlete._count.trainingAttendances,
+        attendanceEntries,
+        exercisePerformances: athlete.trainingPerformances.map((p) => ({
+          exerciseName: p.exercise.exerciseName,
+          category: p.exercise.category,
+          score: p.score?.toString() || null,
+          rpe: p.rpe ?? null,
+          sets: p.setsCompleted ?? null,
+          reps: p.repsCompleted ?? null,
+          load: p.loadUsed?.toString() || null,
+          duration: p.durationSec ?? null,
+          distance: p.distanceCovered?.toString() || null,
+          notes: p.notes || null,
+          recordedAt: p.recordedAt.toISOString(),
+          recordedBy: p.recorder?.email || null,
+        })),
+        plans: athlete.trainingPlans.map((t) => ({ planName: t.plan.planName, sport: t.plan.sport.sportName, status: t.plan.status, startDate: t.plan.startDate?.toISOString() || null, endDate: t.plan.endDate?.toISOString() || null })),
+        participants: athlete.participants.map((p) => ({ eventName: p.eventPlan.eventName, venue: p.eventPlan.venue, status: p.eventPlan.status, startDate: p.eventPlan.startDate?.toISOString() || null, sport: p.sport.sportName })),
+        completion: {
           planned,
-          done: log.done,
-          partial: log.partial,
-          missed: log.missed,
-          open: planned - (log.done + log.partial + log.missed),
-          percent: planned ? Math.round(((log.done + log.partial) / planned) * 100) : null,
-        };
-      })(),
-    });
+          done: completionLog.done,
+          partial: completionLog.partial,
+          missed: completionLog.missed,
+          open: planned - (completionLog.done + completionLog.partial + completionLog.missed),
+          percent: planned ? Math.round(((completionLog.done + completionLog.partial) / planned) * 100) : null,
+        },
+      };
+    };
 
     const serializeCoach = (coach) => ({
       id: coach.id,
@@ -148,18 +192,43 @@ export async function getServerSideProps(context) {
       school: coach.school?.schoolName || null,
       status: coach.status,
       dateRegistered: coach.dateRegistered.toISOString(),
+      updatedAt: coach.updatedAt?.toISOString() || null,
       sports: coach.sports.map((s) => s.sport.sportName),
       athleteCount: coach._count.athletes,
       evalCount: coach._count.performances,
       planCount: coach._count.trainingPlans,
-      athletes: coach.athletes.map((a) => ({ athleteCode: a.athleteCode, name: `${a.lastName}, ${a.firstName}`, sport: a.sport.sportName, status: a.status })),
+      sessionCount: coach._count.trainingSessions,
+      applicationCount: coach._count.applications,
+      participantCount: coach._count.participants,
+      athletes: coach.athletes.map((a) => ({
+        athleteCode: a.athleteCode,
+        name: `${a.lastName}, ${a.firstName}${a.middleName ? ` ${a.middleName}` : ""}${a.suffix ? ` ${a.suffix}` : ""}`,
+        sport: a.sport.sportName,
+        event: a.event?.eventName || null,
+        status: a.status,
+        gender: a.gender,
+        birthdate: a.birthdate?.toISOString() || null,
+      })),
       performances: coach.performances.map((p) => ({
         periodStart: p.periodStart.toISOString(),
         periodEnd: p.periodEnd.toISOString(),
+        sessionPlanning: p.sessionPlanning,
+        exerciseSelection: p.exerciseSelection,
+        technicalInstruction: p.technicalInstruction,
+        athleteDevelopment: p.athleteDevelopment,
+        communication: p.communication,
+        safetyCompliance: p.safetyCompliance,
+        trainingImplementation: p.trainingImplementation,
         overallScore: p.overallScore.toString(),
-        evaluator: p.evaluator?.username || null,
+        strengths: p.strengths || null,
+        areasForImprovement: p.areasForImprovement || null,
+        actionPlan: p.actionPlan || null,
+        evaluator: p.evaluator?.username || p.evaluator?.email || null,
       })),
-      trainingPlans: coach.trainingPlans.map((p) => ({ title: p.planName, status: p.status })),
+      trainingPlans: coach.trainingPlans.map((p) => ({ title: p.planName, sport: p.sport.sportName, status: p.status, startDate: p.startDate?.toISOString() || null, endDate: p.endDate?.toISOString() || null, athleteCount: p.athletes.length })),
+      trainingSessions: coach.trainingSessions.map((s) => ({ sessionDate: s.sessionDate.toISOString(), sessionType: s.sessionType, sport: s.sport.sportName, venue: s.venue || null, notes: s.notes || null, attendance: s._count.attendances })),
+      applications: coach.applications.map((a) => ({ eventName: a.eventPlan.eventName, venue: a.eventPlan.venue, status: a.eventPlan.status, startDate: a.eventPlan.startDate?.toISOString() || null, appliedAt: a.appliedAt.toISOString() })),
+      participants: coach.participants.map((p) => ({ eventName: p.eventPlan.eventName, venue: p.eventPlan.venue, status: p.eventPlan.status, startDate: p.eventPlan.startDate?.toISOString() || null, sport: p.sport.sportName, athlete: p.athlete ? `${p.athlete.lastName}, ${p.athlete.firstName}${p.athlete.athleteCode ? ` (${p.athlete.athleteCode})` : ""}` : null })),
     });
 
     return {
@@ -182,9 +251,64 @@ function formatDate(value) {
   return isNaN(date) ? "—" : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
+function formatDateTime(value) {
+  const date = new Date(value);
+  return isNaN(date) ? "—" : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function computeAge(value) {
+  const d = new Date(value);
+  if (isNaN(d)) return null;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
+  return age >= 0 ? age : null;
+}
+
+function bmiCategory(bmi) {
+  if (bmi == null) return null;
+  if (bmi < 18.5) return "Underweight";
+  if (bmi < 25) return "Normal weight";
+  if (bmi < 30) return "Overweight";
+  return "Obese";
+}
+
 const GENDER_LABEL = { male: "Male", female: "Female", other: "Other", prefer_not_to_say: "Prefer not to say" };
-const STATUS_LABEL = { active: "Active", inactive: "Inactive", pending: "Pending" };
-const HEALTH_LABEL = { healthy: "Healthy", injured: "Injured", recovering: "Recovering", medical_condition: "Medical note" };
+const STATUS_LABEL = { active: "Active", inactive: "Inactive", pending: "Pending", draft: "Draft", open: "Open", closed: "Closed", cancelled: "Cancelled", approved: "Approved", rejected: "Rejected" };
+const HEALTH_LABEL = { healthy: "Healthy", injured: "Injured", recovering: "Recovering", sick: "Sick", inactive: "Inactive" };
+const ATTENDANCE_LABEL = { present: "Present", late: "Late", excused: "Excused", absent: "Absent" };
+const SESSION_TYPE_LABEL = {
+  regular: "Regular",
+  conditioning: "Conditioning",
+  technical: "Technical",
+  tactical: "Tactical",
+  recovery: "Recovery",
+  competition_simulation: "Competition Simulation",
+  tryout: "Tryout",
+};
+const FITNESS_LABEL = {
+  endurance: "Endurance",
+  strength: "Strength",
+  power: "Power",
+  speed_agility: "Speed / Agility",
+  skill_technique: "Skill / Technique",
+  mobility: "Mobility",
+  recovery: "Recovery",
+  general: "General",
+};
+const EXERCISE_CATEGORY_LABEL = {
+  warmup: "Warm-up",
+  mobility: "Mobility",
+  strength: "Strength",
+  power: "Power",
+  speed_agility: "Speed / Agility",
+  endurance: "Endurance",
+  skill_technique: "Skill / Technique",
+  tactical: "Tactical",
+  cooldown: "Cool-down",
+  recovery: "Recovery",
+};
 
 const ATH_SORT_COLS = {
   name: (a) => `${a.lastName}, ${a.firstName}`.toLowerCase(),
@@ -198,7 +322,16 @@ const ATH_SORT_COLS = {
   assessments: (a) => a.assessmentCount,
 };
 
-function AthleteReportCard({ athlete, isAdmin, session, from, to, prefix }) {
+function RdSection({ num, title, meta, children }) {
+  return (
+    <section>
+      <div className="rd-section-title"><span className="rd-sec-no">{num}</span>{title}{meta ? <span>{meta}</span> : null}</div>
+      {children}
+    </section>
+  );
+}
+
+function AthleteReportCard({ athlete, session, from, to, prefix }) {
   const windowed = athlete.assessments.filter((assessment) => (!from || assessment.assessmentDate >= new Date(from).toISOString()) && (!to || assessment.assessmentDate <= new Date(new Date(to).getTime() + 86400000).toISOString()));
   const last = athlete.assessments[0];
   const reportRef = `${prefix}${athlete.athleteCode}-${from || "all"}${to ? `-${to}` : ""}`;
@@ -206,6 +339,14 @@ function AthleteReportCard({ athlete, isAdmin, session, from, to, prefix }) {
   const periodLabel = `${from ? formatDate(new Date(from).toISOString()) : "earliest"} to ${to ? formatDate(new Date(to).toISOString()) : "latest"}`;
   const heightM = athlete.height ? Number(athlete.height) : null;
   const weightKg = athlete.weight ? Number(athlete.weight) : null;
+  const bmi = heightM && weightKg ? Math.round((weightKg / (heightM * heightM)) * 10) / 10 : null;
+  const bmiClass = bmiCategory(bmi);
+  const age = computeAge(athlete.birthdate);
+  const attendanceTotal = athlete.attendance ? athlete.attendance.present + athlete.attendance.late + athlete.attendance.excused + athlete.attendance.absent : 0;
+  const attendanceRate = attendanceTotal
+    ? Math.round(((athlete.attendance.present + athlete.attendance.late + athlete.attendance.excused) / attendanceTotal) * 100)
+    : null;
+  const activePlans = athlete.plans.filter((p) => p.status === "active");
 
   return (
     <article className="report-doc" key={athlete.id}>
@@ -213,115 +354,223 @@ function AthleteReportCard({ athlete, isAdmin, session, from, to, prefix }) {
         <img src="/cauayan logo.png" alt="Official Seal of the City Government of Cauayan" className="rd-logo" />
         <div className="rd-header-text">
           <p className="rd-republic">Republic of the Philippines</p>
+          <p className="rd-province">Province of Isabela</p>
           <h1 className="rd-lgu">City Government of Cauayan</h1>
           <p className="rd-office">City Sports Development Office</p>
           <p className="rd-address">Cauayan City, Isabela, Philippines</p>
         </div>
       </header>
 
-      <h2 className="rd-title">Athlete Full Profile Report</h2>
-      <p className="rd-ref">Report No.: <span>{reportRef}</span> &nbsp;·&nbsp; Date Issued: <span>{issued}</span></p>
+      <h2 className="rd-title">Athlete Official Personnel Record</h2>
+      <p className="rd-ref">Record No.: <span>{reportRef}</span> &nbsp;·&nbsp; Date Issued: <span>{issued}</span></p>
 
-      <table className="rd-info">
-        <tbody>
-          <tr>
-            <th>Full Name</th>
-            <td>{athlete.lastName}, {athlete.firstName}{athlete.middleName ? ` ${athlete.middleName}` : ""}{athlete.suffix ? ` ${athlete.suffix}` : ""}</td>
-            <th>Athlete Code</th>
-            <td>{athlete.athleteCode}</td>
-          </tr>
-          <tr>
-            <th>Date of Birth</th>
-            <td>{formatDate(athlete.birthdate)}</td>
-            <th>Sex</th>
-            <td>{GENDER_LABEL[athlete.gender] || athlete.gender}</td>
-          </tr>
-          <tr>
-            <th>Status</th>
-            <td>{STATUS_LABEL[athlete.status] || athlete.status}</td>
-            <th>Date Registered</th>
-            <td>{athlete.dateRegistered ? formatDate(athlete.dateRegistered) : "—"}</td>
-          </tr>
-          <tr>
-            <th>Sport / Event</th>
-            <td colSpan="1">{athlete.sport}</td>
-            <th>Event</th>
-            <td>{athlete.event || "—"}</td>
-          </tr>
-          <tr>
-            <th>School</th>
-            <td>{athlete.school || "—"}</td>
-            <th>Head Coach</th>
-            <td>{athlete.coach || "—"}</td>
-          </tr>
-          <tr>
-            <th>Contact No.</th>
-            <td>{athlete.contactNumber || "—"}</td>
-            <th>Email</th>
-            <td>{athlete.email || "—"}</td>
-          </tr>
-          <tr>
-            <th>Address</th>
-            <td colSpan="3">{athlete.address || "—"}</td>
-          </tr>
-          <tr>
-            <th>Height / Weight</th>
-            <td colSpan="3">{heightM ? `${heightM} m` : "—"} / {weightKg ? `${weightKg} kg` : "—"}</td>
-          </tr>
-          <tr>
-            <th>Health Status</th>
-            <td>{HEALTH_LABEL[athlete.healthStatus] || athlete.healthStatus}</td>
-            <th>Health Notes</th>
-            <td>{athlete.healthNotes || "—"}</td>
-          </tr>
-        </tbody>
-      </table>
+      <RdSection num="I." title="Personal Information">
+        <table className="rd-info">
+          <tbody>
+            <tr>
+              <th>Full Name</th>
+              <td>{athlete.lastName}, {athlete.firstName}{athlete.middleName ? ` ${athlete.middleName}` : ""}{athlete.suffix ? ` ${athlete.suffix}` : ""}</td>
+              <th>Athlete Code</th>
+              <td>{athlete.athleteCode}</td>
+            </tr>
+            <tr>
+              <th>Date of Birth</th>
+              <td>{formatDate(athlete.birthdate)}</td>
+              <th>Age / Sex</th>
+              <td>{age != null ? `${age} years` : "—"} / {GENDER_LABEL[athlete.gender] || athlete.gender}</td>
+            </tr>
+            <tr>
+              <th>Civil Status</th>
+              <td colSpan="3">—</td>
+            </tr>
+            <tr>
+              <th>Permanent Address</th>
+              <td colSpan="3">{athlete.address || "—"}</td>
+            </tr>
+            <tr>
+              <th>Contact No.</th>
+              <td>{athlete.contactNumber || "—"}</td>
+              <th>Email Address</th>
+              <td>{athlete.email || "—"}</td>
+            </tr>
+            <tr>
+              <th>Record Status</th>
+              <td>{STATUS_LABEL[athlete.status] || athlete.status}</td>
+              <th>Date Registered</th>
+              <td>{athlete.dateRegistered ? formatDate(athlete.dateRegistered) : "—"}</td>
+            </tr>
+          </tbody>
+        </table>
+      </RdSection>
 
-      <div className="rd-section-title">Performance Record <span>Covering period: {periodLabel}</span></div>
-      {windowed.length ? windowed.map((assessment) => (
-        <div className="rd-assessment" key={assessment.id}>
-          <div className="rd-assessment-head">{formatDate(assessment.assessmentDate)} &mdash; {assessment.assessmentType}{assessment.recorder ? <small> &middot; Recorded by {assessment.recorder}</small> : null}</div>
-          <table className="rd-results">
-            <thead><tr><th>Metric</th><th>Result</th></tr></thead>
-            <tbody>{assessment.results.length ? assessment.results.map((result, i) => <tr key={i}><td>{result.metricName}</td><td className="num"><strong>{result.valueDecimal !== null && result.valueDecimal !== undefined ? Number(result.valueDecimal) + (result.unit ? ` ${result.unit}` : "") : (result.valueText || "—")}</strong>{result.notes ? <p className="rd-empty" style={{ margin: "2px 0 0" }}>{result.notes}</p> : null}</td></tr>) : <tr><td colSpan="2" className="rd-empty">No results recorded.</td></tr>}</tbody>
-          </table>
-          {assessment.remarks ? <p className="rd-empty" style={{ marginTop: 6 }}>Remarks: {assessment.remarks}</p> : null}
-        </div>
-      )) : <p className="rd-empty">No assessments were found within the selected date window.</p>}
+      <RdSection num="II." title="Classification and Assignment">
+        <table className="rd-info">
+          <tbody>
+            <tr>
+              <th>Sport</th>
+              <td>{athlete.sport || "—"}</td>
+              <th>Event / Discipline</th>
+              <td>{athlete.event || "—"}</td>
+            </tr>
+            <tr>
+              <th>School / Institution</th>
+              <td>{athlete.school || "—"}</td>
+              <th>Head Coach</th>
+              <td>{athlete.coach || "—"}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        {athlete.coachHistory.length > 0 && (
+          <>
+            <div className="rd-sub-section">Coach Assignment History</div>
+            <table className="rd-results">
+              <thead><tr><th>Coach</th><th>Code</th><th>From</th><th>To</th><th>Reason / Remarks</th></tr></thead>
+              <tbody>{athlete.coachHistory.slice(0, 20).map((h, i) => <tr key={i}><td>{h.coachName || "—"}</td><td>{h.coachCode || "—"}</td><td>{formatDate(h.startedAt)}</td><td>{h.endedAt ? formatDate(h.endedAt) : "Current"}</td><td>{h.reason || "—"}</td></tr>)}</tbody>
+            </table>
+          </>
+        )}
+
+        {athlete.statusHistory.length > 0 && (
+          <>
+            <div className="rd-sub-section">Status History</div>
+            <table className="rd-results">
+              <thead><tr><th>Changed From</th><th>Changed To</th><th>Date</th><th>Reason / Remarks</th></tr></thead>
+              <tbody>{athlete.statusHistory.slice(0, 20).map((s, i) => <tr key={i}><td>{s.from ? STATUS_LABEL[s.from] || s.from : "—"}</td><td>{STATUS_LABEL[s.to] || s.to}</td><td>{formatDate(s.changedAt)}</td><td>{s.reason || "—"}</td></tr>)}</tbody>
+            </table>
+          </>
+        )}
+      </RdSection>
+
+      <RdSection num="III." title="Physical and Health Profile">
+        <table className="rd-info">
+          <tbody>
+            <tr>
+              <th>Height</th>
+              <td>{heightM ? `${heightM} m` : "—"}</td>
+              <th>Weight</th>
+              <td>{weightKg ? `${weightKg} kg` : "—"}</td>
+            </tr>
+            <tr>
+              <th>Body Mass Index</th>
+              <td>{bmi != null ? `${bmi} (${bmiClass})` : "—"}</td>
+              <th>Health Status</th>
+              <td>{HEALTH_LABEL[athlete.healthStatus] || athlete.healthStatus}</td>
+            </tr>
+            <tr>
+              <th>Health Notes</th>
+              <td colSpan="3">{athlete.healthNotes || "—"}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        {athlete.healthLogs.length > 0 && (
+          <>
+            <div className="rd-sub-section">Health Log History</div>
+            <table className="rd-results">
+              <thead><tr><th>Date Reported</th><th>Status</th><th>Description</th><th>Date Resolved</th></tr></thead>
+              <tbody>{athlete.healthLogs.slice(0, 30).map((h, i) => <tr key={i}><td>{formatDate(h.reportedAt)}</td><td>{HEALTH_LABEL[h.status] || h.status}</td><td>{h.description || "—"}</td><td>{h.resolvedAt ? formatDate(h.resolvedAt) : "Open"}</td></tr>)}</tbody>
+            </table>
+          </>
+        )}
+      </RdSection>
+
+      <RdSection num="IV." title="Performance Record" meta={`Covering period: ${periodLabel} · ${windowed.length} assessment record(s)`}>
+        {windowed.length ? windowed.map((assessment) => (
+          <div className="rd-assessment" key={assessment.id}>
+            <div className="rd-assessment-head">{formatDate(assessment.assessmentDate)} &mdash; {assessment.assessmentType}{assessment.recorder ? <small> &middot; Recorded by {assessment.recorder}</small> : null}</div>
+            <table className="rd-results">
+              <thead><tr><th>Metric</th><th>Result</th></tr></thead>
+              <tbody>{assessment.results.length ? assessment.results.map((result, i) => <tr key={i}><td>{result.metricName}</td><td className="num"><strong>{result.valueDecimal !== null && result.valueDecimal !== undefined ? Number(result.valueDecimal) + (result.unit ? ` ${result.unit}` : "") : (result.valueText || "—")}</strong>{result.notes ? <p className="rd-empty" style={{ margin: "2px 0 0" }}>{result.notes}</p> : null}</td></tr>) : <tr><td colSpan="2" className="rd-empty">No results recorded.</td></tr>}</tbody>
+            </table>
+            {assessment.remarks ? <p className="rd-empty" style={{ marginTop: 6 }}>Remarks: {assessment.remarks}</p> : null}
+          </div>
+        )) : <p className="rd-empty">No assessments were found within the selected date window.</p>}
+      </RdSection>
 
       {athlete.trainingAssessments.length > 0 && (
-        <>
-          <div className="rd-section-title">Training Assessments <span>{athlete.trainingAssessments.length} record(s)</span></div>
+        <RdSection num="V." title="Training Assessments and Fitness Ratings" meta={`${athlete.trainingAssessments.length} record(s)`}>
           <table className="rd-results">
-            <thead><tr><th>Plan</th><th>Assessed</th><th>Rating</th></tr></thead>
-            <tbody>{athlete.trainingAssessments.slice(0, 20).map((t, i) => <tr key={i}><td>{t.plan || "—"}</td><td>{formatDate(t.dates)}</td><td className="num">{t.rating}/10</td></tr>)}</tbody>
+            <thead><tr><th>Training Plan</th><th>Date Assessed</th><th>Fitness Dimension</th><th>Rating</th><th>Comments</th></tr></thead>
+            <tbody>{athlete.trainingAssessments.slice(0, 20).map((t, i) => <tr key={i}><td>{t.plan || "—"}</td><td>{formatDate(t.dates)}</td><td>{FITNESS_LABEL[t.fitness] || t.fitness}</td><td className="num">{t.rating}/10</td><td>{t.comments || "—"}</td></tr>)}</tbody>
           </table>
-        </>
+        </RdSection>
+      )}
+
+      <RdSection num="VI." title="Training Plans, Activities and Attendance">
+        <div className="rd-grid">
+          <div className="rd-grid-item">
+            <div className="rd-kpi-label">Plan Activity Completion</div>
+            <div className="rd-kpi-value">{athlete.completion.percent != null ? `${athlete.completion.percent}%` : "—"}</div>
+            <div className="rd-kpi-note">{athlete.completion.planned} planned · {athlete.completion.done} done · {athlete.completion.partial} partial · {athlete.completion.missed} missed · {athlete.completion.open} open</div>
+          </div>
+          <div className="rd-grid-item">
+            <div className="rd-kpi-label">Session Attendance Rate</div>
+            <div className="rd-kpi-value">{attendanceRate != null ? `${attendanceRate}%` : "—"}</div>
+            <div className="rd-kpi-note">{athlete.attendanceCount} sessions · {athlete.attendance.present} present · {athlete.attendance.late} late · {athlete.attendance.excused} excused · {athlete.attendance.absent} absent</div>
+          </div>
+        </div>
+
+        {athlete.plans.length > 0 && (
+          <>
+            <div className="rd-sub-section">Assigned Training Plans {activePlans.length > 0 ? `(${activePlans.length} active)` : ""}</div>
+            <table className="rd-results">
+              <thead><tr><th>Plan</th><th>Sport</th><th>Status</th><th>Start Date</th><th>End Date</th></tr></thead>
+              <tbody>{athlete.plans.map((p, i) => <tr key={i}><td>{p.planName}</td><td>{p.sport}</td><td>{STATUS_LABEL[p.status] || p.status}</td><td>{p.startDate ? formatDate(p.startDate) : "—"}</td><td>{p.endDate ? formatDate(p.endDate) : "—"}</td></tr>)}</tbody>
+            </table>
+          </>
+        )}
+
+        {athlete.attendanceEntries.length > 0 && (
+          <>
+            <div className="rd-sub-section">Recent Session Attendance</div>
+            <table className="rd-results">
+              <thead><tr><th>Date</th><th>Session Type</th><th>Sport</th></tr></thead>
+              <tbody>{athlete.attendanceEntries.slice(0, 30).map((a, i) => <tr key={i}><td>{formatDate(a.date)}</td><td>{SESSION_TYPE_LABEL[a.type] || a.type}</td><td>{a.sport}</td></tr>)}</tbody>
+            </table>
+          </>
+        )}
+      </RdSection>
+
+      {athlete.exercisePerformances.length > 0 && (
+        <RdSection num="VII." title="Exercise Performance Log" meta={`${athlete.exercisePerformances.length} recent record(s)`}>
+          <table className="rd-results">
+            <thead><tr><th>Exercise</th><th>Category</th><th>Score</th><th>Sets / Reps</th><th>Load / Distance</th><th>RPE</th><th>Date</th></tr></thead>
+            <tbody>{athlete.exercisePerformances.slice(0, 30).map((p, i) => <tr key={i}><td>{p.exerciseName}</td><td>{EXERCISE_CATEGORY_LABEL[p.category] || p.category}</td><td className="num">{p.score ?? "—"}</td><td className="num">{p.sets != null ? `${p.sets} / ${p.reps ?? "—"}` : "—"}</td><td className="num">{p.load ? `${p.load} kg` : p.distance ? `${p.distance} m` : "—"}</td><td className="num">{p.rpe ?? "—"}</td><td>{formatDate(p.recordedAt)}</td></tr>)}</tbody>
+          </table>
+        </RdSection>
       )}
 
       {athlete.achievements.length > 0 && (
-        <>
-          <div className="rd-section-title">Achievements <span>{athlete.achievementCount} total</span></div>
+        <RdSection num="VIII." title="Achievements and Awards" meta={`${athlete.achievementCount} total · ${athlete.pointsTotal} total points`}>
           <table className="rd-results">
-            <thead><tr><th>Achievement</th><th>Type</th><th>Date</th></tr></thead>
-            <tbody>{athlete.achievements.map((a, i) => <tr key={i}><td>{a.title}</td><td>{a.type || "—"}</td><td>{a.date ? formatDate(a.date) : "—"}</td></tr>)}</tbody>
+            <thead><tr><th>Achievement</th><th>Type</th><th>Medal / Level</th><th>Points</th><th>Date</th><th>Organization</th></tr></thead>
+            <tbody>{athlete.achievements.map((a, i) => <tr key={i}><td>{a.title}</td><td>{a.type || "—"}</td><td>{(a.medal ? a.medal.toUpperCase() : "—")}{a.level ? ` / ${a.level}` : ""}</td><td className="num">{a.points || "—"}</td><td>{a.date ? formatDate(a.date) : "—"}</td><td>{a.organization || "—"}</td></tr>)}</tbody>
           </table>
-        </>
+        </RdSection>
+      )}
+
+      {athlete.participants.length > 0 && (
+        <RdSection num="IX." title="Event Participation" meta={`${athlete.participants.length} event(s)`}>
+          <table className="rd-results">
+            <thead><tr><th>Event</th><th>Sport</th><th>Venue</th><th>Start Date</th><th>Status</th></tr></thead>
+            <tbody>{athlete.participants.map((p, i) => <tr key={i}><td>{p.eventName}</td><td>{p.sport}</td><td>{p.venue || "—"}</td><td>{p.startDate ? formatDate(p.startDate) : "—"}</td><td>{STATUS_LABEL[p.status] || p.status}</td></tr>)}</tbody>
+          </table>
+        </RdSection>
       )}
 
       {athlete.notes.length > 0 && (
-        <>
-          <div className="rd-section-title">Coaching Notes <span>{athlete.notes.length} note(s)</span></div>
+        <RdSection num="X." title="Coaching Notes" meta={`${athlete.notes.length} note(s)`}>
           {athlete.notes.slice(0, 20).map((n, i) => (
             <div className="rd-assessment" key={i}>
               <div className="rd-assessment-head">{formatDate(n.date)}{n.author ? <small> &middot; {n.author}</small> : null}</div>
               <p className="rd-empty" style={{ margin: 0 }}>{n.note}</p>
             </div>
           ))}
-        </>
+        </RdSection>
       )}
 
-      <div className="rd-cert"><strong>Certification</strong>This is to certify that the information contained herein is an accurate and complete record of the above-named athlete&apos;s registration and performance, as officially recorded in the database of the City Sports Development Office of the City Government of Cauayan, Isabela.</div>
+      <div className="rd-cert"><strong>Certification</strong>This is to certify that the information contained herein is an accurate and complete record of the above-named athlete&apos;s registration, physical profile, performance, training, and achievements, as officially recorded and maintained in the database of the City Sports Development Office of the City Government of Cauayan, Isabela.</div>
 
       <div className="rd-signatures">
         <div className="rd-sig">
@@ -338,7 +587,7 @@ function AthleteReportCard({ athlete, isAdmin, session, from, to, prefix }) {
         </div>
       </div>
 
-      <footer className="rd-footer"><span>Generated by {session.user.name || session.user.email || "system"} on {issued}</span><span>Athlete since {athlete.dateRegistered ? formatDate(athlete.dateRegistered) : "—"} · Last assessment: {last ? formatDate(last.assessmentDate) : "none"}</span></footer>
+      <footer className="rd-footer"><span>Generated by {session.user.name || session.user.email || "system"} on {issued}</span><span>Athlete since {athlete.dateRegistered ? formatDate(athlete.dateRegistered) : "—"} · Last assessment: {last ? formatDate(last.assessmentDate) : "none"} · Record updated: {athlete.updatedAt ? formatDateTime(athlete.updatedAt) : "—"}</span></footer>
     </article>
   );
 }
@@ -346,6 +595,7 @@ function AthleteReportCard({ athlete, isAdmin, session, from, to, prefix }) {
 function CoachReportCard({ coach, session, prefix }) {
   const issued = formatDate(new Date().toISOString());
   const reportRef = `${prefix}${coach.coachCode}`;
+  const age = computeAge(coach.birthdate);
   const avg = coach.performances.length
     ? Math.round((coach.performances.reduce((sum, p) => sum + Number(p.overallScore), 0) / coach.performances.length) * 10) / 10
     : null;
@@ -356,77 +606,114 @@ function CoachReportCard({ coach, session, prefix }) {
         <img src="/cauayan logo.png" alt="Official Seal of the City Government of Cauayan" className="rd-logo" />
         <div className="rd-header-text">
           <p className="rd-republic">Republic of the Philippines</p>
+          <p className="rd-province">Province of Isabela</p>
           <h1 className="rd-lgu">City Government of Cauayan</h1>
           <p className="rd-office">City Sports Development Office</p>
           <p className="rd-address">Cauayan City, Isabela, Philippines</p>
         </div>
       </header>
 
-      <h2 className="rd-title">Coach Full Profile Report</h2>
-      <p className="rd-ref">Report No.: <span>{reportRef}</span> &nbsp;·&nbsp; Date Issued: <span>{issued}</span></p>
+      <h2 className="rd-title">Coach Official Personnel Record</h2>
+      <p className="rd-ref">Record No.: <span>{reportRef}</span> &nbsp;·&nbsp; Date Issued: <span>{issued}</span></p>
 
-      <table className="rd-info">
-        <tbody>
-          <tr>
-            <th>Full Name</th>
-            <td>{coach.lastName}, {coach.firstName}{coach.middleName ? ` ${coach.middleName}` : ""}{coach.suffix ? ` ${coach.suffix}` : ""}</td>
-            <th>Coach Code</th>
-            <td>{coach.coachCode}</td>
-          </tr>
-          <tr>
-            <th>Date of Birth</th>
-            <td>{formatDate(coach.birthdate)}</td>
-            <th>Status</th>
-            <td>{STATUS_LABEL[coach.status] || coach.status}</td>
-          </tr>
-          <tr>
-            <th>Email</th>
-            <td colSpan="3">{coach.email}</td>
-          </tr>
-          <tr>
-            <th>Contact No.</th>
-            <td>{coach.contactNumber || "—"}</td>
-            <th>School</th>
-            <td>{coach.school || "—"}</td>
-          </tr>
-          <tr>
-            <th>Sports Coached</th>
-            <td colSpan="3">{(coach.sports && coach.sports.length) ? coach.sports.join(", ") : "—"}</td>
-          </tr>
-          <tr>
-            <th>Date Registered</th>
-            <td>{formatDate(coach.dateRegistered)}</td>
-            <th>Assigned Athletes</th>
-            <td>{coach.athleteCount}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div className="rd-section-title">Assigned Athletes <span>{coach.athleteCount} total</span></div>
-      {coach.athletes && coach.athletes.length ? (
-        <table className="rd-results">
-          <thead><tr><th>Code</th><th>Athlete</th><th>Sport</th><th>Status</th></tr></thead>
-          <tbody>{coach.athletes.map((a, i) => <tr key={i}><td>{a.athleteCode}</td><td>{a.name}</td><td>{a.sport}</td><td>{STATUS_LABEL[a.status] || a.status}</td></tr>)}</tbody>
+      <RdSection num="I." title="Personal Information">
+        <table className="rd-info">
+          <tbody>
+            <tr>
+              <th>Full Name</th>
+              <td>{coach.lastName}, {coach.firstName}{coach.middleName ? ` ${coach.middleName}` : ""}{coach.suffix ? ` ${coach.suffix}` : ""}</td>
+              <th>Coach Code</th>
+              <td>{coach.coachCode}</td>
+            </tr>
+            <tr>
+              <th>Date of Birth</th>
+              <td>{formatDate(coach.birthdate)}</td>
+              <th>Age</th>
+              <td>{age != null ? `${age} years` : "—"}</td>
+            </tr>
+            <tr>
+              <th>Contact No.</th>
+              <td>{coach.contactNumber || "—"}</td>
+              <th>Email Address</th>
+              <td>{coach.email}</td>
+            </tr>
+            <tr>
+              <th>School / Institution</th>
+              <td>{coach.school || "—"}</td>
+              <th>Record Status</th>
+              <td>{STATUS_LABEL[coach.status] || coach.status}</td>
+            </tr>
+            <tr>
+              <th>Date Registered</th>
+              <td>{formatDate(coach.dateRegistered)}</td>
+              <th>Sports Coached</th>
+              <td>{(coach.sports && coach.sports.length) ? coach.sports.join(", ") : "—"}</td>
+            </tr>
+          </tbody>
         </table>
-      ) : <p className="rd-empty">No athletes currently assigned.</p>}
+      </RdSection>
 
-      <div className="rd-section-title">Performance Evaluation History <span>{coach.evalCount} evaluation(s){avg ? ` · Average: ${avg}/10` : ""}</span></div>
-      {coach.performances && coach.performances.length ? (
-        <table className="rd-results">
-          <thead><tr><th>Period</th><th>Overall Score</th><th>Evaluator</th></tr></thead>
-          <tbody>{coach.performances.slice(0, 30).map((p, i) => <tr key={i}><td>{formatDate(p.periodStart)} – {formatDate(p.periodEnd)}</td><td className="num"><strong>{Number(p.overallScore)}/10</strong></td><td>{p.evaluator || "—"}</td></tr>)}</tbody>
-        </table>
-      ) : <p className="rd-empty">No evaluations recorded yet.</p>}
+      <RdSection num="II." title="Assigned Athletes" meta={`${coach.athleteCount} total`}>
+        {coach.athletes && coach.athletes.length ? (
+          <table className="rd-results">
+            <thead><tr><th>Code</th><th>Athlete</th><th>Sport</th><th>Event</th><th>Age</th><th>Sex</th><th>Status</th></tr></thead>
+            <tbody>{coach.athletes.map((a, i) => <tr key={i}><td>{a.athleteCode}</td><td>{a.name}</td><td>{a.sport}</td><td>{a.event || "—"}</td><td>{computeAge(a.birthdate) != null ? computeAge(a.birthdate) : "—"}</td><td>{GENDER_LABEL[a.gender] || a.gender}</td><td>{STATUS_LABEL[a.status] || a.status}</td></tr>)}</tbody>
+          </table>
+        ) : <p className="rd-empty">No athletes currently assigned.</p>}
+      </RdSection>
 
-      <div className="rd-section-title">Training Plans <span>{coach.planCount} plan(s)</span></div>
-      {coach.trainingPlans && coach.trainingPlans.length ? (
-        <table className="rd-results">
-          <thead><tr><th>Plan</th><th>Status</th></tr></thead>
-          <tbody>{coach.trainingPlans.map((p, i) => <tr key={i}><td>{p.title}</td><td>{STATUS_LABEL[p.status] || p.status}</td></tr>)}</tbody>
-        </table>
-      ) : <p className="rd-empty">No training plans recorded.</p>}
+      <RdSection num="III." title="Training Sessions Conducted" meta={`${coach.sessionCount} session(s)`}>
+        {coach.trainingSessions && coach.trainingSessions.length ? (
+          <table className="rd-results">
+            <thead><tr><th>Date</th><th>Session Type</th><th>Sport</th><th>Venue</th><th>Attendees</th><th>Notes</th></tr></thead>
+            <tbody>{coach.trainingSessions.slice(0, 30).map((s, i) => <tr key={i}><td>{formatDate(s.sessionDate)}</td><td>{SESSION_TYPE_LABEL[s.sessionType] || s.sessionType}</td><td>{s.sport}</td><td>{s.venue || "—"}</td><td className="num">{s.attendance}</td><td>{s.notes || "—"}</td></tr>)}</tbody>
+          </table>
+        ) : <p className="rd-empty">No training sessions recorded.</p>}
+      </RdSection>
 
-      <div className="rd-cert"><strong>Certification</strong>This is to certify that the information contained herein is an accurate and complete record of the above-named coach&apos;s profile and service, as officially recorded in the database of the City Sports Development Office of the City Government of Cauayan, Isabela.</div>
+      <RdSection num="IV." title="Training Plans" meta={`${coach.planCount} plan(s)`}>
+        {coach.trainingPlans && coach.trainingPlans.length ? (
+          <table className="rd-results">
+            <thead><tr><th>Plan</th><th>Sport</th><th>Status</th><th>Start Date</th><th>End Date</th><th>Athletes Enrolled</th></tr></thead>
+            <tbody>{coach.trainingPlans.map((p, i) => <tr key={i}><td>{p.title}</td><td>{p.sport}</td><td>{STATUS_LABEL[p.status] || p.status}</td><td>{p.startDate ? formatDate(p.startDate) : "—"}</td><td>{p.endDate ? formatDate(p.endDate) : "—"}</td><td className="num">{p.athleteCount}</td></tr>)}</tbody>
+          </table>
+        ) : <p className="rd-empty">No training plans recorded.</p>}
+      </RdSection>
+
+      <RdSection num="V." title="Performance Evaluation History" meta={`${coach.evalCount} evaluation(s)${avg ? ` · Overall average: ${avg}/10` : ""}`}>
+        {coach.performances && coach.performances.length ? coach.performances.map((p, i) => (
+          <div className="rd-assessment" key={i}>
+            <div className="rd-assessment-head">{formatDate(p.periodStart)} – {formatDate(p.periodEnd)}{p.evaluator ? <small> &middot; Evaluated by {p.evaluator}</small> : null}</div>
+            <table className="rd-results">
+              <thead><tr><th>Session Planning</th><th>Exercise Selection</th><th>Technical Instruction</th><th>Athlete Development</th><th>Communication</th><th>Safety Compliance</th><th>Training Implementation</th><th>Overall</th></tr></thead>
+              <tbody><tr>{[p.sessionPlanning, p.exerciseSelection, p.technicalInstruction, p.athleteDevelopment, p.communication, p.safetyCompliance, p.trainingImplementation].map((v, j) => <td key={j} className="num">{v}/10</td>)}<td className="num"><strong>{Number(p.overallScore)}/10</strong></td></tr></tbody>
+            </table>
+            {p.strengths ? <p className="rd-empty" style={{ marginTop: 6 }}>Strengths: {p.strengths}</p> : null}
+            {p.areasForImprovement ? <p className="rd-empty" style={{ margin: 4 }}>Areas for improvement: {p.areasForImprovement}</p> : null}
+            {p.actionPlan ? <p className="rd-empty" style={{ margin: 4 }}>Action plan: {p.actionPlan}</p> : null}
+          </div>
+        )) : <p className="rd-empty">No evaluations recorded yet.</p>}
+      </RdSection>
+
+      {coach.applications.length > 0 && (
+        <RdSection num="VI." title="Event Applications" meta={`${coach.applicationCount} application(s)`}>
+          <table className="rd-results">
+            <thead><tr><th>Event</th><th>Venue</th><th>Applied At</th><th>Start Date</th><th>Status</th></tr></thead>
+            <tbody>{coach.applications.map((a, i) => <tr key={i}><td>{a.eventName}</td><td>{a.venue || "—"}</td><td>{formatDate(a.appliedAt)}</td><td>{a.startDate ? formatDate(a.startDate) : "—"}</td><td>{STATUS_LABEL[a.status] || a.status}</td></tr>)}</tbody>
+          </table>
+        </RdSection>
+      )}
+
+      {coach.participants.length > 0 && (
+        <RdSection num="VII." title="Event Participation" meta={`${coach.participantCount} participant record(s)`}>
+          <table className="rd-results">
+            <thead><tr><th>Event</th><th>Sport</th><th>Venue</th><th>Start Date</th><th>Athlete / Group</th><th>Status</th></tr></thead>
+            <tbody>{coach.participants.map((p, i) => <tr key={i}><td>{p.eventName}</td><td>{p.sport}</td><td>{p.venue || "—"}</td><td>{p.startDate ? formatDate(p.startDate) : "—"}</td><td>{p.athlete || "Coach delegation"}</td><td>{STATUS_LABEL[p.status] || p.status}</td></tr>)}</tbody>
+          </table>
+        </RdSection>
+      )}
+
+      <div className="rd-cert"><strong>Certification</strong>This is to certify that the information contained herein is an accurate and complete record of the above-named coach&apos;s profile, assigned athletes, training sessions, training plans, and performance evaluations, as officially recorded and maintained in the database of the City Sports Development Office of the City Government of Cauayan, Isabela.</div>
 
       <div className="rd-signatures">
         <div className="rd-sig">
@@ -443,7 +730,7 @@ function CoachReportCard({ coach, session, prefix }) {
         </div>
       </div>
 
-      <footer className="rd-footer"><span>Generated by {session.user.name || session.user.email || "system"} on {issued}</span><span>Coach since {formatDate(coach.dateRegistered)}</span></footer>
+      <footer className="rd-footer"><span>Generated by {session.user.name || session.user.email || "system"} on {issued}</span><span>Coach since {formatDate(coach.dateRegistered)} · Record updated: {coach.updatedAt ? formatDateTime(coach.updatedAt) : "—"}</span></footer>
     </article>
   );
 }
@@ -623,7 +910,7 @@ function PerformanceSummary({ athlete }) {
 }
 
 export default function Reports({ session, isAdmin, athletes, coaches }) {
-  const [type, setType] = React.useState(isAdmin ? "athlete" : "athlete");
+  const [type, setType] = React.useState("athlete");
   const [selected, setSelected] = React.useState([]);
   const [from, setFrom] = React.useState("");
   const [to, setTo] = React.useState("");
@@ -693,7 +980,6 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
   const count = selected.length;
   const scrollRef = React.useRef(null);
   const filtered = list.filter((item) => selected.includes(item.id));
-  function switchTypeSafe() { }
   const prefix = type === "athlete" ? "APR-" : "CPR-";
 
   function sortedHeader(key, label) {
@@ -714,7 +1000,7 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
     <>
       <Head><title>Official Reports | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Official &amp; performance records" title="Official Reports" active="/reports">
-        <section className={styles.intro}><div><p className={styles.eyebrow}>Generate</p><h2>Full profile reports</h2><p>Select one or more records and (for athletes) a date window to produce a full-profile report covering registration details, assessment history, training and achievements. {isAdmin ? "Generate reports for any athlete or coach." : "You can generate reports for the athletes assigned to you."}</p></div></section>
+        <section className={styles.intro}><div><p className={styles.eyebrow}>Generate</p><h2>Official personnel records</h2><p>Select one or more records to produce a complete official personnel record covering registration, physical and health profile, performance records, training, attendance, achievements, and event participation. {isAdmin ? "Generate reports for any athlete or coach." : "You can generate reports for the athletes assigned to you."}</p></div></section>
 
         <section className={styles.panel}>
           {isAdmin && (
@@ -806,7 +1092,7 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
             ? filtered.map((athlete) => (
               <React.Fragment key={athlete.id}>
                 <PerformanceSummary athlete={athlete} />
-                <AthleteReportCard athlete={athlete} isAdmin={isAdmin} session={session} from={from} to={to} prefix={prefix} />
+                <AthleteReportCard athlete={athlete} session={session} from={from} to={to} prefix={prefix} />
               </React.Fragment>
             ))
             : filtered.map((coach) => <CoachReportCard key={coach.id} coach={coach} session={session} prefix={prefix} />)}
