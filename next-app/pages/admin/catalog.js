@@ -12,7 +12,7 @@ export async function getServerSideProps(context) {
   if (session.user.role !== "admin") return { redirect: { destination: "/dashboard", permanent: false } };
   const [sports, events, schools] = await Promise.all([
     prisma.sport.findMany({ orderBy: { sportName: "asc" }, include: { _count: { select: { events: true } } } }),
-    prisma.event.findMany({ orderBy: { eventName: "asc" }, include: { sport: true } }),
+    prisma.event.findMany({ orderBy: [{ sport: { sportName: "asc" } }, { eventName: "asc" }], include: { sport: true } }),
     prisma.school.findMany({ orderBy: { schoolName: "asc" }, include: { _count: { select: { athletes: true, coaches: true } } } }),
   ]);
   return { props: { session, sports: JSON.parse(JSON.stringify(sports)), events: JSON.parse(JSON.stringify(events)), schools: JSON.parse(JSON.stringify(schools)) } };
@@ -127,7 +127,7 @@ export default function Catalog({ session, sports, events, schools }) {
     <>
       <Head><title>Sports &amp; Events | Administration</title></Head>
       <AppShell session={session} isAdmin eyebrow="System catalog" title="Sports & Events" active="/admin/catalog">
-        <section className={styles.grid}>
+        <section className={styles["grid-2"]}>
           <div className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Taxonomy</p><h2>Add sport</h2></div></div>
             <form onSubmit={addSport} className={styles.formStack}>
