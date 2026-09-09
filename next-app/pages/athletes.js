@@ -708,7 +708,6 @@ function CoachRequestsPanel({ athletes, uncoached = [], coaches, ownCoachId, onC
         <div><p className={styles.eyebrow}>Coach transfers</p><h2>Transfer requests</h2></div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           {message && <p role="status" className={message.kind === "success" ? styles.formSuccess : styles.formError} style={{ margin: 0 }}>{message.text}</p>}
-          <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => { setLoading(true); load(); }}>Refresh</button>
         </div>
       </div>
       <p className={styles.formHint} style={{ marginTop: 0 }}>Request to move one of your athletes to another coach, or handle requests other coaches sent to you. The athlete stays with you until the receiving coach accepts.</p>
@@ -873,7 +872,6 @@ function AdminClaimsPanel({ onChanged }) {
         <div><p className={styles.eyebrow}>Admin · Claims</p><h2>Uncoached athlete requests</h2></div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           {message && <p role="status" className={message.kind === "success" ? styles.formSuccess : styles.formError} style={{ margin: 0 }}>{message.text}</p>}
-          <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => { setLoading(true); load(); }}>Refresh</button>
         </div>
       </div>
       <p className={styles.formHint} style={{ marginTop: 0 }}>Coaches request to take in athletes who have no coach assigned. Approving moves the athlete into the roster of the requesting coach and records the assignment.</p>

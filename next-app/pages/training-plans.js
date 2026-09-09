@@ -168,7 +168,6 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Coaching</p><h2>Training plans</h2></div>
             <div className={styles.actions}>
-              <Link className={styles.secondary} href="/training-sessions">Sessions log</Link>
               {!isAdmin && <button className={styles.primary} onClick={() => { setEditingPlan(null); setShowPlanForm(true); }}>New plan</button>}
             </div>
           </div>

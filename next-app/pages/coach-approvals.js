@@ -69,7 +69,6 @@ export default function CoachApprovals({ session }) {
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Review</p><h2>Pending coach applications</h2></div>
-            <button className={styles.secondary} onClick={load}>Refresh</button>
           </div>
 
           {message && (
