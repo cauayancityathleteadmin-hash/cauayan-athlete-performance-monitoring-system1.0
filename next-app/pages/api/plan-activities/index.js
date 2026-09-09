@@ -40,6 +40,30 @@ function validateUnit(fitnessType, unit) {
   return allowed.includes(unit);
 }
 
+function validateTargetFields(fitnessType, fields) {
+  const rules = TARGET_FIELD_RULES[fitnessType] || { quantity: true, sets: true, reps: true, distance: false, load: false };
+  const { quantity, sets, reps, distance, load } = rules;
+  const out = { ...fields };
+  let changed = false;
+
+  if (!quantity) {
+    if (out.targetQuantity != null) { out.targetQuantity = null; changed = true; }
+  }
+  if (!sets) {
+    if (out.targetSets != null) { out.targetSets = null; changed = true; }
+  }
+  if (!reps) {
+    if (out.targetReps != null) { out.targetReps = null; changed = true; }
+  }
+  if (!distance) {
+    if (out.targetDistance != null) { out.targetDistance = null; changed = true; }
+  }
+  if (!load) {
+    if (out.targetLoad != null) { out.targetLoad = null; changed = true; }
+  }
+  return { valid: !changed, fields: out };
+}
+
 function toDecimal(v) {
   if (v === "" || v == null) return null;
   const n = Number(v);
@@ -115,7 +139,7 @@ export default async function handler(req, res) {
       const fitnessType = FITNESS_TYPES.includes(item.fitnessType) ? item.fitnessType : "endurance";
       const targetUnit = text(item.targetUnit, 50) || null;
       if (targetUnit && !validateUnit(fitnessType, targetUnit)) continue;
-      cleaned.push(sanitizeTargetFields(fitnessType, {
+      const sanitized = sanitizeTargetFields(fitnessType, {
         athleteId,
         activityName: name,
         fitnessType,
@@ -126,7 +150,16 @@ export default async function handler(req, res) {
         targetDistance: toDecimal(item.targetDistance),
         targetLoad: toDecimal(item.targetLoad),
         instructions: text(item.instructions, 2000) || null,
-      }));
+      });
+      const validated = validateTargetFields(fitnessType, {
+        targetQuantity: sanitized.targetQuantity,
+        targetUnit: sanitized.targetUnit,
+        targetSets: sanitized.targetSets,
+        targetReps: sanitized.targetReps,
+        targetDistance: sanitized.targetDistance,
+        targetLoad: sanitized.targetLoad,
+      });
+      if (validated.valid) cleaned.push({ ...sanitized, athleteId });
     }
     if (!cleaned.length) return res.status(400).json({ error: "Enter at least one activity with a name for an athlete on this plan." });
     if (cleaned.length > 50) return res.status(400).json({ error: "Please limit a bulk add to 50 activities at a time." });
@@ -181,12 +214,24 @@ export default async function handler(req, res) {
 
     const targetData = sanitizeTargetFields(fitnessType, {
       targetQuantity: toDecimal(body.targetQuantity),
-      targetUnit: text(body.targetUnit, 50) || null,
+      targetUnit: targetUnit || null,
       targetSets: toInt(body.targetSets),
       targetReps: toInt(body.targetReps),
       targetDistance: toDecimal(body.targetDistance),
       targetLoad: toDecimal(body.targetLoad),
     });
+
+    const validated = validateTargetFields(fitnessType, {
+      targetQuantity: targetData.targetQuantity,
+      targetUnit: targetData.targetUnit,
+      targetSets: targetData.targetSets,
+      targetReps: targetData.targetReps,
+      targetDistance: targetData.targetDistance,
+      targetLoad: targetData.targetLoad,
+    });
+    if (!validated.valid) {
+      return res.status(400).json({ error: `Invalid target fields for ${fitnessType}.` });
+    }
 
     const created = await prisma.planActivity.create({
       data: {
@@ -256,6 +301,24 @@ export default async function handler(req, res) {
     if (!finalRules.reps) data.targetReps = null;
     if (!finalRules.distance) data.targetDistance = null;
     if (!finalRules.load) data.targetLoad = null;
+
+    const validated = validateTargetFields(finalFitness, {
+      targetQuantity: data.targetQuantity,
+      targetUnit: data.targetUnit,
+      targetSets: data.targetSets,
+      targetReps: data.targetReps,
+      targetDistance: data.targetDistance,
+      targetLoad: data.targetLoad,
+    });
+    if (!validated.valid) {
+      // Clear invalid fields and proceed with update using cleared values
+      data.targetQuantity = validated.fields.targetQuantity;
+      data.targetUnit = validated.fields.targetUnit;
+      data.targetSets = validated.fields.targetSets;
+      data.targetReps = validated.fields.targetReps;
+      data.targetDistance = validated.fields.targetDistance;
+      data.targetLoad = validated.fields.targetLoad;
+    }
 
     await prisma.planActivity.update({ where: { id: activityId }, data });
     await prisma.auditLog.create({
