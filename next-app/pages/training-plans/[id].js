@@ -1018,17 +1018,25 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
 
   return (
     <div>
-      <div className={styles.grid} style={{ marginBottom: 20 }}>
-        <div className={styles.detailPanel}><h4>Athletes on plan</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{athletes.length}</div><small style={{ color: "var(--muted)" }}>{totalActivitiesLabel(activities)}</small></div>
-        <div className={styles.detailPanel}><h4>Overall completion</h4><div style={{ fontSize: 26, fontWeight: 800, color: percentColor(overallCompletion) }}>{overallCompletion}%</div><small style={{ color: "var(--muted)" }}>Across planned activities</small></div>
-        <div className={styles.detailPanel}><h4>Duration</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{plan.durationDays ? `${plan.durationDays}d` : plan.durationWeeks ? `${plan.durationWeeks}w` : "—"}</div><small style={{ color: "var(--muted)" }}>Plan length</small></div>
+      <style jsx>{`
+        .statGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 20px; }
+        .chartGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; align-items: stretch; }
+        .panelBox { margin: 0 !important; min-width: 0; }
+        .drillHead { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+        @media (max-width: 560px) { .statGrid, .chartGrid { grid-template-columns: 1fr; } }
+      `}</style>
+
+      <div className="statGrid">
+        <div className={`${styles.detailPanel} panelBox`}><h4>Athletes on plan</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{athletes.length}</div><small style={{ color: "var(--muted)" }}>{totalActivitiesLabel(activities)}</small></div>
+        <div className={`${styles.detailPanel} panelBox`}><h4>Overall completion</h4><div style={{ fontSize: 26, fontWeight: 800, color: percentColor(overallCompletion) }}>{overallCompletion}%</div><small style={{ color: "var(--muted)" }}>Across planned activities</small></div>
+        <div className={`${styles.detailPanel} panelBox`}><h4>Duration</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{plan.durationDays ? `${plan.durationDays}d` : plan.durationWeeks ? `${plan.durationWeeks}w` : "—"}</div><small style={{ color: "var(--muted)" }}>Plan length</small></div>
       </div>
 
-      <div className={styles.grid}>
-        <div className={styles.detailPanel} style={{ width: "100%" }}>
+      <div className="chartGrid" style={{ marginBottom: 16 }}>
+        <div className={`${styles.detailPanel} panelBox`}>
           <h4>Completion rate by athlete <small style={{ color: "var(--muted)", fontWeight: 400 }}>(green ≥ 80%, yellow ≥ 50%, red &lt; 50%)</small></h4>
           {perAthlete.length && perAthlete.some((r) => r.total > 0) ? (
-            <ResponsiveContainer width="100%" height={Math.max(140, Math.min(barData.length * 36, 380))}>
+            <ResponsiveContainer width="100%" height={300}>
               <BarChart data={barData} margin={{ top: 6, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="name" tick={{ fill: "#9db6c7", fontSize: 12 }} />
@@ -1042,11 +1050,11 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
         </div>
       </div>
 
-      <div className={styles.grid}>
-        <div className={styles.detailPanel}>
+      <div className="chartGrid" style={{ marginBottom: 16 }}>
+        <div className={`${styles.detailPanel} panelBox`}>
           <h4>Activities by fitness dimension</h4>
           {fitnessDist.length ? (
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={280}>
               <PieChart>
                 <Pie data={fitnessDist} dataKey="count" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={95} paddingAngle={2}>
                   {fitnessDist.map((s) => <Cell key={s.key} fill={s.color} />)}
@@ -1058,10 +1066,10 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
           ) : <p className={styles.empty}>No activities on this plan yet.</p>}
         </div>
 
-        <div className={styles.detailPanel}>
+        <div className={`${styles.detailPanel} panelBox`}>
           <h4>Weekly completion trend <small style={{ color: "var(--muted)", fontWeight: 400 }}>(done + partial ÷ planned)</small></h4>
           {weekly.some((w) => w.total > 0) ? (
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={280}>
               <LineChart data={weekly} margin={{ top: 6, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
                 <XAxis dataKey="week" tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `W${v}`} />
@@ -1074,8 +1082,8 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
         </div>
       </div>
 
-      <div className={styles.detailPanel} style={{ marginTop: 20 }}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+      <div className={`${styles.detailPanel} panelBox`}>
+        <div className="drillHead">
           <h4 style={{ margin: 0 }}>Per-athlete drill-down</h4>
           <label style={{ minWidth: 220 }}>Athlete
             <select value={focusAthleteId || ""} onChange={(e) => setFocusAthleteId(Number(e.target.value))} className={styles.fieldControl}>
@@ -1084,11 +1092,11 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
           </label>
         </div>
         {focus && focus.total > 0 ? (
-          <div className={styles.grid}>
-            <div className={styles.detailPanel}>
+          <div className="chartGrid">
+            <div className={`${styles.detailPanel} panelBox`}>
               <h4>Fitness balance <small style={{ color: "var(--muted)", fontWeight: 400 }}>{focus.name}</small></h4>
               {radarData.length ? (
-                <ResponsiveContainer width="100%" height={260}>
+                <ResponsiveContainer width="100%" height={280}>
                   <RadarChart data={radarData}>
                     <PolarGrid stroke="rgba(127,199,175,0.2)" />
                     <PolarAngleAxis dataKey="fitness" tick={{ fill: "#9db6c7", fontSize: 12 }} />
@@ -1099,9 +1107,9 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
                 </ResponsiveContainer>
               ) : <p className={styles.empty}>No fitness data for this athlete yet.</p>}
             </div>
-            <div className={styles.detailPanel}>
+            <div className={`${styles.detailPanel} panelBox`}>
               <h4>Activity completion <small style={{ color: "var(--muted)", fontWeight: 400 }}>{focus.name}</small></h4>
-              <ResponsiveContainer width="100%" height={Math.max(140, Math.min(focus.byActivity.length * 34, 380))}>
+              <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={focus.byActivity} layout="vertical" margin={{ top: 6, right: 16, left: 0, bottom: 0 }}>
                   <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" horizontal={false} />
                   <XAxis type="number" domain={[0, 100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
