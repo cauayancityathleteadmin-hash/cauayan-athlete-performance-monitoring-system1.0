@@ -159,6 +159,8 @@ model User {
   planActivityLogs      PlanActivityLog[]      @relation("ActivityLogger")
   trainingNotesAuthored TrainingNote[]         @relation("TrainingNoteAuthor")
   athletePlanComments   AthletePlanComment[]   @relation("AthletePlanCommentAuthor")
+  transferRequests      AthleteTransfer[]      @relation("TransferRequester")
+  transferDecisions     AthleteTransfer[]      @relation("TransferDecider")
   @@map("users")
   @@index([role, status])
 }
@@ -230,6 +232,8 @@ model Coach {
   trainingSessions     TrainingSession[]
   performances         CoachPerformance[]
   trainingPlans        TrainingPlan[]
+  outgoingTransfers    AthleteTransfer[]      @relation("TransferFromCoach")
+  incomingTransfers    AthleteTransfer[]      @relation("TransferToCoach")
   @@map("coaches")
   @@index([schoolId, status])
 }
@@ -319,6 +323,7 @@ model Athlete {
   planActivities      PlanActivity[]   @relation("ActivityAthlete")
   planActivityLogs    PlanActivityLog[]
   planComments        AthletePlanComment[]
+  transfers           AthleteTransfer[]
   @@map("athletes")
   @@index([coachId, status])
   @@index([sportId, eventId])
@@ -788,4 +793,34 @@ model CoachPerformance {
   evaluator            User      @relation("CoachPerformanceEvaluator", fields: [evaluatorId], references: [id])
   @@map("coach_performances")
   @@index([coachId, periodStart])
+}
+
+enum TransferStatus {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
+model AthleteTransfer {
+  id           Int            @id @default(autoincrement())
+  athleteId    Int            @map("athlete_id")
+  fromCoachId  Int?           @map("from_coach_id")
+  toCoachId    Int            @map("to_coach_id")
+  requestedBy  Int            @map("requested_by")
+  reason       String?
+  status       TransferStatus @default(pending)
+  decisionNote String?        @map("decision_note")
+  decidedBy    Int?           @map("decided_by")
+  decidedAt    DateTime?      @map("decided_at")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  athlete      Athlete        @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  fromCoach    Coach?         @relation("TransferFromCoach", fields: [fromCoachId], references: [id], onDelete: SetNull)
+  toCoach      Coach          @relation("TransferToCoach", fields: [toCoachId], references: [id], onDelete: Cascade)
+  requester    User           @relation("TransferRequester", fields: [requestedBy], references: [id], onDelete: Cascade)
+  decider      User?          @relation("TransferDecider", fields: [decidedBy], references: [id], onDelete: SetNull)
+  @@map("athlete_transfers")
+  @@index([toCoachId, status])
+  @@index([athleteId, status])
+  @@index([requestedBy, status])
 }

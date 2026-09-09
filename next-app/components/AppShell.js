@@ -245,7 +245,7 @@ useEffect(() => {
   const nav = (
     <nav className={styles.sidebar} aria-label="Primary navigation">
       {NAV_GROUPS.map((group) => {
-        const links = group.links.filter((link) => (!link.adminOnly || isAdmin) && (!link.coachApproveOnly || canApproveCoaches || isAdmin));
+        const links = group.links.filter((link) => (!link.adminOnly || isAdmin) && (!link.coachApproveOnly || (canApproveCoaches && !isAdmin)));
         if (!links.length) return null;
         const showCaption = group.caption && links.length > 1;
         return (

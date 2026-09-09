@@ -60,7 +60,7 @@ export async function getServerSideProps(context) {
       : Promise.resolve([]),
     prisma.sport.findMany({ where: { status: "active" }, orderBy: { sportName: "asc" } }),
     prisma.event.findMany({ where: { status: "active" }, include: { sport: true }, orderBy: { eventName: "asc" } }),
-    session.user.role === "admin" ? prisma.coach.findMany({ where: { status: "active" }, orderBy: { lastName: "asc" }, select: { id: true, coachCode: true, firstName: true, lastName: true, schoolId: true, school: { select: { schoolName: true } } } }) : Promise.resolve([]),
+    prisma.coach.findMany({ where: { status: "active" }, orderBy: { lastName: "asc" }, select: { id: true, coachCode: true, firstName: true, lastName: true, schoolId: true, userId: true, school: { select: { schoolName: true } } } }),
   ]);
   const athletes = athletesResult.map((athlete) => ({ ...athlete, birthdate: athlete.birthdate.toISOString(), dateRegistered: athlete.dateRegistered.toISOString() }));
   const allAthletes = isCoach
@@ -69,10 +69,10 @@ export async function getServerSideProps(context) {
   const perPage = 25;
   const totalPages = Math.max(1, Math.ceil(athletes.length / perPage));
   const paginated = athletes.slice((page - 1) * perPage, page * perPage);
-  return { props: { session, catalog: { sports, events, coaches }, athletes, paginated, page: Math.min(page, totalPages), totalPages, total: athletes.length, sort, dir, health, allAthletes: JSON.parse(JSON.stringify(allAthletes)) } };
+  return { props: { session, catalog: { sports, events, coaches }, athletes, paginated, page: Math.min(page, totalPages), totalPages, total: athletes.length, sort, dir, health, allAthletes: JSON.parse(JSON.stringify(allAthletes)), ownCoachId: ownCoach ? ownCoach.id : null } };
 }
 
-export default function Athletes({ session, athletes, paginated: serverPaginated, catalog, page: serverPage, totalPages: serverTotalPages, total, sort, dir, health, allAthletes = [] }) {
+export default function Athletes({ session, athletes, paginated: serverPaginated, catalog, page: serverPage, totalPages: serverTotalPages, total, sort, dir, health, allAthletes = [], ownCoachId = null }) {
   const isAdmin = session?.user?.role === "admin";
   const isCoach = session?.user?.role === "coach";
   const [view, setView] = React.useState("sport");
@@ -163,6 +163,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
             <button className={view === "sport" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("sport")}>By sport</button>
             <button className={view === "list" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("list")}>List</button>
             {isCoach && <button className={view === "all" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("all")}>All athletes</button>}
+            {isCoach && <button className={view === "requests" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("requests")}>Transfer requests</button>}
             {isAdmin && <button className={view === "transfer" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("transfer")}>Transfer athletes</button>}
           </div>
           <button className={view === "add" ? `${styles.primary} ${styles.btnSm}` : styles.primary} onClick={() => setView(view === "add" ? "sport" : "add")}>{view === "add" ? "Close form" : "Add athlete"}</button>
@@ -256,6 +257,10 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
 
         {view === "transfer" && isAdmin && (
           <TransferPanel athletes={athletes} coaches={catalog.coaches || []} onDone={() => router.reload()} />
+        )}
+
+        {view === "requests" && isCoach && (
+          <CoachRequestsPanel athletes={athletes} coaches={catalog.coaches || []} ownCoachId={ownCoachId} onChanged={() => router.reload()} />
         )}
 
         {view === "sport" && (
@@ -566,6 +571,192 @@ function TransferPanel({ athletes, coaches, onDone }) {
         </div>
         {message.text && <p role="status" className={`${styles.fullField} ${message.kind === "success" ? styles.formSuccess : styles.formError}`}>{message.text}</p>}
       </form>
+    </section>
+  );
+}
+
+function TransferStatusBadge({ status }) {
+  const value = String(status || "").toLowerCase();
+  if (value === "pending") return <span className={`${styles.badge} ${styles.badgePending}`}>Pending</span>;
+  if (value === "approved") return <span className={`${styles.badge} ${styles.badgeActive}`}>Approved</span>;
+  if (value === "rejected") return <span className={`${styles.badge} ${styles.badgeRejected}`}>Rejected</span>;
+  return <span className={`${styles.badge} ${styles.badgeMuted}`}>Cancelled</span>;
+}
+
+function RequestTransferForm({ athletes, coaches, onDone, onMessage }) {
+  const [athleteId, setAthleteId] = React.useState("");
+  const [toCoachId, setToCoachId] = React.useState("");
+  const [reason, setReason] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+
+  async function submit(event) {
+    event.preventDefault();
+    if (!athleteId) { onMessage({ kind: "error", text: "Choose an athlete to transfer." }); return; }
+    if (!toCoachId) { onMessage({ kind: "error", text: "Choose the coach you want to send this athlete to." }); return; }
+    setBusy(true);
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/transfers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify({ athleteId: Number(athleteId), toCoachId: Number(toCoachId), reason: reason || null }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.error) {
+        onMessage({ kind: "error", text: result.error || "Could not send the request." });
+      } else {
+        onMessage({ kind: "success", text: result.message });
+        setAthleteId("");
+        setToCoachId("");
+        setReason("");
+        onDone();
+      }
+    } catch (err) {
+      onMessage({ kind: "error", text: "Unable to reach the server. Please try again." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className={styles.formGrid} style={{ rowGap: 12 }}>
+      <label style={{ minWidth: 230 }}>Athlete
+        <select value={athleteId} onChange={(e) => setAthleteId(e.target.value)}>
+          <option value="">Choose an athlete…</option>
+          {athletes.map((a) => <option value={a.id} key={a.id}>{a.firstName} {a.middleName || ""} {a.lastName} ({a.athleteCode})</option>)}
+        </select>
+      </label>
+      <label style={{ minWidth: 230 }}>Transfer to coach
+        <select value={toCoachId} onChange={(e) => setToCoachId(e.target.value)}>
+          <option value="">Choose a coach…</option>
+          {coaches.map((c) => <option value={c.id} key={c.id}>{c.firstName} {c.lastName} ({c.coachCode}){c.school?.schoolName ? ` – ${c.school.schoolName}` : ""}</option>)}
+        </select>
+      </label>
+      <label className={styles.fullField}>Reason (optional)<input value={reason} maxLength="500" onChange={(e) => setReason(e.target.value)} placeholder="Briefly explain why this athlete should move to the new coach." /></label>
+      <div className={styles.formActions} style={{ marginTop: 0 }}>
+        <button className={styles.primary} disabled={busy}>{busy ? "Sending request..." : "Request transfer"}</button>
+      </div>
+    </form>
+  );
+}
+
+function CoachRequestsPanel({ athletes, coaches, ownCoachId, onChanged }) {
+  const [received, setReceived] = React.useState([]);
+  const [sent, setSent] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState("");
+  const [message, setMessage] = React.useState(null);
+  const [busy, setBusy] = React.useState(false);
+  const [note, setNote] = React.useState({});
+
+  const load = React.useCallback(() => {
+    fetch("/api/transfers")
+      .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+      .then(({ ok, data }) => {
+        if (!ok) { setError(data.error || "Could not load requests."); setReceived([]); setSent([]); }
+        else { setError(""); setReceived(data.received || []); setSent(data.sent || []); }
+      })
+      .catch(() => setError("Could not load requests."))
+      .finally(() => setLoading(false));
+  }, []);
+  React.useEffect(() => { load(); }, [load]);
+
+  function dateLabel(value) {
+    const date = new Date(value);
+    return isNaN(date) ? "—" : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  }
+
+  async function decide(id, decision) {
+    const confirmText = {
+      approved: "Accept this athlete into your roster?",
+      rejected: "Reject this transfer request?",
+      cancelled: "Cancel this request?",
+    };
+    if (!window.confirm(confirmText[decision])) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch(`/api/transfers/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify({ decision, note: note[id] || null }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.error) setMessage({ kind: "error", text: result.error || "Action failed." });
+      else {
+        setMessage({ kind: "success", text: result.message });
+        setNote((cur) => ({ ...cur, [id]: "" }));
+        load();
+      }
+    } catch (err) {
+      setMessage({ kind: "error", text: "Unable to reach the server. Please try again later." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const targets = coaches.filter((c) => c.id !== ownCoachId);
+
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHeader}>
+        <div><p className={styles.eyebrow}>Coach transfers</p><h2>Transfer requests</h2></div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          {message && <p role="status" className={message.kind === "success" ? styles.formSuccess : styles.formError} style={{ margin: 0 }}>{message.text}</p>}
+          <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => { setLoading(true); load(); }}>Refresh</button>
+        </div>
+      </div>
+      <p className={styles.formHint} style={{ marginTop: 0 }}>Request to move one of your athletes to another coach, or handle requests other coaches sent to you. The athlete stays with you until the receiving coach accepts.</p>
+
+      <div style={{ margin: "18px 0 24px" }}>
+        <h3 className={styles.sectionTitle} style={{ marginBottom: 10 }}>Request a transfer</h3>
+        <RequestTransferForm athletes={athletes} coaches={targets} onDone={load} onMessage={setMessage} />
+      </div>
+
+      <h3 className={styles.sectionTitle}>Incoming requests <span className={styles.formHint}>({received.length})</span></h3>
+      {loading ? <p className={styles.formHint}>Loading requests…</p> : error ? <p className={`${styles.formError} ${styles.fullField}`}>{error}</p> : received.length === 0 ? <p className={styles.empty}>You have no incoming transfer requests.</p> : (
+        <div className={styles.tableWrap}><table>
+          <thead><tr><th>Athlete</th><th>From coach</th><th>Sport / event</th><th>Reason</th><th>Requested</th><th>Actions</th></tr></thead>
+          <tbody>
+            {received.map((t) => (
+              <tr key={t.id}>
+                <td data-label="Athlete" style={{ display: "flex", alignItems: "center", gap: 10 }}><Avi name={`${t.athlete.firstName} ${t.athlete.lastName}`} /><span><span style={{ fontWeight: 700 }}>{t.athlete.firstName} {t.athlete.lastName}</span><small>{t.athlete.athleteCode}</small></span></td>
+                <td data-label="From coach">{t.fromCoach ? `${t.fromCoach.firstName} ${t.fromCoach.lastName}` : "—"}</td>
+                <td data-label="Sport / event">{t.athlete.sport?.sportName || "Unassigned"}<small>{t.athlete.event?.eventName || ""}</small></td>
+                <td data-label="Reason">{t.reason || "—"}</td>
+                <td data-label="Requested">{dateLabel(t.createdAt)}</td>
+                <td data-label="Actions">
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <button className={`${styles.primary} ${styles.btnSm}`} disabled={busy} onClick={() => decide(t.id, "approved")}>Accept</button>
+                    <button className={`${styles.danger} ${styles.btnSm}`} disabled={busy} onClick={() => decide(t.id, "rejected")}>Reject</button>
+                    <input type="text" placeholder="Note (optional)" value={note[t.id] || ""} onChange={(e) => setNote((cur) => ({ ...cur, [t.id]: e.target.value }))} style={{ maxWidth: 170 }} aria-label={`Note for request ${t.id}`} />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table></div>
+      )}
+
+      <h3 className={styles.sectionTitle} style={{ marginTop: 24 }}>Requests I sent <span className={styles.formHint}>({sent.length})</span></h3>
+      {sent.length === 0 ? <p className={styles.empty}>You have not sent any transfer requests.</p> : (
+        <div className={styles.tableWrap}><table>
+          <thead><tr><th>Athlete</th><th>To</th><th>Reason</th><th>Status</th><th>Requested</th><th></th></tr></thead>
+          <tbody>
+            {sent.map((t) => (
+              <tr key={t.id}>
+                <td data-label="Athlete" style={{ display: "flex", alignItems: "center", gap: 10 }}><Avi name={`${t.athlete.firstName} ${t.athlete.lastName}`} /><span><span style={{ fontWeight: 700 }}>{t.athlete.firstName} {t.athlete.lastName}</span><small>{t.athlete.athleteCode}</small></span></td>
+                <td data-label="To">{t.fromCoachId === null ? <span>Uncoached claim <small>(admin approval)</small></span> : t.toCoach ? `${t.toCoach.firstName} ${t.toCoach.lastName}` : "—"}</td>
+                <td data-label="Reason">{t.reason || "—"}</td>
+                <td data-label="Status"><TransferStatusBadge status={t.status} /></td>
+                <td data-label="Requested">{dateLabel(t.createdAt)}</td>
+                <td>{t.status === "pending" && <button className={`${styles.danger} ${styles.btnSm}`} disabled={busy} onClick={() => decide(t.id, "cancelled")}>Cancel</button>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table></div>
+      )}
     </section>
   );
 }
