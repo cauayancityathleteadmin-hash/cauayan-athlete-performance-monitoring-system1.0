@@ -371,9 +371,9 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
               <div><p className={styles.eyebrow}>Training plan &amp; assessment</p><h2>Assess an athlete</h2></div>
               <button className={styles.secondary} onClick={() => setShowBulkAssess((c) => !c)}>{showBulkAssess ? "Close assessment" : "Assess an athlete"}</button>
             </div>
-            <p className={styles.formHint} style={{ marginTop: 0 }}>Pick an athlete and set status + effort for every activity in one go, then save once. Optionally add an overall rating (1&ndash;10) and summary comment for the athlete&apos;s training assessment. If you add a rating, it is filed automatically under the fitness area the athlete scored most in.</p>
+            <p className={styles.formHint} style={{ marginTop: 0 }}>Score everyone on the plan in one pass: set status for each athlete&apos;s activity, then save once with an optional 1&ndash;10 rating per athlete. Untouched cells are skipped; existing records are preserved until you save.</p>
             {showBulkAssess && (
-              <BulkAssessForm planId={plan.id} athletes={athletes} activities={activities} logs={logs} onDone={refresh} />
+              <AssessStudio planId={plan.id} athletes={athletes} activities={activities} logs={logs} onDone={refresh} />
             )}
           </section>
         )}
@@ -693,132 +693,383 @@ function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
 }
 
 
-function BulkAssessForm({ planId, athletes, activities, logs, onDone }) {
-  const [openAthleteId, setOpenAthleteId] = React.useState(null);
+function AssessStudio({ planId, athletes, activities, logs, onDone }) {
+  const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
+  const [dayFilter, setDayFilter] = React.useState("all");
+  const [cells, setCells] = React.useState({});
+  const [ratings, setRatings] = React.useState({});
+  const [openRatingId, setOpenRatingId] = React.useState(null);
+  const [busy, setBusy] = React.useState(false);
+  const [confirm, setConfirm] = React.useState(null);
+  const [toast, setToast] = React.useState(null);
+  const undoRef = React.useRef(null);
+
+  const key = (aid, actId) => `${aid}:${actId}`;
+
+  const byAthlete = React.useMemo(() => {
+    const out = {};
+    for (const a of activities) { (out[a.athleteId] = out[a.athleteId] || []).push(a); }
+    return out;
+  }, [activities]);
+
+  const latestByKey = React.useMemo(() => {
+    const map = {};
+    for (const l of logs) {
+      const k = `${l.athleteId}:${l.activityId}`;
+      if (!map[k] || new Date(l.performedAt) > new Date(map[k].performedAt)) map[k] = l;
+    }
+    return map;
+  }, [logs]);
+
+  function visibleActivities(athleteId) {
+    const all = byAthlete[athleteId] || [];
+    if (dayFilter === "all") return all;
+    return all.filter((a) => a.dayIndex == null || a.dayIndex === Number(dayFilter));
+  }
+
+  const columns = (() => {
+    const out = [];
+    const seen = new Set();
+    for (const athlete of athletes) {
+      for (const activity of visibleActivities(athlete.id)) {
+        if (seen.has(activity.id)) continue;
+        seen.add(activity.id);
+        out.push(activity);
+      }
+    }
+    return out;
+  })();
+
+  function effective(athleteId, activityId, field) {
+    const c = cells[key(athleteId, activityId)];
+    if (c) return field === "status" ? c.status : c[field] != null ? c[field] : null;
+    const l = latestByKey[key(athleteId, activityId)];
+    if (!l) return null;
+    if (field === "status") return l.status;
+    if (field === "qty") return l.quantityDone != null ? Number(l.quantityDone) : null;
+    if (field === "sets") return l.setsDone != null ? Number(l.setsDone) : null;
+    if (field === "reps") return l.repsDone != null ? Number(l.repsDone) : null;
+    if (field === "note") return l.notes || null;
+    return null;
+  }
+
+  function targetOf(activity) {
+    const toNum = (v) => (v == null ? null : Number(v));
+    if (activity.targetQuantity != null) return { n: toNum(activity.targetQuantity), unit: activity.targetUnit, kind: "qty" };
+    if (activity.targetDistance != null) return { n: toNum(activity.targetDistance), unit: "m", kind: "qty" };
+    if (activity.targetSets != null) return { n: toNum(activity.targetSets), unit: "sets", kind: "sets" };
+    if (activity.targetReps != null) return { n: toNum(activity.targetReps), unit: "reps", kind: "reps" };
+    return null;
+  }
+
+  function autoStatusFor(activity, value) {
+    const t = targetOf(activity);
+    if (!t || t.kind !== "qty" || value == null || value === "") return null;
+    const q = Number(value);
+    if (!Number.isFinite(q) || q < 0 || t.n <= 0) return null;
+    const ratio = q / t.n;
+    return ratio >= 0.9 ? "done" : ratio >= 0.5 ? "partial" : "missed";
+  }
+
+  function setCell(athleteId, activityId, patch) {
+    const k = key(athleteId, activityId);
+    setCells((cur) => ({ ...cur, [k]: { touched: true, status: null, qty: "", sets: "", reps: "", note: "", ...cur[k], ...patch } }));
+  }
+
+  function cycleStatus(athleteId, activityId, activity) {
+    const current = effective(athleteId, activityId, "status");
+    const next = current === "done" ? "partial" : current === "partial" ? "missed" : "done";
+    const patch = { status: next };
+    if (next === "done") {
+      const t = targetOf(activity);
+      if (t && t.kind === "qty") patch.qty = t.n;
+    }
+    setCell(athleteId, activityId, patch);
+  }
+
+  function clearCell(athleteId, activityId) {
+    const k = key(athleteId, activityId);
+    setCells((cur) => { const n = { ...cur }; delete n[k]; return n; });
+  }
+
+  function onQty(athleteId, activityId, activity, value) {
+    const patch = { qty: value };
+    const auto = autoStatusFor(activity, value);
+    if (auto) patch.status = auto;
+    setCell(athleteId, activityId, patch);
+  }
+
+  function applyPreset(athleteId, preset) {
+    const acts = visibleActivities(athleteId);
+    setCells((cur) => {
+      const n = { ...cur };
+      for (const a of acts) {
+        const t = targetOf(a);
+        const prevLog = latestByKey[key(athleteId, a.id)];
+        if (preset === "copy" && !prevLog) continue;
+        if (preset === "copy") {
+          n[key(athleteId, a.id)] = { touched: true, status: prevLog.status || "done", qty: prevLog.quantityDone != null ? Number(prevLog.quantityDone) : "", sets: prevLog.setsDone != null ? Number(prevLog.setsDone) : "", reps: prevLog.repsDone != null ? Number(prevLog.repsDone) : "", note: prevLog.notes || "" };
+          continue;
+        }
+        const cell = { touched: true, status: preset === "full" ? "done" : preset === "light" ? "partial" : "missed", qty: "", sets: "", reps: "", note: "" };
+        if (preset === "full" && t) {
+          if (t.kind === "qty") cell.qty = t.n;
+          else if (t.kind === "sets") cell.sets = t.n;
+          else cell.reps = t.n;
+        }
+        if (preset === "light" && t && t.kind === "qty") cell.qty = Math.max(0, Math.round(t.n * 0.5));
+        n[key(athleteId, a.id)] = cell;
+      }
+      return n;
+    });
+  }
+
+  function applyColumn(activity, status) {
+    setCells((cur) => {
+      const n = { ...cur };
+      for (const athlete of athletes) {
+        if (!(byAthlete[athlete.id] || []).some((a) => a.id === activity.id)) continue;
+        const t = targetOf(activity);
+        const cell = { touched: true, status, qty: "", sets: "", reps: "", note: "" };
+        if (status === "done" && t && t.kind === "qty") cell.qty = t.n;
+        n[key(athlete.id, activity.id)] = cell;
+      }
+      return n;
+    });
+  }
+
+  function setRating(athleteId, patch) {
+    setRatings((cur) => ({ ...cur, [athleteId]: { rating: null, comments: "", ...cur[athleteId], ...patch } }));
+  }
+
+  function suggestRating(athleteId) {
+    const statuses = (byAthlete[athleteId] || []).map((a) => cells[key(athleteId, a.id)] && cells[key(athleteId, a.id)].status).filter(Boolean);
+    if (!statuses.length) return null;
+    const score = statuses.reduce((sum, s) => sum + (s === "done" ? 1 : s === "partial" ? 0.6 : 0.2), 0) / statuses.length;
+    return Math.max(1, Math.min(10, Math.round(score * 10)));
+  }
+
+  function summary() {
+    const done = Object.values(cells).filter((c) => c.status === "done").length;
+    const partial = Object.values(cells).filter((c) => c.status === "partial").length;
+    const missed = Object.values(cells).filter((c) => c.status === "missed").length;
+    const athletesCount = new Set(Object.keys(cells).map((k) => k.split(":")[0])).size;
+    const rated = Object.values(ratings).filter((r) => r.rating).length;
+    return { done, partial, missed, athletes: athletesCount, rated };
+  }
+
+  function buildPayload() {
+    const rows = Object.keys(cells).map((k) => {
+      const [aid, actId] = k.split(":");
+      const c = cells[k];
+      return { athleteId: Number(aid), activityId: Number(actId), status: c.status, quantityDone: c.qty !== "" ? c.qty : null, setsDone: c.sets !== "" ? c.sets : null, repsDone: c.reps !== "" ? c.reps : null, notes: c.note || null };
+    });
+    const assessments = Object.keys(ratings).filter((aid) => ratings[aid].rating).map((aid) => ({ athleteId: Number(aid), rating: ratings[aid].rating, comments: ratings[aid].comments || null }));
+    return { rows, assessments };
+  }
+
+  async function save() {
+    const payload = buildPayload();
+    if (!payload.rows.length && !payload.assessments.length) { setToast({ kind: "info", text: "Nothing to save yet." }); return; }
+    if (!confirm) {
+      const s = summary();
+      setConfirm({ ...s });
+      return;
+    }
+    setBusy(true); setConfirm(null);
+    undoRef.current = { date, rows: {}, hasRatings: payload.assessments.length > 0 };
+    for (const k of Object.keys(cells)) {
+      const prevLog = latestByKey[k];
+      undoRef.current.rows[k] = prevLog ? { status: prevLog.status, qty: prevLog.quantityDone != null ? Number(prevLog.quantityDone) : null, sets: prevLog.setsDone != null ? Number(prevLog.setsDone) : null, reps: prevLog.repsDone != null ? Number(prevLog.repsDone) : null, note: prevLog.notes || null } : null;
+    }
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    try {
+      const response = await fetch("/api/plan-activity-logs/batch-assess", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ planId, performedAt: date, rows: payload.rows, assessments: payload.assessments }) });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok && result.success) {
+        setToast({ kind: "success", text: `Saved ${result.logged} activit${result.logged === 1 ? "y" : "ies"}${result.ratings ? ` and ${result.ratings} rating${result.ratings === 1 ? "" : "s"}` : ""} across ${result.athletes} athlete${result.athletes === 1 ? "" : "s"}`, undo: true });
+        onDone();
+      } else { setToast({ kind: "error", text: result.error || "Could not save the assessment." }); }
+    } catch (e) { setToast({ kind: "error", text: "Unable to reach the server." }); }
+    setBusy(false);
+  }
+
+  async function undo() {
+    const snap = undoRef.current;
+    if (!snap || busy) return;
+    const rows = Object.keys(snap.rows)
+      .map((k) => {
+        const [aid, actId] = k.split(":");
+        const prev = snap.rows[k];
+        return prev ? { athleteId: Number(aid), activityId: Number(actId), status: prev.status, quantityDone: prev.qty != null ? prev.qty : null, setsDone: prev.sets != null ? prev.sets : null, repsDone: prev.reps != null ? prev.reps : null, notes: prev.note || null } : { athleteId: Number(aid), activityId: Number(actId), status: null };
+      })
+      .filter((r) => r);
+    setCells((cur) => {
+      const n = { ...cur };
+      for (const k of Object.keys(snap.rows)) {
+        const prev = snap.rows[k];
+        if (!prev) { delete n[k]; continue; }
+        n[k] = { touched: true, status: prev.status, qty: prev.qty != null ? prev.qty : "", sets: prev.sets != null ? prev.sets : "", reps: prev.reps != null ? prev.reps : "", note: prev.note || "" };
+      }
+      return n;
+    });
+    setBusy(true);
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    try {
+      const response = await fetch("/api/plan-activity-logs/batch-assess", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ planId, performedAt: snap.date || new Date().toISOString().slice(0, 10), rows, assessments: [] }) });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok && result.success) { setToast({ kind: "info", text: "Undone — previous activity statuses restored. Saved rating rows are kept (you can clear them in the rating row)." }); onDone(); }
+      else { setToast({ kind: "error", text: result.error || "Could not undo." }); }
+    } catch (e) { setToast({ kind: "error", text: "Unable to reach the server." }); }
+    setBusy(false); undoRef.current = null;
+  }
+
+  function latestAthleteDate(athleteId) {
+    let best = null;
+    for (const l of logs) {
+      if (l.athleteId !== athleteId) continue;
+      if (!best || new Date(l.performedAt) > new Date(best)) best = l.performedAt;
+    }
+    return best;
+  }
 
   if (!athletes.length) return <p className={styles.empty}>No athletes on this plan to assess.</p>;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {athletes.map((athlete) => {
-        const isOpen = openAthleteId === athlete.id;
-        return (
-          <div key={athlete.id} style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "12px 14px", background: "rgba(6,38,30,.35)" }}>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
-              <div>
-                <strong>{athlete.lastName}, {athlete.firstName}</strong>
-                {athlete.athleteCode ? <small style={{ color: "var(--muted)", display: "block" }}>{athlete.athleteCode}</small> : null}
-              </div>
-              <button className={isOpen ? styles.secondary : styles.primary} onClick={() => setOpenAthleteId(isOpen ? null : athlete.id)}>
-                {isOpen ? "Close assessment" : "Assess"}
-              </button>
-            </div>
-            {isOpen && (
-              <div style={{ borderTop: "1px solid rgba(26,92,74,.5)", marginTop: 12, paddingTop: 12 }}>
-                <AthleteAssessForm planId={planId} athlete={athlete} activities={activities} logs={logs} onDone={onDone} />
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+    <div>
+      <style jsx>{`
+        .studioBar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
+        .mkWrap { overflow: auto; border: 1px solid rgba(26,92,74,.55); border-radius: 10px; background: rgba(6,38,30,.25); max-height: 560px; }
+        .mkTable { border-collapse: collapse; min-width: 100%; font-size: 12px; }
+        .mkTable th, .mkTable td { border-bottom: 1px solid rgba(26,92,74,.45); padding: 6px 8px; text-align: left; vertical-align: middle; }
+        .mkTable tbody tr:last-child td { border-bottom: none; }
+        .mkTable thead th { position: sticky; top: 0; background: #0a3228; z-index: 2; }
+        .mkTable th.fix, .mkTable td.fix { position: sticky; left: 0; background: #0d3d31; z-index: 1; min-width: 185px; }
+        .mkTable thead th.fix { z-index: 3; }
+        .mkCell { display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; }
+        .dotBtn { width: 26px; height: 24px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255,255,255,.04); color: var(--muted); font-size: 11px; font-weight: 700; cursor: pointer; transition: .12s; flex: 0 0 auto; }
+        .dotBtn:hover { border-color: rgba(45,212,168,.6); color: var(--foreground); }
+        .dotBtn.on { background: rgba(45,212,168,.2); color: var(--accent); border-color: rgba(45,212,168,.5); }
+        .dotBtn.part { background: rgba(255,193,7,.18); color: #ffc107; border-color: rgba(255,193,7,.45); }
+        .dotBtn.miss { background: rgba(248,113,113,.16); color: #f87171; border-color: rgba(248,113,113,.45); }
+        .dotBtn.touchedD { outline: 1px solid rgba(45,212,168,.4); }
+        .qtyIn { width: 56px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255,255,255,.04); color: var(--foreground); font-size: 11px; }
+        .rowHead { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+        .rowActions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+        .miniBtn { padding: 2px 6px; font-size: 10px; border-radius: 5px; border: 1px solid var(--border); background: rgba(255,255,255,.04); color: var(--muted); cursor: pointer; }
+        .miniBtn:hover { color: var(--accent); border-color: rgba(45,212,168,.5); }
+      `}</style>
 
-function AthleteAssessForm({ planId, athlete, activities, logs, onDone }) {
-  const [busy, setBusy] = React.useState(false);
-  const [message, setMessage] = React.useState(null);
-  const [drafts, setDrafts] = React.useState(() => {
-    const out = {};
-    for (const activity of activities.filter((a) => a.athleteId === athlete.id)) {
-      const existing = logs.find((l) => l.athleteId === athlete.id && l.activityId === activity.id);
-      out[activity.id] = {
-        status: existing?.status || "done",
-        qty: existing?.quantityDone != null ? String(existing.quantityDone) : "",
-        sets: existing?.setsDone != null ? String(existing.setsDone) : "",
-        reps: existing?.repsDone != null ? String(existing.repsDone) : "",
-        note: existing?.notes || "",
-      };
-    }
-    return out;
-  });
+      <div className="studioBar">
+        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>Date<input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={styles.fieldControl} /></label>
+        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>Day
+          <select value={dayFilter} onChange={(e) => setDayFilter(e.target.value)} className={styles.fieldControl}>
+            <option value="all">All days</option>
+            {[1,2,3,4,5,6,7].map((d) => <option key={d} value={d}>Day {d}</option>)}
+          </select>
+        </label>
+        <button className={styles.primary} disabled={busy} onClick={save}>{busy ? "Saving..." : "Save assessment"}</button>
+        {toast && (
+          <span role="status" style={{ color: toast.kind === "error" ? "var(--danger)" : toast.kind === "info" ? "var(--muted)" : "var(--accent)", fontSize: 12, lineHeight: 1.4 }}>
+            {toast.text}
+            {toast.undo && <button className={styles.secondary} style={{ marginLeft: 8, padding: "3px 8px", fontSize: 11 }} onClick={undo} disabled={busy}>Undo</button>}
+          </span>
+        )}
+      </div>
 
-  function update(activityId, key, value) {
-    setDrafts((cur) => ({ ...cur, [activityId]: { ...cur[activityId], [key]: value } }));
-  }
+      <p className={styles.formHint} style={{ marginTop: 0, marginBottom: 12 }}>Tap a cell&apos;s button to flip its status (D → P → M → open). Untouched cells are not part of the save. Type an amount and the status picks itself. Row buttons fill one athlete; the ✓ / ✗ buttons above each activity fill that activity for everyone.</p>
 
-  async function submit(event) {
-    event.preventDefault();
-    setBusy(true); setMessage(null);
-    const form = new FormData(event.currentTarget);
-    const rows = activities
-      .filter((a) => a.athleteId === athlete.id)
-      .filter((a) => drafts[a.id])
-      .map((a) => ({
-        activityId: a.id,
-        status: drafts[a.id].status,
-        quantityDone: drafts[a.id].qty || null,
-        setsDone: drafts[a.id].sets || null,
-        repsDone: drafts[a.id].reps || null,
-        notes: drafts[a.id].note || null,
-      }));
-    const body = {
-      planId,
-      athleteId: athlete.id,
-      performedAt: form.get("performedAt") || null,
-      rows,
-      summaryRating: form.get("summaryRating") || null,
-      summaryComments: form.get("summaryComments") || null,
-    };
-    const csrf = await fetch("/api/csrf").then((r) => r.json());
-    try {
-      const response = await fetch("/api/plan-activity-logs/bulk-assess", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify(body) });
-      const result = await response.json().catch(() => ({}));
-      if (response.ok && !result.error) { setMessage({ kind: "success", text: `Assessment saved for ${rows.length} activit${rows.length === 1 ? "y" : "ies"}.` }); onDone(); return; }
-      setMessage({ kind: "error", text: result.error || "Could not save the assessment." });
-    } catch (e) { setMessage({ kind: "error", text: "Unable to reach the server." }); }
-    setBusy(false);
-  }
+      {confirm && (
+        <div style={{ border: "1px solid rgba(45,212,168,.5)", borderRadius: 10, padding: "12px 14px", background: "rgba(6,38,30,.5)", marginBottom: 12 }}>
+          Save {confirm.athletes} athlete{confirm.athletes === 1 ? "" : "s"}: <strong style={{ color: "var(--accent)" }}>{confirm.done} done</strong>, <strong style={{ color: "#ffc107" }}>{confirm.partial} partial</strong>, <strong style={{ color: "#f87171" }}>{confirm.missed} missed</strong>{confirm.rated ? `, ${confirm.rated} rating${confirm.rated === 1 ? "" : "s"}` : ""} for {date}?
+          <div style={{ marginTop: 8, display: "flex", gap: 8 }}><button className={styles.primary} onClick={save} disabled={busy}>Confirm save</button><button className={styles.secondary} onClick={() => setConfirm(null)} disabled={busy}>Back</button></div>
+        </div>
+      )}
 
-  const athleteActivities = activities.filter((a) => a.athleteId === athlete.id);
-
-  return (
-    <form onSubmit={submit} className={styles.formGrid}>
-      <label>Date performed<input name="performedAt" type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></label>
-      <label>Overall rating (1–10, optional)<select name="summaryRating" defaultValue=""><option value="">No summary rating</option>{[1,2,3,4,5,6,7,8,9,10].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
-
-      <div className={styles.fullField} style={{ borderTop: "1px solid rgba(26,92,74,.5)", paddingTop: 14 }}>
-        <p className={styles.eyebrow}>Activities for {athlete.firstName} {athlete.lastName}</p>
-        {athleteActivities.length ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {athleteActivities.map((activity) => {
-              const d = drafts[activity.id] || { status: "done", qty: "", sets: "", reps: "", note: "" };
-              return (
-                <div key={activity.id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px", background: "rgba(6,38,30,.25)" }}>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                    <strong style={{ minWidth: 170, flex: "1 1 170px" }}>{activity.activityName}</strong>
-                    <select className={styles.fieldControl} value={d.status} onChange={(e) => update(activity.id, "status", e.target.value)} style={{ width: 110 }}>
-                      <option value="done">Done</option><option value="partial">Partial</option><option value="missed">Missed</option>
-                    </select>
-                    <input className={styles.fieldControl} value={d.qty} onChange={(e) => update(activity.id, "qty", e.target.value)} type="number" min="0" step="any" placeholder="Qty done" style={{ width: 110 }} />
-                    <input className={styles.fieldControl} value={d.sets} onChange={(e) => update(activity.id, "sets", e.target.value)} type="number" min="0" placeholder="Sets" style={{ width: 80 }} />
-                    <input className={styles.fieldControl} value={d.reps} onChange={(e) => update(activity.id, "reps", e.target.value)} type="number" min="0" placeholder="Reps" style={{ width: 80 }} />
-                    <input className={styles.fieldControl} value={d.note} onChange={(e) => update(activity.id, "note", e.target.value)} placeholder="Note (optional)" style={{ flex: "1 1 140px", minWidth: 120 }} />
+      <div className="mkWrap">
+        <table className="mkTable">
+          <thead>
+            <tr>
+              <th className="fix">Athlete</th>
+              {columns.map((activity) => (
+                <th key={activity.id} style={{ minWidth: 132 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    <strong>{activity.activityName}</strong>
+                    <small style={{ color: "var(--muted)", fontWeight: 400 }}>{FITNESS_META[activity.fitnessType] || activity.fitnessType}{activity.dayIndex ? ` · Day ${activity.dayIndex}` : ""}</small>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button className="miniBtn" title="Mark this activity Done for every athlete" onClick={() => applyColumn(activity, "done")}>✓ all</button>
+                      <button className="miniBtn" title="Mark this activity Missed for every athlete" onClick={() => applyColumn(activity, "missed")}>✗ all</button>
+                    </div>
                   </div>
-                </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {athletes.map((athlete) => {
+              const lastDate = latestAthleteDate(athlete.id);
+              return (
+                <React.Fragment key={athlete.id}>
+                  <tr>
+                    <td className="fix">
+                      <div className="rowHead">
+                        <strong>{athlete.lastName}, {athlete.firstName}</strong>
+                        <span className={`${styles.badge} ${styles.badgeMuted}`} style={{ fontSize: 9 }}>{lastDate ? `Assessed ${fmtDate(lastDate)}` : "Open"}</span>
+                      </div>
+                      <small style={{ color: "var(--muted)", display: "block" }}>{athlete.athleteCode}</small>
+                      <div className="rowActions">
+                        <button className="miniBtn" title="Mark all this athlete's shown activities as done" onClick={() => applyPreset(athlete.id, "full")}>Full</button>
+                        <button className="miniBtn" title="Mark all partial at half target" onClick={() => applyPreset(athlete.id, "light")}>Light</button>
+                        <button className="miniBtn" title="Mark all missed" onClick={() => applyPreset(athlete.id, "rest")}>Rest</button>
+                        <button className="miniBtn" title="Start from this athlete's last assessment" onClick={() => applyPreset(athlete.id, "copy")}>Copy last</button>
+                        <button className={`miniBtn ${openRatingId === athlete.id ? "on" : ""}`} onClick={() => setOpenRatingId(openRatingId === athlete.id ? null : athlete.id)}>Rating</button>
+                      </div>
+                    </td>
+                    {columns.map((activity) => {
+                      const has = (byAthlete[athlete.id] || []).some((a) => a.id === activity.id);
+                      if (!has) return <td key={activity.id} />;
+                      const status = effective(athlete.id, activity.id, "status");
+                      const touched = !!cells[key(athlete.id, activity.id)];
+                      const qty = effective(athlete.id, activity.id, "qty");
+                      const target = targetOf(activity);
+                      return (
+                        <td key={activity.id}>
+                          <span className="mkCell">
+                            <button className={`dotBtn ${status === "done" ? "on" : status === "partial" ? "part" : status === "missed" ? "miss" : ""} ${touched ? "touchedD" : ""}`} title={status ? `Status: ${status === "done" ? "Done" : status === "partial" ? "Partial" : "Missed"}. Tap to change.` : "Open. Tap to mark Done."} onClick={() => cycleStatus(athlete.id, activity.id, activity)}>{status === "done" ? "D" : status === "partial" ? "P" : status === "missed" ? "M" : "–"}</button>
+                            <input className="qtyIn" type="number" min="0" step="any" placeholder={target && target.unit ? `amt (${target.unit})` : "amt"} value={qty != null ? qty : ""} onChange={(e) => onQty(athlete.id, activity.id, activity, e.target.value)} />
+                            {touched && <button className="miniBtn" title="Clear this cell (not part of the save)" onClick={() => clearCell(athlete.id, activity.id)}>✕</button>}
+                          </span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  {openRatingId === athlete.id && (
+                    <tr>
+                      <td className="fix"><strong style={{ fontSize: 11 }}>Rating &amp; comment</strong></td>
+                      <td colSpan={columns.length} style={{ padding: 0 }}>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, padding: "10px 12px", alignItems: "center" }}>
+                          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>Score
+                            <select className={styles.fieldControl} value={ratings[athlete.id]?.rating || ""} onChange={(e) => setRating(athlete.id, { rating: e.target.value ? Number(e.target.value) : null })}>
+                              <option value="">No score</option>
+                              {[1,2,3,4,5,6,7,8,9,10].map((n) => <option key={n} value={n}>{n}/10</option>)}
+                            </select>
+                          </label>
+                          {suggestRating(athlete.id) != null && (
+                            <button className={styles.secondary} style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => setRating(athlete.id, { rating: suggestRating(athlete.id) })}>Use suggestion ({suggestRating(athlete.id)}/10)</button>
+                          )}
+                          <input className={styles.fieldControl} style={{ flex: "1 1 200px", minWidth: 160 }} value={ratings[athlete.id]?.comments || ""} onChange={(e) => setRating(athlete.id, { comments: e.target.value })} placeholder="Summary comment (optional)" />
+                          <small style={{ color: "var(--muted)" }}>10 = exceeded · 7–8 = solid · 5–6 = partial · 1–4 = needs work</small>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               );
             })}
-          </div>
-        ) : <p className={styles.empty}>This athlete has no activities yet.</p>}
+          </tbody>
+        </table>
       </div>
-
-      <label className={styles.fullField}>Summary comment (optional)<textarea name="summaryComments" rows="2" maxLength="2000" placeholder="Overall observations about this athlete's effort and progress." /></label>
-
-      <div className={styles.formActions}>
-        <button className={styles.primary} disabled={busy || !athleteActivities.length}>{busy ? "Saving..." : "Save assessment"}</button>
-      </div>
-      {message && <p role="status" className={`${styles.fullField} ${message.kind === "error" ? styles.formError : ""}`} style={message.kind === "success" ? { color: "var(--accent)" } : undefined}>{message.text}</p>}
-    </form>
+    </div>
   );
 }
 
