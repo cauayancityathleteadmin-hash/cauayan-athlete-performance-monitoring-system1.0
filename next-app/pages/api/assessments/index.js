@@ -44,7 +44,7 @@ export default async function handler(req, res) {
 
     const athlete = await prisma.athlete.findUnique({ where: { id: athleteId }, include: { sport: true, coach: true } });
     if (!athlete) return res.status(404).json({ error: `Athlete #${athleteId} not found.` });
-    if (session.user.role === "coach" && athlete.coach.userId !== recorder) {
+    if (session.user.role === "coach" && (!athlete.coach || athlete.coach.userId !== recorder)) {
       return res.status(403).json({ error: `Coaches may assess only athletes assigned to them (${athlete.athleteCode}).` });
     }
 

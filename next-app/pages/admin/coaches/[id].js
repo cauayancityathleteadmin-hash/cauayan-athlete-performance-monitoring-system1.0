@@ -84,12 +84,15 @@ export default function CoachProfile({ session, coach }) {
   const status = coach.user.status;
 
   async function reviewCoach(decision) {
-    if (decision === "delete" && !window.confirm("Delete this coach account permanently? This cannot be undone.")) return;
+    if (decision === "deactivate" && !window.confirm("Deactivate this coach? Their athletes will become uncoached, the coach will not be able to sign in, and pending transfer requests will be cancelled. You can reactivate them later.")) return;
+    if (decision === "reactivate" && !window.confirm("Reactivate this coach? Athletes who remained uncoached since the deactivation will automatically return to their roster.")) return;
+    const reason = decision === "deactivate" ? window.prompt("Reason for deactivating this coach (recorded in the audit log):", "") : "";
+    if (decision === "deactivate" && reason === null) return;
     setBusy(true);
     setMessage("");
     try {
       const csrf = await fetch("/api/csrf").then((r) => r.json());
-      const response = await fetch("/api/admin/coaches/review", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ coachId: coach.id, decision }) });
+      const response = await fetch("/api/admin/coaches/review", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ coachId: coach.id, decision, reason: reason || undefined }) });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
         setMessage(result.error || "Action failed.");
@@ -165,9 +168,8 @@ export default function CoachProfile({ session, coach }) {
           </div>
         </section>
 
-        {status !== "active" && (
-          <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Account</p><h2>Review this coach</h2></div></div>
+        <section className={styles.panel}>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Account</p><h2>Manage this coach</h2></div></div>
             {message && <p role="status" className={message.startsWith("Coach") ? "alertBox" : "alertBox danger"}>{message}</p>}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {status === "pending" && (
@@ -177,17 +179,16 @@ export default function CoachProfile({ session, coach }) {
                 </>
               )}
               {status === "rejected" && (
-                <>
-                  <button onClick={() => reviewCoach("approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`}>Reapprove coach</button>
-                  <button onClick={() => reviewCoach("delete")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Delete account</button>
-                </>
+                <button onClick={() => reviewCoach("approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`}>Reapprove coach</button>
+              )}
+              {status === "active" && (
+                <button onClick={() => reviewCoach("deactivate")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Deactivate coach</button>
               )}
               {status === "inactive" && (
-                <button onClick={() => reviewCoach("delete")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Remove coach</button>
+                <button onClick={() => reviewCoach("reactivate")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`}>Reactivate coach</button>
               )}
             </div>
           </section>
-        )}
 
         <section className={styles.panel}>
           <div className={styles.panelHeader}>

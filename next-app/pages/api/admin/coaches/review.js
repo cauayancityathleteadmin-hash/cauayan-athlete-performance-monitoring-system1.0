@@ -28,27 +28,86 @@ export default async function handler(req, res) {
   const coachId = validId(req.body?.coachId);
   const decision = req.body?.decision;
   const reason = text(req.body?.reason, 500) || null;
-  if (!coachId || !["approved", "rejected", "delete"].includes(decision)) return res.status(400).json({ error: "Coach and decision are required." });
+  if (!coachId || !["approved", "rejected", "deactivate", "reactivate"].includes(decision)) return res.status(400).json({ error: "Coach and decision are required." });
   const coach = await prisma.coach.findUnique({ where: { id: coachId }, include: { user: true, athletes: { select: { id: true } } } });
   if (!coach) return res.status(404).json({ error: "Coach account not found." });
 
-  if (decision === "delete") {
-    if (coach.athletes.length > 0) {
-      return res.status(409).json({ error: `Coach still has ${coach.athletes.length} assigned athlete${coach.athletes.length === 1 ? "" : "s"}. Reassign or remove their athletes before deleting the account.` });
-    }
-    await prisma.$transaction(async (tx) => {
-      // Clean up any records that reference the coach/user and are not fully cascaded.
-      await tx.coachSport.deleteMany({ where: { coachId } });
-      await tx.eventApplication.deleteMany({ where: { coachId } });
-      await tx.eventParticipant.deleteMany({ where: { coachId } });
-      await tx.athleteCoachHistory.deleteMany({ where: { coachId } });
-      await tx.passwordResetToken.deleteMany({ where: { userId: coach.userId } });
-      await tx.assessment.deleteMany({ where: { recordedBy: coach.userId } });
-      await tx.auditLog.deleteMany({ where: { userId: coach.userId } });
-      await tx.user.delete({ where: { id: coach.userId } });
-      await tx.auditLog.create({ data: { userId: Number(session.user.id), action: "delete", entityType: "coach", entityId: coachId, description: `deleted coach account ${coach.coachCode}${reason ? `: ${reason}` : ""}` } });
+  if (decision === "deactivate") {
+    if (coach.user.status !== "active") return res.status(409).json({ error: "Only active coaches can be deactivated." });
+    const athleteIds = coach.athletes.map((a) => a.id);
+    const pendingOut = await prisma.athleteTransfer.findMany({
+      where: {
+        status: "pending",
+        OR: [{ fromCoachId: coachId }, { fromCoachId: null, requestedBy: coach.userId }],
+      },
+      select: { id: true, fromCoachId: true, toCoach: { select: { id: true, firstName: true, lastName: true, email: true, contactNumber: true, notifySms: true, notifyEmail: true } } },
     });
-    return res.status(200).json({ success: true, status: "deleted", message: "Coach account deleted." });
+    const pendingIn = await prisma.athleteTransfer.findMany({
+      where: { toCoachId: coachId, status: "pending", fromCoachId: { not: null } },
+      select: { id: true, fromCoach: { select: { id: true, firstName: true, lastName: true, email: true, contactNumber: true, notifySms: true, notifyEmail: true } } },
+    });
+
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: coach.userId }, data: { status: "inactive" } });
+      await tx.coach.update({ where: { id: coachId }, data: { status: "inactive" } });
+      if (athleteIds.length) {
+        const now = new Date();
+        await tx.athlete.updateMany({ where: { id: { in: athleteIds } }, data: { coachId: null } });
+        await tx.athleteCoachHistory.updateMany({ where: { coachId, endedAt: null }, data: { endedAt: now } });
+      }
+      const cancelledIds = [...new Set(pendingOut.concat(pendingIn).map((t) => t.id))];
+      if (cancelledIds.length) {
+        await tx.athleteTransfer.updateMany({ where: { id: { in: cancelledIds }, status: "pending" }, data: { status: "cancelled", decidedBy: Number(session.user.id), decisionNote: reason || "Coach account deactivated", decidedAt: new Date() } });
+      }
+      await tx.auditLog.create({ data: { userId: Number(session.user.id), action: "deactivate", entityType: "coach", entityId: coachId, description: `Deactivated coach ${coach.coachCode}${reason ? `: ${reason}` : ""}. ${athleteIds.length} athlete(s) became uncoached; ${cancelledIds.length} pending request(s) cancelled` } });
+    });
+
+    await notifyCoach({ coach: { firstName: coach.firstName, lastName: coach.lastName, email: coach.email, contactNumber: coach.contactNumber, notifySms: coach.notifySms, notifyEmail: coach.notifyEmail }, subject: "Coach account deactivated", message: "Your coach account has been deactivated. You cannot sign in until an administrator reactivates it." });
+    for (const t of pendingOut) {
+      if (t.fromCoachId !== null) await notifyCoach({ coach: t.toCoach, subject: "Transfer request cancelled", message: "A transfer request sent to you was cancelled because the requesting coach was deactivated." });
+    }
+    for (const t of pendingIn) {
+      await notifyCoach({ coach: t.fromCoach, subject: "Transfer request cancelled", message: "Your transfer request was cancelled because the receiving coach was deactivated." });
+    }
+
+    return res.status(200).json({ success: true, status: "inactive", message: `Coach deactivated. ${athleteIds.length} athlete${athleteIds.length === 1 ? "" : "s"} became uncoached, and pending requests were cancelled.` });
+  }
+
+  if (decision === "reactivate") {
+    if (coach.user.status !== "inactive") return res.status(409).json({ error: "Only deactivated coaches can be reactivated." });
+
+    const uncoached = await prisma.athlete.findMany({ where: { coachId: null }, select: { id: true } });
+    const returned = [];
+    for (const u of uncoached) {
+      const last = await prisma.athleteCoachHistory.findFirst({ where: { athleteId: u.id }, orderBy: { startedAt: "desc" }, select: { coachId: true } });
+      if (last && last.coachId === coachId) returned.push(u.id);
+    }
+    const claims = returned.length
+      ? await prisma.athleteTransfer.findMany({
+          where: { athleteId: { in: returned }, status: "pending", fromCoachId: null },
+          select: { id: true, toCoach: { select: { id: true, firstName: true, lastName: true, email: true, contactNumber: true, notifySms: true, notifyEmail: true } } },
+        })
+      : [];
+
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: coach.userId }, data: { status: "active" } });
+      await tx.coach.update({ where: { id: coachId }, data: { status: "active" } });
+      if (returned.length) {
+        await tx.athlete.updateMany({ where: { id: { in: returned } }, data: { coachId } });
+        await tx.athleteCoachHistory.createMany({ data: returned.map((athleteId) => ({ athleteId, coachId, assignedBy: Number(session.user.id), reason: "Returned after coach reactivation" })) });
+      }
+      if (claims.length) {
+        await tx.athleteTransfer.updateMany({ where: { id: { in: claims.map((c) => c.id) }, status: "pending" }, data: { status: "cancelled", decidedBy: Number(session.user.id), decisionNote: "Athlete returned to original coach on reactivation", decidedAt: new Date() } });
+      }
+      await tx.auditLog.create({ data: { userId: Number(session.user.id), action: "reactivate", entityType: "coach", entityId: coachId, description: `Reactivated coach ${coach.coachCode}. ${returned.length} athlete(s) returned to roster${reason ? `: ${reason}` : ""}` } });
+    });
+
+    await notifyCoach({ coach: { firstName: coach.firstName, lastName: coach.lastName, email: coach.email, contactNumber: coach.contactNumber, notifySms: coach.notifySms, notifyEmail: coach.notifyEmail }, subject: "Coach account reactivated", message: `Your coach account has been reactivated.${returned.length ? ` ${returned.length} athlete(s) who remained uncoached were returned to your roster.` : ""}` });
+    for (const claim of claims) {
+      await notifyCoach({ coach: claim.toCoach, subject: "Uncoached athlete request cancelled", message: "Your request to add an uncoached athlete was cancelled because the athlete returned to their original coach when the account was reactivated." });
+    }
+
+    return res.status(200).json({ success: true, status: "active", message: `Coach reactivated.${returned.length ? ` ${returned.length} athlete(s) returned to the roster.` : ""}` });
   }
 
   const isPending = coach.user.status === "pending";

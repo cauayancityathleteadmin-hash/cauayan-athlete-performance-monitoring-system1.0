@@ -64,7 +64,6 @@ async function updateAthlete(req, res, session, id) {
   const body = req.body || {};
   const firstName = text(body.firstName, 100);
   const lastName = text(body.lastName, 100);
-  const batch = session.user.role === "admin" ? Number(body.coachId) : undefined;
   const sportId = Number(body.sportId);
   const eventId = body.eventId === "" || body.eventId === null || body.eventId === undefined ? null : Number(body.eventId);
   const schoolId = validId(body.schoolId);
@@ -90,20 +89,20 @@ async function updateAthlete(req, res, session, id) {
   const [sport, event, coach] = await Promise.all([
     prisma.sport.findUnique({ where: { id: sportId }, select: { id: true, status: true } }),
     eventId ? prisma.event.findUnique({ where: { id: eventId }, select: { id: true, sportId: true } }) : null,
-    batch ? prisma.coach.findUnique({ where: { id: batch }, select: { id: true, status: true } }) : null,
+    typeof body.coachId === "number" || (typeof body.coachId === "string" && body.coachId !== "") ? prisma.coach.findUnique({ where: { id: Number(body.coachId) }, select: { id: true, status: true } }) : null,
   ]);
   if (!sport || sport.status !== "active") return res.status(400).json({ error: "The selected sport is invalid." });
   if (eventId && (!event || event.sportId !== sportId)) return res.status(400).json({ error: "The selected event does not belong to that sport." });
-  if (batch && (!coach || coach.status !== "active")) return res.status(400).json({ error: "The selected coach is invalid." });
+  if (body.coachId && (!coach || coach.status !== "active")) return res.status(400).json({ error: "The selected coach is invalid." });
 
   let coachId;
-  if (batch) {
-    coachId = batch;
+  if (session.user.role === "admin") {
+    coachId = body.coachId === "" || body.coachId === null || body.coachId === undefined ? null : Number(body.coachId);
   } else {
     const mine = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
     coachId = mine ? mine.id : null;
   }
-  if (!coachId) return res.status(400).json({ error: "A coach assignment is required." });
+  if (coachId !== null && !Number.isInteger(coachId)) return res.status(400).json({ error: "A valid coach assignment is required." });
 
   const updated = await prisma.$transaction(async (tx) => {
     const before = await tx.athlete.findUnique({ where: { id }, select: { coachId: true } });
@@ -131,7 +130,7 @@ async function updateAthlete(req, res, session, id) {
         pictureUrl: body.pictureUrl !== undefined ? (text(body.pictureUrl, 2000) || null) : undefined,
       },
     });
-    if (before && before.coachId !== coachId && session.user.role === "admin") {
+    if (before && before.coachId !== coachId && session.user.role === "admin" && coachId) {
       await tx.athleteCoachHistory.create({ data: { athleteId: id, coachId, assignedBy: Number(session.user.id), reason: "Reassigned via profile edit" } });
     }
     await tx.auditLog.create({ data: { userId: Number(session.user.id), action: "update", entityType: "athlete", entityId: id, description: `Updated athlete #${id}` } });

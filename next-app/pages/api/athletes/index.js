@@ -48,22 +48,22 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Complete the required athlete fields with valid values." });
   }
 
-  let coachId = Number(body.coachId);
+  let coachId = body.coachId === "" || body.coachId === null || body.coachId === undefined ? null : Number(body.coachId);
   if (session.user.role === "coach") {
     const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) } });
     if (!coach) return res.status(403).json({ error: "Coach profile not found." });
     coachId = coach.id;
   }
-  if (!Number.isInteger(coachId)) return res.status(400).json({ error: "A coach assignment is required." });
+  if (coachId !== null && !Number.isInteger(coachId)) return res.status(400).json({ error: "A valid coach assignment is required." });
 
   const [sport, event, coach, school] = await Promise.all([
     prisma.sport.findUnique({ where: { id: sportId } }),
     eventId ? prisma.event.findUnique({ where: { id: eventId } }) : null,
-    prisma.coach.findUnique({ where: { id: coachId } }),
+    coachId ? prisma.coach.findUnique({ where: { id: coachId } }) : null,
     schoolName ? prisma.school.findFirst({ where: { schoolName: { equals: schoolName, mode: "insensitive" }, status: "active" }, select: { id: true } }) : null,
   ]);
 
-  if (!sport || sport.status !== "active" || !coach || coach.status !== "active" || (eventId && (!event || event.sportId !== sportId))) {
+  if (!sport || sport.status !== "active" || (coachId !== null && (!coach || coach.status !== "active")) || (eventId && (!event || event.sportId !== sportId))) {
     return res.status(400).json({ error: "The selected sport, event, or coach is invalid." });
   }
 
@@ -108,8 +108,10 @@ export default async function handler(req, res) {
           dateRegistered: new Date(),
         },
       });
-      await tx.athleteCoachHistory.create({ data: { athleteId: created.id, coachId, assignedBy: Number(session.user.id), reason: "Initial assignment" } });
-      await tx.auditLog.create({ data: { userId: Number(session.user.id), action: "create", entityType: "athlete", entityId: created.id, description: `Created athlete ${created.athleteCode}` } });
+      if (coachId) {
+        await tx.athleteCoachHistory.create({ data: { athleteId: created.id, coachId, assignedBy: Number(session.user.id), reason: "Initial assignment" } });
+      }
+      await tx.auditLog.create({ data: { userId: Number(session.user.id), action: "create", entityType: "athlete", entityId: created.id, description: `Created athlete ${created.athleteCode}${coachId ? "" : " (uncoached)"}` } });
       return created;
     });
     return res.status(201).json(athlete);

@@ -71,14 +71,14 @@ export default async function handler(req, res) {
   });
 
   if (result.moved) {
-    const movedNames = result.updatedAthletes.filter((a) => !a.alreadyAssigned && a.oldCoachId && a.oldCoachId !== targetCoachId);
+    const movedNames = result.updatedAthletes.filter((a) => !a.alreadyAssigned);
     const names = movedNames.map((a) => `${a.firstName} ${a.lastName} (${a.athleteCode})`);
     await notifyCoach({
       coach: target,
       subject: "New athletes added to your roster",
       message: `${names.length} athlete(s) were added to your roster by the administrator: ${names.join(", ")}.`,
     });
-    const oldCoachIds = [...new Set(movedNames.map((a) => a.oldCoachId))];
+    const oldCoachIds = [...new Set(movedNames.map((a) => a.oldCoachId).filter(Boolean))];
     if (oldCoachIds.length) {
       const oldCoaches = await prisma.coach.findMany({ where: { id: { in: oldCoachIds } }, select: { id: true, firstName: true, lastName: true, notifySms: true, notifyEmail: true, contactNumber: true, email: true } });
       for (const old of oldCoaches) {

@@ -853,8 +853,8 @@ function EditAthleteForm({ athlete, catalog, isAdmin, onDone }) {
         <label>Gender<select name="gender" className={styles.fieldControl} defaultValue={athlete.gender || "prefer_not_to_say"}><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option><option value="prefer_not_to_say">Prefer not to say</option></select></label>
         <label>Sport *<select name="sportId" className={styles.fieldControl} required value={sportId} onChange={(e) => setSportId(e.target.value)}>{catalog?.sports?.map((s) => <option value={s.id} key={s.id}>{s.sportName}</option>)}</select></label>
         <label>Event / discipline<select name="eventId" className={styles.fieldControl} defaultValue={athlete.eventId || ""}><option value="">No event</option>{eventsForSport.map((e) => <option value={e.id} key={e.id}>{e.eventName}</option>)}</select></label>
-        {isAdmin && (
-          <label>Coach *<select name="coachId" className={styles.fieldControl} required defaultValue={athlete.coachId || ""}>{catalog?.coaches?.map((c) => <option value={c.id} key={c.id}>{c.firstName} {c.lastName} ({c.coachCode})</option>)}</select></label>
+{isAdmin && (
+          <label>Coach<select name="coachId" className={styles.fieldControl} defaultValue={athlete.coachId || ""}><option value="">No coach (uncoached)</option>{catalog?.coaches?.map((c) => <option value={c.id} key={c.id}>{c.firstName} {c.lastName} ({c.coachCode})</option>)}</select></label>
         )}
         <label>School<select name="schoolId" className={styles.fieldControl} value={schoolId} onChange={(e) => setSchoolId(e.target.value)}><option value="">Unassigned</option>{catalog?.schools?.map((s) => <option value={s.id} key={s.id}>{s.schoolName}</option>)}</select></label>
 <label>Contact number<input name="contactNumber" className={styles.fieldControl} type="text" maxLength="30" defaultValue={athlete.contactNumber || ""} /></label>

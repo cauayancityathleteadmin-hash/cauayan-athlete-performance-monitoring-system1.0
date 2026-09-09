@@ -189,7 +189,7 @@ async function ensureCoach({ user, coachCode, firstName, middleName, lastName, s
   return coach;
 }
 
-async function ensureAthlete({ athleteCode, firstName, middleName, lastName, suffix = null, birthdate, gender, contactNumber, email, address, school, sportName, eventName, coach, status = "active", dateRegistered, height = null, weight = null, healthStatus = "healthy", healthNotes = null, pictureUrl = null }) {
+async function ensureAthlete({ athleteCode, firstName, middleName, lastName, suffix = null, birthdate, gender, contactNumber, email, address, school, sportName, eventName, coach = null, status = "active", dateRegistered, height = null, weight = null, healthStatus = "healthy", healthNotes = null, pictureUrl = null }) {
   const sport = await prisma.sport.findUnique({ where: { sportName: sportName } });
   const event = eventName ? await prisma.event.findUnique({
     where: { sportId_eventName: { sportId: sport.id, eventName } },
@@ -201,13 +201,13 @@ async function ensureAthlete({ athleteCode, firstName, middleName, lastName, suf
     schoolId: school ? school.id : null,
     sportId: sport.id,
     eventId: event ? event.id : null,
-    coachId: coach.id,
+    coachId: coach ? coach.id : null,
     status, dateRegistered, height: height || null, weight: weight || null,
     healthStatus, healthNotes: healthNotes || null, pictureUrl: pictureUrl || null,
   };
   return prisma.athlete.upsert({
     where: { athleteCode },
-    update: { status, coachId: coach.id, healthStatus, sportId: sport.id },
+    update: { status, coachId: coach ? coach.id : null, healthStatus, sportId: sport.id },
     create: base,
   });
 }
@@ -357,6 +357,8 @@ async function seedTestData(ref) {
     ["ATH-100032", "Nathan", "Lee", "Vicente", "2008-04-19", "male", "Burgos National High School", "Badminton", "Singles", "coachFive", "active", "healthy", 175, 68],
     ["ATH-100033", "Rica", "May", "Bautista", "2009-07-23", "prefer_not_to_say", "Burgos National High School", "Athletics", null, "coachFive", "active", "healthy", 165, 57],
     ["ATH-100034", "Andrei", "Carlo", "Tan", "2007-02-14", "other", "St. Michael Institute of Cauayan", "Badminton", "Singles", "coachFive", "active", "healthy", 172, 65],
+    ["ATH-100035", "Lorraine", "Joy", "Villanueva", "2009-06-21", "female", "St. Michael Institute of Cauayan", "Volleyball", "Indoor Volleyball", null, "active", "healthy", 166, 58],
+    ["ATH-100036", "Dominic", "Paul", "Sarmiento", "2008-11-08", "male", "St. Michael Institute of Cauayan", "Swimming", "100m Butterfly", null, "active", "healthy", 175, 67],
   ];
 
   const athletes = [];
@@ -375,6 +377,31 @@ async function seedTestData(ref) {
     });
     athletes.push({ athlete, row });
   }
+
+  // --- Transfer & claim requests (workflow demonstration) -------------------
+  // Pending coach-to-coach transfer request: coachOne -> coachTwo for Juan Dela Cruz.
+  await once(prisma, "athleteTransfer",
+    { athleteId: athletes[0].athlete.id, status: "pending" },
+    {
+      athleteId: athletes[0].athlete.id,
+      fromCoachId: coaches.coachOne.id,
+      toCoachId: coaches.coachTwo.id,
+      requestedBy: coachUsers.coachOne.id,
+      reason: "Athlete requested a change of coach; better suited to the basketball program.",
+      createdAt: new Date("2026-09-05"),
+    });
+
+  // Pending claim: coachTwo requests the uncoached athlete Lorraine Villanueva.
+  await once(prisma, "athleteTransfer",
+    { athleteId: athletes[34].athlete.id, status: "pending" },
+    {
+      athleteId: athletes[34].athlete.id,
+      fromCoachId: null,
+      toCoachId: coaches.coachTwo.id,
+      requestedBy: coachUsers.coachTwo.id,
+      reason: "Strong local volleyball prospect; wants to join my roster.",
+      createdAt: new Date("2026-09-06"),
+    });
 
   // --- Coach history (reassignment demonstrated) ---------------------------
   await once(prisma, "athleteCoachHistory",
@@ -1002,6 +1029,7 @@ async function seedTestData(ref) {
   }
   console.log("");
   console.log("Also available: pending coach pedro.delvalle@cauayan.local, rejected liza.flores@cauayan.local");
+  console.log("Uncoached demo athletes: ATH-100035 Lorraine Villanueva, ATH-100036 Dominic Sarmiento (claimable by coaches).");
 }
 
 // ---------------------------------------------------------------------------

@@ -295,7 +295,7 @@ model Athlete {
   schoolId       Int?          @map("school_id")
   sportId        Int           @map("sport_id")
   eventId        Int?          @map("event_id")
-  coachId        Int           @map("coach_id")
+  coachId        Int?          @map("coach_id")
   status         ActiveStatus  @default(active)
   dateRegistered DateTime      @map("date_registered")
   height         Decimal?      @map("height")
@@ -308,7 +308,7 @@ model Athlete {
   school         School?       @relation(fields: [schoolId], references: [id], onDelete: SetNull)
   sport          Sport         @relation(fields: [sportId], references: [id])
   event          Event?        @relation(fields: [eventId], references: [id])
-  coach          Coach         @relation(fields: [coachId], references: [id])
+  coach          Coach?        @relation(fields: [coachId], references: [id], onDelete: SetNull)
   coachHistory   AthleteCoachHistory[]
   statusHistory  AthleteStatusHistory[]
   assessments    Assessment[]

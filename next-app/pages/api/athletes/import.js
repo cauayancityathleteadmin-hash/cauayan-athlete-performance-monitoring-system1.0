@@ -164,7 +164,6 @@ export default async function handler(req, res) {
     if (!GENDERS.includes(gender)) errors.push("invalid gender (male, female, other, or prefer_not_to_say)");
     if (sportName === "") errors.push("sport_name is required");
     if (email !== "" && !validateEmail(email)) errors.push("invalid email");
-    if (isAdmin && coachIdentifier === "") errors.push("coach_identifier is required for admins");
 
     if (errors.length) {
       rowErrors.push(`Row ${rowNumber}: ${errors.join(", ")}`);
@@ -187,9 +186,9 @@ export default async function handler(req, res) {
       for (const item of processed) {
         let coachId = currentCoachId;
         if (isAdmin) {
-          coachId = await resolveCoachId(tx, item.coachIdentifier);
-          if (!coachId) {
-            throw new Error(`Coach '${item.coachIdentifier}' could not be found for one or more rows. Ensure every coach_identifier is an active Coach ID, login email, or exact full name.`);
+          coachId = item.coachIdentifier ? await resolveCoachId(tx, item.coachIdentifier) : null;
+          if (item.coachIdentifier && !coachId) {
+            throw new Error(`Coach '${item.coachIdentifier}' could not be found for one or more rows. Ensure every coach_identifier is an active Coach ID, login email, or exact full name, or leave it blank to import the athlete as uncoached.`);
           }
         }
         const sportId = await getOrCreateSport(tx, item.sportName);
@@ -214,8 +213,10 @@ export default async function handler(req, res) {
             dateRegistered: new Date(),
           },
         });
-        await tx.athleteCoachHistory.create({ data: { athleteId: athlete.id, coachId, assignedBy: Number(session.user.id), reason: "Initial assignment via bulk import" } });
-        await tx.auditLog.create({ data: { userId: Number(session.user.id), action: "create", entityType: "athlete", entityId: athlete.id, description: `Imported athlete ${athleteCode} via bulk import` } });
+        if (coachId) {
+          await tx.athleteCoachHistory.create({ data: { athleteId: athlete.id, coachId, assignedBy: Number(session.user.id), reason: "Initial assignment via bulk import" } });
+        }
+        await tx.auditLog.create({ data: { userId: Number(session.user.id), action: "create", entityType: "athlete", entityId: athlete.id, description: `Imported athlete ${athleteCode} via bulk import${coachId ? "" : " (uncoached)"}` } });
         imported++;
       }
       return { imported };

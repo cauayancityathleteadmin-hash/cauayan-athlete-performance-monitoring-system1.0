@@ -19,7 +19,7 @@ export async function getServerSideProps(context) {
     },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }]
   });
-  return { props: { session, coaches: coaches.map((c) => ({ ...c, user: { ...c.user, createdAt: c.user.createdAt.toISOString() }, sports: c.sports.map(cs => ({ ...cs, sport: cs.sport })), athletesCount: c._count.athletes })) } };
+  return { props: { session, coaches: coaches.map((c) => ({ ...c, user: { ...c.user, createdAt: c.user.createdAt.toISOString(), lastLoginAt: c.user.lastLoginAt ? c.user.lastLoginAt.toISOString() : null }, sports: c.sports.map(cs => ({ ...cs, sport: cs.sport })), athletesCount: c._count.athletes })) } };
 }
 
 const FILTERS = ["all", "active", "pending", "rejected", "inactive"];
@@ -45,6 +45,12 @@ function StatusBadge({ status }) {
   if (value === "pending") return <span className={`${styles.badge} ${styles.badgePending}`}>Pending</span>;
   if (value === "rejected") return <span className={`${styles.badge} ${styles.badgeRejected}`}>Rejected</span>;
   return <span className={`${styles.badge} ${styles.badgeMuted}`}>Inactive</span>;
+}
+
+function loginLabel(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  return isNaN(date) ? "" : date.toLocaleString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 function SportChips({ coach }) {
@@ -88,19 +94,19 @@ export default function AdminCoaches({ coaches, session }) {
   }
 
   function patchStatus(coachId, status) {
-    setList((current) => {
-      if (status === "deleted") return current.filter((c) => c.id !== coachId);
-      return current.map((c) => (c.id === coachId ? { ...c, user: { ...c.user, status } } : c));
-    });
+    setList((current) => current.map((c) => (c.id === coachId ? { ...c, user: { ...c.user, status } } : c)));
   }
 
   async function reviewCoach(coachId, decision) {
-    if (decision === "delete" && !window.confirm("Delete this coach account permanently? This cannot be undone.")) return;
+    if (decision === "deactivate" && !window.confirm("Deactivate this coach? Their athletes will become uncoached, the coach will not be able to sign in, and pending transfer requests will be cancelled. You can reactivate them later.")) return;
+    if (decision === "reactivate" && !window.confirm("Reactivate this coach? Athletes who remained uncoached since the deactivation will automatically return to their roster.")) return;
+    const reason = decision === "deactivate" ? window.prompt("Reason for deactivating this coach (recorded in the audit log):", "") : "";
+    if (decision === "deactivate" && reason === null) return;
     setBusy(true);
     setMessage("");
     try {
       const csrf = await fetch("/api/csrf").then((r) => r.json());
-      const response = await fetch("/api/admin/coaches/review", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ coachId, decision }) });
+      const response = await fetch("/api/admin/coaches/review", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ coachId, decision, reason: reason || undefined }) });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
         setMessage(result.error || "Action failed.");
@@ -203,6 +209,7 @@ export default function AdminCoaches({ coaches, session }) {
                       <td data-label="Status">
                         <StatusBadge status={coach.user.status} />
                         {coach.user.mustChangePassword && <small style={{ display: "block", color: "#fbbf24", marginTop: "4px" }}>(Must change password)</small>}
+                        {coach.user.lastLoginAt && <small style={{ display: "block", color: "var(--muted)", marginTop: "4px" }}>Last login {loginLabel(coach.user.lastLoginAt)}</small>}
                       </td>
                       <td data-label="Athletes">{coach.athletesCount > 0 ? <span className={styles.countBadge}>{coach.athletesCount}</span> : <span style={{ color: "var(--muted)", fontSize: "13px" }}>0</span>}</td>
                       <td data-label="Actions">
@@ -217,11 +224,13 @@ export default function AdminCoaches({ coaches, session }) {
                           {coach.user.status === "rejected" && (
                             <>
                               <button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`}>Reapprove</button>
-                              <button onClick={() => reviewCoach(coach.id, "delete")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Delete</button>
                             </>
                           )}
-                          {(coach.user.status === "active" || coach.user.status === "inactive") && (
-                            <button onClick={() => reviewCoach(coach.id, "delete")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Remove</button>
+                          {coach.user.status === "active" && (
+                            <button onClick={() => reviewCoach(coach.id, "deactivate")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Deactivate</button>
+                          )}
+                          {coach.user.status === "inactive" && (
+                            <button onClick={() => reviewCoach(coach.id, "reactivate")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`}>Reactivate</button>
                           )}
                         </div>
                       </td>
