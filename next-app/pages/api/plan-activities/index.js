@@ -14,6 +14,26 @@ const UNITS_BY_FITNESS = {
   recovery: ["min", "hr", "sessions"],
 };
 
+const TARGET_FIELD_RULES = {
+  endurance: { quantity: true, sets: false, reps: false, distance: true, load: false },
+  strength: { quantity: true, sets: true, reps: true, distance: false, load: true },
+  power: { quantity: true, sets: true, reps: true, distance: false, load: true },
+  speed_agility: { quantity: true, sets: true, reps: true, distance: true, load: false },
+  skill_technique: { quantity: true, sets: true, reps: true, distance: false, load: false },
+  mobility: { quantity: true, sets: true, reps: true, distance: false, load: false },
+  recovery: { quantity: true, sets: false, reps: false, distance: false, load: false },
+};
+
+function sanitizeTargetFields(fitnessType, fields) {
+  const rules = TARGET_FIELD_RULES[fitnessType] || { quantity: true, sets: true, reps: true, distance: false, load: false };
+  const out = { ...fields };
+  if (!rules.sets) out.targetSets = null;
+  if (!rules.reps) out.targetReps = null;
+  if (!rules.distance) out.targetDistance = null;
+  if (!rules.load) out.targetLoad = null;
+  return out;
+}
+
 function validateUnit(fitnessType, unit) {
   if (!unit) return true;
   const allowed = UNITS_BY_FITNESS[fitnessType] || [];
@@ -95,7 +115,7 @@ export default async function handler(req, res) {
       const fitnessType = FITNESS_TYPES.includes(item.fitnessType) ? item.fitnessType : "endurance";
       const targetUnit = text(item.targetUnit, 50) || null;
       if (targetUnit && !validateUnit(fitnessType, targetUnit)) continue;
-      cleaned.push({
+      cleaned.push(sanitizeTargetFields(fitnessType, {
         athleteId,
         activityName: name,
         fitnessType,
@@ -106,7 +126,7 @@ export default async function handler(req, res) {
         targetDistance: toDecimal(item.targetDistance),
         targetLoad: toDecimal(item.targetLoad),
         instructions: text(item.instructions, 2000) || null,
-      });
+      }));
     }
     if (!cleaned.length) return res.status(400).json({ error: "Enter at least one activity with a name for an athlete on this plan." });
     if (cleaned.length > 50) return res.status(400).json({ error: "Please limit a bulk add to 50 activities at a time." });
@@ -159,18 +179,27 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: `Invalid unit for ${fitnessType}. Allowed: ${UNITS_BY_FITNESS[fitnessType].join(", ")}` });
     }
 
+    const targetData = sanitizeTargetFields(fitnessType, {
+      targetQuantity: toDecimal(body.targetQuantity),
+      targetUnit: text(body.targetUnit, 50) || null,
+      targetSets: toInt(body.targetSets),
+      targetReps: toInt(body.targetReps),
+      targetDistance: toDecimal(body.targetDistance),
+      targetLoad: toDecimal(body.targetLoad),
+    });
+
     const created = await prisma.planActivity.create({
       data: {
         planId,
         athleteId,
         activityName: name,
         fitnessType,
-        targetQuantity: toDecimal(body.targetQuantity),
-        targetUnit: text(body.targetUnit, 50) || null,
-        targetSets: toInt(body.targetSets),
-        targetReps: toInt(body.targetReps),
-        targetDistance: toDecimal(body.targetDistance),
-        targetLoad: toDecimal(body.targetLoad),
+        targetQuantity: targetData.targetQuantity,
+        targetUnit: targetData.targetUnit,
+        targetSets: targetData.targetSets,
+        targetReps: targetData.targetReps,
+        targetDistance: targetData.targetDistance,
+        targetLoad: targetData.targetLoad,
         instructions: text(body.instructions, 2000) || null,
         dayIndex: toInt(body.dayIndex),
         weekNumber: toInt(body.weekNumber),
@@ -220,6 +249,13 @@ export default async function handler(req, res) {
       if (!onPlan) return res.status(409).json({ error: "This athlete is not part of the plan." });
       data.athleteId = newAthleteId;
     }
+
+    const finalFitness = data.fitnessType || activity.fitnessType;
+    const finalRules = TARGET_FIELD_RULES[finalFitness] || { quantity: true, sets: true, reps: true, distance: false, load: false };
+    if (!finalRules.sets) data.targetSets = null;
+    if (!finalRules.reps) data.targetReps = null;
+    if (!finalRules.distance) data.targetDistance = null;
+    if (!finalRules.load) data.targetLoad = null;
 
     await prisma.planActivity.update({ where: { id: activityId }, data });
     await prisma.auditLog.create({

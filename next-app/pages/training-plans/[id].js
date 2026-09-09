@@ -410,6 +410,30 @@ function computeProgress(activity, log) {
   return { percent, done, target };
 }
 
+const TARGET_FIELD_RULES = {
+  endurance: { quantity: true, sets: false, reps: false, distance: true, load: false },
+  strength: { quantity: true, sets: true, reps: true, distance: false, load: true },
+  power: { quantity: true, sets: true, reps: true, distance: false, load: true },
+  speed_agility: { quantity: true, sets: true, reps: true, distance: true, load: false },
+  skill_technique: { quantity: true, sets: true, reps: true, distance: false, load: false },
+  mobility: { quantity: true, sets: true, reps: true, distance: false, load: false },
+  recovery: { quantity: true, sets: false, reps: false, distance: false, load: false },
+};
+
+function targetFieldRules(fitnessType) {
+  return TARGET_FIELD_RULES[fitnessType] || { quantity: true, sets: true, reps: true, distance: false, load: false };
+}
+
+function sanitizeTargetFields(fitnessType, fields) {
+  const rules = targetFieldRules(fitnessType);
+  const out = { ...fields };
+  if (!rules.sets) out.targetSets = null;
+  if (!rules.reps) out.targetReps = null;
+  if (!rules.distance) out.targetDistance = null;
+  if (!rules.load) out.targetLoad = null;
+  return out;
+}
+
 function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, onEdit, onChanged, readOnly = false }) {
   const [adding, setAdding] = React.useState(false);
   const [showActivities, setShowActivities] = React.useState(true);
@@ -483,6 +507,11 @@ function ActivityRow({ athlete, activity, logs, onRemove, onEdit, readOnly = fal
       if (name === "fitnessType") {
         const allowed = UNITS_BY_FITNESS[value] || [];
         if (!allowed.includes(next.targetUnit)) next.targetUnit = allowed[0] || "";
+        const rules = targetFieldRules(value);
+        if (!rules.sets) next.targetSets = "";
+        if (!rules.reps) next.targetReps = "";
+        if (!rules.distance) next.targetDistance = "";
+        if (!rules.load) next.targetLoad = "";
       }
       return next;
     });
@@ -525,18 +554,6 @@ function ActivityRow({ athlete, activity, logs, onRemove, onEdit, readOnly = fal
     setSaving(false);
   }
 
-  function renderLatestStatus(log) {
-    if (!log) return <span style={{ color: "var(--muted)", fontSize: "12px" }}>Not logged</span>;
-    const meta = LOG_STATUS[log.status] || LOG_STATUS.planned;
-    return (
-      <span className={`${styles.badge} ${styles[meta.cls]}`} style={{ fontSize: "11px" }}>
-        {meta.label}
-        {log.quantityDone != null && <span style={{ marginLeft: 6, fontWeight: 400 }}>{log.quantityDone}{log.activity?.targetUnit ? ` ${log.activity.targetUnit}` : ""}</span>}
-        <small style={{ marginLeft: 6, opacity: 0.7 }}>{fmtDate(log.performedAt)}</small>
-      </span>
-    );
-  }
-
   return (
     <React.Fragment>
       <tr>
@@ -551,17 +568,24 @@ function ActivityRow({ athlete, activity, logs, onRemove, onEdit, readOnly = fal
           {activity.dayIndex ? <small>Day {activity.dayIndex}{activity.weekNumber ? ` | W${activity.weekNumber}` : ""}</small> : null}
         </td>
         <td>
-          {renderLatestStatus(latestLog)}
           {(() => {
+            if (!latestLog) return <span style={{ color: "var(--muted)", fontSize: "12px" }}>Not logged</span>;
+            const meta = LOG_STATUS[latestLog.status] || LOG_STATUS.planned;
             const p = computeProgress(activity, latestLog);
-            if (!p) return null;
+            const title = `${fmtDate(latestLog.performedAt)}${latestLog.quantityDone != null ? ` · ${latestLog.quantityDone}${latestLog.activity?.targetUnit ? ` ${latestLog.activity.targetUnit}` : ""}` : ""}`;
+            if (!p) {
+              return (
+                <span title={title} className={`${styles.badge} ${styles[meta.cls]}`} style={{ fontSize: "11px" }}>
+                  {meta.label}
+                  <small style={{ marginLeft: 6, opacity: 0.7 }}>{fmtDate(latestLog.performedAt)}</small>
+                </span>
+              );
+            }
             return (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                <div style={{ width: 90, height: 6, borderRadius: 4, background: "rgba(255,255,255,.12)", overflow: "hidden" }}>
-                  <div style={{ width: `${p.percent}%`, height: "100%", borderRadius: 4, background: p.percent >= 80 ? "var(--accent)" : p.percent >= 50 ? "#fbbf24" : "var(--danger)" }} />
-                </div>
-                <small style={{ color: "var(--muted)", fontSize: "11px", whiteSpace: "nowrap" }}>{p.percent}%</small>
-              </div>
+              <span title={title} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <strong style={{ color: percentColor(p.percent), fontSize: 14 }}>{p.percent}%</strong>
+                <small style={{ opacity: 0.75, fontSize: 10, textTransform: "uppercase", letterSpacing: 0.4 }}>{meta.label}</small>
+              </span>
             );
           })()}
         </td>
@@ -573,12 +597,14 @@ function ActivityRow({ athlete, activity, logs, onRemove, onEdit, readOnly = fal
             <form onSubmit={submitEdit} className={styles.formGrid} style={{ marginTop: 0 }}>
               <label className={styles.fullField}>Activity name *<input className={styles.fieldControl} value={draft.activityName} onChange={(e) => setField("activityName", e.target.value)} required maxLength="191" /></label>
               <label>Fitness dimension<select className={styles.fieldControl} value={draft.fitnessType} onChange={(e) => setField("fitnessType", e.target.value)}>{Object.keys(FITNESS_META).map((k) => <option key={k} value={k}>{FITNESS_META[k]}</option>)}</select></label>
-              <label>Target quantity<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetQuantity} onChange={(e) => setField("targetQuantity", e.target.value)} placeholder="e.g. 20" /></label>
-              <label>Target unit<select className={styles.fieldControl} value={draft.targetUnit} onChange={(e) => setField("targetUnit", e.target.value)}><option value="">— select —</option>{(UNITS_BY_FITNESS[draft.fitnessType] || []).map((u) => <option key={u} value={u}>{u}</option>)}</select></label>
-              <label>Sets<input className={styles.fieldControl} type="number" min="0" value={draft.targetSets} onChange={(e) => setField("targetSets", e.target.value)} /></label>
-              <label>Reps<input className={styles.fieldControl} type="number" min="0" value={draft.targetReps} onChange={(e) => setField("targetReps", e.target.value)} /></label>
-              <label>Distance (m)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetDistance} onChange={(e) => setField("targetDistance", e.target.value)} /></label>
-              <label>Load (kg)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetLoad} onChange={(e) => setField("targetLoad", e.target.value)} /></label>
+              {targetFieldRules(draft.fitnessType).quantity && <>
+                <label>Target quantity<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetQuantity} onChange={(e) => setField("targetQuantity", e.target.value)} placeholder="e.g. 20" /></label>
+                <label>Target unit<select className={styles.fieldControl} value={draft.targetUnit} onChange={(e) => setField("targetUnit", e.target.value)}><option value="">— select —</option>{(UNITS_BY_FITNESS[draft.fitnessType] || []).map((u) => <option key={u} value={u}>{u}</option>)}</select></label>
+              </>}
+              {targetFieldRules(draft.fitnessType).sets && <label>Sets<input className={styles.fieldControl} type="number" min="0" value={draft.targetSets} onChange={(e) => setField("targetSets", e.target.value)} /></label>}
+              {targetFieldRules(draft.fitnessType).reps && <label>Reps<input className={styles.fieldControl} type="number" min="0" value={draft.targetReps} onChange={(e) => setField("targetReps", e.target.value)} /></label>}
+              {targetFieldRules(draft.fitnessType).distance && <label>Distance (m)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetDistance} onChange={(e) => setField("targetDistance", e.target.value)} /></label>}
+              {targetFieldRules(draft.fitnessType).load && <label>Load (kg)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetLoad} onChange={(e) => setField("targetLoad", e.target.value)} /></label>}
               <label>Day (1–7)<input className={styles.fieldControl} type="number" min="1" max="7" value={draft.dayIndex} onChange={(e) => setField("dayIndex", e.target.value)} placeholder="Day" /></label>
               <label>Week<input className={styles.fieldControl} type="number" min="1" value={draft.weekNumber} onChange={(e) => setField("weekNumber", e.target.value)} placeholder="Week" /></label>
               <label className={styles.fullField}>Instructions<textarea className={styles.fieldControl} rows="2" maxLength="2000" value={draft.instructions} onChange={(e) => setField("instructions", e.target.value)} /></label>
@@ -614,6 +640,11 @@ function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
       if (key === "fitness") {
         const allowed = UNITS_BY_FITNESS[value] || [];
         if (!allowed.includes(next.unit)) next.unit = allowed[0] || "";
+        const fRules = targetFieldRules(value);
+        if (!fRules.sets) next.sets = "";
+        if (!fRules.reps) next.reps = "";
+        if (!fRules.distance) next.dist = "";
+        if (!fRules.load) next.load = "";
       }
       return next;
     }));
@@ -653,6 +684,7 @@ function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
       <form onSubmit={submit} className={styles.formGrid}>
         {rows.map((r) => {
           const allowedUnits = UNITS_BY_FITNESS[r.fitness] || [];
+          const fRules = targetFieldRules(r.fitness);
           return (
             <div key={r.id} className={styles.fullField} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -662,12 +694,12 @@ function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
               <label className={styles.fullField} style={{ marginBottom: 8 }}>Name *<input value={r.name} onChange={(e) => updateRow(r.id, "name", e.target.value)} maxLength="191" placeholder="e.g. Endurance run" /></label>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
                 <label style={{ flex: "1 1 150px" }}>Fitness type<select value={r.fitness} onChange={(e) => updateRow(r.id, "fitness", e.target.value)}>{Object.keys(FITNESS_META).map((k) => <option key={k} value={k}>{FITNESS_META[k]}</option>)}</select></label>
-                <label style={{ flex: "0 1 110px" }}>Quantity<input value={r.qty} onChange={(e) => updateRow(r.id, "qty", e.target.value)} type="number" min="0" step="any" placeholder="e.g. 1" /></label>
-                <label style={{ flex: "0 1 120px" }}>Unit<select value={r.unit} onChange={(e) => updateRow(r.id, "unit", e.target.value)}><option value="">— select —</option>{allowedUnits.map((u) => <option key={u} value={u}>{u}</option>)}</select></label>
-                <label style={{ flex: "0 1 90px" }}>Sets<input value={r.sets} onChange={(e) => updateRow(r.id, "sets", e.target.value)} type="number" min="0" /></label>
-                <label style={{ flex: "0 1 90px" }}>Reps<input value={r.reps} onChange={(e) => updateRow(r.id, "reps", e.target.value)} type="number" min="0" /></label>
-                <label style={{ flex: "0 1 100px" }}>Dist (m)<input value={r.dist} onChange={(e) => updateRow(r.id, "dist", e.target.value)} type="number" min="0" step="any" /></label>
-                <label style={{ flex: "0 1 90px" }}>Load (kg)<input value={r.load} onChange={(e) => updateRow(r.id, "load", e.target.value)} type="number" min="0" step="any" /></label>
+                {fRules.quantity && <label style={{ flex: "0 1 110px" }}>Quantity<input value={r.qty} onChange={(e) => updateRow(r.id, "qty", e.target.value)} type="number" min="0" step="any" placeholder="e.g. 1" /></label>}
+                {fRules.quantity && <label style={{ flex: "0 1 120px" }}>Unit<select value={r.unit} onChange={(e) => updateRow(r.id, "unit", e.target.value)}><option value="">— select —</option>{allowedUnits.map((u) => <option key={u} value={u}>{u}</option>)}</select></label>}
+                {fRules.sets && <label style={{ flex: "0 1 90px" }}>Sets<input value={r.sets} onChange={(e) => updateRow(r.id, "sets", e.target.value)} type="number" min="0" /></label>}
+                {fRules.reps && <label style={{ flex: "0 1 90px" }}>Reps<input value={r.reps} onChange={(e) => updateRow(r.id, "reps", e.target.value)} type="number" min="0" /></label>}
+                {fRules.distance && <label style={{ flex: "0 1 100px" }}>Dist (m)<input value={r.dist} onChange={(e) => updateRow(r.id, "dist", e.target.value)} type="number" min="0" step="any" /></label>}
+                {fRules.load && <label style={{ flex: "0 1 90px" }}>Load (kg)<input value={r.load} onChange={(e) => updateRow(r.id, "load", e.target.value)} type="number" min="0" step="any" /></label>}
               </div>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
                 <label style={{ flex: "0 1 90px" }}>Day (1–7)<input value={r.day} onChange={(e) => updateRow(r.id, "day", e.target.value)} type="number" min="1" max="7" placeholder="Day" /></label>
@@ -1145,14 +1177,20 @@ function MonitoringGrid({ data, athletes, maxWeek, currentWeek, onWeekChange }) 
                               <div>Missed: <strong style={{ color: "var(--danger)" }}>{dayData.missed}</strong></div>
                               <div>Open: <strong>{dayData.pending}</strong></div>
                             </div>
-                            <div style={{ marginTop: 6, fontSize: 10, color: "var(--muted)" }}>
-                              {dayData.activities.map(a => (
-                                <div key={a.id} title={a.activityName}>
-                                  <span style={a.log ? { color: "var(--accent)", fontWeight: 600 } : { color: "var(--muted)" }}>
-                                    {a.log ? "DONE" : "open"} {a.activityName}
-                                  </span>
-                                </div>
-                              ))}
+                            <div style={{ marginTop: 6, fontSize: 10, color: "var(--muted)", display: "flex", flexDirection: "column", gap: 3 }}>
+                              {dayData.activities.map(a => {
+                                const p = computeProgress(a, a.log);
+                                return (
+                                  <div key={a.id} title={`${a.activityName}${p ? `: ${p.percent}% complete` : ""}`} style={{ display: "flex", alignItems: "center", gap: 6, maxWidth: 170 }}>
+                                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: "1 1 auto", textAlign: "left" }}>{a.activityName}</span>
+                                    {p ? (
+                                      <strong style={{ color: percentColor(p.percent), flex: "0 0 auto" }}>{p.percent}%</strong>
+                                    ) : (
+                                      <span style={{ flex: "0 0 auto", fontSize: 9, textTransform: "uppercase", letterSpacing: 0.4, opacity: 0.8 }}>{a.log ? a.log.status : "open"}</span>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           </>
                         )}
