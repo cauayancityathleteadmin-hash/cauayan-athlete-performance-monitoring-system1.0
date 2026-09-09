@@ -371,7 +371,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
               <div><p className={styles.eyebrow}>Training plan &amp; assessment</p><h2>Assess an athlete</h2></div>
               <button className={styles.secondary} onClick={() => setShowBulkAssess((c) => !c)}>{showBulkAssess ? "Close assessment" : "Assess an athlete"}</button>
             </div>
-            <p className={styles.formHint} style={{ marginTop: 0 }}>Pick an athlete and set status + effort for every activity in one go, then save once. Optionally add an overall rating (1&ndash;10) and summary comment for the athlete&apos;s training assessment.</p>
+            <p className={styles.formHint} style={{ marginTop: 0 }}>Pick an athlete and set status + effort for every activity in one go, then save once. Optionally add an overall rating (1&ndash;10) and summary comment for the athlete&apos;s training assessment. If you add a rating, it is filed automatically under the fitness area the athlete scored most in.</p>
             {showBulkAssess && (
               <BulkAssessForm planId={plan.id} athletes={athletes} activities={activities} logs={logs} onDone={refresh} />
             )}
@@ -768,7 +768,6 @@ function AthleteAssessForm({ planId, athlete, activities, logs, onDone }) {
       performedAt: form.get("performedAt") || null,
       rows,
       summaryRating: form.get("summaryRating") || null,
-      summaryFitness: form.get("summaryFitness") || null,
       summaryComments: form.get("summaryComments") || null,
     };
     const csrf = await fetch("/api/csrf").then((r) => r.json());
@@ -787,7 +786,6 @@ function AthleteAssessForm({ planId, athlete, activities, logs, onDone }) {
     <form onSubmit={submit} className={styles.formGrid}>
       <label>Date performed<input name="performedAt" type="date" defaultValue={new Date().toISOString().slice(0, 10)} /></label>
       <label>Overall rating (1–10, optional)<select name="summaryRating" defaultValue=""><option value="">No summary rating</option>{[1,2,3,4,5,6,7,8,9,10].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
-      <label>Fitness dimension (for summary)<select name="summaryFitness" defaultValue=""><option value="">General</option>{Object.keys(FITNESS_META).map((k) => <option key={k} value={k}>{FITNESS_META[k]}</option>)}</select></label>
 
       <div className={styles.fullField} style={{ borderTop: "1px solid rgba(26,92,74,.5)", paddingTop: 14 }}>
         <p className={styles.eyebrow}>Activities for {athlete.firstName} {athlete.lastName}</p>
@@ -988,7 +986,7 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
     const maxWeek = (plan.durationDays != null ? Math.ceil(plan.durationDays / 7) : null) || plan.durationWeeks || 1;
     const weeks = [];
     for (let w = 1; w <= maxWeek; w++) {
-      const acts = activities.filter((act) => Number(act.weekNumber) === w);
+      const acts = activities.filter((act) => act.weekNumber == null || Number(act.weekNumber) === w);
       if (!acts.length) { weeks.push({ week: w, percent: 0, total: 0 }); continue; }
       let done = 0, partial = 0;
       for (const act of acts) {
@@ -1072,7 +1070,7 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
                 <Line type="monotone" dataKey="percent" name="Completion" stroke="#2dd4a8" strokeWidth={2} dot={{ fill: "#2dd4a8", r: 3 }} activeDot={{ r: 5 }} />
               </LineChart>
             </ResponsiveContainer>
-          ) : <p className={styles.empty}>Add week-numbered activities to see the weekly trend.</p>}
+          ) : <p className={styles.empty}>No planned activities yet.</p>}
         </div>
       </div>
 

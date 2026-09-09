@@ -4,7 +4,18 @@ import { rateLimiters } from "../../../lib/rate-limit";
 import { notifyAthlete } from "../../../lib/notify";
 
 const STATUSES = ["done", "partial", "missed"];
-const FITNESS = ["endurance", "strength", "power", "speed_agility", "skill_technique", "mobility", "recovery"];
+const DIM_SCORE = { done: 3, partial: 2, missed: 1 };
+function deriveFitness(rows, fitnessByActivity) {
+  const scores = new Map();
+  for (const r of rows) {
+    const f = fitnessByActivity.get(r.activityId);
+    if (!f) continue;
+    scores.set(f, (scores.get(f) || 0) + (DIM_SCORE[r.status] || 0));
+  }
+  let best = null, bestScore = -1;
+  for (const [f, s] of scores) if (s > bestScore) { best = f; bestScore = s; }
+  return best;
+}
 
 function toDecimal(v) {
   if (v === "" || v == null) return null;
@@ -51,7 +62,7 @@ export default async function handler(req, res) {
   const onPlan = await prisma.trainingPlanAthlete.findFirst({ where: { planId, athleteId } });
   if (!onPlan) return res.status(409).json({ error: "This athlete is not part of the plan." });
 
-  const activities = await prisma.planActivity.findMany({ where: { planId, athleteId }, select: { id: true } });
+  const activities = await prisma.planActivity.findMany({ where: { planId, athleteId }, select: { id: true, fitnessType: true } });
   const activityIds = activities.map((a) => a.id);
   if (!activityIds.length) return res.status(400).json({ error: "This plan has no activities to assess." });
 
@@ -74,6 +85,8 @@ export default async function handler(req, res) {
     });
   }
   if (!validRows.length) return res.status(400).json({ error: "At least one activity needs a status." });
+  const fitnessByActivity = new Map(activities.map((a) => [a.id, a.fitnessType]));
+  const summaryFitness = deriveFitness(validRows, fitnessByActivity);
 
   await prisma.$transaction(async (tx) => {
     await tx.planActivityLog.deleteMany({
@@ -101,7 +114,7 @@ export default async function handler(req, res) {
           athleteId,
           assessmentDate: performedAt,
           rating,
-          fitnessDimension: FITNESS.includes(body.summaryFitness) ? body.summaryFitness : null,
+          fitnessDimension: summaryFitness,
           comments: text(body.summaryComments, 2000) || null,
           assessedBy: Number(session.user.id),
         },
