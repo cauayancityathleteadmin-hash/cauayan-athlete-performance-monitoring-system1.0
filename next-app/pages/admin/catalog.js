@@ -165,7 +165,7 @@ export default function Catalog({ session, sports, events, schools }) {
     </div>
     <label>Description<textarea name="description" className={styles.fieldControl} rows="2" maxLength="2000" defaultValue={sport.description || ""} /></label>
   </form></td></tr>
-) : <tr key={sport.id}><td>{sport.sportName}</td><td>{sport._count.events}</td><td>{statusBadge(sport.status)}</td><td><div style={{ display: "flex", gap: 6 }}><button className={styles.expandBtn} onClick={() => setEditingSport(sport)}>Edit</button><button className={styles.expandBtn} disabled={busy} onClick={() => deleteItem("sport", { id: sport.id, label: sport.sportName })}>Deactivate</button></div></td></tr>)}{!sports.length && <tr><td colSpan="4" className={styles.empty}>No sports yet.</td></tr>}</tbody></table></div>
+) : <tr key={sport.id}><td data-label="Sport">{sport.sportName}</td><td data-label="Events">{sport._count.events}</td><td data-label="Status">{statusBadge(sport.status)}</td><td data-label="Actions"><div style={{ display: "flex", gap: 6 }}><button className={styles.expandBtn} onClick={() => setEditingSport(sport)}>Edit</button><button className={styles.expandBtn} disabled={busy} onClick={() => deleteItem("sport", { id: sport.id, label: sport.sportName })}>Deactivate</button></div></td></tr>)}{!sports.length && <tr><td colSpan="4" className={styles.empty}>No sports yet.</td></tr>}</tbody></table></div>
         </section>
 
         <section className={styles.panel}>
@@ -181,7 +181,7 @@ export default function Catalog({ session, sports, events, schools }) {
     </div>
     <label>Description<textarea name="description" className={styles.fieldControl} rows="2" maxLength="2000" defaultValue={event.description || ""} /></label>
   </form></td></tr>
-) : <tr key={event.id}><td>{event.eventName}</td><td>{event.sport.sportName}</td><td>{statusBadge(event.status)}</td><td><div style={{ display: "flex", gap: 6 }}><button className={styles.expandBtn} onClick={() => setEditingEvent(event)}>Edit</button><button className={styles.expandBtn} disabled={busy} onClick={() => deleteItem("event", { id: event.id, label: event.eventName })}>Deactivate</button></div></td></tr>)}{!events.length && <tr><td colSpan="4" className={styles.empty}>No events yet. Add events above.</td></tr>}</tbody></table></div>
+) : <tr key={event.id}><td data-label="Event">{event.eventName}</td><td data-label="Sport">{event.sport.sportName}</td><td data-label="Status">{statusBadge(event.status)}</td><td data-label="Actions"><div style={{ display: "flex", gap: 6 }}><button className={styles.expandBtn} onClick={() => setEditingEvent(event)}>Edit</button><button className={styles.expandBtn} disabled={busy} onClick={() => deleteItem("event", { id: event.id, label: event.eventName })}>Deactivate</button></div></td></tr>)}{!events.length && <tr><td colSpan="4" className={styles.empty}>No events yet. Add events above.</td></tr>}</tbody></table></div>
         </section>
 
         <section className={styles.panel}>
@@ -202,7 +202,7 @@ export default function Catalog({ session, sports, events, schools }) {
                 <button type="button" className={styles.secondary} onClick={() => setEditingSchool(null)}>Cancel</button>
               </div>
             </form></td></tr>
-          ) : <tr key={school.id}><td>{school.schoolName}</td><td>{school._count.athletes}</td><td>{school._count.coaches}</td><td>{statusBadge(school.status)}</td><td><div style={{ display: "flex", gap: 6 }}><button className={styles.expandBtn} onClick={() => setEditingSchool(school)}>Edit</button><button className={styles.expandBtn} disabled={busy} onClick={() => deleteSchool(school)}>Deactivate</button></div></td></tr>)}{!schools.length && <tr><td colSpan="5" className={styles.empty}>No schools yet. Add schools above.</td></tr>}</tbody></table></div>
+          ) : <tr key={school.id}><td data-label="School">{school.schoolName}</td><td data-label="Athletes">{school._count.athletes}</td><td data-label="Coaches">{school._count.coaches}</td><td data-label="Status">{statusBadge(school.status)}</td><td data-label="Actions"><div style={{ display: "flex", gap: 6 }}><button className={styles.expandBtn} onClick={() => setEditingSchool(school)}>Edit</button><button className={styles.expandBtn} disabled={busy} onClick={() => deleteSchool(school)}>Deactivate</button></div></td></tr>)}{!schools.length && <tr><td colSpan="5" className={styles.empty}>No schools yet. Add schools above.</td></tr>}</tbody></table></div>
         </section>
       </AppShell>
     </>

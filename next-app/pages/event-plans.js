@@ -103,7 +103,7 @@ export default function EventPlans({ plans, session, page, totalPages, sports, a
                           )}
                         </td>
                         <td data-label="Status"><StatusChip status={plan.status} /></td>
-                        <td>
+                        <td data-label="Action">
                           <button type="button" className={styles.expandBtn} onClick={() => setOpenId((current) => (current === plan.id ? null : plan.id))}>
                             {openId === plan.id ? "Hide details ▲" : "View details ▼"}
                           </button>

@@ -307,10 +307,10 @@ export default function AthleteProfile({ session, athlete, catalog, canManage })
               <tbody>
                 {athlete.healthLogs.map((h) => (
                   <tr key={h.id}>
-                    <td><HealthBadge status={h.status} /></td>
-                    <td>{h.description || "—"}</td>
-                    <td>{fmtDate(h.reportedAt)}</td>
-                    <td>{healthReporterName(h.reporter)}</td>
+                    <td data-label="Status"><HealthBadge status={h.status} /></td>
+                    <td data-label="Notes">{h.description || "—"}</td>
+                    <td data-label="Reported">{fmtDate(h.reportedAt)}</td>
+                    <td data-label="By">{healthReporterName(h.reporter)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -379,10 +379,10 @@ export default function AthleteProfile({ session, athlete, catalog, canManage })
               <tbody>
                 {[...athlete.assessments].reverse().map((a) => (
                   <tr key={a.id}>
-                    <td>{fmtDate(a.assessmentDate)}</td>
-                    <td>{a.assessmentType || "—"}</td>
-                    <td>{a.results.length} value{a.results.length === 1 ? "" : "s"}</td>
-                    <td>{a.recorder?.email || "—"}</td>
+<td data-label="Date">{fmtDate(a.assessmentDate)}</td>
+                    <td data-label="Type">{a.assessmentType || "—"}</td>
+                    <td data-label="Metrics">{a.results.length} value{a.results.length === 1 ? "" : "s"}</td>
+                    <td data-label="Recorded by">{a.recorder?.email || "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -450,9 +450,9 @@ export default function AthleteProfile({ session, athlete, catalog, canManage })
                 <tbody>
                   {athlete.notes.map((n) => (
                     <tr key={n.id}>
-                      <td>{n.note}</td>
-                      <td>{noteAuthorName(n.author)}</td>
-                      <td>{fmtDate(n.createdAt)}</td>
+<td data-label="Note">{n.note}</td>
+                      <td data-label="Author">{noteAuthorName(n.author)}</td>
+                      <td data-label="Date">{fmtDate(n.createdAt)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -470,10 +470,10 @@ export default function AthleteProfile({ session, athlete, catalog, canManage })
               <tbody>
                 {athlete.participants.map((p) => (
                   <tr key={p.id}>
-                    <td>{p.eventPlan?.eventName || "—"}</td>
-                    <td>{p.sport?.sportName || "—"}</td>
-                    <td><StatusBadge status={p.eventPlan?.status} /></td>
-                    <td>{p.eventPlan?.startDate ? fmtDate(p.eventPlan.startDate) : "—"}</td>
+                    <td data-label="Event">{p.eventPlan?.eventName || "—"}</td>
+                    <td data-label="Sport">{p.sport?.sportName || "—"}</td>
+                    <td data-label="Status"><StatusBadge status={p.eventPlan?.status} /></td>
+                    <td data-label="Date">{p.eventPlan?.startDate ? fmtDate(p.eventPlan.startDate) : "—"}</td>
                   </tr>
                 ))}
               </tbody>

@@ -75,7 +75,7 @@ export default function Metrics({ session, events, metrics }) {
 
         <section className={styles.panel}>
           <div className={styles.sectionHeading}><div><h2>Configured metrics</h2><small className={styles.small}>Quantifiable measures by event</small></div><span className={styles.countBadge}>{metrics.length}</span></div>
-          <div className={styles.tableWrap}><table><thead><tr><th>Sport / Event</th><th>Metric</th><th>Unit</th><th>Data type</th><th>Better</th><th>Required</th></tr></thead><tbody>{metrics.map((metric) => <tr key={metric.id}><td>{metric.event.sport.sportName} / {metric.event.eventName}</td><td>{metric.metricName}</td><td>{metric.unit || "—"}</td><td>{DATA_TYPES[metric.dataType] || metric.dataType}</td><td>{BETTER[metric.betterDirection] || "—"}</td><td>{metric.isRequired ? "Yes" : "No"}</td></tr>)}{!metrics.length && <tr><td colSpan="6" className={styles.empty}>No metrics configured yet.</td></tr>}</tbody></table></div>
+          <div className={styles.tableWrap}><table><thead><tr><th>Sport / Event</th><th>Metric</th><th>Unit</th><th>Data type</th><th>Better</th><th>Required</th></tr></thead><tbody>{metrics.map((metric) => <tr key={metric.id}><td data-label="Sport / Event">{metric.event.sport.sportName} / {metric.event.eventName}</td><td data-label="Metric">{metric.metricName}</td><td data-label="Unit">{metric.unit || "—"}</td><td data-label="Data type">{DATA_TYPES[metric.dataType] || metric.dataType}</td><td data-label="Better">{BETTER[metric.betterDirection] || "—"}</td><td data-label="Required">{metric.isRequired ? "Yes" : "No"}</td></tr>)}{!metrics.length && <tr><td colSpan="6" className={styles.empty}>No metrics configured yet.</td></tr>}</tbody></table></div>
         </section>
       </AppShell>
     </>

@@ -96,13 +96,13 @@ export default function CoachApprovals({ session }) {
                 <tbody>
                   {applications.map((app) => (
                     <tr key={app.id}>
-                      <td><strong>{app.lastName}, {app.firstName}{app.middleName ? ` ${app.middleName}` : ""}</strong></td>
-                      <td>{app.coachCode}</td>
-                      <td>{app.email}<small>{app.contactNumber || "—"}</small></td>
-                      <td>{app.school?.schoolName || "Not assigned"}</td>
-                      <td>{app.sports.length ? app.sports.join(", ") : "—"}</td>
-                      <td>{formatDate(app.dateRegistered)}</td>
-                      <td>
+                      <td data-label="Applicant"><strong>{app.lastName}, {app.firstName}{app.middleName ? ` ${app.middleName}` : ""}</strong></td>
+                      <td data-label="Coach code">{app.coachCode}</td>
+                      <td data-label="Email &amp; contact">{app.email}<small>{app.contactNumber || "—"}</small></td>
+                      <td data-label="School">{app.school?.schoolName || "Not assigned"}</td>
+                      <td data-label="Sports">{app.sports.length ? app.sports.join(", ") : "—"}</td>
+                      <td data-label="Applied">{formatDate(app.dateRegistered)}</td>
+                      <td data-label="Action">
                         <button className={`${styles.primary} ${styles.btnSm}`} onClick={() => act(app, "approved")} disabled={busy} style={{ marginRight: 8 }}>Approve</button>
                         <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => act(app, "rejected")} disabled={busy}>Reject</button>
                       </td>

@@ -207,7 +207,7 @@ export default function CoachProfile({ session, coach }) {
                     <td data-label="Event / discipline">{athlete.event?.eventName || "—"}</td>
                     <td data-label="Health"><HealthBadge status={athlete.healthStatus} /></td>
                     <td data-label="Status"><StatusBadge status={athlete.status} /></td>
-                    <td><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
+                    <td data-label="Profile"><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
                   </tr>
                 ))}
               </tbody>

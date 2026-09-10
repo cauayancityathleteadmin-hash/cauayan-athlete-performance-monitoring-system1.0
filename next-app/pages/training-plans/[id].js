@@ -484,11 +484,11 @@ function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, o
                   const targetText = groupActs[0].targetQuantity != null ? `${groupActs[0].targetQuantity}${groupActs[0].targetUnit ? ` ${groupActs[0].targetUnit}` : ""}` : groupActs[0].targetDistance != null ? `${groupActs[0].targetDistance} m` : "—";
                   return (
                     <tr key={fitnessType}>
-                      <td>
+                      <td data-label="Fitness Type">
                         <span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)" }}>{FITNESS_META[fitnessType] || fitnessType}</span>
                       </td>
-                      <td>{targetText}</td>
-                      <td>
+                      <td data-label="Target">{targetText}</td>
+                      <td data-label="Latest status">
                         {(() => {
                           if (!latest) return <span style={{ color: "var(--muted)", fontSize: "12px" }}>Not logged</span>;
                           return (

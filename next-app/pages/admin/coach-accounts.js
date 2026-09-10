@@ -182,13 +182,13 @@ export default function AdminCoachAccounts({ coaches, session }) {
                           style={{ accentColor: "var(--accent)", width: 18, height: 18, cursor: canSelect ? "pointer" : "not-allowed" }}
                         />
                       </td>
-                      <td><strong>{coach.firstName} {coach.lastName}</strong><small>{coach.coachCode} · {coach.user.username || "—"}</small></td>
-                      <td>{coach.user.email}</td>
-                      <td>{coach.school?.schoolName || "Not assigned"}</td>
-                      <td>
+                      <td data-label="Coach"><strong>{coach.firstName} {coach.lastName}</strong><small>{coach.coachCode} · {coach.user.username || "—"}</small></td>
+                      <td data-label="Email">{coach.user.email}</td>
+                      <td data-label="School">{coach.school?.schoolName || "Not assigned"}</td>
+                      <td data-label="Sports">
                         {coach.sports.length ? coach.sports.map((cs) => <span key={cs.sportId} className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)", margin: "2px 4px 2px 0" }}>{cs.sport.sportName}</span>) : <span style={{ color: "var(--muted)", fontSize: 12 }}>No sports</span>}
                       </td>
-                      <td>
+                      <td data-label="Approves coaches">
                         {coach.user.status === "active" ? (
                           <button type="button" className={styles.badge} disabled={busy} onClick={() => toggleApproval(coach)} style={{ cursor: "pointer", background: coach.canApproveCoaches ? "rgba(45,212,168,.18)" : "rgba(157,182,199,.14)", color: coach.canApproveCoaches ? "var(--accent)" : "var(--foreground)", border: "none" }}>
                             {coach.canApproveCoaches ? "Yes ✓" : "No"}
@@ -197,7 +197,7 @@ export default function AdminCoachAccounts({ coaches, session }) {
                           <span style={{ color: "var(--muted)", fontSize: 12 }}>—</span>
                         )}
                       </td>
-                      <td>{statusLabel(coach.user.status)}</td>
+                      <td data-label="Status">{statusLabel(coach.user.status)}</td>
                     </tr>
                   );
                 })}

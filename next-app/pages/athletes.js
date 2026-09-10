@@ -214,7 +214,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
                   <td data-label="Coach">{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
                   <td data-label="Health"><HealthBadge status={athlete.healthStatus} /></td>
                   <td data-label="Status"><StatusBadge status={athlete.status} /></td>
-                  <td><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
+                  <td data-label="Profile"><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
                 </tr>
               ))}
             </tbody></table></div>
@@ -244,7 +244,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
                           <td data-label="School">{athlete.school?.schoolName || "Unassigned"}</td>
                           <td data-label="Health"><HealthBadge status={athlete.healthStatus} /></td>
                           <td data-label="Status"><StatusBadge status={athlete.status} /></td>
-                          <td><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
+                          <td data-label="Profile"><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
                         </tr>
                       ))}
                     </tbody>
@@ -285,7 +285,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
                         <td data-label="Coach">{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
                         <td data-label="Health"><HealthBadge status={athlete.healthStatus} /></td>
                         <td data-label="Status"><StatusBadge status={athlete.status} /></td>
-                        <td><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
+                        <td data-label="Profile"><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
                       </tr>
                     ))}
                   </tbody>
@@ -761,7 +761,7 @@ function CoachRequestsPanel({ athletes, uncoached = [], coaches, ownCoachId, onC
                 <td data-label="Reason">{t.reason || "—"}</td>
                 <td data-label="Status"><TransferStatusBadge status={t.status} /></td>
                 <td data-label="Requested">{dateLabel(t.createdAt)}</td>
-                <td>{t.status === "pending" && <button className={`${styles.danger} ${styles.btnSm}`} disabled={busy} onClick={() => decide(t.id, "cancelled")}>Cancel</button>}</td>
+                <td data-label="Action">{t.status === "pending" && <button className={`${styles.danger} ${styles.btnSm}`} disabled={busy} onClick={() => decide(t.id, "cancelled")}>Cancel</button>}</td>
               </tr>
             ))}
           </tbody>

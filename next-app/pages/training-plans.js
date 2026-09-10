@@ -201,8 +201,8 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
                     <td data-label="Athletes">{p.athletes?.length ?? 0}</td>
                     <td data-label="Assessments">{p.assessments?.filter((a) => a.planId === p.id).length ?? 0}</td>
                     <td data-label="Status"><span className={`${styles.badge} ${styles[STATUS_META[p.status]?.cls || "badgeMuted"]}`}>{STATUS_META[p.status]?.label || p.status}</span></td>
-                    <td>
-                      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                    <td data-label="Actions">
+                      <div className={styles.actionCell}>
                         <Link className={styles.expandBtn} href={`/training-plans/${p.id}`}>Manage</Link>
                         {!isAdmin && <button className={styles.secondary} onClick={() => setEditingPlan(p)} style={{ padding: "4px 8px", fontSize: "12px" }}>Edit</button>}
                         {!isAdmin && <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => deletePlan(p.id)} style={{ padding: "4px 8px", fontSize: "12px" }}>Delete</button>}

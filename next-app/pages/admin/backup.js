@@ -176,9 +176,9 @@ export default function Backup({ session }) {
             <div className={styles.tableWrap}><table><thead><tr><th>Created (UTC)</th><th>Size</th><th>Restore</th></tr></thead><tbody>
               {snapshots.map((snap) => (
                 <tr key={snap.url}>
-                  <td>{new Date(snap.uploadedAt).toLocaleString()}</td>
-                  <td>{formatBytes(snap.size)}</td>
-                  <td>
+                  <td data-label="Created (UTC)">{new Date(snap.uploadedAt).toLocaleString()}</td>
+                  <td data-label="Size">{formatBytes(snap.size)}</td>
+                  <td data-label="Restore">
                     <button className={styles.secondary} disabled={Boolean(busy)} onClick={() => setRestoring(snap)}>Restore this snapshot</button>
                   </td>
                 </tr>

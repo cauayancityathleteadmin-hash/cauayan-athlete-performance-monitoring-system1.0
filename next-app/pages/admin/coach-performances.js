@@ -188,17 +188,17 @@ export default function CoachPerformances({ session, coaches }) {
                 <tbody>
                   {evals.map((e) => (
                     <tr key={e.id}>
-                      <td><strong>{e.coach?.lastName}, {e.coach?.firstName}</strong><small>{e.coach?.coachCode || "—"}</small></td>
-                      <td>{fmtDate(e.periodStart)} – {fmtDate(e.periodEnd)}</td>
-                      <td>{e.sessionPlanning}</td>
-                      <td>{e.exerciseSelection}</td>
-                      <td>{e.technicalInstruction}</td>
-                      <td>{e.athleteDevelopment}</td>
-                      <td>{e.communication}</td>
-                      <td>{e.safetyCompliance}</td>
-                      <td>{e.trainingImplementation}</td>
-                      <td><strong style={{ color: ratingColor(e.overallScore) }}>{round(e.overallScore)}</strong></td>
-                      <td>{e.evaluator?.username || e.evaluator?.email || "—"}</td>
+                      <td data-label="Coach"><strong>{e.coach?.lastName}, {e.coach?.firstName}</strong><small>{e.coach?.coachCode || "—"}</small></td>
+                      <td data-label="Period">{fmtDate(e.periodStart)} – {fmtDate(e.periodEnd)}</td>
+                      <td data-label="Session planning">{e.sessionPlanning}</td>
+                      <td data-label="Exercise selection">{e.exerciseSelection}</td>
+                      <td data-label="Technical">{e.technicalInstruction}</td>
+                      <td data-label="Athlete dev">{e.athleteDevelopment}</td>
+                      <td data-label="Communication">{e.communication}</td>
+                      <td data-label="Safety">{e.safetyCompliance}</td>
+                      <td data-label="Training impl">{e.trainingImplementation}</td>
+                      <td data-label="Overall"><strong style={{ color: ratingColor(e.overallScore) }}>{round(e.overallScore)}</strong></td>
+                      <td data-label="Evaluator">{e.evaluator?.username || e.evaluator?.email || "—"}</td>
                     </tr>
                   ))}
                 </tbody>

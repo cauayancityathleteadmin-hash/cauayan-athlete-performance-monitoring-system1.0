@@ -288,10 +288,10 @@ export default function AthleteProgress({ session, isAdmin, athlete, trainingAss
                     <tbody>
                       {[...trainingAssessments].reverse().slice(0, 10).map((a) => (
                         <tr key={a.id}>
-                          <td>{fmtDate(a.assessmentDate)}</td>
-                          <td><RatingChip rating={a.rating} /></td>
-                          <td>{FITNESS_META[a.fitnessDimension] || "General"}</td>
-                          <td>{a.plan?.planName || "—"}</td>
+                          <td data-label="Date">{fmtDate(a.assessmentDate)}</td>
+                          <td data-label="Rating"><RatingChip rating={a.rating} /></td>
+                          <td data-label="Fitness">{FITNESS_META[a.fitnessDimension] || "General"}</td>
+                          <td data-label="Plan">{a.plan?.planName || "—"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -313,10 +313,10 @@ export default function AthleteProgress({ session, isAdmin, athlete, trainingAss
                     <tbody>
                       {[...performances].reverse().slice(0, 10).map((p) => (
                         <tr key={p.id}>
-                          <td>{fmtDate(p.recordedAt)}</td>
-                          <td>{p.exercise?.exerciseName || "—"}</td>
-                          <td>{fmtNum(p.score)}</td>
-                          <td>{p.rpe != null ? p.rpe : "—"}</td>
+                          <td data-label="Date">{fmtDate(p.recordedAt)}</td>
+                          <td data-label="Exercise">{p.exercise?.exerciseName || "—"}</td>
+                          <td data-label="Score">{fmtNum(p.score)}</td>
+                          <td data-label="RPE">{p.rpe != null ? p.rpe : "—"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -401,9 +401,9 @@ export default function AthleteProgress({ session, isAdmin, athlete, trainingAss
               <tbody>
                 {healthLogs.map((h) => (
                   <tr key={h.id}>
-                    <td><HealthBadge status={h.status} /></td>
-                    <td>{h.description || "—"}</td>
-                    <td>{fmtDate(h.reportedAt)}</td>
+                    <td data-label="Status"><HealthBadge status={h.status} /></td>
+                    <td data-label="Notes">{h.description || "—"}</td>
+                    <td data-label="Date">{fmtDate(h.reportedAt)}</td>
                   </tr>
                 ))}
               </tbody>

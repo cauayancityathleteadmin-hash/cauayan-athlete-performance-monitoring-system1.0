@@ -58,14 +58,14 @@ export default function Assessments({ assessments, catalog, session, page, total
                 <tbody>
                   {assessments.map((assessment) => (
                     <tr key={assessment.id}>
-                      <td>{new Date(assessment.assessmentDate).toLocaleDateString()}</td>
-                      <td>
+                      <td data-label="Date">{new Date(assessment.assessmentDate).toLocaleDateString()}</td>
+                      <td data-label="Athlete">
                         <strong>{assessment.athlete.firstName} {assessment.athlete.lastName}</strong>
                         <small>{assessment.athlete.athleteCode}</small>
                       </td>
-                      <td>{assessment.assessmentType}</td>
-                      <td>{assessment.results.map((result) => `${result.metric.metricName}: ${result.valueDecimal ?? result.valueText ?? "-"}`).join(", ")}</td>
-                      <td>{assessment.recorder.email}</td>
+                      <td data-label="Type">{assessment.assessmentType}</td>
+                      <td data-label="Results">{assessment.results.map((result) => `${result.metric.metricName}: ${result.valueDecimal ?? result.valueText ?? "-"}`).join(", ")}</td>
+                      <td data-label="Recorded by">{assessment.recorder.email}</td>
                     </tr>
                   ))}
                 </tbody>

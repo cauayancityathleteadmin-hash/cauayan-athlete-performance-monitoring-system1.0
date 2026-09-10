@@ -123,16 +123,16 @@ export default function Standings({ session, isAdmin, standings, sports, coachSc
                   const medal = i === 0 ? "#facc15" : i === 1 ? "#cbd5e1" : i === 2 ? "#d97706" : null;
                   return (
                     <tr key={a.id}>
-                      <td>
+                      <td data-label="Rank">
                         <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, borderRadius: "50%", fontWeight: 800, fontSize: 13, background: medal ? medal : "rgba(127,199,175,.12)", color: medal ? "#041f18" : "var(--muted)" }}>{i + 1}</span>
                       </td>
-                      <td><Link href={`/athletes/${a.id}/progress`} style={{ fontWeight: 700 }}>{a.name}</Link><small>{a.athleteCode}</small></td>
-                      <td>{a.sport}</td>
-                      <td>{a.coach}</td>
-                      <td>{a.school}</td>
-                      <td>{a.awardCount}</td>
-                      <td><div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{["gold", "silver", "bronze"].map((t) => medalChip(t, a.medals[t]))}</div></td>
-                      <td><strong style={{ color: "var(--accent)", fontSize: 16 }}>{a.points}</strong></td>
+                      <td data-label="Athlete"><Link href={`/athletes/${a.id}/progress`} style={{ fontWeight: 700 }}>{a.name}</Link><small>{a.athleteCode}</small></td>
+                      <td data-label="Sport">{a.sport}</td>
+                      <td data-label="Coach">{a.coach}</td>
+                      <td data-label="School">{a.school}</td>
+                      <td data-label="Achievements">{a.awardCount}</td>
+                      <td data-label="Medals"><div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{["gold", "silver", "bronze"].map((t) => medalChip(t, a.medals[t]))}</div></td>
+                      <td data-label="Points"><strong style={{ color: "var(--accent)", fontSize: 16 }}>{a.points}</strong></td>
                     </tr>
                   );
                 })}
