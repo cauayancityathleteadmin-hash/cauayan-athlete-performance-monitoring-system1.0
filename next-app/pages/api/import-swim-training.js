@@ -64,8 +64,17 @@ async function inspect() {
     ? await prisma.athlete.findMany({ where: { coachId: coach.id, sportId: swim.id } })
     : [];
   const existing = await prisma.trainingPlan.findFirst({ where: { coachId: coach.id, planName: PLAN_NAME } });
+  const raw = await prisma.$queryRaw`
+    SELECT c.conname, pg_get_constraintdef(c.oid) AS def
+    FROM pg_constraint c
+    WHERE c.conrelid = 'plan_activities'::regclass AND c.contype = 'c'
+    ORDER BY c.conname`;
+  const sample = await prisma.$queryRaw`
+    SELECT DISTINCT day_index, week_number FROM plan_activities ORDER BY week_number NULLS FIRST, day_index NULLS FIRST LIMIT 30`;
   return {
     db: dbLabel(),
+    planActivityConstraints: raw,
+    existingDayIndexSamples: sample,
     coach: {
       id: coach.id,
       userId: coach.userId,
