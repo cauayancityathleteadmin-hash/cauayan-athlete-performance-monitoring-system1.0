@@ -72,7 +72,7 @@ export default function CoachApprovals({ session }) {
           </div>
 
           {message && (
-            <p role="status" style={{ margin: "0 0 16px", padding: "12px 14px", borderRadius: "8px", border: `1px solid ${message.kind === "error" ? "var(--danger)" : "var(--accent)"}`, background: `rgba(${message.kind === "error" ? "248,113,113" : "45,212,168"}, .14)`, color: message.kind === "error" ? "var(--danger)" : "var(--foreground)" }}>
+            <p role="status" className={`${styles.alertBox} ${message.kind === "error" ? styles.alertDanger : styles.alertSuccess}`}>
               {message.text}
             </p>
           )}

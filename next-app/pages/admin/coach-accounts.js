@@ -135,8 +135,8 @@ export default function AdminCoachAccounts({ coaches, session }) {
           </div>
 
           <div className={styles.toolbar}>
-            <label style={{ minWidth: 260 }}>Search coaches<input type="text" placeholder="Name, code, email, sport, school…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
-            <span style={{ flex: 1 }} />
+            <label className={styles.searchLabel}>Search coaches<input type="text" placeholder="Name, code, email, sport, school…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+            <span className={styles.toolbarSpacer} />
             {selectedActive.length > 0 && (
               <span className={styles.selectionSummary}><strong>{selectedActive.length}</strong> selected</span>
             )}
@@ -149,7 +149,7 @@ export default function AdminCoachAccounts({ coaches, session }) {
           </div>
 
           {message && (
-            <p role="status" style={{ margin: "0 0 16px", padding: "12px 14px", borderRadius: "8px", border: `1px solid ${message.kind === "error" ? "var(--danger)" : "var(--accent)"}`, background: `rgba(${message.kind === "error" ? "248,113,113" : "45,212,168"}, .14)`, color: message.kind === "error" ? "var(--danger)" : "var(--foreground)" }}>
+            <p role="status" className={`${styles.alertBox} ${message.kind === "error" ? styles.alertDanger : styles.alertSuccess}`}>
               {message.text}
             </p>
           )}

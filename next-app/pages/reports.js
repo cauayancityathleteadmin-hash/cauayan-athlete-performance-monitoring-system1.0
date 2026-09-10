@@ -1005,8 +1005,8 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
         <section className={styles.panel}>
           {isAdmin && (
             <div className={styles.segmented} style={{ marginBottom: 18 }}>
-              <button className={type === "athlete" ? "active" : ""} onClick={() => switchType("athlete")}>Athlete report</button>
-              <button className={type === "coach" ? "active" : ""} onClick={() => switchType("coach")}>Coach report</button>
+              <button className={type === "athlete" ? styles.active : ""} aria-pressed={type === "athlete"} onClick={() => switchType("athlete")}>Athlete report</button>
+              <button className={type === "coach" ? styles.active : ""} aria-pressed={type === "coach"} onClick={() => switchType("coach")}>Coach report</button>
             </div>
           )}
 

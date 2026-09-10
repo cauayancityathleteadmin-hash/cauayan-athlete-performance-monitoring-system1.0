@@ -769,12 +769,6 @@
   font-weight: 800;
 }
 
-.loading {
-  padding: 60px 24px;
-  text-align: center;
-  color: var(--muted);
-}
-
 .formGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -1296,13 +1290,15 @@
 
 .countBadge {
   display: inline-block;
-  padding: 0.2rem 0.7rem;
-  border: 1px solid var(--accent);
-  color: var(--accent);
+  min-width: 26px;
+  text-align: center;
+  background: rgba(45, 212, 168, .12);
+  color: #86efac;
+  border: 1px solid rgba(45, 212, 168, .3);
   border-radius: 999px;
-  font-size: 0.8rem;
+  padding: 2px 8px;
+  font-size: 12px;
   font-weight: 700;
-  white-space: nowrap;
 }
 
 /* ===== Toolbars (search/sort) ===== */
@@ -1540,19 +1536,6 @@
 
 .selectionSummary button:hover {
   text-decoration: underline;
-}
-
-.countBadge {
-  display: inline-block;
-  min-width: 26px;
-  text-align: center;
-  background: rgba(45, 212, 168, .12);
-  color: #86efac;
-  border: 1px solid rgba(45, 212, 168, .3);
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 12px;
-  font-weight: 700;
 }
 
 /* ===== Assessment: athlete search + batch session cards ===== */
@@ -2012,6 +1995,19 @@
   color: var(--warning);
 }
 
+.alertSuccess {
+  border-left-color: var(--accent);
+  color: var(--foreground);
+}
+.alertDanger {
+  border-left-color: var(--danger);
+  color: var(--danger);
+}
+.alertWarning {
+  border-left-color: var(--warning);
+  color: var(--warning);
+}
+
 /* ===== Stacked form (old-system form-grid.freeform) ===== */
 .formStack {
   display: flex;
@@ -2422,6 +2418,43 @@
 .section-gap > * + * { margin-top: var(--space-6); }
 .section-gap-sm > * + * { margin-top: var(--space-4); }
 .section-gap-lg > * + * { margin-top: var(--space-7); }
+
+/* ===== Shared layout primitives (used across all pages for consistency) ===== */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.sectionGap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+.toolbarSpacer { flex: 1; }
+.searchLabel { min-width: 240px; }
+.avatarCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.avatarCell > span { min-width: 0; }
+.actionCell {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.formSpacer { margin-top: var(--space-4); }
+.textMuted { color: var(--muted); }
+.mutedSmall { color: var(--muted); font-size: 13px; }
+.warnText { color: var(--warning); }
+.hSmall { margin: 0 0 8px; font-size: 14px; color: var(--accent); }
+.small { font-size: 13px; color: var(--muted); display: block; }
+@media (max-width: 768px) {
+  .searchLabel { min-width: 180px; }
+}
 
 /* Visually hidden */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

@@ -103,13 +103,13 @@ export default function Standings({ session, isAdmin, standings, sports, coachSc
           <p className={styles.formHint} style={{ marginTop: 0 }}>Athletes are ranked by total points from their achievements (medal × competition level). Points update the moment an achievement is saved.</p>
 
           <div className={styles.toolbar}>
-            <label style={{ minWidth: 240 }}>Filter by sport
+            <label className={styles.searchLabel}>Filter by sport
               <select value={sportId} onChange={(e) => setSportId(e.target.value)}>
                 <option value="">All sports</option>
                 {sports.map((s) => <option key={s.id} value={s.id}>{s.sportName}</option>)}
               </select>
             </label>
-            <span style={{ flex: 1 }} />
+            <span className={styles.toolbarSpacer} />
             <span className={styles.formHint}>{ranked.length} athlete{ranked.length === 1 ? "" : "s"} · {totalPoints} total points</span>
           </div>
 

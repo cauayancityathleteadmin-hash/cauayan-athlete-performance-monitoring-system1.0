@@ -185,7 +185,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registered athletes</p><h2>All athletes</h2></div></div>
 <div className={styles.toolbar}>
-            <label style={{ minWidth: 240 }}>Search athletes<input type="text" placeholder="Name, code, sport, event, school, coach…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+            <label className={styles.searchLabel}>Search athletes<input type="text" placeholder="Name, code, sport, event, school, coach…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
             <label>Sort athletes by
               <select value={sort} onChange={(event) => changeSort(event.target.value)}>
                 {Object.entries(SORT_KEYS).filter(([key]) => isAdmin || key !== "coach").map(([key, label]) => <option value={key} key={key}>{label}</option>)}
@@ -208,7 +208,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
               {clientPaginated.map((athlete) => (
                 <tr key={athlete.id}>
                   <td data-label="Code">{athlete.athleteCode}</td>
-                  <td data-label="Athlete" style={{ display: "flex", alignItems: "center", gap: 10 }}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></span></td>
+                  <td data-label="Athlete" className={styles.avatarCell}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></span></td>
                   <td data-label="Sport / event">{athlete.sport.sportName}<small>{athlete.event?.eventName || "No event"}</small></td>
                   <td data-label="School">{athlete.school?.schoolName || "Unassigned"}</td>
                   <td data-label="Coach">{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
@@ -227,7 +227,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Full directory</p><h2>All athletes by coach</h2></div><span className={styles.formHint} style={{ alignSelf: "center" }}>{filteredAll.length} athlete{filteredAll.length === 1 ? "" : "s"}</span></div>
             <p className={styles.formHint} style={{ marginTop: 0 }}>Browse every registered athlete, grouped by their coach, including athletes with no coach assigned yet. This is a read-only directory — you can only manage the athletes assigned to you.</p>
             <div className={styles.toolbar}>
-              <label style={{ minWidth: 240 }}>Search athletes<input type="text" placeholder="Name, code, sport, event, school, coach…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+              <label className={styles.searchLabel}>Search athletes<input type="text" placeholder="Name, code, sport, event, school, coach…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
             </div>
             {groupedByCoach.length ? groupedByCoach.map(([coachName, roster]) => (
               <div key={coachName} style={{ marginBottom: 22 }}>
@@ -239,7 +239,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
                       {roster.map((athlete) => (
                         <tr key={athlete.id}>
                           <td data-label="Code">{athlete.athleteCode}</td>
-                          <td data-label="Athlete" style={{ display: "flex", alignItems: "center", gap: 10 }}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></span></td>
+                          <td data-label="Athlete" className={styles.avatarCell}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></span></td>
                           <td data-label="Sport / event">{athlete.sport?.sportName || "Unassigned"}<small>{athlete.event?.eventName || ""}</small></td>
                           <td data-label="School">{athlete.school?.schoolName || "Unassigned"}</td>
                           <td data-label="Health"><HealthBadge status={athlete.healthStatus} /></td>
@@ -279,7 +279,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
                     {roster.map((athlete) => (
                       <tr key={athlete.id}>
                         <td data-label="Code">{athlete.athleteCode}</td>
-                        <td data-label="Athlete" style={{ display: "flex", alignItems: "center", gap: 10 }}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></span></td>
+                        <td data-label="Athlete" className={styles.avatarCell}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></span></td>
                         <td data-label="Event / discipline">{athlete.event?.eventName || "No event"}</td>
                         <td data-label="School">{athlete.school?.schoolName || "Unassigned"}</td>
                         <td data-label="Coach">{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
@@ -547,8 +547,8 @@ function TransferPanel({ athletes, coaches, onDone }) {
       <p className={styles.formHint} style={{ marginTop: 0 }}>Reassign athletes to a different coach. Each athlete keeps exactly one coach — selected athletes already under the target coach are skipped automatically. A history entry records every transfer.</p>
       <form onSubmit={submit}>
         <div className={styles.toolbar}>
-          <label style={{ minWidth: 240 }}>Search athletes<input type="text" placeholder="Name, code, sport, coach…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
-          <label style={{ minWidth: 240 }}>Transfer to coach
+          <label className={styles.searchLabel}>Search athletes<input type="text" placeholder="Name, code, sport, coach…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+          <label className={styles.searchLabel}>Transfer to coach
             <select value={targetCoachId} onChange={(event) => setTargetCoachId(event.target.value)}>
               <option value="">Choose a coach…</option>
               {coaches.map((c) => <option value={c.id} key={c.id}>{c.firstName} {c.lastName} ({c.coachCode}){c.school?.schoolName ? ` – ${c.school.schoolName}` : ""}</option>)}
@@ -564,7 +564,7 @@ function TransferPanel({ athletes, coaches, onDone }) {
                 <tr key={athlete.id} style={{ opacity: selected.has(athlete.id) ? 1 : .82 }}>
                   <td><input type="checkbox" checked={selected.has(athlete.id)} onChange={() => toggle(athlete.id)} aria-label={`Select ${athlete.firstName} ${athlete.lastName}`} /></td>
                   <td data-label="Code">{athlete.athleteCode}</td>
-                  <td data-label="Athlete" style={{ display: "flex", alignItems: "center", gap: 10 }}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}<small>{athlete.gender}</small></span></td>
+                  <td data-label="Athlete" className={styles.avatarCell}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}<small>{athlete.gender}</small></span></td>
                   <td data-label="Sport">{athlete.sport?.sportName || "Unassigned"}</td>
                   <td data-label="Current coach">{athlete.coach ? `${athlete.coach.firstName} ${athlete.coach.lastName}` : "Unassigned"}</td>
                   <td data-label="Status"><StatusBadge status={athlete.status} /></td>
@@ -623,14 +623,14 @@ function RequestTransferForm({ athletes, coaches, onDone, onMessage }) {
   }
 
   return (
-    <form onSubmit={submit} className={styles.formGrid} style={{ rowGap: 12 }}>
-      <label style={{ minWidth: 230 }}>Athlete
+    <form onSubmit={submit} className={styles.formGrid}>
+      <label className={styles.searchLabel}>Athlete
         <select value={athleteId} onChange={(e) => setAthleteId(e.target.value)}>
           <option value="">Choose an athlete…</option>
           {athletes.map((a) => <option value={a.id} key={a.id}>{a.firstName} {a.middleName || ""} {a.lastName} ({a.athleteCode})</option>)}
         </select>
       </label>
-      <label style={{ minWidth: 230 }}>Transfer to coach
+      <label className={styles.searchLabel}>Transfer to coach
         <select value={toCoachId} onChange={(e) => setToCoachId(e.target.value)}>
           <option value="">Choose a coach…</option>
           {coaches.map((c) => <option value={c.id} key={c.id}>{c.firstName} {c.lastName} ({c.coachCode}){c.school?.schoolName ? ` – ${c.school.schoolName}` : ""}</option>)}
@@ -706,7 +706,7 @@ function CoachRequestsPanel({ athletes, uncoached = [], coaches, ownCoachId, onC
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div><p className={styles.eyebrow}>Coach transfers</p><h2>Transfer requests</h2></div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div className={styles.actionCell}>
           {message && <p role="status" className={message.kind === "success" ? styles.formSuccess : styles.formError} style={{ margin: 0 }}>{message.text}</p>}
         </div>
       </div>
@@ -731,13 +731,13 @@ function CoachRequestsPanel({ athletes, uncoached = [], coaches, ownCoachId, onC
           <tbody>
             {received.map((t) => (
               <tr key={t.id}>
-                <td data-label="Athlete" style={{ display: "flex", alignItems: "center", gap: 10 }}><Avi name={`${t.athlete.firstName} ${t.athlete.lastName}`} /><span><span style={{ fontWeight: 700 }}>{t.athlete.firstName} {t.athlete.lastName}</span><small>{t.athlete.athleteCode}</small></span></td>
+                <td data-label="Athlete" className={styles.avatarCell}><Avi name={`${t.athlete.firstName} ${t.athlete.lastName}`} /><span><span style={{ fontWeight: 700 }}>{t.athlete.firstName} {t.athlete.lastName}</span><small>{t.athlete.athleteCode}</small></span></td>
                 <td data-label="From coach">{t.fromCoach ? `${t.fromCoach.firstName} ${t.fromCoach.lastName}` : "—"}</td>
                 <td data-label="Sport / event">{t.athlete.sport?.sportName || "Unassigned"}<small>{t.athlete.event?.eventName || ""}</small></td>
                 <td data-label="Reason">{t.reason || "—"}</td>
                 <td data-label="Requested">{dateLabel(t.createdAt)}</td>
                 <td data-label="Actions">
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <div className={styles.actionCell}>
                     <button className={`${styles.primary} ${styles.btnSm}`} disabled={busy} onClick={() => decide(t.id, "approved")}>Accept</button>
                     <button className={`${styles.danger} ${styles.btnSm}`} disabled={busy} onClick={() => decide(t.id, "rejected")}>Reject</button>
                     <input type="text" placeholder="Note (optional)" value={note[t.id] || ""} onChange={(e) => setNote((cur) => ({ ...cur, [t.id]: e.target.value }))} style={{ maxWidth: 170 }} aria-label={`Note for request ${t.id}`} />
@@ -756,7 +756,7 @@ function CoachRequestsPanel({ athletes, uncoached = [], coaches, ownCoachId, onC
           <tbody>
             {sent.map((t) => (
               <tr key={t.id}>
-                <td data-label="Athlete" style={{ display: "flex", alignItems: "center", gap: 10 }}><Avi name={`${t.athlete.firstName} ${t.athlete.lastName}`} /><span><span style={{ fontWeight: 700 }}>{t.athlete.firstName} {t.athlete.lastName}</span><small>{t.athlete.athleteCode}</small></span></td>
+                <td data-label="Athlete" className={styles.avatarCell}><Avi name={`${t.athlete.firstName} ${t.athlete.lastName}`} /><span><span style={{ fontWeight: 700 }}>{t.athlete.firstName} {t.athlete.lastName}</span><small>{t.athlete.athleteCode}</small></span></td>
                 <td data-label="To">{t.fromCoachId === null ? <span>Uncoached claim <small>(admin approval)</small></span> : t.toCoach ? `${t.toCoach.firstName} ${t.toCoach.lastName}` : "—"}</td>
                 <td data-label="Reason">{t.reason || "—"}</td>
                 <td data-label="Status"><TransferStatusBadge status={t.status} /></td>
@@ -804,7 +804,7 @@ function ClaimUncoachedForm({ uncoached, ownCoachId, onDone, onMessage }) {
   }
 
   return (
-    <form onSubmit={submit} className={styles.formGrid} style={{ rowGap: 12 }}>
+    <form onSubmit={submit} className={styles.formGrid}>
       <label style={{ minWidth: 240 }}>Uncoached athlete
         <select value={athleteId} onChange={(e) => setAthleteId(e.target.value)}>
           <option value="">Choose an athlete…</option>
@@ -870,7 +870,7 @@ function AdminClaimsPanel({ onChanged }) {
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div><p className={styles.eyebrow}>Admin · Claims</p><h2>Uncoached athlete requests</h2></div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div className={styles.actionCell}>
           {message && <p role="status" className={message.kind === "success" ? styles.formSuccess : styles.formError} style={{ margin: 0 }}>{message.text}</p>}
         </div>
       </div>
@@ -883,13 +883,13 @@ function AdminClaimsPanel({ onChanged }) {
           <tbody>
             {claims.map((c) => (
               <tr key={c.id}>
-                <td data-label="Athlete" style={{ display: "flex", alignItems: "center", gap: 10 }}><Avi name={`${c.athlete.firstName} ${c.athlete.lastName}`} /><span><span style={{ fontWeight: 700 }}>{c.athlete.firstName} {c.athlete.lastName}</span><small>{c.athlete.athleteCode}</small></span></td>
+                <td data-label="Athlete" className={styles.avatarCell}><Avi name={`${c.athlete.firstName} ${c.athlete.lastName}`} /><span><span style={{ fontWeight: 700 }}>{c.athlete.firstName} {c.athlete.lastName}</span><small>{c.athlete.athleteCode}</small></span></td>
                 <td data-label="Requesting coach">{c.toCoach ? `${c.toCoach.firstName} ${c.toCoach.lastName}` : "—"}<small>{c.toCoach?.coachCode || ""}</small></td>
                 <td data-label="Sport / event">{c.athlete.sport?.sportName || "Unassigned"}<small>{c.athlete.event?.eventName || ""}</small></td>
                 <td data-label="Reason">{c.reason || "—"}</td>
                 <td data-label="Requested">{dateLabel(c.createdAt)}</td>
                 <td data-label="Actions">
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <div className={styles.actionCell}>
                     <button className={`${styles.primary} ${styles.btnSm}`} disabled={busy} onClick={() => decide(c.id, "approved")}>Approve</button>
                     <button className={`${styles.danger} ${styles.btnSm}`} disabled={busy} onClick={() => decide(c.id, "rejected")}>Reject</button>
                     <input type="text" placeholder="Note (optional)" value={note[c.id] || ""} onChange={(e) => setNote((cur) => ({ ...cur, [c.id]: e.target.value }))} style={{ maxWidth: 170 }} aria-label={`Note for request ${c.id}`} />

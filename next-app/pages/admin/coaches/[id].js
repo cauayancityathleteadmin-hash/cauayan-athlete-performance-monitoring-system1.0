@@ -170,8 +170,8 @@ export default function CoachProfile({ session, coach }) {
 
         <section className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Account</p><h2>Manage this coach</h2></div></div>
-            {message && <p role="status" className={message.startsWith("Coach") ? "alertBox" : "alertBox danger"}>{message}</p>}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {message && <p role="status" className={`${styles.alertBox} ${/^Coach .*/i.test(message) ? styles.alertSuccess : styles.alertDanger}`}>{message}</p>}
+            <div className={styles.actionCell}>
               {status === "pending" && (
                 <>
                   <button onClick={() => reviewCoach("approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`}>Approve coach</button>

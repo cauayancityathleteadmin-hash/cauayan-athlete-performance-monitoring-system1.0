@@ -165,11 +165,11 @@ export default function AdminCoaches({ coaches, session }) {
             </div>
           </div>
           <div className={styles.toolbar}>
-            <label style={{ minWidth: 240 }}>Search coaches<input type="text" placeholder="Name, code, sport, school, email…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+            <label className={styles.searchLabel}>Search coaches<input type="text" placeholder="Name, code, sport, school, email…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
             {FILTERS.map((item) => (
               <button key={item} type="button" onClick={() => setFilter(item)} className={filter === item ? styles.primary : styles.secondary} style={{ textTransform: "capitalize" }}>{item}</button>
             ))}
-            <span style={{ flex: 1 }} />
+            <span className={styles.toolbarSpacer} />
             <label>Sort coaches by
               <select value={sortKey} onChange={(event) => setSortKey(event.target.value)}>
                 {SORT_OPTIONS.map((option) => <option value={option.key} key={option.key}>{option.label}</option>)}
@@ -177,7 +177,7 @@ export default function AdminCoaches({ coaches, session }) {
             </label>
             <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setSortDir((current) => (current === "asc" ? "desc" : "asc"))}>{sortDir === "asc" ? "Ascending" : "Descending"}</button>
           </div>
-          {message && <p role="status" className={`alertBox ${message.startsWith("Coach") ? "" : "danger"}`}>{message}</p>}
+          {message && <p role="status" className={`${styles.alertBox} ${/^Coach .*/i.test(message) ? styles.alertSuccess : styles.alertDanger}`}>{message}</p>}
 
           {view === "list" && (
             <div className={styles.tableWrap}>
@@ -196,7 +196,7 @@ export default function AdminCoaches({ coaches, session }) {
                 <tbody>
                   {sorted.map((coach) => (
                     <tr key={coach.id}>
-                      <td data-label="Coach" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <td data-label="Coach" className={styles.avatarCell}>
                         <CoachAvi name={coachName(coach)} url={coach.pictureUrl} />
                         <span>
                           <Link href={`/admin/coaches/${coach.id}`} style={{ fontWeight: 700 }}>{coachName(coach)}</Link>
@@ -208,12 +208,12 @@ export default function AdminCoaches({ coaches, session }) {
                       <td data-label="Sports"><SportChips coach={coach} /></td>
                       <td data-label="Status">
                         <StatusBadge status={coach.user.status} />
-                        {coach.user.mustChangePassword && <small style={{ display: "block", color: "#fbbf24", marginTop: "4px" }}>(Must change password)</small>}
-                        {coach.user.lastLoginAt && <small style={{ display: "block", color: "var(--muted)", marginTop: "4px" }}>Last login {loginLabel(coach.user.lastLoginAt)}</small>}
+                        {coach.user.mustChangePassword && <small className={styles.warnText} style={{ display: "block", marginTop: "4px" }}>(Must change password)</small>}
+                        {coach.user.lastLoginAt && <small className={styles.mutedSmall} style={{ display: "block", marginTop: "4px" }}>Last login {loginLabel(coach.user.lastLoginAt)}</small>}
                       </td>
-                      <td data-label="Athletes">{coach.athletesCount > 0 ? <span className={styles.countBadge}>{coach.athletesCount}</span> : <span style={{ color: "var(--muted)", fontSize: "13px" }}>0</span>}</td>
+                      <td data-label="Athletes">{coach.athletesCount > 0 ? <span className={styles.countBadge}>{coach.athletesCount}</span> : <span className={styles.mutedSmall}>0</span>}</td>
                       <td data-label="Actions">
-                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                        <div className={styles.actionCell}>
                           <Link className={styles.expandBtn} href={`/admin/coaches/${coach.id}`}>View profile</Link>
                           {coach.user.status === "pending" && (
                             <>
@@ -264,7 +264,7 @@ export default function AdminCoaches({ coaches, session }) {
                     <tbody>
                       {roster.map((coach) => (
                         <tr key={coach.id}>
-                          <td data-label="Coach" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <td data-label="Coach" className={styles.avatarCell}>
                             <CoachAvi name={coachName(coach)} url={coach.pictureUrl} />
                             <span>
                               <Link href={`/admin/coaches/${coach.id}`} style={{ fontWeight: 700 }}>{coachName(coach)}</Link>
@@ -276,11 +276,11 @@ export default function AdminCoaches({ coaches, session }) {
                           <td data-label="Sports"><SportChips coach={coach} /></td>
                           <td data-label="Status">
                             <StatusBadge status={coach.user.status} />
-                            {coach.user.mustChangePassword && <small style={{ display: "block", color: "#fbbf24", marginTop: "4px" }}>(Must change password)</small>}
+                            {coach.user.mustChangePassword && <small className={styles.warnText} style={{ display: "block", marginTop: "4px" }}>(Must change password)</small>}
                           </td>
-                          <td data-label="Athletes">{coach.athletesCount > 0 ? <span className={styles.countBadge}>{coach.athletesCount}</span> : <span style={{ color: "var(--muted)", fontSize: "13px" }}>0</span>}</td>
+                          <td data-label="Athletes">{coach.athletesCount > 0 ? <span className={styles.countBadge}>{coach.athletesCount}</span> : <span className={styles.mutedSmall}>0</span>}</td>
                           <td data-label="Actions">
-                            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                            <div className={styles.actionCell}>
                               <Link className={styles.expandBtn} href={`/admin/coaches/${coach.id}`}>View profile</Link>
                               {coach.user.status === "pending" && (
                                 <>

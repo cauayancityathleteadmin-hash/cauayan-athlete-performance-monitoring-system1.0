@@ -362,7 +362,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage })
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
               {series.map((s) => (
                 <div key={s.name}>
-                  <h4 style={{ margin: "0 0 8px", fontSize: 14, color: "var(--accent)" }}>{s.name}</h4>
+                  <h4 className={styles.hSmall}>{s.name}</h4>
                   <LineChart points={s.points} />
                 </div>
               ))}
