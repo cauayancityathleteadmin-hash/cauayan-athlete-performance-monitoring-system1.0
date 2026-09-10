@@ -91,46 +91,48 @@ async function doImport() {
   const existing = await prisma.trainingPlan.findFirst({ where: { coachId: coach.id, planName: PLAN_NAME } });
   if (existing) {
     const count = await prisma.planActivity.count({ where: { planId: existing.id } });
-    return { duplicate: true, planId: existing.id, planName: PLAN_NAME, activityCount: count };
+    if (count > 0) {
+      return { duplicate: true, planId: existing.id, planName: PLAN_NAME, activityCount: count };
+    }
+    await prisma.trainingPlan.delete({ where: { id: existing.id } });
   }
 
-  const plan = await prisma.trainingPlan.create({
-    data: {
-      planName: PLAN_NAME,
-      description: "Swimming training plan (test) - 2 weeks, all swimming athletes of COA-000011",
-      sportId: swim.id,
-      coachId: coach.id,
-      frequency: "week",
-      durationWeeks: 2,
-      startDate: new Date("2026-09-14T00:00:00.000Z"),
-      endDate: new Date("2026-09-27T23:59:59.999Z"),
-      status: "active",
-      isTemplate: false,
-    },
+  const rowsByAthlete = athletes.map((a, i) => buildActivities(i).map((r) => ({ ...r, athleteId: a.id })));
+
+  const plan = await prisma.$transaction(async (tx) => {
+    const p = await tx.trainingPlan.create({
+      data: {
+        planName: PLAN_NAME,
+        description: "Swimming training plan (test) - 2 weeks, all swimming athletes of COA-000011",
+        sportId: swim.id,
+        coachId: coach.id,
+        frequency: "week",
+        durationWeeks: 2,
+        startDate: new Date("2026-09-14T00:00:00.000Z"),
+        endDate: new Date("2026-09-27T23:59:59.999Z"),
+        status: "active",
+        isTemplate: false,
+      },
+    });
+    for (let i = 0; i < athletes.length; i++) {
+      await tx.trainingPlanAthlete.create({ data: { planId: p.id, athleteId: athletes[i].id } });
+      await tx.planActivity.createMany({ data: rowsByAthlete[i].map((r) => ({ ...r, planId: p.id })) });
+    }
+    await tx.auditLog.create({
+      data: {
+        userId: coach.userId,
+        action: "create_training_plan",
+        entityType: "TrainingPlan",
+        entityId: p.id,
+        description: `Created '${PLAN_NAME}' for ${athletes.length} athlete(s) (${rowsByAthlete.reduce((n, r) => n + r.length, 0)} activities) via import tool`,
+      },
+    });
+    return p;
   });
 
-  let activities = 0;
-  const lines = [];
-  for (let i = 0; i < athletes.length; i++) {
-    const a = athletes[i];
-    await prisma.trainingPlanAthlete.create({ data: { planId: plan.id, athleteId: a.id } });
-    const rows = buildActivities(i).map((r) => ({ ...r, planId: plan.id, athleteId: a.id }));
-    await prisma.planActivity.createMany({ data: rows });
-    activities += rows.length;
-    lines.push(`${a.firstName} ${a.lastName}: ${rows.length} activities`);
-  }
-
-  await prisma.auditLog.create({
-    data: {
-      userId: coach.userId,
-      action: "create_training_plan",
-      entityType: "TrainingPlan",
-      entityId: plan.id,
-      description: `Created '${PLAN_NAME}' for ${athletes.length} athlete(s) (${activities} activities) via import tool`,
-    },
-  });
-
-  return { duplicate: false, planId: plan.id, planName: PLAN_NAME, athleteCount: athletes.length, activityCount: activities, athletes: lines };
+  const activityCount = rowsByAthlete.reduce((n, r) => n + r.length, 0);
+  const lines = athletes.map((a, i) => `${a.firstName} ${a.lastName}: ${rowsByAthlete[i].length} activities`);
+  return { duplicate: false, planId: plan.id, planName: PLAN_NAME, athleteCount: athletes.length, activityCount, athletes: lines };
 }
 
 export default async function handler(req, res) {
