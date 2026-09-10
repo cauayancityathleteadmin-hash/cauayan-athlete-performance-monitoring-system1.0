@@ -700,6 +700,7 @@ async function seedTestData(ref) {
     { key: "swimTemplate", planName: "Swim Technique Template", description: "Reusable stroke technique sessions (template).", sportName: "Swimming", coachKey: "coachOne", frequency: "day", durationWeeks: 8, startDate: new Date("2026-09-01"), endDate: null, status: "active", isTemplate: true, athleteIdx: [] },
     { key: "sprint6", planName: "Pre-Season Sprint Conditioning - Test", description: "Base-speed and start development block for test coach.", sportName: "Athletics", coachKey: "coachSix", frequency: "day", durationWeeks: 4, startDate: new Date("2026-08-24"), endDate: new Date("2026-09-20"), status: "active", isTemplate: false, athleteIdx: [36, 37, 38, 39] },
     { key: "mileage6", planName: "Mileage Build-Up Base Week - Test", description: "Aerobic base accumulation before speed work for test coach.", sportName: "Athletics", coachKey: "coachSix", frequency: "week", durationWeeks: 8, startDate: new Date("2026-07-01"), endDate: new Date("2026-08-25"), status: "active", isTemplate: false, athleteIdx: [36, 38] },
+    { key: "test101", planName: "test 101", description: "Weekly swimming training plan for test coach.", sportName: "Swimming", coachKey: "coachSix", frequency: "week", durationWeeks: 2, startDate: new Date("2026-09-08"), endDate: new Date("2026-09-19"), status: "active", isTemplate: false, athleteIdx: [36, 37] },
   ];
 
   const trainingPlans = {};
@@ -790,6 +791,32 @@ async function seedTestData(ref) {
     ["mileage6", 37, "Fartlek 8k", "endurance", 8, "km", null, null, null, null, null, 1],
     ["mileage6", 38, "Recovery run 4k", "endurance", 4, "km", null, null, null, null, null, 1],
     ["mileage6", 39, "Long run 5k easy", "endurance", 5, "km", null, null, null, null, null, 1],
+    // Test 101 plan - Swimming activities - Week 1
+    ["test101", 36, "Freestyle drill set", "skill_technique", 20, "attempts", 5, null, null, null, 1, 1],
+    ["test101", 36, "Endurance pull set 500m", "endurance", 500, "meters", null, null, 500, null, 1, 1],
+    ["test101", 36, "Kick set 8x50m", "endurance", 8, "reps", null, null, 50, null, 2, 1],
+    ["test101", 36, "Vertical jump test", "power", 10, "reps", 3, null, null, null, 8, 1],
+    ["test101", 36, "Treading water sprints", "speed_agility", 6, "reps", null, null, null, null, 1, 1],
+    ["test101", 36, "Mobility circuit", "mobility", 15, "min", null, null, null, null, 3, 1],
+    ["test101", 37, "Freestyle drill set", "skill_technique", 20, "attempts", 5, null, null, null, null, 1, 1],
+    ["test101", 37, "Endurance pull set 500m", "endurance", 500, "meters", null, null, 500, null, 1, 1],
+    ["test101", 37, "Kick set 8x50m", "endurance", 8, "reps", null, null, 50, null, 2, 1],
+    ["test101", 37, "Vertical jump test", "power", 10, "reps", 3, null, null, null, 8, 1],
+    ["test101", 37, "Treading water sprints", "speed_agility", 6, "reps", null, null, null, null, 1, 1],
+    ["test101", 37, "Mobility circuit", "mobility", 15, "min", null, null, null, null, 3, 1],
+    // Test 101 plan - Swimming activities - Week 2
+    ["test101", 36, "Freestyle drill set", "skill_technique", 25, "attempts", 5, null, null, null, 1, 2],
+    ["test101", 36, "Endurance pull set 600m", "endurance", 600, "meters", null, null, 600, null, 1, 2],
+    ["test101", 36, "Kick set 10x50m", "endurance", 10, "reps", null, null, 50, null, 2, 2],
+    ["test101", 36, "Interval sprints 4x50m", "speed_agility", 4, "reps", null, null, null, null, 1, 2],
+    ["test101", 36, "Core strength circuit", "power", 12, "reps", 3, null, null, null, 8, 2],
+    ["test101", 36, "Flexibility stretch", "mobility", 20, "min", null, null, null, null, 3, 2],
+    ["test101", 37, "Freestyle drill set", "skill_technique", 25, "attempts", 5, null, null, null, null, 1, 2],
+    ["test101", 37, "Endurance pull set 600m", "endurance", 600, "meters", null, null, 600, null, 1, 2],
+    ["test101", 37, "Kick set 10x50m", "endurance", 10, "reps", null, null, 50, null, 2, 2],
+    ["test101", 37, "Interval sprints 4x50m", "speed_agility", 4, "reps", null, null, null, null, 1, 2],
+    ["test101", 37, "Core strength circuit", "power", 12, "reps", 3, null, null, null, 8, 2],
+    ["test101", 37, "Flexibility stretch", "mobility", 20, "min", null, null, null, null, 3, 2],
   ];
   for (const [planKey, aidx, name, fitness, qty, unit, sets, reps, dist, load, day, week] of activitySeed) {
     const plan = trainingPlans[planKey];
@@ -842,6 +869,32 @@ async function seedTestData(ref) {
     ["mileage6", 37, "Fartlek 8k", "done", 8, null, null],
     ["mileage6", 38, "Recovery run 4k", "done", 4, null, null],
     ["mileage6", 39, "Long run 5k easy", "done", 5, null, null],
+    // Test 101 plan - Swimming logs - Week 1
+    ["test101", 36, "Freestyle drill set", "done", 20, 5, null],
+    ["test101", 36, "Endurance pull set 500m", "done", 500, null, null],
+    ["test101", 36, "Kick set 8x50m", "partial", 8, null, null],
+    ["test101", 36, "Vertical jump test", "done", 10, 3, null],
+    ["test101", 36, "Treading water sprints", "missed", null, null, null],
+    ["test101", 36, "Mobility circuit", "done", 15, null, null],
+    ["test101", 37, "Freestyle drill set", "done", 20, 5, null],
+    ["test101", 37, "Endurance pull set 500m", "done", 500, null, null],
+    ["test101", 37, "Kick set 8x50m", "partial", 8, null, null],
+    ["test101", 37, "Vertical jump test", "done", 10, 3, null],
+    ["test101", 37, "Treading water sprints", "missed", null, null, null],
+    ["test101", 37, "Mobility circuit", "done", 15, null, null],
+    // Test 101 plan - Swimming logs - Week 2
+    ["test101", 36, "Freestyle drill set", "done", 25, 5, null],
+    ["test101", 36, "Endurance pull set 600m", "done", 600, null, null],
+    ["test101", 36, "Kick set 10x50m", "done", 10, null, null],
+    ["test101", 36, "Interval sprints 4x50m", "done", 4, null, null],
+    ["test101", 36, "Core strength circuit", "done", 12, 3, null],
+    ["test101", 36, "Flexibility stretch", "partial", 20, null, null],
+    ["test101", 37, "Freestyle drill set", "done", 25, 5, null],
+    ["test101", 37, "Endurance pull set 600m", "done", 600, null, null],
+    ["test101", 37, "Kick set 10x50m", "done", 10, null, null],
+    ["test101", 37, "Interval sprints 4x50m", "done", 4, null, null],
+    ["test101", 37, "Core strength circuit", "done", 12, 3, null],
+    ["test101", 37, "Flexibility stretch", "done", 20, null, null],
   ];
   const loggerUser = coachUsers.coachTwo;
   for (const [planKey, aidx, name, status, qty, sets, reps] of logSeed) {
