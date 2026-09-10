@@ -249,6 +249,7 @@ async function seedTestData(ref) {
     ["coachThree", "ereyes", "elena.reyes@cauayan.local", "COA-100003", "Elena", "Mendoza", "Reyes", "1988-01-15", "0917 111 0003"],
     ["coachFour", "jramos", "jose.ramos@cauayan.local", "COA-100004", "Jose", "Martin", "Ramos", "1983-07-30", "0917 111 0004"],
     ["coachFive", "rosdiaz", "rosa.diaz@cauayan.local", "COA-100005", "Rosa", "Bautista", "Diaz", "1990-11-05", "0917 111 0005"],
+    ["coachSix", "testcoach", "test.coach@cauayan.local", "COA-000011", "Test", "Coach", "Lastname", "1990-01-01", "0917 111 0011"],
   ];
   for (const [key, username, email, code, first, middle, last, bday, contact] of coachRegs) {
     const user = await ensureUser({
@@ -264,6 +265,7 @@ async function seedTestData(ref) {
     ["coachThree", schools["University of Cagayan Valley - Cauayan"], ["Athletics", "Basketball"]],
     ["coachFour", schools["Cauayan City Science High School"], ["Badminton", "Baseball"]],
     ["coachFive", schools["Burgos National High School"], ["Swimming", "Badminton"]],
+    ["coachSix", schools["Cauayan City National High School"], ["Athletics", "Swimming"]],
   ];
   for (const [key, school, sportNames] of coachProfiles) {
     const u = coachUsers[key];
@@ -359,6 +361,11 @@ async function seedTestData(ref) {
     ["ATH-100034", "Andrei", "Carlo", "Tan", "2007-02-14", "other", "St. Michael Institute of Cauayan", "Badminton", "Singles", "coachFive", "active", "healthy", 172, 65],
     ["ATH-100035", "Lorraine", "Joy", "Villanueva", "2009-06-21", "female", "St. Michael Institute of Cauayan", "Volleyball", "Indoor Volleyball", null, "active", "healthy", 166, 58],
     ["ATH-100036", "Dominic", "Paul", "Sarmiento", "2008-11-08", "male", "St. Michael Institute of Cauayan", "Swimming", "100m Butterfly", null, "active", "healthy", 175, 67],
+    // Coach Six test athletes
+    ["ATH-900001", "Test", "Athlete", "One", "2008-03-15", "male", "Cauayan City National High School", "Athletics", "100m Sprint", "coachSix", "active", "healthy", 170, 65],
+    ["ATH-900002", "Test", "Athlete", "Two", "2009-05-20", "female", "Cauayan City National High School", "Swimming", "50m Freestyle", "coachSix", "active", "healthy", 165, 55],
+    ["ATH-900003", "Test", "Athlete", "Three", "2007-08-10", "male", "Cauayan City National High School", "Athletics", "Long Jump", "coachSix", "active", "healthy", 180, 72],
+    ["ATH-900004", "Test", "Athlete", "Four", "2009-01-25", "female", "Cauayan City National High School", "Swimming", "100m Butterfly", "coachSix", "active", "healthy", 168, 58],
   ];
 
   const athletes = [];
@@ -691,6 +698,8 @@ async function seedTestData(ref) {
     { key: "basket", planName: "Basketball Circuit Training", description: "Explosive legs and conditioning circuit.", sportName: "Basketball", coachKey: "coachTwo", frequency: "month", durationWeeks: 4, startDate: new Date("2026-09-01"), endDate: new Date("2026-09-28"), status: "active", isTemplate: false, athleteIdx: [3, 5, 18, 19] },
     { key: "volley", planName: "Completed 12-Week Foundation", description: "Completed foundational strength block for volleyball athletes.", sportName: "Volleyball", coachKey: "coachTwo", frequency: "week", durationWeeks: 12, startDate: new Date("2026-01-04"), endDate: new Date("2026-03-29"), status: "completed", isTemplate: false, athleteIdx: [4, 21] },
     { key: "swimTemplate", planName: "Swim Technique Template", description: "Reusable stroke technique sessions (template).", sportName: "Swimming", coachKey: "coachOne", frequency: "day", durationWeeks: 8, startDate: new Date("2026-09-01"), endDate: null, status: "active", isTemplate: true, athleteIdx: [] },
+    { key: "sprint6", planName: "Pre-Season Sprint Conditioning - Test", description: "Base-speed and start development block for test coach.", sportName: "Athletics", coachKey: "coachSix", frequency: "day", durationWeeks: 4, startDate: new Date("2026-08-24"), endDate: new Date("2026-09-20"), status: "active", isTemplate: false, athleteIdx: [36, 37, 38, 39] },
+    { key: "mileage6", planName: "Mileage Build-Up Base Week - Test", description: "Aerobic base accumulation before speed work for test coach.", sportName: "Athletics", coachKey: "coachSix", frequency: "week", durationWeeks: 8, startDate: new Date("2026-07-01"), endDate: new Date("2026-08-25"), status: "active", isTemplate: false, athleteIdx: [36, 38] },
   ];
 
   const trainingPlans = {};
@@ -722,6 +731,9 @@ async function seedTestData(ref) {
     ["mileage", 0, "Keep the long run at conversational pace; do not chase the group."],
     ["basket", 3, "Land softly on the box jumps - absorb with the knees, not the back."],
     ["volley", 4, "Great block form in review. Add a pause at the top of the jump."],
+    ["sprint6", 36, "Focus on block starts this week; keep hips low through the first three steps."],
+    ["sprint6", 37, "Your tempo recovery is slow after the last 200m - shorten the walk-back interval."],
+    ["mileage6", 36, "Keep the long run at conversational pace; do not chase the group."],
   ];
   for (const [planKey, aidx, body] of planCommentSeed) {
     const plan = trainingPlans[planKey];
@@ -759,6 +771,25 @@ async function seedTestData(ref) {
     ["volley", 4, "Block jump series", "power", 24, "reps", 4, 6, null, null, 2, 1],
     ["volley", 21, "Approach spiking drills", "skill_technique", 30, "attempts", 5, 6, null, null, 3, 1],
     ["swimTemplate", null, "Kick set 8x50m", "endurance", 8, "reps", null, null, 50, null, 1, 1],
+    // Coach Six test activities - sprint plan
+    ["sprint6", 36, "Flying 40m sprint", "speed_agility", 6, "reps", null, null, null, null, 1, 1],
+    ["sprint6", 36, "Block start drills", "skill_technique", 12, "attempts", null, null, null, null, 1, 1],
+    ["sprint6", 36, "Tempo run 10x200m", "endurance", 10, "reps", null, null, 200, null, 2, 1],
+    ["sprint6", 36, "Med ball throws", "power", 20, "reps", 3, null, null, 6, 3, 1],
+    ["sprint6", 36, "Plyo hurdle hops", "power", 16, "reps", 4, null, null, null, null, 4, 1],
+    ["sprint6", 36, "Hip mobility flow", "mobility", 10, "min", null, null, null, null, 5, 1],
+    ["sprint6", 37, "Flying 40m sprint", "speed_agility", 6, "reps", null, null, null, null, 1, 1],
+    ["sprint6", 37, "Sprint endurance 4x300m", "endurance", 4, "reps", null, null, 300, null, 2, 1],
+    ["sprint6", 37, "Sled push 40m", "strength", 8, "reps", 4, null, 40, 40, 3, 1],
+    ["sprint6", 38, "Starts and accelerations", "speed_agility", 10, "reps", 3, null, null, null, null, 1, 1],
+    ["sprint6", 38, "Eccentric hamstring curls", "strength", 18, "reps", 3, 6, null, null, 3, 1],
+    ["sprint6", 39, "Flying 40m sprint", "speed_agility", 6, "reps", null, null, null, null, 1, 1],
+    ["sprint6", 39, "Sprint endurance 4x300m", "endurance", 4, "reps", null, null, 300, null, 2, 1],
+    // Coach Six test activities - mileage plan
+    ["mileage6", 36, "Long run 5k easy", "endurance", 5, "km", null, null, null, null, null, 1],
+    ["mileage6", 37, "Fartlek 8k", "endurance", 8, "km", null, null, null, null, null, 1],
+    ["mileage6", 38, "Recovery run 4k", "endurance", 4, "km", null, null, null, null, null, 1],
+    ["mileage6", 39, "Long run 5k easy", "endurance", 5, "km", null, null, null, null, null, 1],
   ];
   for (const [planKey, aidx, name, fitness, qty, unit, sets, reps, dist, load, day, week] of activitySeed) {
     const plan = trainingPlans[planKey];
@@ -798,6 +829,19 @@ async function seedTestData(ref) {
     ["volley", 4, "Dynamic warm-up circuit", "done", 10, null, null],
     ["volley", 4, "Block jump series", "done", 24, 4, 6],
     ["volley", 21, "Approach spiking drills", "partial", 20, 4, 5],
+    // Coach Six test logs - sprint plan
+    ["sprint6", 36, "Flying 40m sprint", "done", 6, null, null],
+    ["sprint6", 36, "Block start drills", "partial", 8, null, null],
+    ["sprint6", 36, "Tempo run 10x200m", "done", 10, null, null],
+    ["sprint6", 37, "Flying 40m sprint", "done", 6, null, null],
+    ["sprint6", 37, "Sprint endurance 4x300m", "partial", 4, null, null],
+    ["sprint6", 38, "Starts and accelerations", "done", 10, 3, null],
+    ["sprint6", 39, "Flying 40m sprint", "done", 6, null, null],
+    // Coach Six test logs - mileage plan
+    ["mileage6", 36, "Long run 5k easy", "done", 5, null, null],
+    ["mileage6", 37, "Fartlek 8k", "done", 8, null, null],
+    ["mileage6", 38, "Recovery run 4k", "done", 4, null, null],
+    ["mileage6", 39, "Long run 5k easy", "done", 5, null, null],
   ];
   const loggerUser = coachUsers.coachTwo;
   for (const [planKey, aidx, name, status, qty, sets, reps] of logSeed) {

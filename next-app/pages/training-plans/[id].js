@@ -464,11 +464,46 @@ function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, o
       ) : (
         <div className={styles.tableWrap} style={{ marginTop: 12 }}>
           <table>
-            <thead><tr><th>Activity</th><th>Fitness</th><th>Target</th><th>Latest status</th>{!readOnly && <th></th>}</tr></thead>
+            <thead><tr><th>Fitness Type</th><th>Target</th><th>Latest status</th>{!readOnly && <th></th>}</tr></thead>
             <tbody>
-              {activities.map((activity) => (
-                <ActivityRow key={activity.id} athlete={athlete} activity={activity} logs={logs} onRemove={onRemove} onEdit={onEdit} readOnly={readOnly} />
-              ))}
+              {(() => {
+                const grouped = activities.reduce((acc, act) => {
+                  const ft = act.fitnessType || "endurance";
+                  if (!acc[ft]) acc[ft] = [];
+                  acc[ft].push(act);
+                  return acc;
+                }, {} as Record<string, typeof activities>);
+                return Object.entries(grouped).map(([fitnessType, groupActs]) => {
+                  const latestLogs = groupActs.map((a) => {
+                    const aLogs = logs.filter((l) => l.activityId === a.id && l.athleteId === athlete.id);
+                    return aLogs.length ? [...aLogs].sort((a, b) => new Date(b.performedAt) - new Date(a.performedAt))[0] : null;
+                  });
+                  const latest = latestLogs.length ? [...latestLogs].sort((a, b) => new Date(b.performedAt) - new Date(a.performedAt))[0] : null;
+                  const p = latest ? computeProgress(groupActs[0], latest) : null;
+                  const meta = LOG_STATUS[latest?.status] || LOG_STATUS.planned;
+                  const targetText = groupActs[0].targetQuantity != null ? `${groupActs[0].targetQuantity}${groupActs[0].targetUnit ? ` ${groupActs[0].targetUnit}` : ""}` : groupActs[0].targetDistance != null ? `${groupActs[0].targetDistance} m` : "—";
+                  return (
+                    <tr key={fitnessType}>
+                      <td>
+                        <span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)" }}>{FITNESS_META[fitnessType] || fitnessType}</span>
+                      </td>
+                      <td>{targetText}</td>
+                      <td>
+                        {(() => {
+                          if (!latest) return <span style={{ color: "var(--muted)", fontSize: "12px" }}>Not logged</span>;
+                          return (
+                            <span title={`${fmtDate(latest.performedAt)}${latest.quantityDone != null ? ` · ${latest.quantityDone}${latest.activity?.targetUnit ? ` ${latest.activity.targetUnit}` : ""}` : ""}`} className={`${styles.badge} ${styles[meta.cls]}`} style={{ fontSize: "11px" }}>
+                              {meta.label}
+                              <small style={{ marginLeft: 6, opacity: 0.7 }}>{fmtDate(latest.performedAt)}</small>
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      {!readOnly && <td><button className={`${styles.secondary} ${styles.btnSm}`} onClick={() => { if (editing) setEditing(false); else startEdit(); }} style={{ padding: "4px 8px", fontSize: "12px" }}>{editing ? "Cancel" : "Edit"}</button> <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => onRemove(groupActs[0].id)}>Remove</button></td>}
+                    </tr>
+                  );
+                });
+              })()}
             </tbody>
           </table>
         </div>
