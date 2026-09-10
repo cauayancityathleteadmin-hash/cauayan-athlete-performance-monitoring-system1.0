@@ -472,7 +472,7 @@ function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, o
                   if (!acc[ft]) acc[ft] = [];
                   acc[ft].push(act);
                   return acc;
-                }, {} as Record<string, typeof activities>);
+                }, {});
                 return Object.entries(grouped).map(([fitnessType, groupActs]) => {
                   const latestLogs = groupActs.map((a) => {
                     const aLogs = logs.filter((l) => l.activityId === a.id && l.athleteId === athlete.id);

@@ -25,13 +25,47 @@ export async function getServerSideProps(context) {
   const todayWeek = weekStart(now);
   const firstBucket = new Date(todayWeek.getTime() - 7 * 7 * 86400000);
 
-  const [athletes, coaches, sports, events, assessments, plans, logs, evals, healthIssues, trainingPlans, activityLogs, trainingAssessments] = await Promise.all([
-    prisma.athlete.count(), prisma.coach.count(), prisma.sport.count(), prisma.event.count(),
-    prisma.assessment.count(), prisma.eventPlan.count({ where: { status: "open" } }), prisma.auditLog.count(),
-    prisma.coachPerformance.count(), prisma.athlete.count({ where: { healthStatus: { in: ["sick", "injured", "recovering", "inactive"] } } }),
-    prisma.trainingPlan.count(),
-    prisma.planActivityLog.findMany({ where: { performedAt: { gte: firstBucket }, status: { in: ["done", "partial", "missed"] } }, select: { status: true, performedAt: true } }),
-    prisma.trainingAssessment.findMany({ take: 24, orderBy: { assessmentDate: "desc" }, select: { rating: true, assessmentDate: true, athlete: { select: { firstName: true, lastName: true } } } }),
+  const isAdmin = session.user.role === "admin";
+  const canApprove = isAdmin || Boolean(session?.user?.canApproveCoaches);
+  let coachScope = null;
+  if (!isAdmin) {
+    const coach = await prisma.coach.findUnique({
+      where: { userId: Number(session.user.id) },
+      select: { id: true },
+    });
+    if (coach) coachScope = { coachId: coach.id };
+  }
+
+  const fromToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const nextWeek = new Date(fromToday.getTime() + 7 * 86400000);
+
+  const [athletes, coaches, sports, events, assessments, plans, logs, evals, healthIssues, trainingPlans, activityLogs, trainingAssessments, mySports, myApprovedPlans, pendingCoaches, upcomingSessions] = await Promise.all([
+    coachScope ? prisma.athlete.count({ where: coachScope }) : prisma.athlete.count(),
+    prisma.coach.count(), prisma.sport.count(), prisma.event.count(),
+    coachScope ? prisma.assessment.count({ where: { athlete: coachScope } }) : prisma.assessment.count(),
+    prisma.eventPlan.count({ where: { status: "open" } }), prisma.auditLog.count(),
+    prisma.coachPerformance.count(),
+    coachScope ? prisma.athlete.count({ where: { ...coachScope, healthStatus: { in: ["sick", "injured", "recovering", "inactive"] } } }) : prisma.athlete.count({ where: { healthStatus: { in: ["sick", "injured", "recovering", "inactive"] } } }),
+    coachScope ? prisma.trainingPlan.count({ where: coachScope }) : prisma.trainingPlan.count(),
+    coachScope
+      ? prisma.planActivityLog.findMany({ where: { performedAt: { gte: firstBucket }, status: { in: ["done", "partial", "missed"] }, activity: { plan: { coachId: coachScope.coachId } } }, select: { status: true, performedAt: true } })
+      : prisma.planActivityLog.findMany({ where: { performedAt: { gte: firstBucket }, status: { in: ["done", "partial", "missed"] } }, select: { status: true, performedAt: true } }),
+    coachScope
+      ? prisma.trainingAssessment.findMany({ where: { athlete: coachScope }, take: 24, orderBy: { assessmentDate: "desc" }, select: { rating: true, assessmentDate: true, athlete: { select: { firstName: true, lastName: true } } } })
+      : prisma.trainingAssessment.findMany({ take: 24, orderBy: { assessmentDate: "desc" }, select: { rating: true, assessmentDate: true, athlete: { select: { firstName: true, lastName: true } } } }),
+    coachScope ? (await prisma.athlete.groupBy({ by: ["sportId"], where: coachScope })).length : 0,
+    coachScope
+      ? prisma.eventPlan.count({ where: { status: "open", applications: { some: { coachId: coachScope.coachId, status: "approved" } } } })
+      : 0,
+    canApprove ? prisma.coach.count({ where: { user: { status: "pending" } } }) : 0,
+    prisma.trainingSession.findMany({
+      where: isAdmin
+        ? { sessionDate: { gte: fromToday, lte: nextWeek } }
+        : { coachId: coachScope?.coachId ?? -1, sessionDate: { gte: fromToday, lte: nextWeek } },
+      take: 5,
+      orderBy: { sessionDate: "asc" },
+      select: { id: true, sessionDate: true, sessionType: true, venue: true, sport: { select: { sportName: true } } },
+    }),
   ]);
 
   const buckets = [];
@@ -54,16 +88,18 @@ export async function getServerSideProps(context) {
 
   const recentAssessments = await prisma.assessment.findMany({
     take: 5, orderBy: { assessmentDate: "desc" },
+    where: coachScope ? { athlete: coachScope } : undefined,
     select: { id: true, assessmentDate: true, assessmentType: true, athlete: { select: { athleteCode: true, firstName: true, lastName: true } } },
   });
 
   return {
     props: {
       session,
-      stats: { athletes, coaches, sports, events, assessments, plans, logs, evals, healthIssues, trainingPlans },
+      stats: { athletes, coaches, sports, events, assessments, plans, logs, evals, healthIssues, trainingPlans, mySports, myApprovedPlans, pendingCoaches },
       completion: JSON.parse(JSON.stringify(buckets)),
       ratingSeries: JSON.parse(JSON.stringify(ratingSeries)),
       recentAssessments: recentAssessments.map((item) => ({ ...item, assessmentDate: item.assessmentDate.toISOString() })),
+      upcomingSessions: upcomingSessions.map((item) => ({ ...item, sessionDate: item.sessionDate.toISOString() })),
     },
   };
 }
@@ -72,7 +108,7 @@ const chartTooltip = { contentStyle: { background: "#06261e", border: "1px solid
 const weekLabel = (iso) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 const dateLabel = (iso) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
-export default function Dashboard({ stats, completion, ratingSeries, recentAssessments }) {
+export default function Dashboard({ stats, completion, ratingSeries, recentAssessments, upcomingSessions }) {
   const router = useRouter();
   const { data: session } = useSession();
   useEffect(() => {
@@ -81,6 +117,7 @@ export default function Dashboard({ stats, completion, ratingSeries, recentAsses
   if (!session) return <main className={styles.loading}><p>Loading secure account...</p></main>;
   if (session.user.mustChangePassword) return <main className={styles.loading}><p>Redirecting to secure password change...</p></main>;
   const isAdmin = session.user.role === "admin";
+  const canApprove = isAdmin || Boolean(session?.user?.canApproveCoaches);
   const cards = isAdmin
     ? [
         ["Athletes", stats.athletes, "/athletes"],
@@ -89,18 +126,42 @@ export default function Dashboard({ stats, completion, ratingSeries, recentAsses
         ["Assessments", stats.assessments, "/assessments"],
       ]
     : [
-        ["All athletes", stats.athletes, "/athletes"],
-        ["My sports", stats.sports, "/athletes"],
-        ["Assessments", stats.assessments, "/assessments"],
-        ["Open event plans", stats.plans, "/event-plans"],
+        ["My athletes", stats.athletes, "/athletes"],
+        ["My sports", stats.mySports, "/athletes"],
+        ["My assessments", stats.assessments, "/assessments"],
+        ["My approved plans", stats.myApprovedPlans, "/event-plans"],
       ];
   const hasCompletion = completion.some((w) => w.done > 0 || w.partial > 0 || w.missed > 0);
   return <>
     <Head><title>Dashboard | Cauayan Athlete Performance</title><meta name="description" content="Athlete performance monitoring dashboard" /></Head>
     <AppShell session={session} isAdmin={isAdmin} active="/dashboard">
-      <section className={styles.intro}><div><p className={styles.eyebrow}>Overview</p><h2>Good day, {session.user.name?.split(" ")[0] || "team"}.</h2><p>Here is what is happening across the athletics program today. Click any card to dig in.</p></div></section>
+      <section className={styles.intro}><div><p className={styles.eyebrow}>Overview</p><h2>Good day, {session.user.name?.split(" ")[0] || "team"}.</h2><p>Here is what is happening across the athletics program today. Click any card to dig in.</p></div>
+        <div className={styles.quickActions} aria-label="Quick actions">
+          <Link className={`${styles.secondary} ${styles.btnSm}`} href="/athletes">New athlete</Link>
+          <Link className={`${styles.secondary} ${styles.btnSm}`} href="/training-plans">New training plan</Link>
+          {isAdmin && <Link className={`${styles.secondary} ${styles.btnSm}`} href="/admin/catalog">Add sport</Link>}
+        </div></section>
       <section className={styles.cards} aria-label="System totals">{cards.map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>
       {isAdmin && <section className={styles.cards} aria-label="Administration summary">{[["Training plans", stats.trainingPlans, "/training-plans"], ["Coach evaluations", stats.evals, "/admin/coach-performances"], ["Athletes with health flags", stats.healthIssues, "/athletes?health=flagged"], ["Open event plans", stats.plans, "/event-plans"]].map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>}
+      {(canApprove && stats.pendingCoaches > 0) || stats.healthIssues > 0 ? (
+        <section className={styles.alertList} aria-label="Alerts">
+          {canApprove && stats.pendingCoaches > 0 && <Link className={`${styles.alertItem} ${styles.alertWarn}`} href="/coach-approvals"><span className={`${styles.dot} ${styles.dotWarn}`} aria-hidden="true" /><span><strong>{stats.pendingCoaches} pending coach approval{stats.pendingCoaches === 1 ? "" : "s"}</strong><small>Review new coach accounts waiting for approval.</small></span></Link>}
+          {stats.healthIssues > 0 && <Link className={`${styles.alertItem} ${styles.alertDanger}`} href="/athletes?health=flagged"><span className={`${styles.dot} ${styles.dotDanger}`} aria-hidden="true" /><span><strong>{stats.healthIssues} athlete{stats.healthIssues === 1 ? "" : "s"} flagged for health</strong><small>Family doctor and manager notes need attention.</small></span></Link>}
+        </section>
+      ) : null}
+      {upcomingSessions.length > 0 && (
+        <section className={styles.scheduleList} aria-label="Upcoming training sessions">
+          {upcomingSessions.map((item) => {
+            const d = new Date(item.sessionDate);
+            return (
+              <div key={item.id} className={styles.scheduleItem}>
+                <div className={styles.dateChip}><strong>{d.getDate()}</strong><small>{d.toLocaleDateString("en-US", { month: "short" })}</small></div>
+                <div className={styles.scheduleMeta}><strong>{item.sessionType} · {item.sport.sportName}</strong><small>{d.toLocaleDateString("en-US", { weekday: "short" })} {d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} {item.venue ? `· ${item.venue}` : ""}</small></div>
+              </div>
+            );
+          })}
+        </section>
+      )}
       <section className={styles.grid}>
         <div className={styles.detailPanel} style={{ width: "100%" }}>
           <h4>Training activity completion <small style={{ color: "var(--muted)", fontWeight: 400 }}>last 8 weeks, from real activity logs</small></h4>

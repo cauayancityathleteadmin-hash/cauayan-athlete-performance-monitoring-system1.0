@@ -231,6 +231,15 @@ useEffect(() => {
   }
 }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    function onKey(event) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
   const toggleNav = () => {
     setOpen((v) => !v);
     setCollapsed((v) => {
@@ -252,7 +261,7 @@ useEffect(() => {
           <React.Fragment key={group.label}>
             {showCaption && <p className={styles.navHeading}>{group.label.toUpperCase()}</p>}
             {links.map((link) => (
-              <Link key={link.href} href={link.href} className={isActive(link.href)} title={link.label} aria-label={link.label} onClick={() => setOpen(false)}>
+              <Link key={link.href} href={link.href} className={isActive(link.href)} title={link.label} aria-label={link.label} aria-current={isActive(link.href) ? "page" : undefined} onClick={() => setOpen(false)}>
                 <span className={styles.navIcon} aria-hidden="true">{ICONS[link.icon]}</span>
                 <span className={styles.navLabel}>{link.label}</span>
               </Link>
@@ -265,17 +274,20 @@ useEffect(() => {
 
   return (
     <div className={styles.shell}>
+      <a className={styles.skipLink} href="#apms-main">
+        Skip to main content
+      </a>
       <header className={styles.topbar}>
         <div className={styles.topLeft}>
           <button
             type="button"
             className={styles.menuToggle}
-            aria-label="Toggle navigation menu"
+            aria-label={collapsed ? "Open main menu" : "Close main menu"}
             aria-expanded={collapsed ? false : open}
             onClick={toggleNav}
             title={collapsed ? "Show menu" : "Hide menu"}
           >
-            ☰
+            {open && !collapsed ? "✕" : "☰"}
           </button>
           <div className={styles.brand}>
             <Link href="/dashboard" onClick={() => setOpen(false)}>
@@ -295,10 +307,10 @@ useEffect(() => {
           </button>
         </div>
       </header>
-      {open && <div className={styles.mobileNav}>{nav}</div>}
+      {open && <div className={styles.mobileNav}><button type="button" className={styles.menuClose} onClick={() => setOpen(false)}>✕ Close menu</button>{nav}</div>}
       <div className={styles.layout}>
         {!collapsed && nav}
-        <main className={styles.content}>{children}</main>
+        <main id="apms-main" className={styles.content} tabIndex={-1}>{children}</main>
       </div>
     </div>
   );
