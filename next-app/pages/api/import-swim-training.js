@@ -43,7 +43,7 @@ function buildActivities(athleteIdx) {
     BASE_DEFS.forEach((def) => {
       acts.push({
         ...activity(def, week, athleteIdx % 2),
-        dayIndex: order % 9,
+        dayIndex: (order % 7) + 1,
         weekNumber: week,
         orderIndex: order,
       });
