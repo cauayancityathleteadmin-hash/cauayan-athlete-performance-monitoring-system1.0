@@ -25,6 +25,14 @@ async function isPlanOwnerForActivity(prismaClient, session, activityId) {
   return false;
 }
 
+async function canViewPlan(prismaClient, session, planIdValue) {
+  const plan = await prismaClient.trainingPlan.findUnique({ where: { id: planIdValue }, select: { coachId: true } });
+  if (!plan) return null;
+  if (session.user.role === "admin") return true;
+  const coach = await prismaClient.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
+  return !!(coach && plan.coachId === coach.id);
+}
+
 export default async function handler(req, res) {
   setSecurityHeaders(res);
   const session = await requireSession(req, res);
@@ -39,6 +47,16 @@ export default async function handler(req, res) {
     const activityId = validId(req.query.activityId);
     const athleteId = validId(req.query.athleteId);
     if (!planId && !activityId) return res.status(400).json({ error: "Provide a planId or activityId to list progress." });
+
+    let targetPlanId = planId;
+    if (!targetPlanId && activityId) {
+      const act = await prisma.planActivity.findUnique({ where: { id: activityId }, select: { planId: true } });
+      if (!act) return res.status(404).json({ error: "Activity not found." });
+      targetPlanId = act.planId;
+    }
+    const access = await canViewPlan(prisma, session, targetPlanId);
+    if (access === null) return res.status(404).json({ error: "Plan not found." });
+    if (!access) return res.status(403).json({ error: "You do not have permission to view these progress logs." });
 
     const where = {};
     if (activityId) where.activityId = activityId;

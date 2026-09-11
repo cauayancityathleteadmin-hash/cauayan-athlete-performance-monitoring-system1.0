@@ -17,7 +17,7 @@ export async function getServerSideProps(context) {
     prisma.performanceMetric.findMany({ where: { status: "active" }, select: { id: true, eventId: true, metricName: true, dataType: true, isRequired: true }, orderBy: { metricName: "asc" } }),
   ]);
   const assessments = assessmentResult.items.map((item) => ({ ...item, assessmentDate: item.assessmentDate.toISOString(), createdAt: item.createdAt.toISOString(), results: item.results.map((result) => ({ ...result, valueDecimal: result.valueDecimal?.toString() || null })) }));
-  return { props: { session, catalog: { athletes, metrics }, assessments, page: assessmentResult.page, totalPages: assessmentResult.totalPages, total: assessmentResult.total } };
+  return { props: { session, catalog: { athletes: JSON.parse(JSON.stringify(athletes)), metrics }, assessments: JSON.parse(JSON.stringify(assessments)), page: assessmentResult.page, totalPages: assessmentResult.totalPages, total: assessmentResult.total } };
 }
 
 export default function Assessments({ assessments, catalog, session, page, totalPages, total }) {

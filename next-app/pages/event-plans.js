@@ -26,7 +26,7 @@ export async function getServerSideProps(context) {
     coachId = coach?.id ?? null;
     athletes = coach ? await prisma.athlete.findMany({ where: { coach: { userId: Number(session.user.id) }, status: "active" }, select: { id: true, athleteCode: true, firstName: true, lastName: true }, orderBy: { lastName: "asc" } }) : [];
   }
-  return { props: { session, plans, page: planResult.page, totalPages: planResult.totalPages, sports, athletes: JSON.parse(JSON.stringify(athletes)), coachId } };
+  return { props: { session, plans: JSON.parse(JSON.stringify(plans)), page: planResult.page, totalPages: planResult.totalPages, sports, athletes: JSON.parse(JSON.stringify(athletes)), coachId } };
 }
 
 const STATUS_META = {

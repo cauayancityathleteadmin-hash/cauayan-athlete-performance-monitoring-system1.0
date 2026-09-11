@@ -69,7 +69,7 @@ export async function getServerSideProps(context) {
   const perPage = 25;
   const totalPages = Math.max(1, Math.ceil(athletes.length / perPage));
   const paginated = athletes.slice((page - 1) * perPage, page * perPage);
-  return { props: { session, catalog: { sports, events, coaches }, athletes, paginated, page: Math.min(page, totalPages), totalPages, total: athletes.length, sort, dir, health, allAthletes: JSON.parse(JSON.stringify(allAthletes)), ownCoachId: ownCoach ? ownCoach.id : null } };
+  return { props: { session, catalog: { sports: JSON.parse(JSON.stringify(sports)), events: JSON.parse(JSON.stringify(events)), coaches: JSON.parse(JSON.stringify(coaches)) }, athletes: JSON.parse(JSON.stringify(athletes)), paginated: JSON.parse(JSON.stringify(paginated)), page: Math.min(page, totalPages), totalPages, total: athletes.length, sort, dir, health, allAthletes: JSON.parse(JSON.stringify(allAthletes)), ownCoachId: ownCoach ? ownCoach.id : null } };
 }
 
 export default function Athletes({ session, athletes, paginated: serverPaginated, catalog, page: serverPage, totalPages: serverTotalPages, total, sort, dir, health, allAthletes = [], ownCoachId = null }) {

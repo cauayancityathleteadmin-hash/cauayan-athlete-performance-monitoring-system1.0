@@ -31,7 +31,8 @@ export async function getServerSideProps(context) {
         dateRegistered: iso(user.coach.dateRegistered),
         createdAt: iso(user.coach.createdAt),
         updatedAt: iso(user.coach.updatedAt),
-        sports: user.coach.sports.map((cs) => ({ ...cs, sport: cs.sport })),
+        sports: user.coach.sports.map((cs) => ({ ...cs, sport: JSON.parse(JSON.stringify(cs.sport)) })),
+        school: JSON.parse(JSON.stringify(user.coach.school)),
       }
     : null;
 

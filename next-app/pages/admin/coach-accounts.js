@@ -16,7 +16,7 @@ export async function getServerSideProps(context) {
     },
     orderBy: { lastName: "asc" },
   });
-  return { props: { session, coaches: coaches.map((c) => ({ ...c, sports: c.sports.map((cs) => ({ ...cs, sport: cs.sport })) })) } };
+  return { props: { session, coaches: JSON.parse(JSON.stringify(coaches.map((c) => ({ ...c, sports: c.sports.map((cs) => ({ ...cs, sport: cs.sport })) })))) } };
 }
 
 function statusLabel(status) {

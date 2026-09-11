@@ -19,7 +19,7 @@ export async function getServerSideProps(context) {
     },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }]
   });
-  return { props: { session, coaches: coaches.map((c) => ({ ...c, user: { ...c.user, createdAt: c.user.createdAt.toISOString(), lastLoginAt: c.user.lastLoginAt ? c.user.lastLoginAt.toISOString() : null }, sports: c.sports.map(cs => ({ ...cs, sport: cs.sport })), athletesCount: c._count.athletes })) } };
+  return { props: { session, coaches: JSON.parse(JSON.stringify(coaches.map((c) => ({ ...c, user: { ...c.user, createdAt: c.user.createdAt.toISOString(), lastLoginAt: c.user.lastLoginAt ? c.user.lastLoginAt.toISOString() : null }, sports: c.sports.map(cs => ({ ...cs, sport: cs.sport })), athletesCount: c._count.athletes })))) } };
 }
 
 const FILTERS = ["all", "active", "pending", "rejected", "inactive"];

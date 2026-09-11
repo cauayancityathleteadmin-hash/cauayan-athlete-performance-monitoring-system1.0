@@ -75,11 +75,11 @@ export async function getServerSideProps(context) {
     props: {
       session,
       isAdmin,
-      plan: {
+      plan: JSON.parse(JSON.stringify({
         ...plan,
         startDate: plan.startDate.toISOString(),
         endDate: plan.endDate ? plan.endDate.toISOString() : null,
-      },
+      })),
       athletes: JSON.parse(JSON.stringify(planAthletes.map((a) => a.athlete))),
       initialActivities: JSON.parse(JSON.stringify(allActivities)),
       initialLogs: JSON.parse(JSON.stringify(logs)),
@@ -437,6 +437,63 @@ function sanitizeTargetFields(fitnessType, fields) {
 function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, onEdit, onChanged, readOnly = false }) {
   const [adding, setAdding] = React.useState(false);
   const [showActivities, setShowActivities] = React.useState(true);
+  const [editingId, setEditingId] = React.useState(null);
+  const [draft, setDraft] = React.useState(null);
+  const [saving, setSaving] = React.useState(false);
+
+  function startEdit(act) {
+    setDraft({
+      id: act.id,
+      activityName: act.activityName,
+      fitnessType: act.fitnessType,
+      targetQuantity: act.targetQuantity != null ? String(act.targetQuantity) : "",
+      targetUnit: act.targetUnit || "",
+      targetSets: act.targetSets != null ? String(act.targetSets) : "",
+      targetReps: act.targetReps != null ? String(act.targetReps) : "",
+      targetDistance: act.targetDistance != null ? String(act.targetDistance) : "",
+      targetLoad: act.targetLoad != null ? String(act.targetLoad) : "",
+      instructions: act.instructions || "",
+      dayIndex: act.dayIndex != null ? String(act.dayIndex) : "",
+      weekNumber: act.weekNumber != null ? String(act.weekNumber) : "",
+    });
+    setEditingId(act.id);
+  }
+
+  function setField(name, value) {
+    setDraft((d) => {
+      const next = { ...d, [name]: value };
+      if (name === "fitnessType") {
+        const allowed = UNITS_BY_FITNESS[value] || [];
+        if (!allowed.includes(next.targetUnit)) next.targetUnit = allowed[0] || "";
+        const rules = targetFieldRules(value);
+        if (!rules.sets) next.targetSets = "";
+        if (!rules.reps) next.targetReps = "";
+        if (!rules.distance) next.targetDistance = "";
+        if (!rules.load) next.targetLoad = "";
+      }
+      return next;
+    });
+  }
+
+  function submitEdit(e) {
+    e.preventDefault();
+    setSaving(true);
+    onEdit(draft.id, {
+      activityName: draft.activityName,
+      fitnessType: draft.fitnessType,
+      targetQuantity: draft.targetQuantity || null,
+      targetUnit: draft.targetUnit || null,
+      targetSets: draft.targetSets || null,
+      targetReps: draft.targetReps || null,
+      targetDistance: draft.targetDistance || null,
+      targetLoad: draft.targetLoad || null,
+      instructions: draft.instructions || null,
+      dayIndex: draft.dayIndex ? parseInt(draft.dayIndex) : null,
+      weekNumber: draft.weekNumber ? parseInt(draft.weekNumber) : null,
+    });
+    setEditingId(null);
+    setSaving(false);
+  }
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "14px 16px", background: "rgba(6,38,30,.35)" }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
@@ -474,16 +531,19 @@ function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, o
                   return acc;
                 }, {});
                 return Object.entries(grouped).map(([fitnessType, groupActs]) => {
+                  const firstActivity = groupActs[0];
                   const latestLogs = groupActs.map((a) => {
                     const aLogs = logs.filter((l) => l.activityId === a.id && l.athleteId === athlete.id);
                     return aLogs.length ? [...aLogs].sort((a, b) => new Date(b.performedAt) - new Date(a.performedAt))[0] : null;
                   });
-                  const latest = latestLogs.length ? [...latestLogs].sort((a, b) => new Date(b.performedAt) - new Date(a.performedAt))[0] : null;
-                  const p = latest ? computeProgress(groupActs[0], latest) : null;
+                  const latest = latestLogs.length ? [...latestLogs].filter(Boolean).sort((a, b) => new Date(b.performedAt) - new Date(a.performedAt))[0] : null;
+                  const p = latest ? computeProgress(firstActivity, latest) : null;
                   const meta = LOG_STATUS[latest?.status] || LOG_STATUS.planned;
-                  const targetText = groupActs[0].targetQuantity != null ? `${groupActs[0].targetQuantity}${groupActs[0].targetUnit ? ` ${groupActs[0].targetUnit}` : ""}` : groupActs[0].targetDistance != null ? `${groupActs[0].targetDistance} m` : "—";
+                  const targetText = firstActivity.targetQuantity != null ? `${firstActivity.targetQuantity}${firstActivity.targetUnit ? ` ${firstActivity.targetUnit}` : ""}` : firstActivity.targetDistance != null ? `${firstActivity.targetDistance} m` : "—";
+                  const isEditing = editingId === firstActivity.id;
                   return (
-                    <tr key={fitnessType}>
+                    <React.Fragment key={fitnessType}>
+                    <tr>
                       <td data-label="Fitness Type">
                         <span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)" }}>{FITNESS_META[fitnessType] || fitnessType}</span>
                       </td>
@@ -499,8 +559,34 @@ function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, o
                           );
                         })()}
                       </td>
-                      {!readOnly && <td><button className={`${styles.secondary} ${styles.btnSm}`} onClick={() => { if (editing) setEditing(false); else startEdit(); }} style={{ padding: "4px 8px", fontSize: "12px" }}>{editing ? "Cancel" : "Edit"}</button> <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => onRemove(groupActs[0].id)}>Remove</button></td>}
+                      {!readOnly && <td><button className={`${styles.secondary} ${styles.btnSm}`} onClick={() => { if (isEditing) setEditingId(null); else startEdit(firstActivity); }} style={{ padding: "4px 8px", fontSize: "12px" }}>{isEditing ? "Cancel" : "Edit"}</button> <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => onRemove(firstActivity.id)}>Remove</button></td>}
                     </tr>
+                    {isEditing && draft && (
+                      <tr><td colSpan="4" style={{ padding: 0, background: "transparent" }}>
+                        <div className={styles.detailPanel}>
+                          <form onSubmit={submitEdit} className={styles.formGrid} style={{ marginTop: 0 }}>
+                            <label className={styles.fullField}>Activity name *<input className={styles.fieldControl} value={draft.activityName} onChange={(e) => setField("activityName", e.target.value)} required maxLength="191" /></label>
+                            <label>Fitness dimension<select className={styles.fieldControl} value={draft.fitnessType} onChange={(e) => setField("fitnessType", e.target.value)}>{Object.keys(FITNESS_META).map((k) => <option key={k} value={k}>{FITNESS_META[k]}</option>)}</select></label>
+                            {targetFieldRules(draft.fitnessType).quantity && <>
+                              <label>Target quantity<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetQuantity} onChange={(e) => setField("targetQuantity", e.target.value)} placeholder="e.g. 20" /></label>
+                              <label>Target unit<select className={styles.fieldControl} value={draft.targetUnit} onChange={(e) => setField("targetUnit", e.target.value)}><option value="">— select —</option>{(UNITS_BY_FITNESS[draft.fitnessType] || []).map((u) => <option key={u} value={u}>{u}</option>)}</select></label>
+                            </>}
+                            {targetFieldRules(draft.fitnessType).sets && <label>Sets<input className={styles.fieldControl} type="number" min="0" value={draft.targetSets} onChange={(e) => setField("targetSets", e.target.value)} /></label>}
+                            {targetFieldRules(draft.fitnessType).reps && <label>Reps<input className={styles.fieldControl} type="number" min="0" value={draft.targetReps} onChange={(e) => setField("targetReps", e.target.value)} /></label>}
+                            {targetFieldRules(draft.fitnessType).distance && <label>Distance (m)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetDistance} onChange={(e) => setField("targetDistance", e.target.value)} /></label>}
+                            {targetFieldRules(draft.fitnessType).load && <label>Load (kg)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetLoad} onChange={(e) => setField("targetLoad", e.target.value)} /></label>}
+                            <label>Day (1–7)<input className={styles.fieldControl} type="number" min="1" max="7" value={draft.dayIndex} onChange={(e) => setField("dayIndex", e.target.value)} placeholder="Day" /></label>
+                            <label>Week<input className={styles.fieldControl} type="number" min="1" value={draft.weekNumber} onChange={(e) => setField("weekNumber", e.target.value)} placeholder="Week" /></label>
+                            <label className={styles.fullField}>Instructions<textarea className={styles.fieldControl} rows="2" maxLength="2000" value={draft.instructions} onChange={(e) => setField("instructions", e.target.value)} /></label>
+                            <div className={styles.formActions}>
+                              <button type="button" className={styles.secondary} onClick={() => setEditingId(null)} disabled={saving}>Cancel</button>
+                              <button className={styles.primary} disabled={saving}>{saving ? "Saving..." : "Save changes"}</button>
+                            </div>
+                          </form>
+                        </div>
+                      </td></tr>
+                    )}
+                    </React.Fragment>
                   );
                 });
               })()}

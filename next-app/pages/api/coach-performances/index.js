@@ -21,6 +21,7 @@ export default async function handler(req, res) {
   if (!rate.allowed) return res.status(429).json({ error: "Too many requests. Please try again later." });
 
   if (req.method === "GET") {
+    if (!requireRole(session, "admin", res)) return;
     const evals = await prisma.coachPerformance.findMany({
       orderBy: { createdAt: "desc" },
       include: { coach: { select: { id: true, coachCode: true, firstName: true, lastName: true } }, evaluator: { select: { id: true, email: true, username: true } } },

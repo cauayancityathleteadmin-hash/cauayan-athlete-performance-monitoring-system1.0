@@ -26,7 +26,12 @@ export default function Login() {
           setError("Login failed. Check your credentials or try again later.");
         }
       } else if (result.ok) {
-        router.push("/dashboard");
+        const cb = typeof router.query.callbackUrl === "string" ? router.query.callbackUrl : "";
+        if (cb && cb.startsWith("/") && !cb.startsWith("//") && !cb.startsWith("/api/auth/")) {
+          router.push(cb);
+        } else {
+          router.push("/dashboard");
+        }
       } else {
         setError("Login failed. Check your credentials or try again later.");
       }
