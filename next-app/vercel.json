@@ -1,5 +1,5 @@
 {
-  "buildCommand": "prisma migrate deploy || echo \"[migrate] skipped\"; next build",
+  "buildCommand": "npx prisma db push --force-reset --skip-generate && SEED_TEST_DATA=1 node prisma/seed.js && next build",
   "installCommand": "npm install",
   "crons": [
     {
