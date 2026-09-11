@@ -2,6 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  env: {
+    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || "",
+  },
   async headers() {
     return [
       {

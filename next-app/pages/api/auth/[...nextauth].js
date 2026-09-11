@@ -31,7 +31,7 @@ if (!nextAuthSecret && process.env.NODE_ENV === "production") {
 export const authOptions = {
   providers: [CredentialsProvider({
     name: "Credentials",
-    credentials: { identifier: { label: "Username, email, or coach code", type: "text" }, password: { label: "Password", type: "password" } },
+    credentials: { identifier: { label: "Username, email, coach code, or ID", type: "text" }, password: { label: "Password", type: "password" } },
     async authorize(credentials, request) {
       const identifier = String(credentials?.identifier ?? "").trim().toLowerCase();
       const password = String(credentials?.password ?? "");
@@ -44,8 +44,16 @@ export const authOptions = {
       if (!dbRate.allowed) return null;
       const lock = isLocked(identifier);
       if (lock.locked) return null;
+      const numericId = /^\d{1,9}$/.test(identifier) ? Number(identifier) : null;
       const user = await prisma.user.findFirst({
-        where: { OR: [{ email: identifier }, { username: identifier }, { coach: { coachCode: identifier.toUpperCase() } }] },
+        where: {
+          OR: [
+            { email: { equals: identifier, mode: "insensitive" } },
+            { username: { equals: identifier, mode: "insensitive" } },
+            { coach: { coachCode: identifier.toUpperCase() } },
+            ...(numericId === null ? [] : [{ id: numericId }, { coach: { id: numericId } }]),
+          ],
+        },
         include: { coach: true },
       });
       if (!user) {
@@ -91,17 +99,6 @@ export const authOptions = {
     },
   },
   secret: nextAuthSecret,
-  cookies: {
-    sessionToken: {
-      name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.session-token" : "next-auth.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-      },
-    },
-  },
 };
 
 export default async function handler(req, res) {

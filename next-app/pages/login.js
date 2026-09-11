@@ -48,7 +48,7 @@ export default function Login() {
       <h1>Athlete Performance System</h1>
       <p className="auth-subtitle">Secure monitoring platform</p>
       <form onSubmit={submit} noValidate>
-        <label htmlFor="identifier">Username, email, or coach code</label>
+        <label htmlFor="identifier">Username, email, coach code, or ID</label>
         <input
           id="identifier"
           name="identifier"
