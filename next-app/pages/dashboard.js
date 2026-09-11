@@ -135,12 +135,7 @@ export default function Dashboard({ stats, completion, ratingSeries, recentAsses
   return <>
     <Head><title>Dashboard | Cauayan Athlete Performance</title><meta name="description" content="Athlete performance monitoring dashboard" /></Head>
     <AppShell session={session} isAdmin={isAdmin} active="/dashboard">
-      <section className={styles.intro}><div><p className={styles.eyebrow}>Overview</p><h2>Good day, {session.user.name?.split(" ")[0] || "team"}.</h2><p>Here is what is happening across the athletics program today. Click any card to dig in.</p></div>
-        <div className={styles.quickActions} aria-label="Quick actions">
-          <Link className={`${styles.secondary} ${styles.btnSm}`} href="/athletes">New athlete</Link>
-          <Link className={`${styles.secondary} ${styles.btnSm}`} href="/training-plans">New training plan</Link>
-          {isAdmin && <Link className={`${styles.secondary} ${styles.btnSm}`} href="/admin/catalog">Add sport</Link>}
-        </div></section>
+      <section className={styles.intro}><div><p className={styles.eyebrow}>Overview</p><h2>Good day, {session.user.name?.split(" ")[0] || "team"}.</h2><p>Here is what is happening across the athletics program today. Click any card to dig in.</p></div></section>
       <section className={styles.cards} aria-label="System totals">{cards.map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>
       {isAdmin && <section className={styles.cards} aria-label="Administration summary">{[["Training plans", stats.trainingPlans, "/training-plans"], ["Coach evaluations", stats.evals, "/admin/coach-performances"], ["Athletes with health flags", stats.healthIssues, "/athletes?health=flagged"], ["Open event plans", stats.plans, "/event-plans"]].map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>}
       {(canApprove && stats.pendingCoaches > 0) || stats.healthIssues > 0 ? (
