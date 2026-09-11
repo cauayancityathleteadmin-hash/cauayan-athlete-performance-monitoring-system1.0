@@ -157,24 +157,22 @@ export default function Dashboard({ stats, completion, ratingSeries, recentAsses
           })}
         </section>
       )}
-      <section className={styles.grid}>
-        <div className={styles.detailPanel} style={{ width: "100%" }}>
-          <h4>Training activity completion <small style={{ color: "var(--muted)", fontWeight: 400 }}>last 8 weeks, from real activity logs</small></h4>
-          {hasCompletion ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={completion} margin={{ top: 6, right: 12, left: 0, bottom: 0 }}>
-                <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
-                <XAxis dataKey="when" tickFormatter={weekLabel} tick={{ fill: "#9db6c7", fontSize: 11 }} />
-                <YAxis allowDecimals={false} tick={{ fill: "#9db6c7", fontSize: 11 }} />
-                <Tooltip {...chartTooltip} labelFormatter={weekLabel} formatter={(v, name) => [`${v}`, name]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
-                <Legend iconType="circle" wrapperStyle={{ color: "#9db6c7", fontSize: 11 }} />
-                <Bar dataKey="done" stackId="a" fill="#2dd4a8" name="Done" />
-                <Bar dataKey="partial" stackId="a" fill="#facc15" name="Partial" />
-                <Bar dataKey="missed" stackId="a" fill="#f87171" name="Missed" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : <p className={styles.empty}>No training activity recorded yet. Coaches will log assessments from each training plan.</p>}
-        </div>
+      <section className={styles.panel}>
+        <h4>Training activity completion <small style={{ color: "var(--muted)", fontWeight: 400 }}>last 8 weeks, from real activity logs</small></h4>
+        {hasCompletion ? (
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={completion} margin={{ top: 6, right: 12, left: 0, bottom: 0 }}>
+              <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
+              <XAxis dataKey="when" tickFormatter={weekLabel} tick={{ fill: "#9db6c7", fontSize: 11 }} />
+              <YAxis allowDecimals={false} tick={{ fill: "#9db6c7", fontSize: 11 }} />
+              <Tooltip {...chartTooltip} labelFormatter={weekLabel} formatter={(v, name) => [`${v}`, name]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
+              <Legend iconType="circle" wrapperStyle={{ color: "#9db6c7", fontSize: 11 }} />
+              <Bar dataKey="done" stackId="a" fill="#2dd4a8" name="Done" />
+              <Bar dataKey="partial" stackId="a" fill="#facc15" name="Partial" />
+              <Bar dataKey="missed" stackId="a" fill="#f87171" name="Missed" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : <p className={styles.empty}>No training activity recorded yet. Coaches will log assessments from each training plan.</p>}
       </section>
       <section className={styles.grid}>
         <div className={styles.detailPanel}>
