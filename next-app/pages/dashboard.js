@@ -28,12 +28,16 @@ export async function getServerSideProps(context) {
   const isAdmin = session.user.role === "admin";
   const canApprove = isAdmin || Boolean(session?.user?.canApproveCoaches);
   let coachScope = null;
+  let greetingName = isAdmin ? "Admin" : "Coach";
   if (!isAdmin) {
     const coach = await prisma.coach.findUnique({
       where: { userId: Number(session.user.id) },
-      select: { id: true },
+      select: { id: true, firstName: true },
     });
-    if (coach) coachScope = { coachId: coach.id };
+    if (coach) {
+      coachScope = { coachId: coach.id };
+      greetingName = `Coach ${coach.firstName}`;
+    }
   }
 
   const fromToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -95,6 +99,7 @@ export async function getServerSideProps(context) {
   return {
     props: {
       session,
+      greetingName,
       stats: { athletes, coaches, sports, events, assessments, plans, logs, evals, healthIssues, trainingPlans, mySports, myApprovedPlans, pendingCoaches },
       completion: JSON.parse(JSON.stringify(buckets)),
       ratingSeries: JSON.parse(JSON.stringify(ratingSeries)),
@@ -108,7 +113,7 @@ const chartTooltip = { contentStyle: { background: "#06261e", border: "1px solid
 const weekLabel = (iso) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 const dateLabel = (iso) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
-export default function Dashboard({ stats, completion, ratingSeries, recentAssessments, upcomingSessions }) {
+export default function Dashboard({ stats, completion, ratingSeries, recentAssessments, upcomingSessions, greetingName }) {
   const router = useRouter();
   const { data: session } = useSession();
   useEffect(() => {
@@ -135,7 +140,7 @@ export default function Dashboard({ stats, completion, ratingSeries, recentAsses
   return <>
     <Head><title>Dashboard | Cauayan Athlete Performance</title><meta name="description" content="Athlete performance monitoring dashboard" /></Head>
     <AppShell session={session} isAdmin={isAdmin} active="/dashboard">
-      <section className={styles.intro}><div><p className={styles.eyebrow}>Overview</p><h2>Good day, {session.user.name?.split(" ")[0] || "team"}.</h2><p>Here is what is happening across the athletics program today. Click any card to dig in.</p></div></section>
+      <section className={styles.intro}><div><p className={styles.eyebrow}>Overview</p><h2>{(function() { const h = new Date().getHours(); let greeting; if (h >= 1 && h <= 12) greeting = "Good morning"; else if (h >= 13 && h <= 18) greeting = "Good afternoon"; else greeting = "Good evening"; return `${greeting}, ${greetingName}!`; })()}</h2><p>Here is what is happening across the athletics program today. Click any card to dig in.</p></div></section>
       <section className={styles.cards} aria-label="System totals">{cards.map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>
       {isAdmin && <section className={styles.cards} aria-label="Administration summary">{[["Training plans", stats.trainingPlans, "/training-plans"], ["Coach evaluations", stats.evals, "/admin/coach-performances"], ["Athletes with health flags", stats.healthIssues, "/athletes?health=flagged"], ["Open event plans", stats.plans, "/event-plans"]].map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>}
       {(canApprove && stats.pendingCoaches > 0) || stats.healthIssues > 0 ? (
