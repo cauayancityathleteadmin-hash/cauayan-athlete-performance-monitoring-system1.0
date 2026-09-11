@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Head from "next/head";
 import { getSession, useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import styles from "../styles/Dashboard.module.css";
@@ -64,8 +65,10 @@ export default function ChangePassword({ session }) {
   }
 
   return (
-    <AppShell session={current} isAdmin={isAdmin} eyebrow="Cauayan City" title="Change password" active="/change-password">
-      <section className={styles.panel} style={{ maxWidth: "480px", margin: "0 auto" }}>
+    <>
+      <Head><title>Change password | Cauayan Athlete Performance</title></Head>
+      <AppShell session={current} isAdmin={isAdmin} eyebrow="Cauayan City" title="Change password" active="/change-password">
+        <section className={styles.panel} style={{ maxWidth: "480px", margin: "0 auto" }}>
         <div className={styles.panelHeader}>
           <div><p className={styles.eyebrow}>Security</p><h2>Change your password</h2></div>
         </div>
@@ -99,6 +102,7 @@ export default function ChangePassword({ session }) {
           </>
         )}
       </section>
-    </AppShell>
+      </AppShell>
+    </>
   );
 }

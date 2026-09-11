@@ -1010,7 +1010,7 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
             </div>
           )}
 
-          <div className={styles.panelHeader}><div><h2>{type === "athlete" ? "Athletes" : "Coaches"}</h2></div></div>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Report selection</p><h2>{type === "athlete" ? "Athletes" : "Coaches"}</h2></div></div>
 
           <div className={styles.toolbar} style={{ marginTop: 16 }}>
             <label>Search {type === "athlete" ? "athletes" : "coaches"}<input type="text" placeholder={type === "athlete" ? "Name, code, sport, event, coach, school…" : "Name, code, email, sport, school…"} value={type === "athlete" ? search : cSearch} onChange={(event) => (type === "athlete" ? setSearch(event.target.value) : setCSearch(event.target.value))} /></label>

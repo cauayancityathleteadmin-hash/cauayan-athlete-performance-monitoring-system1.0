@@ -150,7 +150,7 @@ export default function CoachPerformances({ session, coaches }) {
   return (
     <>
       <Head><title>Coach evaluations | Cauayan Athlete Performance</title></Head>
-      <AppShell session={session} isAdmin eyebrow="Administration" title="Coach Evaluations" active="/admin/coach-performances">
+      <AppShell session={session} isAdmin eyebrow="Administration" title="Coach evaluations" active="/admin/coach-performances">
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Quality assurance</p><h2>Coach evaluations</h2></div>

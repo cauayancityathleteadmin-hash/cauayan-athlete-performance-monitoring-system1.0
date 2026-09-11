@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Head from "next/head";
 import Link from "next/link";
 
 export default function ForgotPassword() {
@@ -38,6 +39,7 @@ export default function ForgotPassword() {
 
   return (
     <main className="login-page">
+      <Head><title>Reset password | Cauayan Athlete Performance</title></Head>
       <img src="/sports_logo.png" alt="Cauayan City" className="logo" />
       <p className="auth-kicker">Cauayan City</p>
       <h1>Reset password</h1>

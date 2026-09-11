@@ -148,7 +148,6 @@ const NAV_GROUPS = [
   },
   {
     label: "Coaches",
-    caption: true,
     links: [
       { href: "/admin/coaches", label: "Coaches", icon: "users", adminOnly: true },
       { href: "/admin/coach-performances", label: "Coach evaluations", icon: "star", adminOnly: true },
@@ -171,7 +170,6 @@ const NAV_GROUPS = [
   },
   {
     label: "Events & Program",
-    caption: true,
     links: [
       { href: "/event-plans", label: "Event plans", icon: "calendar" },
       { href: "/admin/catalog", label: "Sports & Discipline", icon: "flag", adminOnly: true },
@@ -185,7 +183,6 @@ const NAV_GROUPS = [
   },
   {
     label: "System",
-    caption: true,
     links: [
       { href: "/admin/metrics", label: "Metrics", icon: "gauge", adminOnly: true },
       { href: "/admin/audit-logs", label: "Audit logs", icon: "list", adminOnly: true },
@@ -256,10 +253,8 @@ useEffect(() => {
       {NAV_GROUPS.map((group) => {
         const links = group.links.filter((link) => (!link.adminOnly || isAdmin) && (!link.coachApproveOnly || (canApproveCoaches && !isAdmin)));
         if (!links.length) return null;
-        const showCaption = group.caption && links.length > 1;
         return (
           <React.Fragment key={group.label}>
-            {showCaption && <p className={styles.navHeading}>{group.label.toUpperCase()}</p>}
             {links.map((link) => (
               <Link key={link.href} href={link.href} className={isActive(link.href)} title={link.label} aria-label={link.label} aria-current={isActive(link.href) ? "page" : undefined} onClick={() => setOpen(false)}>
                 <span className={styles.navIcon} aria-hidden="true">{ICONS[link.icon]}</span>

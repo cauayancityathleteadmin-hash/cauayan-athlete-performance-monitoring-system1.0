@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Head from "next/head";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import PasswordInput from "../components/PasswordInput";
@@ -57,6 +58,7 @@ export default function ResetPassword() {
 
   return (
     <main className="login-page">
+      <Head><title>Choose a new password | Cauayan Athlete Performance</title></Head>
       <img src="/sports_logo.png" alt="Cauayan City" className="logo" />
       <p className="auth-kicker">Cauayan City</p>
       <h1>Choose a new password</h1>

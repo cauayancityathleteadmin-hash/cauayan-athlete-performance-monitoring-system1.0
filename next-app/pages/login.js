@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import Head from "next/head";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/router";
 import Link from "next/link";
@@ -43,6 +44,7 @@ export default function Login() {
 
   return (
     <main className="login-page">
+      <Head><title>Sign in | Cauayan Athlete Performance</title></Head>
       <img src="/sports_logo.png" alt="Cauayan City Sports" className="logo" />
       <p className="auth-kicker">Cauayan City</p>
       <h1>Athlete Performance System</h1>
