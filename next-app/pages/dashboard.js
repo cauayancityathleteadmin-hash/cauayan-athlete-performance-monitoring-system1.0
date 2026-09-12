@@ -119,7 +119,7 @@ function Greeting({ greetingName }) {
   if (h >= 1 && h <= 12) g = "Good morning";
   else if (h >= 13 && h <= 18) g = "Good afternoon";
   else g = "Good evening";
-  return <h2>{g}, {greetingName}!</h2>;
+  return <h2 suppressHydrationWarning>{g}, {greetingName}!</h2>;
 }
 
 export default function Dashboard({ stats, completion, ratingSeries, recentAssessments, upcomingSessions, greetingName }) {
