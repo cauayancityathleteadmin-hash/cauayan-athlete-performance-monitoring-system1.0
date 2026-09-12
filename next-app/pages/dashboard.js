@@ -113,6 +113,15 @@ const chartTooltip = { contentStyle: { background: "#06261e", border: "1px solid
 const weekLabel = (iso) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 const dateLabel = (iso) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
+function Greeting({ greetingName }) {
+  const h = new Date().getHours();
+  let g;
+  if (h >= 1 && h <= 12) g = "Good morning";
+  else if (h >= 13 && h <= 18) g = "Good afternoon";
+  else g = "Good evening";
+  return <h2>{g}, {greetingName}!</h2>;
+}
+
 export default function Dashboard({ stats, completion, ratingSeries, recentAssessments, upcomingSessions, greetingName }) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -140,7 +149,7 @@ export default function Dashboard({ stats, completion, ratingSeries, recentAsses
   return <>
     <Head><title>Dashboard | Cauayan Athlete Performance</title><meta name="description" content="Athlete performance monitoring dashboard" /></Head>
     <AppShell session={session} isAdmin={isAdmin} active="/dashboard">
-      <section className={styles.intro}><div><p className={styles.eyebrow}>Overview</p><h2>{(function() { const h = new Date().getHours(); let greeting; if (h >= 1 && h <= 12) greeting = "Good morning"; else if (h >= 13 && h <= 18) greeting = "Good afternoon"; else greeting = "Good evening"; return `${greeting}, ${greetingName}!`; })()}</h2><p>Here is what is happening across the athletics program today. Click any card to dig in.</p></div></section>
+      <section className={styles.intro}><div><p className={styles.eyebrow}>Overview</p><Greeting greetingName={greetingName} /><p>Here is what is happening across the athletics program today. Click any card to dig in.</p></div></section>
       <section className={styles.cards} aria-label="System totals">{cards.map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>
       {isAdmin && <section className={styles.cards} aria-label="Administration summary">{[["Training plans", stats.trainingPlans, "/training-plans"], ["Coach evaluations", stats.evals, "/admin/coach-performances"], ["Athletes with health flags", stats.healthIssues, "/athletes?health=flagged"], ["Open event plans", stats.plans, "/event-plans"]].map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>}
       {(canApprove && stats.pendingCoaches > 0) || stats.healthIssues > 0 ? (
