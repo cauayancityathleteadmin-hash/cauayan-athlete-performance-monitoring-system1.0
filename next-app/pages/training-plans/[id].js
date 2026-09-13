@@ -106,6 +106,8 @@ const FITNESS_META = {
   recovery: "Recovery",
 };
 
+const FITNESS_ORDER = ["endurance", "speed_agility", "power", "skill_technique", "mobility", "strength", "recovery"];
+
 const UNITS_BY_FITNESS = {
   endurance: ["km", "m", "miles", "min", "hr"],
   strength: ["kg", "lb", "reps", "sets"],
@@ -124,7 +126,8 @@ const LOG_STATUS = {
 };
 
 const normName = (s) => (s || "").trim().replace(/\s+/g, " ").toLowerCase();
-const groupKey = (activity) => `${normName(activity.activityName)}|${activity.fitnessType || "endurance"}`;
+const dayOf = (activity) => (activity.dayIndex == null ? 1 : activity.dayIndex);
+const groupKey = (activity) => `${normName(activity.activityName)}|${activity.fitnessType || "endurance"}|${dayOf(activity)}`;
 
 function fmtDate(value) {
   const d = new Date(value);
@@ -880,7 +883,7 @@ function AssessStudio({ planId, athletes, activities, logs, onDone }) {
   function visibleActivities(athleteId) {
     const all = byAthlete[athleteId] || [];
     if (dayFilter === "all") return all;
-    return all.filter((a) => a.dayIndex == null || a.dayIndex === Number(dayFilter));
+    return all.filter((a) => dayOf(a) === Number(dayFilter));
   }
 
   const columns = (() => {
@@ -900,7 +903,19 @@ function AssessStudio({ planId, athletes, activities, logs, onDone }) {
         out.push({ gkey, activityName: activity.activityName, fitnessType: activity.fitnessType, dayIndex: activity.dayIndex, members });
       }
     }
+    const rank = (f) => { const i = FITNESS_ORDER.indexOf(f); return i === -1 ? 99 : i; };
+    out.sort((a, b) => rank(a.fitnessType) - rank(b.fitnessType) || (a.dayIndex ?? 0) - (b.dayIndex ?? 0) || normName(a.activityName).localeCompare(normName(b.activityName)));
     return out;
+  })();
+
+  const fitnessGroups = (() => {
+    const groups = [];
+    for (const col of columns) {
+      const last = groups[groups.length - 1];
+      if (last && last.fitness === col.fitnessType) last.columns.push(col);
+      else groups.push({ fitness: col.fitnessType, columns: [col] });
+    }
+    return groups;
   })();
 
   function memberActivity(column, athleteId) {
@@ -1112,6 +1127,7 @@ function AssessStudio({ planId, athletes, activities, logs, onDone }) {
         .mkTable thead th { position: sticky; top: 0; background: #0a3228; z-index: 2; }
         .mkTable th.fix, .mkTable td.fix { position: sticky; left: 0; background: #0d3d31; z-index: 1; min-width: 185px; }
         .mkTable thead th.fix { z-index: 3; }
+        .mkTable .mkTypeRow th { position: static; z-index: auto; background: #0d3d31; border-bottom: 1px solid rgba(45,212,168,.28); padding: 4px 8px; }
         .mkCell { display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; }
         .dotBtn { width: 26px; height: 24px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255,255,255,.04); color: var(--muted); font-size: 11px; font-weight: 700; cursor: pointer; transition: .12s; flex: 0 0 auto; }
         .dotBtn:hover { border-color: rgba(45,212,168,.6); color: var(--foreground); }
@@ -1155,6 +1171,14 @@ function AssessStudio({ planId, athletes, activities, logs, onDone }) {
       <div className="mkWrap">
         <table className="mkTable">
           <thead>
+            <tr className="mkTypeRow">
+              <th />
+              {fitnessGroups.map((g) => (
+                <th key={g.fitness} colSpan={g.columns.length}>
+                  <span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)" }}>{FITNESS_META[g.fitness] || g.fitness}</span>
+                </th>
+              ))}
+            </tr>
             <tr>
               <th className="fix">Athlete</th>
               {columns.map((column) => (
