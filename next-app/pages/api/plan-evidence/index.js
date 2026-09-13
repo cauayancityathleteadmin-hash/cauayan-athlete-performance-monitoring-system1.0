@@ -25,20 +25,26 @@ export default async function handler(req, res) {
     if (!session) return;
     const planId = validId(req.query.planId);
     const dateStr = text(req.query.date, 20);
-    if (!planId || !dateStr) return res.status(400).json({ error: "planId and date are required." });
+    if (!planId) return res.status(400).json({ error: "planId is required." });
 
     const access = await canAccessPlan(session, planId);
     if (access === null) return res.status(404).json({ error: "Training plan not found." });
     if (access === false) return res.status(403).json({ error: "You do not have permission to view this plan." });
 
-    const start = new Date(`${dateStr}T00:00:00.000Z`);
-    if (isNaN(start)) return res.status(400).json({ error: "Invalid date." });
-    const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate(), 23, 59, 59, 999));
+    let where = { planId };
+    if (dateStr) {
+      const start = new Date(`${dateStr}T00:00:00.000Z`);
+      if (isNaN(start)) return res.status(400).json({ error: "Invalid date." });
+      const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate(), 23, 59, 59, 999));
+      where = { planId, evidenceDate: { gte: start, lte: end } };
+    }
 
     const rows = await prisma.planEvidence.findMany({
-      where: { planId, evidenceDate: { gte: start, lte: end } },
-      select: { id: true, athleteId: true, evidenceDate: true, url: true, notes: true, uploadedBy: true, createdAt: true },
-      orderBy: { createdAt: "desc" },
+      where,
+      select: { id: true, athleteId: true, evidenceDate: true, url: true, notes: true, uploadedBy: true, createdAt: true,
+        athlete: { select: { firstName: true, lastName: true, athleteCode: true } },
+        uploader: { select: { username: true } } },
+      orderBy: [{ evidenceDate: "desc" }, { createdAt: "desc" }],
     });
     return res.status(200).json({ evidence: rows });
   }

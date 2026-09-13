@@ -251,7 +251,7 @@ export default function Dashboard({ stats, completion, ratingSeries, upcomingSes
               <LineChart data={ratingSeries} margin={{ top: 6, right: 12, left: 16, bottom: 0 }}>
                 <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
                 <XAxis dataKey="when" tickFormatter={dateLabel} tick={{ fill: "#9db6c7", fontSize: 11 }} />
-                <YAxis domain={[0, 10]} tick={{ fill: "#9db6c7", fontSize: 11 }} />
+                <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} tick={{ fill: "#9db6c7", fontSize: 11 }} />
                 <Tooltip {...chartTooltip} labelFormatter={dateLabel} formatter={(v) => [`${v}/10`, "Rating"]} />
                 <Line type="monotone" dataKey="rating" stroke="#2dd4a8" strokeWidth={2} dot={{ fill: "#2dd4a8", r: 3 }} />
               </LineChart>

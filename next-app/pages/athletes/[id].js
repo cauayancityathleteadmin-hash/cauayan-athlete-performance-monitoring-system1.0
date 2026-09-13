@@ -152,12 +152,16 @@ function LineChart({ points }) {
       ))}
       <path d={area} fill="url(#ctrend)" />
       <path d={path} fill="none" stroke="#2dd4a8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      {coords.map((c, i) => (
-        <g key={i}>
-          <circle cx={c.x} cy={c.y} r="3.2" fill="#041f18" stroke="#2dd4a8" strokeWidth="2" />
-          <text x={c.x} y={h - 8} textAnchor="middle" fontSize="9" fill="var(--muted)">{c.p.when}</text>
-        </g>
-      ))}
+{coords.map((c, i) => {
+        const n = coords.length;
+        const showLabel = n <= 8 || i === 0 || i === n - 1 || i % Math.ceil(n / 8) === 0;
+        return (
+          <g key={i}>
+            <circle cx={c.x} cy={c.y} r="3.2" fill="#041f18" stroke="#2dd4a8" strokeWidth="2" />
+            {showLabel && <text x={c.x} y={h - 8} textAnchor="middle" fontSize="9" fill="var(--muted)">{c.p.when}</text>}
+          </g>
+        );
+      })}
       {labelVals.map((v, i) => {
         const y = padT + (i * (plotH / 2));
         return <text key={i} x={w - padR} y={y + 3} textAnchor="end" fontSize="9" fill="var(--muted)">{v}</text>;

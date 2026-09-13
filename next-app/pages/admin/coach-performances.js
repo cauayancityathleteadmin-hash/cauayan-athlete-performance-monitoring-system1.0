@@ -68,12 +68,16 @@ function CoachTrend({ points }) {
       ))}
       <path d={area} fill="url(#ctrend2)" />
       <path d={path} fill="none" stroke="#2dd4a8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      {coords.map((c, i) => (
-        <g key={i}>
-          <circle cx={c.x} cy={c.y} r="3" fill="#041f18" stroke="#2dd4a8" strokeWidth="2" />
-          <text x={c.x} y={h - 7} textAnchor="middle" fontSize="8" fill="var(--muted)">{c.p.when}</text>
-        </g>
-      ))}
+      {coords.map((c, i) => {
+        const n = coords.length;
+        const showLabel = n <= 8 || i === 0 || i === n - 1 || i % Math.ceil(n / 8) === 0;
+        return (
+          <g key={i}>
+            <circle cx={c.x} cy={c.y} r="3" fill="#041f18" stroke="#2dd4a8" strokeWidth="2" />
+            {showLabel && <text x={c.x} y={h - 7} textAnchor="middle" fontSize="8" fill="var(--muted)">{c.p.when}</text>}
+          </g>
+        );
+      })}
     </svg>
   );
 }

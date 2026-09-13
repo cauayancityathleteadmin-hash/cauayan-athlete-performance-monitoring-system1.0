@@ -858,6 +858,11 @@ function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
 }
 
 
+function evidenceDayKey(iso) {
+  const d = new Date(iso);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+
 function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
   const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
   const [dayFilter, setDayFilter] = React.useState("all");
@@ -869,21 +874,23 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
   const [busy, setBusy] = React.useState(false);
   const [confirm, setConfirm] = React.useState(null);
   const [toast, setToast] = React.useState(null);
-  const [evidence, setEvidence] = React.useState({});
+  const [evidenceMap, setEvidenceMap] = React.useState({});
+  const [reviewColumn, setReviewColumn] = React.useState(null);
+  const [showLightbox, setShowLightbox] = React.useState(null);
   const undoRef = React.useRef(null);
 
   React.useEffect(() => {
     let cancelled = false;
-    fetch(`/api/plan-evidence?planId=${planId}&date=${date}`)
+    fetch(`/api/plan-evidence?planId=${planId}`)
       .then((r) => (r.ok ? r.json() : {}))
       .then((json) => {
         const map = {};
-        for (const e of json.evidence || []) map[e.athleteId] = { id: e.id, url: e.url, uploading: false };
-        if (!cancelled) setEvidence(map);
+        for (const e of json.evidence || []) map[`${e.athleteId}:${evidenceDayKey(e.evidenceDate)}`] = { ...e, dayStr: evidenceDayKey(e.evidenceDate), uploading: false };
+        if (!cancelled) setEvidenceMap(map);
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [planId, date]);
+  }, [planId]);
 
   async function uploadEvidence(athleteId, file) {
     if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { setToast({ kind: "error", text: "Only JPEG, PNG or WEBP photos are accepted." }); return; }
@@ -891,7 +898,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
     if (!blob) { setToast({ kind: "error", text: "The photo could not be read." }); return; }
     const mime = blob.type || "image/jpeg";
     const base64 = (await blobToBase64(blob)).split(",")[1];
-    setEvidence((cur) => ({ ...cur, [athleteId]: { ...(cur[athleteId] || {}), uploading: true } }));
+    setEvidenceMap((cur) => ({ ...cur, [`${athleteId}:${date}`]: { ...(cur[`${athleteId}:${date}`] || {}), uploading: true } }));
     const csrf = await fetch("/api/csrf").then((r) => r.json());
     try {
       const res = await fetch("/api/plan-evidence", {
@@ -900,14 +907,14 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
       });
       const json = await res.json().catch(() => ({}));
       if (res.ok && json.url) {
-        setEvidence((cur) => ({ ...cur, [athleteId]: { id: json.id, url: json.url, uploading: false } }));
+        setEvidenceMap((cur) => ({ ...cur, [`${athleteId}:${date}`]: { id: json.id, url: json.url, athleteId, evidenceDate: new Date(`${date}T00:00:00.000Z`).toISOString(), dayStr: date, uploading: false } }));
         setToast({ kind: "success", text: "Evidence photo saved for this date." });
       } else {
-        setEvidence((cur) => ({ ...cur, [athleteId]: { ...(cur[athleteId] || {}), uploading: false } }));
+        setEvidenceMap((cur) => ({ ...cur, [`${athleteId}:${date}`]: { ...(cur[`${athleteId}:${date}`] || {}), uploading: false } }));
         setToast({ kind: "error", text: json.error || "Could not save the photo." });
       }
     } catch (e) {
-      setEvidence((cur) => ({ ...cur, [athleteId]: { ...(cur[athleteId] || {}), uploading: false } }));
+      setEvidenceMap((cur) => ({ ...cur, [`${athleteId}:${date}`]: { ...(cur[`${athleteId}:${date}`] || {}), uploading: false } }));
       setToast({ kind: "error", text: "Unable to reach the server." });
     }
   }
@@ -920,7 +927,24 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
     input.click();
   }
 
+  async function deleteEvidenceRow(row) {
+    if (!row || !row.id) return;
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    try {
+      const res = await fetch(`/api/plan-evidence?id=${row.id}`, { method: "DELETE", headers: { "x-csrf-token": csrf.token } });
+      if (res.ok) {
+        setEvidenceMap((cur) => { const n = { ...cur }; delete n[`${row.athleteId}:${row.dayStr || date}`]; return n; });
+        setShowLightbox(null);
+        setToast({ kind: "success", text: "Evidence photo removed." });
+      } else {
+        const j = await res.json().catch(() => ({}));
+        setToast({ kind: "error", text: j.error || "Could not remove the photo." });
+      }
+    } catch { setToast({ kind: "error", text: "Unable to reach the server." }); }
+  }
+
   const key = (aid, actId) => `${aid}:${actId}`;
+  const evFor = (athleteId) => evidenceMap[`${Number(athleteId)}:${date}`] || null;
 
   const byAthlete = React.useMemo(() => {
     const out = {};
@@ -1180,6 +1204,16 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
         .rowActions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
         .miniBtn { padding: 2px 6px; font-size: 10px; border-radius: 5px; border: 1px solid var(--border); background: rgba(255,255,255,.04); color: var(--muted); cursor: pointer; }
         .miniBtn:hover { color: var(--accent); border-color: rgba(45,212,168,.5); }
+        .evColBtn { margin-top: 2px; display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; font-size: 10px; border-radius: 5px; border: 1px solid rgba(45,212,168,.45); background: rgba(45,212,168,.1); color: var(--accent); cursor: pointer; }
+        .evColBtn:hover { background: rgba(45,212,168,.22); }
+        .evCellDot { flex: 0 0 auto; width: 22px; height: 22px; border-radius: 6px; border: 1px solid rgba(45,212,168,.4); background: transparent; color: var(--accent); font-size: 11px; cursor: pointer; }
+        .evCellDot:hover { background: rgba(45,212,168,.2); }
+        .revPanel { border: 1px solid rgba(45,212,168,.5); border-radius: 10px; background: rgba(6,38,30,.5); padding: 12px 14px; margin-top: 12px; }
+        .revAthlete { padding: 8px 0; border-bottom: 1px dashed rgba(26,92,74,.5); }
+        .revChip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; font-size: 11px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255,255,255,.03); }
+        .revThumb { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(45,212,168,.4); cursor: pointer; }
+        .lightbox { position: fixed; inset: 0; z-index: 60; background: rgba(2,12,9,.82); display: flex; align-items: center; justify-content: center; padding: 24px; }
+        .lightboxCard { max-width: 560px; width: 100%; border: 1px solid rgba(45,212,168,.5); border-radius: 12px; background: #0a2c22; padding: 16px; }
       `}</style>
 
       <div className="studioBar">
@@ -1213,7 +1247,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
           <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 10 }}>
             {[...new Set(Object.keys(cells).map((k) => k.split(":")[0]))].map((aid) => {
               const at = athletes.find((x) => String(x.id) === aid);
-              const ev = evidence[aid];
+              const ev = evFor(Number(aid));
               if (!at) return null;
               return (
                 <span key={aid} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12 }}>
@@ -1239,16 +1273,20 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                 </th>
               ))}
             </tr>
-            <tr>
+<tr>
               <th className="fix">Athlete</th>
-              {columns.map((column) => (
-                <th key={column.gkey} style={{ minWidth: 132 }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                    <strong>{column.activityName}</strong>
-<small style={{ color: "var(--muted)", fontWeight: 400 }}>{FITNESS_META[column.fitnessType] || column.fitnessType}{column.dayIndex ? ` · Day ${column.dayIndex}` : ""}</small>
+              {columns.map((column) => {
+                const withPhoto = column.members.filter((m) => evFor(m.athleteId)).length;
+                return (
+                  <th key={column.gkey} style={{ minWidth: 150 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                      <strong>{column.activityName}</strong>
+                      <small style={{ color: "var(--muted)", fontWeight: 400 }}>{FITNESS_META[column.fitnessType] || column.fitnessType}{column.dayIndex ? ` · Day ${column.dayIndex}` : ""}</small>
+                      <button type="button" className="evColBtn" title="Review training evidence for every athlete in this activity" onClick={() => setReviewColumn(column.gkey)}>📷 {withPhoto}/{column.members.length} have photos</button>
                     </div>
                   </th>
-              ))}
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -1260,8 +1298,8 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                     <td className="fix">
                       <div className="rowHead">
                         <strong>{athlete.lastName}, {athlete.firstName}</strong>
-                        {evidence[athlete.id] && evidence[athlete.id].url && (
-                          <img src={evidence[athlete.id].url} alt="Evidence photo" title="Training evidence photo for this date" style={{ width: 34, height: 34, borderRadius: 6, objectFit: "cover", border: "1px solid rgba(45,212,168,.4)" }} />
+                        {evFor(athlete.id) && evFor(athlete.id).url && (
+                          <img src={evFor(athlete.id).url} alt="Evidence photo" title="Training evidence photo for this date" style={{ width: 34, height: 34, borderRadius: 6, objectFit: "cover", border: "1px solid rgba(45,212,168,.4)", cursor: "pointer" }} onClick={() => setShowLightbox(evFor(athlete.id))} />
                         )}
                         <span className={`${styles.badge} ${styles.badgeMuted}`} style={{ fontSize: 9 }}>{lastDate ? `Assessed ${fmtDate(lastDate)}` : "Open"}</span>
                       </div>
@@ -1271,7 +1309,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                         <button className="miniBtn" title="Mark all at half target" onClick={() => applyPreset(athlete.id, "light")}>Half</button>
                         <button className="miniBtn" title="Mark all missed" onClick={() => applyPreset(athlete.id, "rest")}>Rest</button>
                         <button className={`miniBtn ${openRatingId === athlete.id ? "on" : ""}`} onClick={() => setOpenRatingId(openRatingId === athlete.id ? null : athlete.id)}>Rating</button>
-                        <button className={`miniBtn ${evidence[athlete.id] && evidence[athlete.id].url ? "on" : ""}`} title="Upload a training photo as proof the session happened" onClick={() => pickEvidence(athlete.id)}>{evidence[athlete.id] && evidence[athlete.id].uploading ? "Uploading…" : "📷 Evidence"}</button>
+                        {(() => { const ev = evFor(athlete.id); return <button className={`miniBtn ${ev && ev.url ? "on" : ""}`} title="Upload a training photo as proof the session happened" onClick={() => pickEvidence(athlete.id)}>{ev && ev.uploading ? "Uploading…" : "📷 Evidence"}</button>; })()}
                       </div>
                     </td>
                     {columns.map((column) => {
@@ -1287,6 +1325,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                           <span className="mkCell">
                             <button className={`dotBtn ${status === "done" ? "on" : status === "partial" ? "part" : status === "missed" ? "miss" : ""} ${touched ? "touchedD" : ""}`} title={status ? `Status: ${status === "done" ? "Done" : status === "partial" ? "Partial" : "Missed"}. Tap to change.` : "Open. Tap to mark Done."} onClick={() => cycleStatus(athlete.id, activityId, activity)}>{status === "done" ? "D" : status === "partial" ? "P" : status === "missed" ? "M" : "–"}</button>
                             <input className="qtyIn" type="number" min="0" step="any" placeholder={target && target.unit ? `amt (${target.unit})` : "amt"} value={qty != null ? qty : ""} onChange={(e) => onQty(athlete.id, activityId, activity, e.target.value)} />
+                            {evFor(athlete.id) && <button type="button" className="evCellDot" title="View today's evidence photo" onClick={() => setShowLightbox(evFor(athlete.id))}>📷</button>}
                             {touched && <button className="miniBtn" title="Clear this cell (not part of the save)" onClick={() => clearCell(athlete.id, activityId)}>✕</button>}
                           </span>
                         </td>
@@ -1319,6 +1358,79 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
           </tbody>
         </table>
       </div>
+      {reviewColumn && (() => {
+  const column = columns.find((c) => c.gkey === reviewColumn);
+  if (!column) return null;
+  return (
+    <div className="revPanel">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        <strong style={{ color: "var(--accent)" }}>Evidence by activity: {column.activityName}</strong>
+        <button className="miniBtn" onClick={() => setReviewColumn(null)}>Close</button>
+      </div>
+      <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--muted)" }}>Review which athletes have proof for each day they performed this activity. Click a photo to view it full-size.</p>
+      {column.members.map((m) => {
+        const athlete = athletes.find((x) => x.id === m.athleteId);
+        const act = m.activity;
+        const logMap = {};
+        for (const l of logs) if (l.athleteId === m.athleteId && l.activityId === act.id && !(logMap[l.performedAt.slice(0, 10)] && new Date(l.performedAt) < new Date(logMap[l.performedAt.slice(0, 10)].performedAt))) logMap[l.performedAt.slice(0, 10)] = l;
+        const entries = Object.keys(logMap).sort((a, b) => (a < b ? 1 : -1)).map((ds) => ({ ds, status: logMap[ds].status, log: logMap[ds], photo: evidenceMap[`${m.athleteId}:${ds}`] || null }));
+        const todayTouched = !!cells[key(m.athleteId, act.id)];
+        const todayStatus = effective(m.athleteId, act.id, "status");
+        if (todayTouched || todayStatus) {
+          const ds = date;
+          if (!logMap[ds]) entries.push({ ds, status: todayStatus, log: null, photo: evFor(m.athleteId), pending: true });
+        }
+        return (
+          <div key={m.athleteId} className="revAthlete">
+            <strong style={{ fontSize: 12 }}>{athlete ? `${athlete.lastName}, ${athlete.firstName}` : `Athlete #${m.athleteId}`}</strong>
+            {athlete && <small style={{ color: "var(--muted)", marginLeft: 6 }}>{athlete.athleteCode}</small>}
+            {entries.length ? (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+                {entries.map((en) => (
+                  <span key={en.ds} className="revChip">
+                    <span style={{ fontWeight: 600 }}>{fmtDate(en.ds + "T00:00:00Z")}</span>
+                    <span style={{ color: en.status === "done" ? "var(--accent)" : en.status === "partial" ? "#ffc107" : en.status === "missed" ? "#f87171" : "var(--muted)", textTransform: "capitalize" }}>{en.status || "—"}</span>
+                    {en.pending && <small style={{ color: "#ffc107" }}>to be saved</small>}
+                    {en.photo && en.photo.url ? (
+                      <img src={en.photo.url} alt="Evidence" className="revThumb" onClick={() => setShowLightbox(en.photo)} />
+                    ) : <span style={{ color: "var(--muted)" }}>no photo</span>}
+                  </span>
+                ))}
+              </div>
+            ) : <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--muted)" }}>No sessions recorded yet.</p>}
+          </div>
+        );
+      })}
+    </div>
+  );
+})()}
+
+{showLightbox && (() => {
+  const athlete = athletes.find((x) => x.id === showLightbox.athleteId);
+  return (
+    <div className="lightbox" onClick={() => setShowLightbox(null)}>
+      <div className="lightboxCard" onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 8 }}>
+          <strong style={{ color: "var(--accent)" }}>Training evidence</strong>
+          <button className="miniBtn" onClick={() => setShowLightbox(null)}>Close</button>
+        </div>
+        <img src={showLightbox.url} alt="Training evidence" style={{ width: "100%", maxHeight: 480, objectFit: "contain", borderRadius: 8, background: "#03150f" }} />
+        <div style={{ marginTop: 8, fontSize: 12, lineHeight: 1.6 }}>
+          <strong>{athlete ? `${athlete.lastName}, ${athlete.firstName}` : `Athlete #${showLightbox.athleteId}`}</strong>
+          {athlete && <small style={{ color: "var(--muted)", marginLeft: 6 }}>{athlete.athleteCode}</small>}
+          <div style={{ color: "var(--muted)" }}>
+            Date: {fmtDate(showLightbox.dayStr + "T00:00:00Z")}
+            {showLightbox.notes ? ` · Notes: ${showLightbox.notes}` : ""}
+            {showLightbox.uploader?.username ? ` · Recorded by ${showLightbox.uploader.username}` : ""}
+          </div>
+        </div>
+        <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+          <button className="miniBtn" style={{ borderColor: "rgba(248,113,113,.5)", color: "#f87171" }} onClick={() => deleteEvidenceRow(showLightbox)}>Remove photo</button>
+        </div>
+      </div>
+    </div>
+  );
+})()}
     </div>
   );
 }
