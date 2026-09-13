@@ -17,7 +17,7 @@ export async function getServerSideProps(context) {
     coachId = coach?.id ?? null;
     if (!coachId) return { redirect: { destination: "/dashboard", permanent: false } };
   }
-  const [sports, coaches, athletes, plans, templates, assessments] = await Promise.all([
+  const [sports, coaches, athletes, plans, templates] = await Promise.all([
     prisma.sport.findMany({ where: { status: "active" }, select: { id: true, sportName: true }, orderBy: { sportName: "asc" } }),
     isAdmin ? prisma.coach.findMany({ where: { status: "active" }, select: { id: true, coachCode: true, firstName: true, lastName: true, sports: { select: { sportId: true } } }, orderBy: { lastName: "asc" } }) : Promise.resolve([]),
     prisma.athlete.findMany({ where: { status: "active", ...(coachId ? { coachId } : {}) }, select: { id: true, athleteCode: true, firstName: true, lastName: true, sportId: true, coachId: true }, orderBy: { lastName: "asc" } }),
@@ -47,34 +47,6 @@ export async function getServerSideProps(context) {
         },
       });
     })(),
-    (async () => {
-      if (isAdmin) {
-        return prisma.trainingAssessment.findMany({
-          where: {},
-          orderBy: { assessmentDate: "desc" },
-          take: 200,
-          include: {
-            athlete: { select: { id: true, athleteCode: true, firstName: true, lastName: true, sport: { select: { sportName: true } } } },
-            plan: { select: { id: true, planName: true, frequency: true } },
-            session: { select: { id: true, sessionDate: true } },
-            assessor: { select: { username: true, email: true } },
-          },
-        });
-      }
-      const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true, athletes: { select: { id: true } } } });
-      if (!coach) return [];
-      return prisma.trainingAssessment.findMany({
-        where: { athleteId: { in: coach.athletes.map((a) => a.id) } },
-        orderBy: { assessmentDate: "desc" },
-        take: 200,
-        include: {
-          athlete: { select: { id: true, athleteCode: true, firstName: true, lastName: true, sport: { select: { sportName: true } } } },
-          plan: { select: { id: true, planName: true, frequency: true } },
-          session: { select: { id: true, sessionDate: true } },
-          assessor: { select: { username: true, email: true } },
-        },
-      });
-    })(),
   ]);
   return {
     props: {
@@ -86,7 +58,6 @@ export async function getServerSideProps(context) {
       athletes: JSON.parse(JSON.stringify(athletes)),
       initialPlans: JSON.parse(JSON.stringify(plans)),
       initialTemplates: JSON.parse(JSON.stringify(templates)),
-      initialAssessments: JSON.parse(JSON.stringify(assessments)),
     },
   };
 }
@@ -106,19 +77,13 @@ function fmtDate(value) {
   return isNaN(d) ? "—" : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
-function ratingChip(rating) {
-  return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, background: "rgba(45,212,168,.14)", color: "var(--accent)" }}>{rating}<small style={{ fontSize: 9, opacity: .7 }}>/10</small></span>;
-}
-
-export default function TrainingPlans({ session, isAdmin, sports, coaches, athletes, initialPlans = [], initialTemplates = [], initialAssessments = [] }) {
+export default function TrainingPlans({ session, isAdmin, sports, coaches, athletes, initialPlans = [], initialTemplates = [] }) {
   const router = useRouter();
   const [showPlanForm, setShowPlanForm] = React.useState(false);
   const [editingPlan, setEditingPlan] = React.useState(null);
   const [plans, setPlans] = React.useState(initialPlans);
-  const [assessments, setAssessments] = React.useState(initialAssessments);
   const [templates, setTemplates] = React.useState(initialTemplates);
   const [loadingPlans, setLoadingPlans] = React.useState(false);
-  const [loadingAssessments, setLoadingAssessments] = React.useState(false);
   const [error, setError] = React.useState("");
 
   function loadPlans() {
@@ -127,15 +92,10 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
   function loadTemplates() {
     fetch("/api/training-plans?template=true").then((r) => r.json()).then((data) => { setTemplates(Array.isArray(data) ? data : []); }).catch(() => {});
   }
-  function loadAssessments() {
-    fetch("/api/training-assessments").then((r) => r.json()).then((data) => { setAssessments(Array.isArray(data) ? data : []); setLoadingAssessments(false); }).catch(() => { setLoadingAssessments(false); setError("Could not load assessments."); });
-  }
   function refresh() {
     setLoadingPlans(true);
-    setLoadingAssessments(true);
     loadPlans();
     loadTemplates();
-    loadAssessments();
   }
 
   async function deletePlan(planId) {
@@ -207,34 +167,6 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
                         {!isAdmin && <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => deletePlan(p.id)} style={{ padding: "4px 8px", fontSize: "12px" }}>Delete</button>}
                       </div>
                     </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table></div>
-          )}
-        </section>
-
-        <section className={styles.panel}>
-          <div className={styles.panelHeader}>
-            <div><p className={styles.eyebrow}>Progress</p><h2>Training assessments</h2></div>
-          </div>
-          <p className={styles.formHint} style={{ marginTop: 0 }}>Assessments are recorded inside each training plan, where coaches score activities and give each athlete a rating (1–10).</p>
-
-          {loadingAssessments ? <p className={styles.empty}>Loading assessments...</p> : assessments.length === 0 ? (
-            <p className={styles.empty}>No assessments recorded yet.</p>
-          ) : (
-            <div className={styles.tableWrap}><table>
-              <thead><tr><th>Athlete</th><th>Plan</th><th>Rating</th><th>Fitness</th><th>Comments</th><th>Date</th><th>Recorded by</th></tr></thead>
-              <tbody>
-                {assessments.map((a) => (
-                  <tr key={a.id}>
-                    <td data-label="Athlete"><strong>{a.athlete?.firstName} {a.athlete?.lastName}</strong><small>{a.athlete?.sport?.sportName || "—"}</small></td>
-                    <td data-label="Plan">{a.plan?.planName || "—"}</td>
-                    <td data-label="Rating">{ratingChip(a.rating)}</td>
-                    <td data-label="Fitness">{a.fitnessDimension ? a.fitnessDimension.replace("_", " ") : "—"}</td>
-                    <td data-label="Comments">{a.comments || "—"}</td>
-                    <td data-label="Date">{fmtDate(a.assessmentDate)}</td>
-                    <td data-label="Recorded by">{a.assessor?.email || "—"}</td>
                   </tr>
                 ))}
               </tbody>

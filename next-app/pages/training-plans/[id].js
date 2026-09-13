@@ -1046,12 +1046,6 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
       const n = { ...cur };
       for (const a of acts) {
         const t = targetOf(a);
-        const prevLog = latestByKey[key(athleteId, a.id)];
-        if (preset === "copy" && !prevLog) continue;
-        if (preset === "copy") {
-          n[key(athleteId, a.id)] = { touched: true, status: prevLog.status || "done", qty: prevLog.quantityDone != null ? Number(prevLog.quantityDone) : "", sets: prevLog.setsDone != null ? Number(prevLog.setsDone) : "", reps: prevLog.repsDone != null ? Number(prevLog.repsDone) : "", note: prevLog.notes || "" };
-          continue;
-        }
         const cell = { touched: true, status: preset === "full" ? "done" : preset === "light" ? "partial" : "missed", qty: "", sets: "", reps: "", note: "" };
         if (preset === "full" && t) {
           if (t.kind === "qty") cell.qty = t.n;
@@ -1060,19 +1054,6 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
         }
         if (preset === "light" && t && t.kind === "qty") cell.qty = Math.max(0, Math.round(t.n * 0.5));
         n[key(athleteId, a.id)] = cell;
-      }
-      return n;
-    });
-  }
-
-  function applyColumn(column, status) {
-    setCells((cur) => {
-      const n = { ...cur };
-      for (const member of column.members) {
-        const t = targetOf(member.activity);
-        const cell = { touched: true, status, qty: "", sets: "", reps: "", note: "" };
-        if (status === "done" && t && t.kind === "qty") cell.qty = t.n;
-        n[key(member.athleteId, member.activityId)] = cell;
       }
       return n;
     });
@@ -1264,13 +1245,9 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                 <th key={column.gkey} style={{ minWidth: 132 }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                     <strong>{column.activityName}</strong>
-                    <small style={{ color: "var(--muted)", fontWeight: 400 }}>{FITNESS_META[column.fitnessType] || column.fitnessType}{column.dayIndex ? ` · Day ${column.dayIndex}` : ""}</small>
-                    <div style={{ display: "flex", gap: 4 }}>
-                      <button className="miniBtn" title="Mark this activity Done for every athlete" onClick={() => applyColumn(column, "done")}>✓ all</button>
-                      <button className="miniBtn" title="Mark this activity Missed for every athlete" onClick={() => applyColumn(column, "missed")}>✗ all</button>
+<small style={{ color: "var(--muted)", fontWeight: 400 }}>{FITNESS_META[column.fitnessType] || column.fitnessType}{column.dayIndex ? ` · Day ${column.dayIndex}` : ""}</small>
                     </div>
-                  </div>
-                </th>
+                  </th>
               ))}
             </tr>
           </thead>
@@ -1291,9 +1268,8 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                       <small style={{ color: "var(--muted)", display: "block" }}>{athlete.athleteCode}</small>
                       <div className="rowActions">
                         <button className="miniBtn" title="Mark all this athlete's shown activities as done" onClick={() => applyPreset(athlete.id, "full")}>Full</button>
-                        <button className="miniBtn" title="Mark all partial at half target" onClick={() => applyPreset(athlete.id, "light")}>Light</button>
+                        <button className="miniBtn" title="Mark all at half target" onClick={() => applyPreset(athlete.id, "light")}>Half</button>
                         <button className="miniBtn" title="Mark all missed" onClick={() => applyPreset(athlete.id, "rest")}>Rest</button>
-                        <button className="miniBtn" title="Start from this athlete's last assessment" onClick={() => applyPreset(athlete.id, "copy")}>Copy last</button>
                         <button className={`miniBtn ${openRatingId === athlete.id ? "on" : ""}`} onClick={() => setOpenRatingId(openRatingId === athlete.id ? null : athlete.id)}>Rating</button>
                         <button className={`miniBtn ${evidence[athlete.id] && evidence[athlete.id].url ? "on" : ""}`} title="Upload a training photo as proof the session happened" onClick={() => pickEvidence(athlete.id)}>{evidence[athlete.id] && evidence[athlete.id].uploading ? "Uploading…" : "📷 Evidence"}</button>
                       </div>
