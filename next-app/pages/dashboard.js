@@ -156,12 +156,12 @@ function Greeting({ greetingName }) {
 
 function FeatureCard({ eyebrow, title, href, children }) {
   return (
-    <div className={styles.panel} style={{ display: "flex", flexDirection: "column" }}>
-      <div className={styles.panelHeader} style={{ marginBottom: 0 }}>
-        <div><p className={styles.eyebrow}>{eyebrow}</p><h2 style={{ margin: 0 }}>{title}</h2></div>
+    <div className={`${styles.panel} ${styles.featureCard}`}>
+      <div className={styles.panelHeader}>
+        <div><p className={styles.eyebrow}>{eyebrow}</p><h2>{title}</h2></div>
         <Link href={href}>Open</Link>
       </div>
-      <p style={{ color: "var(--muted)", margin: 0, fontSize: 13, lineHeight: 1.5 }}>{children}</p>
+      <p className={styles.featureDesc}>{children}</p>
     </div>
   );
 }
@@ -224,7 +224,8 @@ export default function Dashboard({ stats, completion, ratingSeries, upcomingSes
         </section>
       )}
       <section className={styles.panel}>
-        <h4>Training activity completion <small style={{ color: "var(--muted)", fontWeight: 400 }}>last 8 weeks, from real activity logs</small></h4>
+        <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Activity</p><h2>Training activity completion</h2></div><Link href="/training-plans">Training</Link></div>
+        <p className={styles.formHint} style={{ marginTop: 0 }}>Last 8 weeks, from real activity logs.</p>
         {hasCompletion ? (
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={completion} margin={{ top: 6, right: 12, left: 0, bottom: 0 }}>
@@ -241,8 +242,9 @@ export default function Dashboard({ stats, completion, ratingSeries, upcomingSes
         ) : <p className={styles.empty}>No training activity recorded yet. Coaches will log assessments from each training plan.</p>}
       </section>
       <section className={styles.grid}>
-        <div className={styles.detailPanel}>
-          <h4>Training ratings <small style={{ color: "var(--muted)", fontWeight: 400 }}>1–10 per assessment</small></h4>
+        <div className={styles.panel}>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Ratings</p><h2>Training ratings</h2></div><Link href="/assessments">Assessments</Link></div>
+          <p className={styles.formHint} style={{ marginTop: 0 }}>1–10 score per assessment.</p>
           {ratingSeries.length >= 2 ? (
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={ratingSeries} margin={{ top: 6, right: 12, left: 0, bottom: 0 }}>
