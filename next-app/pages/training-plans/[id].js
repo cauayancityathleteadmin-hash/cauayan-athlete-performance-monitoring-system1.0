@@ -289,28 +289,6 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
           )}
         </section>
 
-        <section className={styles.panel}>
-          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Monitor</p><h2>Recent progress</h2></div></div>
-{logs.length === 0 ? <p className={styles.empty}>No progress logged yet for this plan.</p> : (
-            <div className={styles.tableWrap}><table>
-              <thead><tr><th>Date</th><th>Athlete</th><th>Activity</th><th>Status</th><th>Done</th><th>Notes</th><th>Logged by</th></tr></thead>
-              <tbody>
-                {logs.slice(0, 100).map((log) => (
-                  <tr key={log.id}>
-                    <td data-label="Date">{fmtDate(log.performedAt)}</td>
-                    <td data-label="Athlete"><strong>{log.athlete?.lastName}, {log.athlete?.firstName}</strong><small>{log.athlete?.athleteCode}</small></td>
-                    <td data-label="Activity">{log.activity?.activityName || "—"}</td>
-                    <td data-label="Status">{renderStatus(log.status)}</td>
-                    <td data-label="Done">{log.quantityDone != null ? `${log.quantityDone}` : "—"}</td>
-                    <td data-label="Notes">{log.notes || "—"}</td>
-                    <td data-label="Logged by">{log.logger?.email || "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table></div>
-          )}
-        </section>
-
 <section className={styles.panel}>
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Monitor</p><h2>Daily training monitoring</h2></div>
@@ -386,11 +364,6 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
       </AppShell>
     </>
   );
-}
-
-function renderStatus(status) {
-  const meta = LOG_STATUS[status] || LOG_STATUS.planned;
-  return <span className={`${styles.badge} ${styles[meta.cls]}`}>{meta.label}</span>;
 }
 
 function computeProgress(activity, log) {
@@ -556,7 +529,7 @@ function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, o
                       <td data-label="Target">{targetText}</td>
                       <td data-label="Latest status">
                         {(() => {
-                          if (!latest) return <span style={{ color: "var(--muted)", fontSize: "12px" }}>Not logged</span>;
+                          if (!latest) return <span className={styles.badge} style={{ background: "rgba(26,92,74,.08)", color: "var(--muted)", border: "1px dashed rgba(100,116,139,.3)", fontSize: "11px" }}>Not started</span>;
                           return (
                             <span title={`${fmtDate(latest.performedAt)}${latest.quantityDone != null ? ` · ${latest.quantityDone}${latest.activity?.targetUnit ? ` ${latest.activity.targetUnit}` : ""}` : ""}`} className={`${styles.badge} ${styles[meta.cls]}`} style={{ fontSize: "11px" }}>
                               {meta.label}
@@ -696,7 +669,7 @@ function ActivityRow({ athlete, activity, logs, onRemove, onEdit, readOnly = fal
         </td>
         <td>
           {(() => {
-            if (!latestLog) return <span style={{ color: "var(--muted)", fontSize: "12px" }}>Not logged</span>;
+            if (!latestLog) return <span className={styles.badge} style={{ background: "rgba(26,92,74,.08)", color: "var(--muted)", border: "1px dashed rgba(100,116,139,.3)", fontSize: "11px" }}>Not started</span>;
             const meta = LOG_STATUS[latestLog.status] || LOG_STATUS.planned;
             const p = computeProgress(activity, latestLog);
             const title = `${fmtDate(latestLog.performedAt)}${latestLog.quantityDone != null ? ` · ${latestLog.quantityDone}${latestLog.activity?.targetUnit ? ` ${latestLog.activity.targetUnit}` : ""}` : ""}`;
@@ -1323,10 +1296,11 @@ function MonitoringGrid({ data, athletes, maxWeek, currentWeek, onWeekChange }) 
                   {days.map((_, i) => {
                     const dayData = row?.days[i + 1] || { total: 0, done: 0, partial: 0, missed: 0, pending: 0 };
                     const status = getDayStatus(dayData);
+                    const dayPercent = dayData.total > 0 ? Math.round(((dayData.done + dayData.partial) / dayData.total) * 100) : null;
                     return (
                       <td key={i} style={{ textAlign: "center", verticalAlign: "middle" }}>
-                        <span className={`day-badge ${getStatusClass(status)}`}>
-                          {dayData.total > 0 ? `${dayData.done}/${dayData.total}` : "—"}
+                        <span className={`day-badge ${getStatusClass(status)}`} title={`${dayData.done} done · ${dayData.partial} partial · ${dayData.missed} missed · ${dayData.pending} open`}>
+                          {dayPercent != null ? `${dayPercent}%` : "—"}
                         </span>
                         {dayData.total > 0 && (
                           <>
@@ -1340,12 +1314,14 @@ function MonitoringGrid({ data, athletes, maxWeek, currentWeek, onWeekChange }) 
                               {dayData.activities.map(a => {
                                 const p = computeProgress(a, a.log);
                                 return (
-                                  <div key={a.id} title={`${a.activityName}${p ? `: ${p.percent}% complete` : ""}`} style={{ display: "flex", alignItems: "center", gap: 6, maxWidth: 170 }}>
+                                  <div key={a.id} title={`${a.activityName}${p ? ` · ${p.percent}% complete` : a.log ? ` · ${a.log.status}` : " · not started"}`} style={{ display: "flex", alignItems: "center", gap: 6, maxWidth: 170 }}>
                                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: "1 1 auto", textAlign: "left" }}>{a.activityName}</span>
                                     {p ? (
                                       <strong style={{ color: percentColor(p.percent), flex: "0 0 auto" }}>{p.percent}%</strong>
+                                    ) : a.log ? (
+                                      <span style={{ flex: "0 0 auto", fontSize: 9, textTransform: "uppercase", letterSpacing: 0.4, opacity: 0.8 }}>{a.log.status}</span>
                                     ) : (
-                                      <span style={{ flex: "0 0 auto", fontSize: 9, textTransform: "uppercase", letterSpacing: 0.4, opacity: 0.8 }}>{a.log ? a.log.status : "open"}</span>
+                                      <strong style={{ color: "var(--muted)", flex: "0 0 auto", opacity: 0.85 }}>0%</strong>
                                     )}
                                   </div>
                                 );

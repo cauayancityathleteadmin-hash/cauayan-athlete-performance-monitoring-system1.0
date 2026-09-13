@@ -16,7 +16,7 @@ export function buildMonitoringGrid({ activities, planAthletes, week }) {
       percent: weekActivities.length ? Math.round(((weekDone + weekPartial) / weekActivities.length) * 100) : 0,
     };
     for (let d = 1; d <= 7; d++) {
-      const dayActivities = activities.filter((a) => a.athleteId === aid && a.dayIndex === d && (!a.weekNumber || a.weekNumber === week));
+      const dayActivities = activities.filter((a) => a.athleteId === aid && (a.dayIndex ?? 1) === d && (!a.weekNumber || a.weekNumber === week));
       const done = dayActivities.filter((a) => a.logs.length > 0 && a.logs[0].status === "done").length;
       const partial = dayActivities.filter((a) => a.logs.length > 0 && a.logs[0].status === "partial").length;
       const missed = dayActivities.filter((a) => a.logs.length > 0 && a.logs[0].status === "missed").length;
