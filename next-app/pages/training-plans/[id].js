@@ -357,7 +357,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
             </div>
             <p className={styles.formHint} style={{ marginTop: 0 }}>Score everyone on the plan in one pass: set status for each athlete&apos;s activity, then save once with an optional 1&ndash;10 rating per athlete. Untouched cells are skipped; existing records are preserved until you save.</p>
             {showBulkAssess && (
-              <AssessStudio planId={plan.id} athletes={athletes} activities={activities} logs={logs} onDone={refresh} />
+              <AssessStudio plan={plan} planId={plan.id} athletes={athletes} activities={activities} logs={logs} onDone={refresh} />
             )}
           </section>
         )}
@@ -527,7 +527,7 @@ function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, o
                         <span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)" }}>{FITNESS_META[fitnessType] || fitnessType}</span>
                       </td>
                       <td data-label="Target">{targetText}</td>
-                      <td data-label="Latest status">
+                      <td data-label="Latest status" style={{ textAlign: "center" }}>
                         {(() => {
                           if (!latest) return <span className={styles.badge} style={{ background: "rgba(26,92,74,.08)", color: "var(--muted)", border: "1px dashed rgba(100,116,139,.3)", fontSize: "11px" }}>Not started</span>;
                           return (
@@ -667,7 +667,7 @@ function ActivityRow({ athlete, activity, logs, onRemove, onEdit, readOnly = fal
           {activity.targetLoad != null ? <small>{activity.targetLoad} kg</small> : null}
           {activity.dayIndex ? <small>Day {activity.dayIndex}{activity.weekNumber ? ` | W${activity.weekNumber}` : ""}</small> : null}
         </td>
-        <td>
+        <td style={{ textAlign: "center" }}>
           {(() => {
             if (!latestLog) return <span className={styles.badge} style={{ background: "rgba(26,92,74,.08)", color: "var(--muted)", border: "1px dashed rgba(100,116,139,.3)", fontSize: "11px" }}>Not started</span>;
             const meta = LOG_STATUS[latestLog.status] || LOG_STATUS.planned;
@@ -825,9 +825,11 @@ function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
 }
 
 
-function AssessStudio({ planId, athletes, activities, logs, onDone }) {
+function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
   const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
   const [dayFilter, setDayFilter] = React.useState("all");
+  const [weekFilter, setWeekFilter] = React.useState("all");
+  const maxWeek = (plan?.durationDays != null ? Math.ceil(plan.durationDays / 7) : null) || plan?.durationWeeks || 1;
   const [cells, setCells] = React.useState({});
   const [ratings, setRatings] = React.useState({});
   const [openRatingId, setOpenRatingId] = React.useState(null);
@@ -855,8 +857,10 @@ function AssessStudio({ planId, athletes, activities, logs, onDone }) {
 
   function visibleActivities(athleteId) {
     const all = byAthlete[athleteId] || [];
-    if (dayFilter === "all") return all;
-    return all.filter((a) => dayOf(a) === Number(dayFilter));
+    let filtered = all;
+    if (weekFilter !== "all") filtered = filtered.filter((a) => (a.weekNumber == null ? 1 : a.weekNumber) === Number(weekFilter));
+    if (dayFilter === "all") return filtered;
+    return filtered.filter((a) => dayOf(a) === Number(dayFilter));
   }
 
   const columns = (() => {
@@ -1123,6 +1127,12 @@ function AssessStudio({ planId, athletes, activities, logs, onDone }) {
             {[1,2,3,4,5,6,7].map((d) => <option key={d} value={d}>Day {d}</option>)}
           </select>
         </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>Week
+          <select value={weekFilter} onChange={(e) => setWeekFilter(e.target.value)} className={styles.fieldControl}>
+            <option value="all">All weeks</option>
+            {[...Array(maxWeek)].map((_, i) => <option key={i + 1} value={i + 1}>Week {i + 1}</option>)}
+          </select>
+        </label>
         <button className={styles.primary} disabled={busy} onClick={save}>{busy ? "Saving..." : "Save assessment"}</button>
         {toast && (
           <span role="status" style={{ color: toast.kind === "error" ? "var(--danger)" : toast.kind === "info" ? "var(--muted)" : "var(--accent)", fontSize: 12, lineHeight: 1.4 }}>
@@ -1132,7 +1142,7 @@ function AssessStudio({ planId, athletes, activities, logs, onDone }) {
         )}
       </div>
 
-      <p className={styles.formHint} style={{ marginTop: 0, marginBottom: 12 }}>Tap a cell&apos;s button to flip its status (D → P → M → open). Untouched cells are not part of the save. Type an amount and the status picks itself. Row buttons fill one athlete; the ✓ / ✗ buttons above each activity fill that activity for everyone.</p>
+      <p className={styles.formHint} style={{ marginTop: 0, marginBottom: 12 }}>Tap a cell&apos;s button to flip its status (D → P → M → open). Untouched cells are not part of the save. Type an amount and the status picks itself. Row buttons fill one athlete; the ✓ / ✗ buttons above each activity fill that activity for everyone. Activities without a set week are shown under Week 1.</p>
 
       {confirm && (
         <div style={{ border: "1px solid rgba(45,212,168,.5)", borderRadius: 10, padding: "12px 14px", background: "rgba(6,38,30,.5)", marginBottom: 12 }}>
@@ -1304,12 +1314,6 @@ function MonitoringGrid({ data, athletes, maxWeek, currentWeek, onWeekChange }) 
                         </span>
                         {dayData.total > 0 && (
                           <>
-                            <div style={{ marginTop: 6, fontSize: 10, lineHeight: 1.6, color: "var(--muted)" }}>
-                              <div>Done: <strong style={{ color: "var(--accent)" }}>{dayData.done}</strong></div>
-                              <div>Partial: <strong>{dayData.partial}</strong></div>
-                              <div>Missed: <strong style={{ color: "var(--danger)" }}>{dayData.missed}</strong></div>
-                              <div>Open: <strong>{dayData.pending}</strong></div>
-                            </div>
                             <div style={{ marginTop: 6, fontSize: 10, color: "var(--muted)", display: "flex", flexDirection: "column", gap: 3 }}>
                               {dayData.activities.map(a => {
                                 const p = computeProgress(a, a.log);
