@@ -191,6 +191,7 @@ export default function Dashboard({ stats, completion, ratingSeries, upcomingSes
       ];
   const hasCompletion = completion.some((w) => w.done > 0 || w.partial > 0 || w.missed > 0);
   const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const healthNote = stats.healthIssues > 0 ? `${stats.healthIssues} athlete${stats.healthIssues === 1 ? "" : "s"} flagged for health` : "";
   const healthSegments = healthDist.map((d) => ({
     label: HEALTH_META[d.name]?.label || d.name,
     value: d.value,
@@ -276,7 +277,7 @@ export default function Dashboard({ stats, completion, ratingSeries, upcomingSes
         )}
       </section>
       <section className={styles.gridAuto} aria-label="Feature summaries">
-        <FeatureCard eyebrow="People" title="Athletes" href="/athletes">{plural(stats.athletes, "athlete")} registered, {plural(stats.healthIssues, "flagged for health")}.</FeatureCard>
+        <FeatureCard eyebrow="People" title="Athletes" href="/athletes">{plural(stats.athletes, "athlete")} registered{healthNote ? `, ${healthNote}` : ""}.</FeatureCard>
         <FeatureCard eyebrow="Training &amp; assessment" title="Training" href="/training-plans">{plural(stats.trainingPlans, "training plan")} in the system. Track activities, assess athletes, and review the monitoring grid.</FeatureCard>
         <FeatureCard eyebrow="Assessments" title="Physical assessments" href="/assessments">{plural(stats.assessments, "assessment")} recorded across the program.</FeatureCard>
         <FeatureCard eyebrow="Events &amp; program" title="Event programs" href="/event-plans">{plural(stats.plans, "open program")}{stats.myApprovedPlans > 0 && !isAdmin ? `, ${plural(stats.myApprovedPlans, "approved application")}` : ""}. Apply, add participants, and track competition slots.</FeatureCard>
