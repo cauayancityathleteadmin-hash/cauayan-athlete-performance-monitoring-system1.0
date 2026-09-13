@@ -186,7 +186,7 @@ function effortSummary(attendances, planLogs) {
 function MiniTrend({ points }) {
   const w = 360;
   const h = 110;
-  const padL = 8;
+  const padL = 18;
   const padR = 12;
   const padT = 10;
   const padB = 22;

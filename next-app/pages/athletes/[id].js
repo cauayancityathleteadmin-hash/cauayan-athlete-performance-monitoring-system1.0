@@ -114,7 +114,7 @@ function buildMetricSeries(assessments) {
 function LineChart({ points }) {
   const w = 480;
   const h = 150;
-  const padL = 8;
+  const padL = 18;
   const padR = 8;
   const padT = 12;
   const padB = 26;

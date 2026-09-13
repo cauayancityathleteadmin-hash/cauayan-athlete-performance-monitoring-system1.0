@@ -229,7 +229,7 @@ export default function Dashboard({ stats, completion, ratingSeries, upcomingSes
         <p className={styles.formHint} style={{ marginTop: 0 }}>Last 8 weeks, from real activity logs.</p>
         {hasCompletion ? (
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={completion} margin={{ top: 6, right: 12, left: 0, bottom: 0 }}>
+            <BarChart data={completion} margin={{ top: 6, right: 12, left: 16, bottom: 0 }}>
               <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
               <XAxis dataKey="when" tickFormatter={weekLabel} tick={{ fill: "#9db6c7", fontSize: 11 }} />
               <YAxis allowDecimals={false} tick={{ fill: "#9db6c7", fontSize: 11 }} />
@@ -248,7 +248,7 @@ export default function Dashboard({ stats, completion, ratingSeries, upcomingSes
           <p className={styles.formHint} style={{ marginTop: 0 }}>1–10 score per assessment.</p>
           {ratingSeries.length >= 2 ? (
             <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={ratingSeries} margin={{ top: 6, right: 12, left: 0, bottom: 0 }}>
+              <LineChart data={ratingSeries} margin={{ top: 6, right: 12, left: 16, bottom: 0 }}>
                 <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
                 <XAxis dataKey="when" tickFormatter={dateLabel} tick={{ fill: "#9db6c7", fontSize: 11 }} />
                 <YAxis domain={[0, 10]} tick={{ fill: "#9db6c7", fontSize: 11 }} />

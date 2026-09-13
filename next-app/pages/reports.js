@@ -837,7 +837,7 @@ function PerformanceSummary({ athlete }) {
           <h4>Rating trend over time</h4>
           {trendData.length >= 2 ? (
             <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={trendData} margin={{ top: 6, right: 12, left: 0, bottom: 0 }}>
+              <LineChart data={trendData} margin={{ top: 6, right: 12, left: 16, bottom: 0 }}>
                 <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
                 <XAxis dataKey="when" tick={{ fill: "#9db6c7", fontSize: 11 }} />
                 <YAxis domain={[0, 10]} tick={{ fill: "#9db6c7", fontSize: 11 }} />
@@ -869,7 +869,7 @@ function PerformanceSummary({ athlete }) {
           <h4>Plan activity completion</h4>
           {completion.planned > 0 ? (
             <ResponsiveContainer width="100%" height={90}>
-              <BarChart data={completionStack} layout="vertical" margin={{ top: 6, right: 12, left: 0, bottom: 0 }}>
+              <BarChart data={completionStack} layout="vertical" margin={{ top: 6, right: 12, left: 16, bottom: 0 }}>
                 <XAxis type="number" hide />
                 <YAxis type="category" dataKey="name" hide />
                 <Tooltip {...chartTooltip} formatter={(v, name) => [`${v}`, name]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />

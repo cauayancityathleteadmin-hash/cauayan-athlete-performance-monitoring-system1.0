@@ -1541,7 +1541,7 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
           <h4>Completion rate by athlete <small style={{ color: "var(--muted)", fontWeight: 400 }}>(green ≥ 80%, yellow ≥ 50%, red &lt; 50%)</small></h4>
           {perAthlete.length && perAthlete.some((r) => r.total > 0) ? (
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={barData} margin={{ top: 6, right: 10, left: 0, bottom: 0 }}>
+              <BarChart data={barData} margin={{ top: 6, right: 10, left: 16, bottom: 0 }}>
                 <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="name" tick={{ fill: "#9db6c7", fontSize: 12 }} />
                 <YAxis domain={[0, 100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
@@ -1574,7 +1574,7 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
           <h4>Weekly completion trend <small style={{ color: "var(--muted)", fontWeight: 400 }}>(done + partial ÷ planned)</small></h4>
           {weekly.some((w) => w.total > 0) ? (
             <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={weekly} margin={{ top: 6, right: 12, left: 0, bottom: 0 }}>
+              <LineChart data={weekly} margin={{ top: 6, right: 12, left: 16, bottom: 0 }}>
                 <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
                 <XAxis dataKey="week" tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `W${v}`} />
                 <YAxis domain={[0, 100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
@@ -1614,7 +1614,7 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
             <div className={`${styles.detailPanel} panelBox`}>
               <h4>Activity completion <small style={{ color: "var(--muted)", fontWeight: 400 }}>{focus.name}</small></h4>
               <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={focus.byActivity} layout="vertical" margin={{ top: 6, right: 16, left: 0, bottom: 0 }}>
+                <BarChart data={focus.byActivity} layout="vertical" margin={{ top: 6, right: 16, left: 16, bottom: 0 }}>
                   <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" horizontal={false} />
                   <XAxis type="number" domain={[0, 100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
                   <YAxis type="category" dataKey="name" width={170} tick={{ fill: "#9db6c7", fontSize: 12 }} />
