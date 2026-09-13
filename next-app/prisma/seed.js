@@ -133,7 +133,7 @@ async function seedReferenceData() {
 // ---------------------------------------------------------------------------
 
 const TEST_PASSWORD_COACH = "CoachTest2026!";
-const TEST_PASSWORD_ADMIN = "AdminTest2026!";
+const TEST_PASSWORD_ADMIN = "Admin.101!";
 
 function hash(pw) {
   return bcrypt.hashSync(pw, 12);
@@ -238,22 +238,24 @@ async function seedTestData(ref) {
 
   // --- Users & coaches -----------------------------------------------------
   const admin = await ensureUser({
-    username: "admin", email: "admin@cauayan.local",
+    username: "admin.101", email: "admin.101@cauayan.local",
     password: TEST_PASSWORD_ADMIN, role: "admin", status: "active", mustChangePassword: false,
   });
 
   const coachUsers = {};
   const coachRegs = [
-    ["coachOne", "msantos", "maria.santos@cauayan.local", "COA-100001", "Maria", "Velasco", "Santos", "1985-04-12", "0917 111 0001"],
-    ["coachTwo", "rdelacruz", "roberto.delacruz@cauayan.local", "COA-100002", "Roberto", "Dela", "Cruz", "1980-09-23", "0917 111 0002"],
-    ["coachThree", "ereyes", "elena.reyes@cauayan.local", "COA-100003", "Elena", "Mendoza", "Reyes", "1988-01-15", "0917 111 0003"],
-    ["coachFour", "jramos", "jose.ramos@cauayan.local", "COA-100004", "Jose", "Martin", "Ramos", "1983-07-30", "0917 111 0004"],
-    ["coachFive", "rosdiaz", "rosa.diaz@cauayan.local", "COA-100005", "Rosa", "Bautista", "Diaz", "1990-11-05", "0917 111 0005"],
-    ["coachSix", "testcoach", "test.coach@cauayan.local", "COA-000011", "Test", "Coach", "Lastname", "1990-01-01", "0917 111 0011"],
+    ["coachOne", "maria.santos", "maria.santos@cauayan.local", "COA-000001", "Maria", "Velasco", "Santos", "1985-04-12", "0917 111 0001"],
+    ["coachTwo", "roberto.delacruz", "roberto.delacruz@cauayan.local", "COA-000002", "Roberto", "Dela", "Cruz", "1980-09-23", "0917 111 0002"],
+    ["coachThree", "elena.reyes", "elena.reyes@cauayan.local", "COA-000003", "Elena", "Mendoza", "Reyes", "1988-01-15", "0917 111 0003"],
+    ["coachFour", "jose.ramos", "jose.ramos@cauayan.local", "COA-000004", "Jose", "Martin", "Ramos", "1983-07-30", "0917 111 0004"],
+    ["coachFive", "rosa.diaz", "rosa.diaz@cauayan.local", "COA-000005", "Rosa", "Bautista", "Diaz", "1990-11-05", "0917 111 0005"],
+    ["coachSix", "coach.101", "coach.101@cauayan.local", "COA-000006", "Miguel", "Cruz", "Santiago", "1991-02-14", "0917 111 0006"],
   ];
+  // Only these accounts force a password change on first login (to exercise that flow).
+  const forcedPasswordChange = { coachOne: true, coachTwo: true, coachThree: false, coachFour: false, coachFive: false, coachSix: false };
   for (const [key, username, email, code, first, middle, last, bday, contact] of coachRegs) {
     const user = await ensureUser({
-      username, email, password: TEST_PASSWORD_COACH, role: "coach", status: "active", mustChangePassword: true,
+      username, email, password: TEST_PASSWORD_COACH, role: "coach", status: "active", mustChangePassword: forcedPasswordChange[key],
     });
     coachUsers[key] = user;
   }
@@ -295,7 +297,7 @@ async function seedTestData(ref) {
   });
   const pendingCoach = await ensureCoach({
     user: pendingUser,
-    coachCode: "COA-100006",
+    coachCode: "COA-000007",
     firstName: "Pedro", middleName: "Agcaoili", lastName: "Del Valle",
     birthdate: new Date("1992-03-18"), email: pendingUser.email,
     contactNumber: "0917 111 0006",
@@ -312,7 +314,7 @@ async function seedTestData(ref) {
   });
   await ensureCoach({
     user: rejectedUser,
-    coachCode: "COA-100007",
+    coachCode: "COA-000008",
     firstName: "Liza", middleName: "Santos", lastName: "Flores",
     birthdate: new Date("1991-12-02"), email: rejectedUser.email,
     contactNumber: "0917 111 0007",
@@ -361,11 +363,11 @@ async function seedTestData(ref) {
     ["ATH-100034", "Andrei", "Carlo", "Tan", "2007-02-14", "other", "St. Michael Institute of Cauayan", "Badminton", "Singles", "coachFive", "active", "healthy", 172, 65],
     ["ATH-100035", "Lorraine", "Joy", "Villanueva", "2009-06-21", "female", "St. Michael Institute of Cauayan", "Volleyball", "Indoor Volleyball", null, "active", "healthy", 166, 58],
     ["ATH-100036", "Dominic", "Paul", "Sarmiento", "2008-11-08", "male", "St. Michael Institute of Cauayan", "Swimming", "100m Butterfly", null, "active", "healthy", 175, 67],
-    // Coach Six test athletes
-    ["ATH-900001", "Test", "Athlete", "One", "2008-03-15", "male", "Cauayan City National High School", "Athletics", "100m Sprint", "coachSix", "active", "healthy", 170, 65],
-    ["ATH-900002", "Test", "Athlete", "Two", "2009-05-20", "female", "Cauayan City National High School", "Swimming", "50m Freestyle", "coachSix", "active", "healthy", 165, 55],
-    ["ATH-900003", "Test", "Athlete", "Three", "2007-08-10", "male", "Cauayan City National High School", "Athletics", "Long Jump", "coachSix", "active", "healthy", 180, 72],
-    ["ATH-900004", "Test", "Athlete", "Four", "2009-01-25", "female", "Cauayan City National High School", "Swimming", "100m Butterfly", "coachSix", "active", "healthy", 168, 58],
+    // Test-coach roster (coach.101 / COA-000006)
+    ["ATH-900001", "Joaquin", "Rafael", "Manalo", "2008-03-15", "male", "Cauayan City National High School", "Athletics", "100m Sprint", "coachSix", "active", "healthy", 170, 65],
+    ["ATH-900002", "Carmela", "Joy", "Ponce", "2009-05-20", "female", "Cauayan City National High School", "Swimming", "50m Freestyle", "coachSix", "active", "healthy", 165, 55],
+    ["ATH-900003", "Nicolas", "Andre", "Dumlao", "2007-08-10", "male", "Cauayan City National High School", "Athletics", "Long Jump", "coachSix", "active", "healthy", 180, 72],
+    ["ATH-900004", "Frances", "Mae", "Tangonan", "2009-01-25", "female", "Cauayan City National High School", "Swimming", "100m Butterfly", "coachSix", "active", "healthy", 168, 58],
   ];
 
   const athletes = [];
@@ -700,6 +702,7 @@ async function seedTestData(ref) {
     { key: "swimTemplate", planName: "Swim Technique Template", description: "Reusable stroke technique sessions (template).", sportName: "Swimming", coachKey: "coachOne", frequency: "day", durationWeeks: 8, startDate: new Date("2026-09-01"), endDate: null, status: "active", isTemplate: true, athleteIdx: [] },
     { key: "sprint6", planName: "Pre-Season Sprint Conditioning - Test", description: "Base-speed and start development block for test coach.", sportName: "Athletics", coachKey: "coachSix", frequency: "day", durationWeeks: 4, startDate: new Date("2026-08-24"), endDate: new Date("2026-09-20"), status: "active", isTemplate: false, athleteIdx: [36, 37, 38, 39] },
     { key: "mileage6", planName: "Mileage Build-Up Base Week - Test", description: "Aerobic base accumulation before speed work for test coach.", sportName: "Athletics", coachKey: "coachSix", frequency: "week", durationWeeks: 8, startDate: new Date("2026-07-01"), endDate: new Date("2026-08-25"), status: "active", isTemplate: false, athleteIdx: [36, 38] },
+    { key: "test101", planName: "test 101", description: "Weekly swimming training plan for test coach.", sportName: "Swimming", coachKey: "coachSix", frequency: "week", durationWeeks: 2, startDate: new Date("2026-09-08"), endDate: new Date("2026-09-19"), status: "active", isTemplate: false, athleteIdx: [36, 37] },
   ];
 
   const trainingPlans = {};
@@ -790,6 +793,32 @@ async function seedTestData(ref) {
     ["mileage6", 37, "Fartlek 8k", "endurance", 8, "km", null, null, null, null, null, 1],
     ["mileage6", 38, "Recovery run 4k", "endurance", 4, "km", null, null, null, null, null, 1],
     ["mileage6", 39, "Long run 5k easy", "endurance", 5, "km", null, null, null, null, null, 1],
+    // Test 101 plan - Swimming activities - Week 1
+    ["test101", 36, "Freestyle drill set", "skill_technique", 20, "attempts", 5, null, null, null, 1, 1],
+    ["test101", 36, "Endurance pull set 500m", "endurance", 500, "meters", null, null, 500, null, 1, 1],
+    ["test101", 36, "Kick set 8x50m", "endurance", 8, "reps", null, null, 50, null, 2, 1],
+    ["test101", 36, "Vertical jump test", "power", 10, "reps", 3, null, null, null, 8, 1],
+    ["test101", 36, "Treading water sprints", "speed_agility", 6, "reps", null, null, null, null, 1, 1],
+    ["test101", 36, "Mobility circuit", "mobility", 15, "min", null, null, null, null, 3, 1],
+    ["test101", 37, "Freestyle drill set", "skill_technique", 20, "attempts", 5, null, null, null, null, 1, 1],
+    ["test101", 37, "Endurance pull set 500m", "endurance", 500, "meters", null, null, 500, null, 1, 1],
+    ["test101", 37, "Kick set 8x50m", "endurance", 8, "reps", null, null, 50, null, 2, 1],
+    ["test101", 37, "Vertical jump test", "power", 10, "reps", 3, null, null, null, 8, 1],
+    ["test101", 37, "Treading water sprints", "speed_agility", 6, "reps", null, null, null, null, 1, 1],
+    ["test101", 37, "Mobility circuit", "mobility", 15, "min", null, null, null, null, 3, 1],
+    // Test 101 plan - Swimming activities - Week 2
+    ["test101", 36, "Freestyle drill set", "skill_technique", 25, "attempts", 5, null, null, null, 1, 2],
+    ["test101", 36, "Endurance pull set 600m", "endurance", 600, "meters", null, null, 600, null, 1, 2],
+    ["test101", 36, "Kick set 10x50m", "endurance", 10, "reps", null, null, 50, null, 2, 2],
+    ["test101", 36, "Interval sprints 4x50m", "speed_agility", 4, "reps", null, null, null, null, 1, 2],
+    ["test101", 36, "Core strength circuit", "power", 12, "reps", 3, null, null, null, 8, 2],
+    ["test101", 36, "Flexibility stretch", "mobility", 20, "min", null, null, null, null, 3, 2],
+    ["test101", 37, "Freestyle drill set", "skill_technique", 25, "attempts", 5, null, null, null, null, 1, 2],
+    ["test101", 37, "Endurance pull set 600m", "endurance", 600, "meters", null, null, 600, null, 1, 2],
+    ["test101", 37, "Kick set 10x50m", "endurance", 10, "reps", null, null, 50, null, 2, 2],
+    ["test101", 37, "Interval sprints 4x50m", "speed_agility", 4, "reps", null, null, null, null, 1, 2],
+    ["test101", 37, "Core strength circuit", "power", 12, "reps", 3, null, null, null, 8, 2],
+    ["test101", 37, "Flexibility stretch", "mobility", 20, "min", null, null, null, null, 3, 2],
   ];
   for (const [planKey, aidx, name, fitness, qty, unit, sets, reps, dist, load, day, week] of activitySeed) {
     const plan = trainingPlans[planKey];
@@ -842,6 +871,32 @@ async function seedTestData(ref) {
     ["mileage6", 37, "Fartlek 8k", "done", 8, null, null],
     ["mileage6", 38, "Recovery run 4k", "done", 4, null, null],
     ["mileage6", 39, "Long run 5k easy", "done", 5, null, null],
+    // Test 101 plan - Swimming logs - Week 1
+    ["test101", 36, "Freestyle drill set", "done", 20, 5, null],
+    ["test101", 36, "Endurance pull set 500m", "done", 500, null, null],
+    ["test101", 36, "Kick set 8x50m", "partial", 8, null, null],
+    ["test101", 36, "Vertical jump test", "done", 10, 3, null],
+    ["test101", 36, "Treading water sprints", "missed", null, null, null],
+    ["test101", 36, "Mobility circuit", "done", 15, null, null],
+    ["test101", 37, "Freestyle drill set", "done", 20, 5, null],
+    ["test101", 37, "Endurance pull set 500m", "done", 500, null, null],
+    ["test101", 37, "Kick set 8x50m", "partial", 8, null, null],
+    ["test101", 37, "Vertical jump test", "done", 10, 3, null],
+    ["test101", 37, "Treading water sprints", "missed", null, null, null],
+    ["test101", 37, "Mobility circuit", "done", 15, null, null],
+    // Test 101 plan - Swimming logs - Week 2
+    ["test101", 36, "Freestyle drill set", "done", 25, 5, null],
+    ["test101", 36, "Endurance pull set 600m", "done", 600, null, null],
+    ["test101", 36, "Kick set 10x50m", "done", 10, null, null],
+    ["test101", 36, "Interval sprints 4x50m", "done", 4, null, null],
+    ["test101", 36, "Core strength circuit", "done", 12, 3, null],
+    ["test101", 36, "Flexibility stretch", "partial", 20, null, null],
+    ["test101", 37, "Freestyle drill set", "done", 25, 5, null],
+    ["test101", 37, "Endurance pull set 600m", "done", 600, null, null],
+    ["test101", 37, "Kick set 10x50m", "done", 10, null, null],
+    ["test101", 37, "Interval sprints 4x50m", "done", 4, null, null],
+    ["test101", 37, "Core strength circuit", "done", 12, 3, null],
+    ["test101", 37, "Flexibility stretch", "done", 20, null, null],
   ];
   const loggerUser = coachUsers.coachTwo;
   for (const [planKey, aidx, name, status, qty, sets, reps] of logSeed) {
@@ -1048,7 +1103,7 @@ async function seedTestData(ref) {
   const auditSeed = [
     ["create", "school", null, "Seeded reference school records"],
     ["create", "sport", null, "Seeded sports catalog and events"],
-    ["approve", "coach", coaches.coachFour.id, "Approved coach COA-100004"],
+    ["approve", "coach", coaches.coachFour.id, "Approved coach COA-000004"],
     ["create", "eventPlan", plans.festival.id, "Created event plan: Cauayan City Sports Festival 2026"],
     ["create", "trainingPlan", trainingPlans.sprint.id, "Created training plan: Pre-Season Sprint Conditioning"],
     ["create", "assessment", null, "Recorded bulk assessment session"],
@@ -1064,10 +1119,13 @@ async function seedTestData(ref) {
   console.log("[seed] Test data complete.");
   console.log("");
   console.log("Administrator login:");
-  console.log("  identifier: admin / admin@cauayan.local");
+  console.log("  identifier: admin.101 (or admin.101@cauayan.local)");
   console.log(`  password:   ${TEST_PASSWORD_ADMIN}`);
   console.log("");
-  console.log("Coach logins (same password):");
+  console.log("Test coach login (direct, no forced password change):");
+  console.log(`  coach.101 / coach.101@cauayan.local / ${TEST_PASSWORD_COACH}`);
+  console.log("");
+  console.log("Other coach logins (same password):");
   for (const [key, user] of Object.entries(coachUsers)) {
     console.log(`  ${key}: ${user.email} / ${TEST_PASSWORD_COACH}`);
   }
