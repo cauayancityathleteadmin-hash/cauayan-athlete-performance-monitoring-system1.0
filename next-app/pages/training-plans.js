@@ -114,7 +114,6 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
   const router = useRouter();
   const [showPlanForm, setShowPlanForm] = React.useState(false);
   const [editingPlan, setEditingPlan] = React.useState(null);
-  const [showAssessmentForm, setShowAssessmentForm] = React.useState(false);
   const [plans, setPlans] = React.useState(initialPlans);
   const [assessments, setAssessments] = React.useState(initialAssessments);
   const [templates, setTemplates] = React.useState(initialTemplates);
@@ -218,15 +217,8 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Progress</p><h2>Training assessments</h2></div>
-            {!isAdmin && <button className={styles.secondary} onClick={() => setShowAssessmentForm((c) => !c)}>{showAssessmentForm ? "Close form" : "Record assessment"}</button>}
           </div>
-          <p className={styles.formHint} style={{ marginTop: 0 }}>Rate how each athlete is performing in their training. Ratings (1–10) are used to monitor athlete progress and coaching effectiveness.</p>
-
-          {showAssessmentForm && (
-            <div style={{ marginBottom: 22 }}>
-              <CreateAssessmentForm isAdmin={isAdmin} plans={plans} athletes={athletes} onCreated={() => { setShowAssessmentForm(false); refresh(); }} onCancel={() => setShowAssessmentForm(false)} />
-            </div>
-          )}
+          <p className={styles.formHint} style={{ marginTop: 0 }}>Assessments are recorded inside each training plan, where coaches score activities and give each athlete a rating (1–10).</p>
 
           {loadingAssessments ? <p className={styles.empty}>Loading assessments...</p> : assessments.length === 0 ? (
             <p className={styles.empty}>No assessments recorded yet.</p>
@@ -471,52 +463,6 @@ function EditPlanForm({ isAdmin, plan, sports, coaches, athletes, onSaved, onCan
         <div className={styles.formActions}>
           <button type="button" className={styles.secondary} onClick={onCancel} disabled={busy}>Cancel</button>
           <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Save changes"}</button>
-        </div>
-        {message && <p role="status" className={`${styles.fullField} ${styles.formError}`}>{message}</p>}
-      </form>
-    </>
-  );
-}
-
-function CreateAssessmentForm({ isAdmin, plans, athletes, onCreated, onCancel }) {
-  const [busy, setBusy] = React.useState(false);
-  const [message, setMessage] = React.useState("");
-
-  async function submit(event) {
-    event.preventDefault();
-    setBusy(true); setMessage("");
-    const form = new FormData(event.currentTarget);
-    const body = {
-      athleteId: Number(form.get("athleteId")),
-      planId: Number(form.get("planId") || 0) || null,
-      rating: Number(form.get("rating")),
-      fitnessDimension: form.get("fitnessDimension") || null,
-      comments: form.get("comments"),
-    };
-    const csrf = await fetch("/api/csrf").then((r) => r.json());
-    try {
-      const response = await fetch("/api/training-assessments", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify(body) });
-      const result = await response.json().catch(() => ({}));
-      if (response.ok && !result.error) { event.currentTarget.reset(); setMessage(""); onCreated(); return; }
-      setMessage(result.error || "Could not record the assessment.");
-    } catch (e) { setMessage("Unable to reach the server."); }
-    setBusy(false);
-  }
-
-  const FITNESS = ["endurance", "strength", "power", "speed_agility", "skill_technique", "mobility", "recovery"];
-
-  return (
-    <>
-      <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Record</p><h2>Assess an athlete</h2></div></div>
-      <form onSubmit={submit} className={styles.formGrid}>
-        <label>Athlete *<select name="athleteId" required>{athletes.map((a) => <option key={a.id} value={a.id}>{a.lastName}, {a.firstName} ({a.athleteCode})</option>)}</select></label>
-        <label>Training plan<select name="planId"><option value="">No plan</option>{plans.map((p) => <option key={p.id} value={p.id}>{p.planName}</option>)}</select></label>
-        <label>Fitness dimension<select name="fitnessDimension" defaultValue=""><option value="">General</option>{FITNESS.map((k) => <option key={k} value={k}>{k.replace("_", " ")}</option>)}</select></label>
-        <label>Rating (1–10) *<select name="rating" required defaultValue="5">{[1,2,3,4,5,6,7,8,9,10].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
-        <label className={styles.fullField}>Comments<textarea name="comments" rows="2" maxLength="2000" placeholder="Observations about the athlete's effort, technique, and progress" /></label>
-        <div className={styles.formActions}>
-          <button type="button" className={styles.secondary} onClick={onCancel} disabled={busy}>Cancel</button>
-          <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Record assessment"}</button>
         </div>
         {message && <p role="status" className={`${styles.fullField} ${styles.formError}`}>{message}</p>}
       </form>
