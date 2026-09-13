@@ -123,6 +123,9 @@ const LOG_STATUS = {
   missed: { label: "Missed", cls: "badgeRejected" },
 };
 
+const normName = (s) => (s || "").trim().replace(/\s+/g, " ").toLowerCase();
+const groupKey = (activity) => `${normName(activity.activityName)}|${activity.fitnessType || "endurance"}`;
+
 function fmtDate(value) {
   const d = new Date(value);
   return isNaN(d) ? "—" : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
@@ -885,13 +888,24 @@ function AssessStudio({ planId, athletes, activities, logs, onDone }) {
     const seen = new Set();
     for (const athlete of athletes) {
       for (const activity of visibleActivities(athlete.id)) {
-        if (seen.has(activity.id)) continue;
-        seen.add(activity.id);
-        out.push(activity);
+        const gkey = groupKey(activity);
+        if (seen.has(gkey)) continue;
+        seen.add(gkey);
+        const members = [];
+        for (const other of athletes) {
+          for (const act of visibleActivities(other.id)) {
+            if (groupKey(act) === gkey) members.push({ athleteId: other.id, activityId: act.id, activity: act });
+          }
+        }
+        out.push({ gkey, activityName: activity.activityName, fitnessType: activity.fitnessType, dayIndex: activity.dayIndex, members });
       }
     }
     return out;
   })();
+
+  function memberActivity(column, athleteId) {
+    return column.members.find((m) => m.athleteId === athleteId)?.activity || null;
+  }
 
   function effective(athleteId, activityId, field) {
     const c = cells[key(athleteId, activityId)];
@@ -977,15 +991,14 @@ function AssessStudio({ planId, athletes, activities, logs, onDone }) {
     });
   }
 
-  function applyColumn(activity, status) {
+  function applyColumn(column, status) {
     setCells((cur) => {
       const n = { ...cur };
-      for (const athlete of athletes) {
-        if (!(byAthlete[athlete.id] || []).some((a) => a.id === activity.id)) continue;
-        const t = targetOf(activity);
+      for (const member of column.members) {
+        const t = targetOf(member.activity);
         const cell = { touched: true, status, qty: "", sets: "", reps: "", note: "" };
         if (status === "done" && t && t.kind === "qty") cell.qty = t.n;
-        n[key(athlete.id, activity.id)] = cell;
+        n[key(member.athleteId, member.activityId)] = cell;
       }
       return n;
     });
@@ -1144,14 +1157,14 @@ function AssessStudio({ planId, athletes, activities, logs, onDone }) {
           <thead>
             <tr>
               <th className="fix">Athlete</th>
-              {columns.map((activity) => (
-                <th key={activity.id} style={{ minWidth: 132 }}>
+              {columns.map((column) => (
+                <th key={column.gkey} style={{ minWidth: 132 }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                    <strong>{activity.activityName}</strong>
-                    <small style={{ color: "var(--muted)", fontWeight: 400 }}>{FITNESS_META[activity.fitnessType] || activity.fitnessType}{activity.dayIndex ? ` · Day ${activity.dayIndex}` : ""}</small>
+                    <strong>{column.activityName}</strong>
+                    <small style={{ color: "var(--muted)", fontWeight: 400 }}>{FITNESS_META[column.fitnessType] || column.fitnessType}{column.dayIndex ? ` · Day ${column.dayIndex}` : ""}</small>
                     <div style={{ display: "flex", gap: 4 }}>
-                      <button className="miniBtn" title="Mark this activity Done for every athlete" onClick={() => applyColumn(activity, "done")}>✓ all</button>
-                      <button className="miniBtn" title="Mark this activity Missed for every athlete" onClick={() => applyColumn(activity, "missed")}>✗ all</button>
+                      <button className="miniBtn" title="Mark this activity Done for every athlete" onClick={() => applyColumn(column, "done")}>✓ all</button>
+                      <button className="miniBtn" title="Mark this activity Missed for every athlete" onClick={() => applyColumn(column, "missed")}>✗ all</button>
                     </div>
                   </div>
                 </th>
@@ -1178,19 +1191,20 @@ function AssessStudio({ planId, athletes, activities, logs, onDone }) {
                         <button className={`miniBtn ${openRatingId === athlete.id ? "on" : ""}`} onClick={() => setOpenRatingId(openRatingId === athlete.id ? null : athlete.id)}>Rating</button>
                       </div>
                     </td>
-                    {columns.map((activity) => {
-                      const has = (byAthlete[athlete.id] || []).some((a) => a.id === activity.id);
-                      if (!has) return <td key={activity.id} />;
-                      const status = effective(athlete.id, activity.id, "status");
-                      const touched = !!cells[key(athlete.id, activity.id)];
-                      const qty = effective(athlete.id, activity.id, "qty");
+                    {columns.map((column) => {
+                      const activity = memberActivity(column, athlete.id);
+                      if (!activity) return <td key={column.gkey} />;
+                      const activityId = activity.id;
+                      const status = effective(athlete.id, activityId, "status");
+                      const touched = !!cells[key(athlete.id, activityId)];
+                      const qty = effective(athlete.id, activityId, "qty");
                       const target = targetOf(activity);
                       return (
-                        <td key={activity.id}>
+                        <td key={column.gkey}>
                           <span className="mkCell">
-                            <button className={`dotBtn ${status === "done" ? "on" : status === "partial" ? "part" : status === "missed" ? "miss" : ""} ${touched ? "touchedD" : ""}`} title={status ? `Status: ${status === "done" ? "Done" : status === "partial" ? "Partial" : "Missed"}. Tap to change.` : "Open. Tap to mark Done."} onClick={() => cycleStatus(athlete.id, activity.id, activity)}>{status === "done" ? "D" : status === "partial" ? "P" : status === "missed" ? "M" : "–"}</button>
-                            <input className="qtyIn" type="number" min="0" step="any" placeholder={target && target.unit ? `amt (${target.unit})` : "amt"} value={qty != null ? qty : ""} onChange={(e) => onQty(athlete.id, activity.id, activity, e.target.value)} />
-                            {touched && <button className="miniBtn" title="Clear this cell (not part of the save)" onClick={() => clearCell(athlete.id, activity.id)}>✕</button>}
+                            <button className={`dotBtn ${status === "done" ? "on" : status === "partial" ? "part" : status === "missed" ? "miss" : ""} ${touched ? "touchedD" : ""}`} title={status ? `Status: ${status === "done" ? "Done" : status === "partial" ? "Partial" : "Missed"}. Tap to change.` : "Open. Tap to mark Done."} onClick={() => cycleStatus(athlete.id, activityId, activity)}>{status === "done" ? "D" : status === "partial" ? "P" : status === "missed" ? "M" : "–"}</button>
+                            <input className="qtyIn" type="number" min="0" step="any" placeholder={target && target.unit ? `amt (${target.unit})` : "amt"} value={qty != null ? qty : ""} onChange={(e) => onQty(athlete.id, activityId, activity, e.target.value)} />
+                            {touched && <button className="miniBtn" title="Clear this cell (not part of the save)" onClick={() => clearCell(athlete.id, activityId)}>✕</button>}
                           </span>
                         </td>
                       );

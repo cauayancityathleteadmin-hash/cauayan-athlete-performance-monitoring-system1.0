@@ -8,8 +8,17 @@ import {
   LineChart, Line,
 } from "recharts";
 import { prisma } from "../lib/prisma";
+import { Donut, HBars } from "../components/Charts";
 import styles from "../styles/Dashboard.module.css";
 import AppShell from "../components/AppShell";
+
+const HEALTH_META = {
+  healthy: { label: "Healthy", color: "#2dd4a8" },
+  sick: { label: "Sick", color: "#f87171" },
+  injured: { label: "Injured", color: "#f59e0b" },
+  recovering: { label: "Recovering", color: "#38bdf8" },
+  inactive: { label: "Inactive", color: "#64748b" },
+};
 
 export async function getServerSideProps(context) {
   const session = await getSession(context);
@@ -24,6 +33,7 @@ export async function getServerSideProps(context) {
   };
   const todayWeek = weekStart(now);
   const firstBucket = new Date(todayWeek.getTime() - 7 * 7 * 86400000);
+  const ratingSince = new Date(now.getTime() - 90 * 86400000);
 
   const isAdmin = session.user.role === "admin";
   const canApprove = isAdmin || Boolean(session?.user?.canApproveCoaches);
@@ -43,9 +53,9 @@ export async function getServerSideProps(context) {
   const fromToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const nextWeek = new Date(fromToday.getTime() + 7 * 86400000);
 
-  const [athletes, coaches, sports, events, assessments, plans, logs, evals, healthIssues, trainingPlans, activityLogs, trainingAssessments, mySports, myApprovedPlans, pendingCoaches, upcomingSessions] = await Promise.all([
+  const [athletes, coaches, sports, assessments, plans, logs, evals, healthIssues, trainingPlans, activityLogs, trainingAssessments, mySports, myApprovedPlans, pendingCoaches, upcomingSessions, coachEvals, healthByStatus, recentRatings, achievementsCount] = await Promise.all([
     coachScope ? prisma.athlete.count({ where: coachScope }) : prisma.athlete.count(),
-    prisma.coach.count(), prisma.sport.count(), prisma.event.count(),
+    prisma.coach.count(), prisma.sport.count(),
     coachScope ? prisma.assessment.count({ where: { athlete: coachScope } }) : prisma.assessment.count(),
     prisma.eventPlan.count({ where: { status: "open" } }), prisma.auditLog.count(),
     prisma.coachPerformance.count(),
@@ -70,6 +80,10 @@ export async function getServerSideProps(context) {
       orderBy: { sessionDate: "asc" },
       select: { id: true, sessionDate: true, sessionType: true, venue: true, sport: { select: { sportName: true } } },
     }),
+    isAdmin ? prisma.coachPerformance.findMany({ select: { coach: { select: { id: true, firstName: true, lastName: true } }, overallScore: true } }) : Promise.resolve([]),
+    coachScope ? prisma.athlete.groupBy({ by: ["healthStatus"], where: coachScope, _count: { _all: true } }) : prisma.athlete.groupBy({ by: ["healthStatus"], _count: { _all: true } }),
+    coachScope ? prisma.trainingAssessment.findMany({ where: { athlete: coachScope, assessmentDate: { gte: ratingSince } }, select: { rating: true } }) : prisma.trainingAssessment.findMany({ where: { assessmentDate: { gte: ratingSince } }, select: { rating: true } }),
+    coachScope ? prisma.achievement.count({ where: { athlete: coachScope } }) : prisma.achievement.count(),
   ]);
 
   const buckets = [];
@@ -90,20 +104,38 @@ export async function getServerSideProps(context) {
     athlete: `${r.athlete.firstName} ${r.athlete.lastName}`,
   }));
 
-  const recentAssessments = await prisma.assessment.findMany({
-    take: 5, orderBy: { assessmentDate: "desc" },
-    where: coachScope ? { athlete: coachScope } : undefined,
-    select: { id: true, assessmentDate: true, assessmentType: true, athlete: { select: { athleteCode: true, firstName: true, lastName: true } } },
-  });
+  const healthDist = healthByStatus.map((h) => ({ name: h.healthStatus, value: h._count._all }));
+  const ratingHistogram = (() => {
+    const counts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    for (const r of recentRatings) {
+      const n = Number(r.rating);
+      if (Number.isInteger(n) && n >= 1 && n <= 10) counts[n - 1] += 1;
+    }
+    return counts.map((value, i) => ({ rating: i + 1, value }));
+  })();
+  const coachEvalAverages = (() => {
+    const map = new Map();
+    for (const e of coachEvals) {
+      const key = e.coach.id;
+      if (!map.has(key)) map.set(key, { name: `${e.coach.firstName} ${e.coach.lastName}`, total: 0, count: 0 });
+      const row = map.get(key);
+      row.total += Number(e.overallScore);
+      row.count += 1;
+    }
+    return [...map.values()].map((r) => ({ name: r.name, avg: r.count ? Math.round((r.total / r.count) * 10) / 10 : 0 })).sort((a, b) => b.avg - a.avg);
+  })();
 
   return {
     props: {
       session,
       greetingName,
-      stats: { athletes, coaches, sports, events, assessments, plans, logs, evals, healthIssues, trainingPlans, mySports, myApprovedPlans, pendingCoaches },
+      stats: { athletes, coaches, sports, assessments, plans, logs, evals, healthIssues, trainingPlans, mySports, myApprovedPlans, pendingCoaches },
       completion: JSON.parse(JSON.stringify(buckets)),
       ratingSeries: JSON.parse(JSON.stringify(ratingSeries)),
-      recentAssessments: recentAssessments.map((item) => ({ ...item, assessmentDate: item.assessmentDate.toISOString() })),
+      healthDist: JSON.parse(JSON.stringify(healthDist)),
+      ratingHistogram: JSON.parse(JSON.stringify(ratingHistogram)),
+      coachEvalAverages: JSON.parse(JSON.stringify(coachEvalAverages)),
+      achievementsCount,
       upcomingSessions: upcomingSessions.map((item) => ({ ...item, sessionDate: item.sessionDate.toISOString() })),
     },
   };
@@ -122,7 +154,19 @@ function Greeting({ greetingName }) {
   return <h2 suppressHydrationWarning>{g}, {greetingName}!</h2>;
 }
 
-export default function Dashboard({ stats, completion, ratingSeries, recentAssessments, upcomingSessions, greetingName }) {
+function FeatureCard({ eyebrow, title, href, children }) {
+  return (
+    <div className={styles.panel} style={{ display: "flex", flexDirection: "column" }}>
+      <div className={styles.panelHeader} style={{ marginBottom: 0 }}>
+        <div><p className={styles.eyebrow}>{eyebrow}</p><h2 style={{ margin: 0 }}>{title}</h2></div>
+        <Link href={href}>Open</Link>
+      </div>
+      <p style={{ color: "var(--muted)", margin: 0, fontSize: 13, lineHeight: 1.5 }}>{children}</p>
+    </div>
+  );
+}
+
+export default function Dashboard({ stats, completion, ratingSeries, upcomingSessions, healthDist, ratingHistogram, coachEvalAverages, achievementsCount, greetingName }) {
   const router = useRouter();
   const { data: session } = useSession();
   useEffect(() => {
@@ -146,10 +190,18 @@ export default function Dashboard({ stats, completion, ratingSeries, recentAsses
         ["My approved plans", stats.myApprovedPlans, "/event-plans"],
       ];
   const hasCompletion = completion.some((w) => w.done > 0 || w.partial > 0 || w.missed > 0);
+  const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const healthSegments = healthDist.map((d) => ({
+    label: HEALTH_META[d.name]?.label || d.name,
+    value: d.value,
+    color: HEALTH_META[d.name]?.color || "#64748b",
+  }));
+  const histData = ratingHistogram.filter((d) => d.value > 0).map((d) => ({ label: String(d.rating), value: d.value }));
+  const evalsData = coachEvalAverages.map((c) => ({ label: c.name, value: c.avg }));
   return <>
     <Head><title>Dashboard | Cauayan Athlete Performance</title><meta name="description" content="Athlete performance monitoring dashboard" /></Head>
     <AppShell session={session} isAdmin={isAdmin} active="/dashboard">
-      <section className={styles.intro}><div><p className={styles.eyebrow}>Overview</p><Greeting greetingName={greetingName} /><p>Here is what is happening across the athletics program today. Click any card to dig in.</p></div></section>
+      <section className={styles.intro}><div><p className={styles.eyebrow}>Overview</p><Greeting greetingName={greetingName} /><p>One summary of every feature in the system. Click any card or chart to dig in.</p></div></section>
       <section className={styles.cards} aria-label="System totals">{cards.map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>
       {isAdmin && <section className={styles.cards} aria-label="Administration summary">{[["Training plans", stats.trainingPlans, "/training-plans"], ["Coach evaluations", stats.evals, "/admin/coach-performances"], ["Athletes with health flags", stats.healthIssues, "/athletes?health=flagged"], ["Open event plans", stats.plans, "/event-plans"]].map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>}
       {(canApprove && stats.pendingCoaches > 0) || stats.healthIssues > 0 ? (
@@ -203,17 +255,42 @@ export default function Dashboard({ stats, completion, ratingSeries, recentAsses
             </ResponsiveContainer>
           ) : <p className={styles.empty}>{ratingSeries.length ? "Add one more assessment to see the rating trend." : "No training assessments recorded yet."}</p>}
         </div>
-        <div className={styles.panel}><div className={styles.panelHeader}><div><p className={styles.eyebrow}>Catalog</p><h2>Coverage</h2></div></div><dl className={styles.coverage}><div><dt>Sports</dt><dd>{stats.sports}</dd></div><div><dt>Events</dt><dd>{stats.events}</dd></div><div><dt>Open plans</dt><dd>{stats.plans}</dd></div></dl><Link className={styles.secondary} href={isAdmin ? "/admin/catalog" : "/event-plans"}>{isAdmin ? "Manage catalog" : "View event plans"}</Link></div>
+        <div className={styles.panel}>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Health</p><h2>Status today</h2></div><Link href="/athletes?health=flagged">Health flags</Link></div>
+          {healthSegments.length ? <Donut segments={healthSegments} ariaLabel="Share of athletes by health status" label="athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
+        </div>
       </section>
-      <section className={styles.grid}><div className={styles.panel}><div className={styles.panelHeader}><div><p className={styles.eyebrow}>Monitoring</p><h2>Recent assessments</h2></div><Link href="/assessments">View assessments</Link></div>{recentAssessments.length ? <div className={styles.tableWrap}><table><thead><tr><th>Athlete</th><th>Date</th><th>Type</th></tr></thead><tbody>{recentAssessments.map((assessment) => <tr key={assessment.id}><td data-label="Athlete"><strong>{assessment.athlete.firstName} {assessment.athlete.lastName}</strong><small>{assessment.athlete.athleteCode}</small></td><td data-label="Date">{new Date(assessment.assessmentDate).toLocaleDateString()}</td><td data-label="Type">{assessment.assessmentType}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No assessments recorded yet.</p>}</div>
-        <div className={styles.detailPanel}><p className={styles.eyebrow}>Open plans</p><h2>Latest training</h2><p>{stats.trainingPlans > 0 ? `${stats.trainingPlans} training plan${stats.trainingPlans === 1 ? "" : "s"} in the system. Visit a plan to record activity assessments.` : "No training plans yet. Coaches can create one from the training page."}</p><Link className={styles.secondary} href="/training-plans">Open training</Link></div></section>
-        {isAdmin && <section className={styles.grid}>
-          <div className={styles.panel}><p className={styles.eyebrow}>People management</p><h2>Coaches</h2><p>{stats.coaches} coach records. Approve coaches, inspect their files, and control account access.</p><Link className={styles.secondary} href="/admin/coaches">Manage coaches</Link></div>
-          <div className={styles.panel}><p className={styles.eyebrow}>Catalog</p><h2>Sports &amp; Discipline</h2><p>Maintain the sports and disciplines used across the system.</p><Link className={styles.secondary} href="/admin/catalog">Manage catalog</Link></div>
-          <div className={styles.panel}><p className={styles.eyebrow}>Measurements</p><h2>Performance metrics</h2><p>Configure the quantifiable metrics that define each event.</p><Link className={styles.secondary} href="/admin/metrics">Configure metrics</Link></div>
-          <div className={styles.panel}><p className={styles.eyebrow}>Records</p><h2>Audit trail</h2><p>{stats.logs} meaningful actions recorded in the database.</p><Link className={styles.secondary} href="/admin/audit-logs">Review logs</Link></div>
-          <div className={styles.panel}><p className={styles.eyebrow}>Maintenance</p><h2>Database backup</h2><p>Request backups and plan off-site snapshots.</p><Link className={styles.secondary} href="/admin/backup">Backup</Link></div>
-        </section>}
+      <section className={styles.grid}>
+        <div className={styles.panel}>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training &amp; assessment</p><h2>Rating distribution</h2></div><Link href="/training-plans">Training</Link></div>
+          <p className={styles.formHint} style={{ marginTop: 0 }}>Last 90 days — how often each 1–10 score was given.</p>
+          {histData.length ? <HBars data={histData} axisLabel="Score" axisValue="Assessments" /> : <p className={styles.empty}>No training ratings in the last 90 days yet.</p>}
+        </div>
+        {isAdmin && (
+          <div className={styles.panel}>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Coaches</p><h2>Evaluation averages</h2></div><Link href="/admin/coach-performances">Evaluations</Link></div>
+            {evalsData.length ? <HBars data={evalsData} axisLabel="Coach" axisValue="Avg" /> : <p className={styles.empty}>No coach evaluations on file yet.</p>}
+          </div>
+        )}
+      </section>
+      <section className={styles.gridAuto} aria-label="Feature summaries">
+        <FeatureCard eyebrow="People" title="Athletes" href="/athletes">{plural(stats.athletes, "athlete")} registered, {plural(stats.healthIssues, "flagged for health")}.</FeatureCard>
+        <FeatureCard eyebrow="Training &amp; assessment" title="Training" href="/training-plans">{plural(stats.trainingPlans, "training plan")} in the system. Track activities, assess athletes, and review the monitoring grid.</FeatureCard>
+        <FeatureCard eyebrow="Assessments" title="Physical assessments" href="/assessments">{plural(stats.assessments, "assessment")} recorded across the program.</FeatureCard>
+        <FeatureCard eyebrow="Events &amp; program" title="Event programs" href="/event-plans">{plural(stats.plans, "open program")}{stats.myApprovedPlans > 0 && !isAdmin ? `, ${plural(stats.myApprovedPlans, "approved application")}` : ""}. Apply, add participants, and track competition slots.</FeatureCard>
+        <FeatureCard eyebrow="Standings" title="Standings" href="/standings">{plural(achievementsCount, "achievement")} recorded and ranked on the standings board.</FeatureCard>
+        <FeatureCard eyebrow="Records" title="Reports" href="/reports">Generate official records — personnel, performance summaries, and coach files.</FeatureCard>
+      </section>
+      {isAdmin && (
+        <section className={styles.gridAuto} aria-label="Administration summaries">
+          <FeatureCard eyebrow="People" title="Coaches" href="/admin/coaches">{plural(stats.coaches, "coach")} on file. Review records, approvals, and account access on each page.</FeatureCard>
+          <FeatureCard eyebrow="People" title="Coach approvals" href="/coach-approvals">{plural(stats.pendingCoaches, "account")} waiting for approval.</FeatureCard>
+          <FeatureCard eyebrow="Catalog" title="Sports &amp; discipline" href="/admin/catalog">{plural(stats.sports, "sport")} registered under the program catalog.</FeatureCard>
+          <FeatureCard eyebrow="Measurements" title="Performance metrics" href="/admin/metrics">Configure the quantifiable metrics that define each event.</FeatureCard>
+          <FeatureCard eyebrow="Records" title="Audit trail" href="/admin/audit-logs">{plural(stats.logs, "meaningful action")} recorded in the database.</FeatureCard>
+          <FeatureCard eyebrow="Maintenance" title="Database backup" href="/admin/backup">Request backups and plan off-site snapshots.</FeatureCard>
+        </section>
+      )}
     </AppShell>
   </>;
 }
