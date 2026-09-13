@@ -134,6 +134,39 @@ function fmtDate(value) {
   return isNaN(d) ? "—" : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
+function downscaleImage(file, maxSide) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onerror = () => resolve(null);
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => resolve(null);
+      img.onload = () => {
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onerror = () => resolve("");
+    reader.onload = () => resolve(String(reader.result));
+    reader.readAsDataURL(blob);
+  });
+}
+
 export default function PlanDetail({ session, isAdmin, plan, athletes, initialActivities = [], initialLogs = [], initialNotes = [], initialMonitoringData = null }) {
   const router = useRouter();
   const [activities, setActivities] = React.useState(initialActivities);
@@ -836,7 +869,56 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
   const [busy, setBusy] = React.useState(false);
   const [confirm, setConfirm] = React.useState(null);
   const [toast, setToast] = React.useState(null);
+  const [evidence, setEvidence] = React.useState({});
   const undoRef = React.useRef(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/plan-evidence?planId=${planId}&date=${date}`)
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((json) => {
+        const map = {};
+        for (const e of json.evidence || []) map[e.athleteId] = { id: e.id, url: e.url, uploading: false };
+        if (!cancelled) setEvidence(map);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [planId, date]);
+
+  async function uploadEvidence(athleteId, file) {
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { setToast({ kind: "error", text: "Only JPEG, PNG or WEBP photos are accepted." }); return; }
+    const blob = await downscaleImage(file, 1280);
+    if (!blob) { setToast({ kind: "error", text: "The photo could not be read." }); return; }
+    const mime = blob.type || "image/jpeg";
+    const base64 = (await blobToBase64(blob)).split(",")[1];
+    setEvidence((cur) => ({ ...cur, [athleteId]: { ...(cur[athleteId] || {}), uploading: true } }));
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    try {
+      const res = await fetch("/api/plan-evidence", {
+        method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify({ planId, athleteId, evidenceDate: date, base64, mime }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.url) {
+        setEvidence((cur) => ({ ...cur, [athleteId]: { id: json.id, url: json.url, uploading: false } }));
+        setToast({ kind: "success", text: "Evidence photo saved for this date." });
+      } else {
+        setEvidence((cur) => ({ ...cur, [athleteId]: { ...(cur[athleteId] || {}), uploading: false } }));
+        setToast({ kind: "error", text: json.error || "Could not save the photo." });
+      }
+    } catch (e) {
+      setEvidence((cur) => ({ ...cur, [athleteId]: { ...(cur[athleteId] || {}), uploading: false } }));
+      setToast({ kind: "error", text: "Unable to reach the server." });
+    }
+  }
+
+  function pickEvidence(athleteId) {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/jpeg,image/png,image/webp";
+    input.onchange = (e) => { const f = e.target.files && e.target.files[0]; if (f) uploadEvidence(athleteId, f); };
+    input.click();
+  }
 
   const key = (aid, actId) => `${aid}:${actId}`;
 
@@ -1147,6 +1229,20 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
       {confirm && (
         <div style={{ border: "1px solid rgba(45,212,168,.5)", borderRadius: 10, padding: "12px 14px", background: "rgba(6,38,30,.5)", marginBottom: 12 }}>
           Save {confirm.athletes} athlete{confirm.athletes === 1 ? "" : "s"}: <strong style={{ color: "var(--accent)" }}>{confirm.done} done</strong>, <strong style={{ color: "#ffc107" }}>{confirm.partial} partial</strong>, <strong style={{ color: "#f87171" }}>{confirm.missed} missed</strong>{confirm.rated ? `, ${confirm.rated} rating${confirm.rated === 1 ? "" : "s"}` : ""} for {date}?
+          <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 10 }}>
+            {[...new Set(Object.keys(cells).map((k) => k.split(":")[0]))].map((aid) => {
+              const at = athletes.find((x) => String(x.id) === aid);
+              const ev = evidence[aid];
+              if (!at) return null;
+              return (
+                <span key={aid} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12 }}>
+                  {at.lastName}, {at.firstName}
+                  {ev && ev.url ? <strong style={{ color: "var(--accent)" }}>✓ evidence</strong> : <strong style={{ color: "#f87171" }}>⚠ no evidence</strong>}
+                </span>
+              );
+            })}
+          </div>
+          <p style={{ margin: "8px 0 0", fontSize: 11, color: "var(--muted)" }}>Tip: upload at least one training photo per athlete before saving, so the agency can confirm the session actually happened.</p>
           <div style={{ marginTop: 8, display: "flex", gap: 8 }}><button className={styles.primary} onClick={save} disabled={busy}>Confirm save</button><button className={styles.secondary} onClick={() => setConfirm(null)} disabled={busy}>Back</button></div>
         </div>
       )}
@@ -1187,6 +1283,9 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                     <td className="fix">
                       <div className="rowHead">
                         <strong>{athlete.lastName}, {athlete.firstName}</strong>
+                        {evidence[athlete.id] && evidence[athlete.id].url && (
+                          <img src={evidence[athlete.id].url} alt="Evidence photo" title="Training evidence photo for this date" style={{ width: 34, height: 34, borderRadius: 6, objectFit: "cover", border: "1px solid rgba(45,212,168,.4)" }} />
+                        )}
                         <span className={`${styles.badge} ${styles.badgeMuted}`} style={{ fontSize: 9 }}>{lastDate ? `Assessed ${fmtDate(lastDate)}` : "Open"}</span>
                       </div>
                       <small style={{ color: "var(--muted)", display: "block" }}>{athlete.athleteCode}</small>
@@ -1196,6 +1295,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                         <button className="miniBtn" title="Mark all missed" onClick={() => applyPreset(athlete.id, "rest")}>Rest</button>
                         <button className="miniBtn" title="Start from this athlete's last assessment" onClick={() => applyPreset(athlete.id, "copy")}>Copy last</button>
                         <button className={`miniBtn ${openRatingId === athlete.id ? "on" : ""}`} onClick={() => setOpenRatingId(openRatingId === athlete.id ? null : athlete.id)}>Rating</button>
+                        <button className={`miniBtn ${evidence[athlete.id] && evidence[athlete.id].url ? "on" : ""}`} title="Upload a training photo as proof the session happened" onClick={() => pickEvidence(athlete.id)}>{evidence[athlete.id] && evidence[athlete.id].uploading ? "Uploading…" : "📷 Evidence"}</button>
                       </div>
                     </td>
                     {columns.map((column) => {

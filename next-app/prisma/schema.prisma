@@ -157,6 +157,7 @@ model User {
   coachPerformanceEvals CoachPerformance[]     @relation("CoachPerformanceEvaluator")
   trainingAssessments   TrainingAssessment[]   @relation("TrainingAssessor")
   planActivityLogs      PlanActivityLog[]      @relation("ActivityLogger")
+  planEvidence          PlanEvidence[]         @relation("PlanEvidenceUploader")
   trainingNotesAuthored TrainingNote[]         @relation("TrainingNoteAuthor")
   athletePlanComments   AthletePlanComment[]   @relation("AthletePlanCommentAuthor")
   transferRequests      AthleteTransfer[]      @relation("TransferRequester")
@@ -322,6 +323,7 @@ model Athlete {
   trainingAssessments TrainingAssessment[]
   planActivities      PlanActivity[]   @relation("ActivityAthlete")
   planActivityLogs    PlanActivityLog[]
+  planEvidence        PlanEvidence[]
   planComments        AthletePlanComment[]
   transfers           AthleteTransfer[]
   @@map("athletes")
@@ -664,6 +666,7 @@ model TrainingPlan {
   activities  PlanActivity[]
   notes       TrainingNote[]
   athleteComments AthletePlanComment[]
+  evidence        PlanEvidence[]
   @@map("training_plans")
   @@index([coachId, startDate])
   @@index([sportId, startDate])
@@ -724,6 +727,23 @@ model PlanActivityLog {
   @@map("plan_activity_logs")
   @@index([athleteId, performedAt])
   @@index([activityId, athleteId])
+}
+
+model PlanEvidence {
+  id           Int      @id @default(autoincrement())
+  planId       Int      @map("plan_id")
+  athleteId    Int      @map("athlete_id")
+  evidenceDate DateTime @map("evidence_date")
+  url          String   @map("url")
+  notes        String?
+  uploadedBy   Int      @map("uploaded_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+  plan         TrainingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  athlete      Athlete      @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  uploader     User         @relation("PlanEvidenceUploader", fields: [uploadedBy], references: [id])
+  @@map("plan_evidence")
+  @@unique([planId, athleteId, evidenceDate])
+  @@index([athleteId, evidenceDate])
 }
 
 model TrainingNote {
