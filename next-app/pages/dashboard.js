@@ -58,7 +58,6 @@ export async function getServerSideProps(context) {
     prisma.coach.count(), prisma.sport.count(),
     coachScope ? prisma.assessment.count({ where: { athlete: coachScope } }) : prisma.assessment.count(),
     prisma.eventPlan.count({ where: { status: "open" } }), prisma.auditLog.count(),
-    prisma.coachPerformance.count(),
     coachScope ? prisma.coachPerformance.count({ where: { coachId: coachScope.coachId } }) : prisma.coachPerformance.count(),
     coachScope ? prisma.athlete.count({ where: { ...coachScope, healthStatus: { in: ["sick", "injured", "recovering", "inactive"] } } }) : prisma.athlete.count({ where: { healthStatus: { in: ["sick", "injured", "recovering", "inactive"] } } }),
     coachScope ? prisma.trainingPlan.count({ where: coachScope }) : prisma.trainingPlan.count(),
