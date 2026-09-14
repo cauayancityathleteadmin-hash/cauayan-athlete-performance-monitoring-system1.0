@@ -923,21 +923,6 @@ async function seedTestData(ref) {
     });
   }
 
-  // --- Training notes (admin comments) -------------------------------------
-  const noteSeed = [
-    ["sprint", "Ensure the tempo session stays at 75% max effort — focus on rhythm over speed."],
-    ["sprint", "Good progress on block starts. Keep the hip mobility work scheduled as planned."],
-    ["basket", "Watch the defense-first sessions; conditioning volume can increase slightly."],
-  ];
-  for (const [planKey, body] of noteSeed) {
-    const plan = trainingPlans[planKey];
-    await once(
-      prisma, "trainingNote",
-      { planId: plan.id, body },
-      { planId: plan.id, authorId: admin.id, body, createdAt: new Date("2026-09-04") }
-    );
-  }
-
   // --- Training sessions ---------------------------------------------------
   const sessionSeed = [
     { sportName: "Athletics", coachKey: "coachOne", type: "regular", date: "2026-09-02", venue: "City Track Oval", notes: "Block starts + 200m tempo", athletes: [0, 9, 10, 12] },

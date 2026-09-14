@@ -31,11 +31,11 @@ export async function getServerSideProps(context) {
 
   const planAthletes = await prisma.trainingPlanAthlete.findMany({
     where: { planId: id },
-    select: { athlete: { select: { id: true, athleteCode: true, firstName: true, lastName: true, sportId: true, healthStatus: true, status: true } } },
+    select: { athlete: { select: { id: true, athleteCode: true, firstName: true, lastName: true, sportId: true, healthStatus: true, status: true, sport: { select: { id: true, sportName: true } } } } },
     orderBy: { athlete: { lastName: "asc" } },
   });
 
-  const [allActivities, notes] = await Promise.all([
+  const [allActivities] = await Promise.all([
     prisma.planActivity.findMany({
       where: { planId: id },
       orderBy: { orderIndex: "asc" },
@@ -46,11 +46,6 @@ export async function getServerSideProps(context) {
           include: { athlete: { select: { id: true, firstName: true, lastName: true } }, logger: { select: { email: true, username: true } } },
         },
       },
-    }),
-    prisma.trainingNote.findMany({
-      where: { planId: id },
-      orderBy: { createdAt: "desc" },
-      include: { author: { select: { id: true, email: true, username: true, role: true } } },
     }),
   ]);
 
@@ -84,7 +79,6 @@ export async function getServerSideProps(context) {
       athletes: JSON.parse(JSON.stringify(planAthletes.map((a) => a.athlete))),
       initialActivities: JSON.parse(JSON.stringify(allActivities)),
       initialLogs: JSON.parse(JSON.stringify(logs)),
-      initialNotes: JSON.parse(JSON.stringify(notes)),
       initialMonitoringData: JSON.parse(
         JSON.stringify({
           plan: { id: plan.id, durationDays: plan.durationDays, durationWeeks: plan.durationWeeks, startDate: plan.startDate.toISOString() },
@@ -168,11 +162,10 @@ function blobToBase64(blob) {
   });
 }
 
-export default function PlanDetail({ session, isAdmin, plan, athletes, initialActivities = [], initialLogs = [], initialNotes = [], initialMonitoringData = null }) {
+export default function PlanDetail({ session, isAdmin, plan, athletes, initialActivities = [], initialLogs = [], initialMonitoringData = null }) {
   const router = useRouter();
   const [activities, setActivities] = React.useState(initialActivities);
   const [logs, setLogs] = React.useState(initialLogs);
-  const [notes, setNotes] = React.useState(initialNotes);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
   const [showAddActivity, setShowAddActivity] = React.useState(false);
@@ -181,7 +174,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
   const [monitoringData, setMonitoringData] = React.useState(initialMonitoringData);
   const [message, setMessage] = React.useState(null);
   const [lateOverride, setLateOverride] = React.useState(Boolean(plan.allowLateAssessment));
-  const [tab, setTab] = React.useState("squad");
+  const [tab, setTab] = React.useState("athletes");
 
   async function setLateAssessment(enabled) {
     const csrf = await fetch("/api/csrf").then((r) => r.json());
@@ -213,13 +206,6 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
     }).catch(() => { setError("Could not load progress."); });
   }, [plan.id]);
 
-  const loadNotes = React.useCallback((show) => {
-    fetch(`/api/training-notes?planId=${plan.id}`).then((r) => r.json()).then((data) => {
-      if (Array.isArray(data)) { setNotes(data); setError(""); show && setLoading(false); }
-      else setError(data.error || "Could not load notes.");
-    }).catch(() => { setError("Could not load notes."); });
-  }, [plan.id]);
-
   const loadMonitoring = React.useCallback(() => {
     fetch(`/api/plan-activities/monitoring?planId=${plan.id}&weekNumber=${currentWeek}`)
       .then((r) => r.json())
@@ -239,7 +225,6 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
   function refresh() {
     loadActivities(true);
     loadLogs(true);
-    loadNotes(true);
     loadMonitoring();
   }
 
@@ -252,31 +237,11 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
     );
   }
 
-  function updateActivity(activityId, payload) {
+function updateActivity(activityId, payload) {
     fetch("/api/csrf").then((r) => r.json()).then((csrf) =>
       fetch("/api/plan-activities", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ planId: plan.id, action: "update", activityId, ...payload }) })
         .then((r) => r.json()).then((res) => { if (res.error) setMessage({ kind: "error", text: res.error }); else { setMessage({ kind: "success", text: "Activity updated." }); refresh(); } })
         .catch(() => setMessage({ kind: "error", text: "Could not update activity." }))
-    );
-  }
-
-  function postNote(event) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const bodyText = form.get("body");
-    fetch("/api/csrf").then((r) => r.json()).then((csrf) =>
-      fetch("/api/training-notes", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ planId: plan.id, body: bodyText }) })
-        .then((r) => r.json()).then((res) => { if (res.error) setMessage({ kind: "error", text: res.error }); else { setMessage({ kind: "success", text: "Comment posted." }); event.currentTarget.reset(); refresh(); } })
-        .catch(() => setMessage({ kind: "error", text: "Could not post comment." }))
-    );
-  }
-
-  function deleteNote(noteId) {
-    if (!window.confirm("Remove this comment?")) return;
-    fetch("/api/csrf").then((r) => r.json()).then((csrf) =>
-      fetch("/api/training-notes", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ planId: plan.id, action: "delete", noteId }) })
-        .then((r) => r.json()).then((res) => { if (res.error) setMessage({ kind: "error", text: res.error }); else { setMessage({ kind: "success", text: res.message }); refresh(); } })
-        .catch(() => setMessage({ kind: "error", text: "Could not remove comment." }))
     );
   }
 
@@ -308,7 +273,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
         </section>
 
 <nav aria-label="Plan sections" style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "0 0 18px" }}>
-          {[["squad", "Squad view"], ["athletes", "Athletes under this training"], ["notes", "Notes & guidance"]].map(([id, label]) => (
+          {[["athletes", "Athletes"], ["squad", "Squad view"], ["planActivities", "Plan activities"]].map(([id, label]) => (
             <button key={id} className={tab === id ? styles.primary : styles.secondary} onClick={() => setTab(id)}>{label}</button>
           ))}
         </nav>
@@ -363,85 +328,71 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
           </>
         )}
 
-        {tab === "athletes" && (
+{tab === "athletes" && (
           <section className={styles.panel}>
             <div className={styles.panelHeader}>
-              <div><p className={styles.eyebrow}>Training plan &amp; assessment</p><h2>Planned activities</h2></div>
+              <div><p className={styles.eyebrow}>Athletes on this training</p><h2>Roster</h2></div>
+              <span className={styles.formHint} style={{ alignSelf: "center" }}>{athletes.length} athlete{athletes.length === 1 ? "" : "s"}</span>
             </div>
-            <p className={styles.formHint} style={{ marginTop: 0 }}>Each athlete&apos;s activities and latest status. Open the per-athlete view for full score history and notes.</p>
-
+            <p className={styles.formHint} style={{ marginTop: 0 }}>
+              {isAdmin ? "Each row is an athlete under this training. Open guidance to talk to them directly, or drill into their progress page." : "Each row is an athlete on your training. Open guidance to read who the administrator wants you to focus on, then view progress for full activity history."}
+            </p>
             {loading ? <p className={styles.empty}>Loading plan details...</p> : error ? <p className={styles.empty}>{error}</p> : athletes.length === 0 ? (
               <p className={styles.empty}>No athletes on this plan.</p>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-                {athletes.map((athlete) => (
-                  <div key={athlete.id}>
-                    <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-                      <button className={styles.secondary} onClick={() => router.push(`/training-plans/${plan.id}/athletes/${athlete.id}`)}>View progress →</button>
-                    </div>
-                    <AthleteActivitiesBlock
-                      key={athlete.id}
-                      planId={plan.id}
-                      athlete={athlete}
-                      activities={activities.filter((act) => act.athleteId === athlete.id)}
-                      logs={logs}
-                      onRemove={removeActivity}
-                      onEdit={updateActivity}
-                      onChanged={refresh}
-                      readOnly={isAdmin}
-                    />
-                  </div>
-                ))}
-              </div>
+              <AthleteRosterTable plan={plan} athletes={athletes} activities={activities} logs={logs} isAdmin={isAdmin} />
             )}
           </section>
         )}
 
-        {tab === "athletes" && (
-          <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Admin guidance</p><h2>Guidance per athlete</h2></div></div>
-            <p className={styles.formHint} style={{ marginTop: 0 }}>
-              {isAdmin ? "Add targeted guidance for an athlete; the implementing coach can read it." : "Guidance written by the administrator for each athlete appears here."}
-            </p>
-            {athletes.length ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {athletes.map((athlete) => (
-                  <AthleteGuidanceRow key={athlete.id} planId={plan.id} athlete={athlete} isAdmin={isAdmin} />
-                ))}
+        {tab === "planActivities" && (
+          <>
+            <section className={styles.panel}>
+              <div className={styles.panelHeader}>
+                <div><p className={styles.eyebrow}>Training plan &amp; assessment</p><h2>Planned activities</h2></div>
               </div>
-            ) : <p className={styles.empty}>No athletes on this plan yet.</p>}
-          </section>
-        )}
+              <p className={styles.formHint} style={{ marginTop: 0 }}>Each athlete&apos;s activities and latest status. Open the per-athlete view for full score history and notes.</p>
 
-        {tab === "notes" && (
-          <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Notes</p><h2>Comments from the admin</h2></div></div>
-            <p className={styles.formHint} style={{ marginTop: 0 }}>{isAdmin ? "Leave a note for the implementing coach to see." : "Notes from the admin about this plan appear here."}</p>
-
-            {notes.length === 0 ? <p className={styles.empty}>No comments yet.</p> : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {notes.map((note) => (
-                  <div key={note.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "12px 14px", background: "rgba(6,38,30,.35)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                      <strong style={{ fontSize: 13 }}>{note.author?.username || note.author?.email || "Admin"}</strong>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <small style={{ color: "var(--muted)" }}>{fmtDate(note.createdAt)}</small>
-                        {isAdmin && note.authorId === Number(session.user.id) && <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => deleteNote(note.id)}>Remove</button>}
+              {loading ? <p className={styles.empty}>Loading plan details...</p> : error ? <p className={styles.empty}>{error}</p> : athletes.length === 0 ? (
+                <p className={styles.empty}>No athletes on this plan.</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                  {athletes.map((athlete) => (
+                    <div key={athlete.id}>
+                      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+                        <button className={styles.secondary} onClick={() => router.push(`/training-plans/${plan.id}/athletes/${athlete.id}`)}>View progress →</button>
                       </div>
+                      <AthleteActivitiesBlock
+                        key={athlete.id}
+                        planId={plan.id}
+                        athlete={athlete}
+                        activities={activities.filter((act) => act.athleteId === athlete.id)}
+                        logs={logs}
+                        onRemove={removeActivity}
+                        onEdit={updateActivity}
+                        onChanged={refresh}
+                        readOnly={isAdmin}
+                      />
                     </div>
-                    <p style={{ margin: 0 }}>{note.body}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </section>
 
-            {isAdmin && (
-              <form onSubmit={postNote} className={styles.formGrid} style={{ marginTop: 16 }}>
-                <label className={styles.fullField}>Comment for the coach<textarea name="body" rows="2" maxLength="2000" required placeholder="e.g. Please add more recovery work for the injured athletes." /></label>
-                <div className={styles.formActions}><button className={styles.primary}>Post comment</button></div>
-              </form>
-            )}
-          </section>
+            <section className={styles.panel}>
+              <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Admin guidance</p><h2>Guidance per athlete</h2></div></div>
+              <p className={styles.formHint} style={{ marginTop: 0 }}>
+                {isAdmin ? "Add targeted guidance for an athlete; the implementing coach can read it." : "Guidance written by the administrator for each athlete appears here."}
+              </p>
+              {athletes.length ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {athletes.map((athlete) => (
+                    <AthleteGuidanceRow key={athlete.id} planId={plan.id} athlete={athlete} isAdmin={isAdmin} />
+                  ))}
+                </div>
+              ) : <p className={styles.empty}>No athletes on this plan yet.</p>}
+            </section>
+          </>
         )}
       </AppShell>
     </>
@@ -1986,6 +1937,94 @@ function AthleteGuidanceRow({ planId, athlete, isAdmin }) {
         </div>
       )}
     </div>
+  );
+}
+
+const HEALTH_BADGE = {
+  healthy: { cls: "badgeActive", label: "Healthy" },
+  sick: { cls: "badgePending", label: "Sick" },
+  injured: { cls: "badgeRejected", label: "Injured" },
+  recovering: { cls: "badgePending", label: "Recovering" },
+  inactive: { cls: "badgeMuted", label: "Inactive" },
+};
+
+function AthleteRosterTable({ plan, athletes, activities, logs, isAdmin }) {
+  const rows = athletes.map((a) => {
+    const acts = activities.filter((act) => act.athleteId === a.id);
+    let done = 0, partial = 0, missed = 0, open = 0;
+    for (const act of acts) {
+      const al = logs.filter((l) => l.activityId === act.id && l.athleteId === a.id);
+      const latest = al.length ? [...al].sort((x, y) => new Date(y.performedAt) - new Date(x.performedAt))[0] : null;
+      const status = latest ? latest.status : "open";
+      if (status === "done") done++;
+      else if (status === "partial") partial++;
+      else if (status === "missed") missed++;
+      else open++;
+    }
+    const total = acts.length;
+    const percent = total ? Math.round(((done + partial) / total) * 100) : 0;
+    return { ...a, total, done, partial, missed, open, percent };
+  });
+
+  return (
+    <div className={styles.tableWrap}>
+      <table>
+        <thead>
+          <tr>
+            <th>Athlete</th>
+            <th>Sport</th>
+            <th>Health</th>
+            <th>Completion</th>
+            <th>Guidance</th>
+            <th style={{ textAlign: "right" }}></th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <AthleteRosterRow key={row.id} plan={plan} row={row} isAdmin={isAdmin} />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function AthleteRosterRow({ plan, row, isAdmin }) {
+  const router = useRouter();
+  const [showGuidance, setShowGuidance] = React.useState(false);
+  const health = HEALTH_BADGE[row.healthStatus] || HEALTH_BADGE.healthy;
+  return (
+    <React.Fragment>
+      <tr>
+        <td data-label="Athlete">
+          <strong>{row.lastName}, {row.firstName}</strong>
+          {row.athleteCode ? <small style={{ color: "var(--muted)", display: "block" }}>{row.athleteCode}</small> : null}
+        </td>
+        <td data-label="Sport">{row.sport?.sportName || "—"}</td>
+        <td data-label="Health"><span className={`${styles.badge} ${styles[health.cls]}`} style={{ fontSize: 11 }}>{health.label}</span></td>
+        <td data-label="Completion">
+          {row.total === 0 ? <span className={styles.formHint} style={{ color: "var(--muted)" }}>No activities planned</span> : (
+            <div>
+              <strong style={{ color: percentColor(row.percent), fontSize: 16 }}>{row.percent}%</strong>
+              <small style={{ color: "var(--muted)", marginLeft: 6 }}>{row.done} done · {row.partial} partial · {row.missed} missed</small>
+            </div>
+          )}
+        </td>
+        <td data-label="Guidance">
+          <button type="button" className={styles.secondary} style={{ padding: "5px 10px", fontSize: 12 }} onClick={() => setShowGuidance((v) => !v)}>{showGuidance ? "Close guidance" : "Guidance"}</button>
+        </td>
+        <td style={{ textAlign: "right" }}>
+          <button className={styles.secondary} onClick={() => router.push(`/training-plans/${plan.id}/athletes/${row.id}`)}>View progress →</button>
+        </td>
+      </tr>
+      {showGuidance && (
+        <tr>
+          <td colSpan="6" style={{ padding: "14px 14px 20px", background: "transparent" }}>
+            <AthleteGuidanceRow planId={plan.id} athlete={row} isAdmin={isAdmin} />
+          </td>
+        </tr>
+      )}
+    </React.Fragment>
   );
 }
 

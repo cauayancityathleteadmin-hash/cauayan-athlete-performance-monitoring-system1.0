@@ -31,6 +31,192 @@ function percentColor(p) {
   return "#f87171";
 }
 
+function logResultText(log) {
+  if (!log) return "";
+  const parts = [];
+  if (log.timeSec != null) parts.push(`${log.timeSec} sec`);
+  if (log.distanceDone != null) parts.push(`${log.distanceDone} m`);
+  if (log.loadUsed != null) parts.push(`${log.loadUsed} kg`);
+  if (log.quantityDone != null) parts.push(`${log.quantityDone}${log.activity?.targetUnit ? ` ${log.activity.targetUnit}` : ""}`);
+  if (log.setsDone != null) parts.push(`${log.setsDone} sets`);
+  if (log.repsDone != null) parts.push(`${log.repsDone} reps`);
+  if (log.score != null) parts.push(`score ${log.score}`);
+  if (log.attempts != null) parts.push(`${log.attempts} attempts`);
+  return parts.join(" · ");
+}
+
+const LOG_STATUS = {
+  planned: { label: "Planned", cls: "badgeMuted" },
+  done: { label: "Done", cls: "badgeActive" },
+  partial: { label: "Partial", cls: "badgePending" },
+  missed: { label: "Missed", cls: "badgeRejected" },
+};
+
+function commentAuthorName(author) {
+  if (!author) return "Admin";
+  if (author.coach?.firstName || author.coach?.lastName) return `${author.coach.firstName} ${author.coach.lastName}`.trim();
+  return author.username || author.email || "Admin";
+}
+
+function AthleteGuidanceRow({ planId, athlete, isAdmin }) {
+  const [open, setOpen] = React.useState(false);
+  const [comments, setComments] = React.useState(null);
+  const [draft, setDraft] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [msg, setMsg] = React.useState("");
+
+  async function load() {
+    const res = await fetch(`/api/training-plans/${planId}/athlete/${athlete.id}/comments`).then((r) => r.json()).catch(() => ({}));
+    setComments(Array.isArray(res.comments) ? res.comments : []);
+  }
+
+  function toggle() {
+    setOpen((o) => {
+      const next = !o;
+      if (next && comments === null) load();
+      return next;
+    });
+  }
+
+  async function post(e) {
+    e.preventDefault();
+    if (!draft.trim()) return;
+    setBusy(true);
+    setMsg("");
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    const res = await fetch(`/api/training-plans/${planId}/athlete/${athlete.id}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+      body: JSON.stringify({ body: draft.trim() }),
+    }).then((r) => r.json()).catch(() => ({}));
+    setBusy(false);
+    if (res.comment) {
+      setDraft("");
+      setComments((c) => [...(c || []), res.comment]);
+    } else {
+      setMsg(res.error || "Could not post guidance.");
+    }
+  }
+
+  return (
+    <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "12px 14px", background: "rgba(6,38,30,.35)" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <strong>{athlete.lastName}, {athlete.firstName}</strong>
+          {athlete.athleteCode ? <small style={{ color: "var(--muted)", display: "block" }}>{athlete.athleteCode}</small> : null}
+        </div>
+        <button type="button" className={styles.secondary} onClick={toggle}>{open ? "Close" : comments === null ? "View guidance" : `Guidance (${comments.length})`}</button>
+      </div>
+      {open && (
+        <div style={{ borderTop: "1px solid rgba(26,92,74,.5)", marginTop: 12, paddingTop: 12 }}>
+          {comments === null ? <p className={styles.empty}>Loading guidance...</p> : comments.length === 0 ? <p className={styles.empty}>No guidance yet for {athlete.firstName}.</p> : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
+              {comments.map((c) => (
+                <div key={c.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "rgba(6,38,30,.4)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <strong style={{ fontSize: 13 }}>{commentAuthorName(c.author)}</strong>
+                    <small style={{ color: "var(--muted)" }}>{fmtDate(c.createdAt)}</small>
+                  </div>
+                  <p style={{ margin: 0 }}>{c.body}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {isAdmin && (
+            <form onSubmit={post} className={styles.formStack} style={{ margin: 0 }}>
+              <label>Add guidance for {athlete.firstName}</label>
+              <textarea className={styles.fieldControl} rows="2" maxLength="2000" placeholder="e.g. Focus on form before adding load; watch the knee." value={draft} onChange={(e) => setDraft(e.target.value)} />
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <button className={styles.primary} disabled={busy || !draft.trim()}>{busy ? "Posting..." : "Post guidance"}</button>
+                {msg && <small style={{ color: "var(--danger)" }}>{msg}</small>}
+              </div>
+            </form>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ActivityCommentThread({ planId, activityId, athleteId, isAdmin, athleteName }) {
+  const [scope, setScope] = React.useState("everyone"); // "everyone" | "thisAthlete"
+  const [comments, setComments] = React.useState(null);
+  const [draft, setDraft] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [msg, setMsg] = React.useState("");
+
+  const load = React.useCallback(async () => {
+    const res = await fetch(`/api/training-plans/${planId}/activities/${activityId}/comments`).then((r) => r.json()).catch(() => ({}));
+    const all = Array.isArray(res.comments) ? res.comments : [];
+    const filtered = all.filter((c) => scope === "everyone" ? c.athleteId === null : c.athleteId === athleteId);
+    setComments(filtered);
+  }, [planId, activityId, scope, athleteId]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  React.useEffect(() => { load(); }, [load]);
+
+  async function post(e) {
+    e.preventDefault();
+    if (!draft.trim()) return;
+    setBusy(true); setMsg("");
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    const body = { body: draft.trim() };
+    if (scope === "thisAthlete") body.athleteId = athleteId;
+    const res = await fetch(`/api/training-plans/${planId}/activities/${activityId}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+      body: JSON.stringify(body),
+    }).then((r) => r.json()).catch(() => ({}));
+    setBusy(false);
+    if (res.comment) {
+      setDraft("");
+      load();
+    } else {
+      setMsg(res.error || "Could not post comment.");
+    }
+  }
+
+  return (
+    <div style={{ borderTop: "1px solid rgba(26,92,74,.5)", marginTop: 10, paddingTop: 10 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 8 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
+          <input type="radio" name="scope" value="everyone" checked={scope === "everyone"} onChange={() => setScope("everyone")} />
+          Everyone (general note)
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
+          <input type="radio" name="scope" value="thisAthlete" checked={scope === "thisAthlete"} onChange={() => setScope("thisAthlete")} />
+          This athlete ({athleteName})
+        </label>
+      </div>
+      {comments === null ? <p className={styles.empty} style={{ margin: 0 }}>Loading comments...</p> : comments.length === 0 ? <p className={styles.empty} style={{ margin: 0 }}>No comments yet.</p> : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
+          {comments.map((c) => (
+            <div key={c.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "rgba(6,38,30,.4)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <strong style={{ fontSize: 13 }}>{commentAuthorName(c.author)}</strong>
+                  {c.athleteId ? <span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)", fontSize: 9 }}>{c.athlete?.firstName} {c.athlete?.lastName}</span> : <span className={styles.badge} style={{ background: "rgba(255,193,7,.16)", color: "#ffc107", fontSize: 9 }}>Everyone</span>}
+                </span>
+                <small style={{ color: "var(--muted)" }}>{fmtDate(c.createdAt)}</small>
+              </div>
+              <p style={{ margin: 0 }}>{c.body}</p>
+            </div>
+          ))}
+        </div>
+      )}
+      {isAdmin && (
+        <form onSubmit={post} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <textarea className={styles.fieldControl} rows="2" maxLength="2000" placeholder={scope === "everyone" ? "General note for all athletes doing this activity..." : `Note for ${athleteName}...`} value={draft} onChange={(e) => setDraft(e.target.value)} />
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <button className={styles.primary} disabled={busy || !draft.trim()}>{busy ? "Posting..." : "Post comment"}</button>
+            {msg && <small style={{ color: "var(--danger)" }}>{msg}</small>}
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
 export async function getServerSideProps(context) {
   const session = await getSession(context);
   if (!session) return { redirect: { destination: "/login", permanent: false } };
@@ -68,17 +254,35 @@ export async function getServerSideProps(context) {
 export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
   const router = useRouter();
   const [data, setData] = React.useState(null);
+  const [allLogs, setAllLogs] = React.useState([]);
   const [error, setError] = React.useState("");
+  const [expandedActivityId, setExpandedActivityId] = React.useState(null);
 
   React.useEffect(() => {
-    fetch(`/api/progress?planId=${plan.id}&athleteId=${athlete.id}`)
-      .then((r) => (r.ok ? r.json() : {}))
-      .then((json) => { if (json.activities) setData(json); else setError(json.error || "Could not load progress."); })
-      .catch(() => setError("Unable to reach the server."));
+    let cancelled = false;
+    Promise.all([
+      fetch(`/api/progress?planId=${plan.id}&athleteId=${athlete.id}`).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+      fetch(`/api/plan-activity-logs?planId=${plan.id}&athleteId=${athlete.id}`).then((r) => (r.ok ? r.json() : [])).catch(() => []),
+    ]).then(([progressData, logsData]) => {
+      if (cancelled) return;
+      if (progressData.activities) setData(progressData);
+      else setError(progressData.error || "Could not load progress.");
+      setAllLogs(logsData || []);
+    }).catch(() => { if (!cancelled) setError("Unable to reach the server."); });
+    return () => { cancelled = true; };
   }, [plan.id, athlete.id]);
 
   const activities = React.useMemo(() => data?.activities || [], [data]);
   const summary = data?.summary || { total: 0, completed: 0, partial: 0, missed: 0, completionPercent: 0, averageScore: null };
+
+  const logsByActivity = React.useMemo(() => {
+    const map = new Map();
+    for (const log of allLogs) {
+      if (!map.has(log.activityId)) map.set(log.activityId, []);
+      map.get(log.activityId).push(log);
+    }
+    return map;
+  }, [allLogs]);
 
   const scoreTimeline = React.useMemo(() => {
     return activities
@@ -125,6 +329,15 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
 
         {error && <p role="status" className={styles.empty}>{error}</p>}
 
+        {/* Athlete-level guidance */}
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Admin guidance</p><h2>Guidance for this athlete</h2></div></div>
+          <p className={styles.formHint} style={{ marginTop: 0 }}>
+            {isAdmin ? "Add targeted guidance for this athlete; the implementing coach can read it." : "Guidance written by the administrator for this athlete appears here."}
+          </p>
+          <AthleteGuidanceRow planId={plan.id} athlete={athlete} isAdmin={isAdmin} />
+        </section>
+
         {activities.length > 0 && (
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Scores</p><h2>Latest score by activity</h2></div></div>
@@ -156,22 +369,72 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
                     <th>Completion</th>
                     <th>Score</th>
                     <th>Attempts</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   {activities.map((a) => {
                     const log = a.latestLog;
                     const meta = log?.status ? { done: "Done", partial: "Partial", missed: "Missed" }[log.status] || log.status : "Not started";
+                    const historyLogs = logsByActivity.get(a.id) || [];
+                    const isExpanded = expandedActivityId === a.id;
                     return (
-                      <tr key={a.id}>
-                        <td data-label="Activity"><strong>{a.activityName}</strong>{a.dayIndex ? <small> · Day {a.dayIndex}{a.weekNumber ? ` · W${a.weekNumber}` : ""}</small> : null}</td>
-                        <td data-label="Fitness"><span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)", fontSize: 11 }}>{FITNESS_META[a.fitnessType] || a.fitnessType}</span></td>
-                        <td data-label="Target">{(() => { if (a.metricType === "time" && a.targetTimeSec != null) return `${a.targetTimeSec} sec`; if (a.targetQuantity != null) return `${a.targetQuantity}${a.targetUnit ? ` ${a.targetUnit}` : ""}`; if (a.targetDistance != null) return `${a.targetDistance} m`; return "—"; })()}</td>
-                        <td data-label="Status">{meta}{log?.performedAt ? <small> · {fmtDate(log.performedAt)}</small> : null}</td>
-                        <td data-label="Completion" style={{ textAlign: "center" }}>{a.completion ? <strong style={{ color: percentColor(a.completion.percent) }}>{a.completion.percent}%</strong> : "—"}</td>
-                        <td data-label="Score">{log?.score != null ? <strong>{log.score}/10</strong> : "—"}</td>
-                        <td data-label="Attempts">{log?.attempts != null ? log.attempts : "—"}</td>
-                      </tr>
+                      <React.Fragment key={a.id}>
+                        <tr style={{ cursor: isExpanded ? "default" : "pointer" }} onClick={() => setExpandedActivityId(isExpanded ? null : a.id)}>
+                          <td data-label="Activity"><strong>{a.activityName}</strong>{a.dayIndex ? <small> · Day {a.dayIndex}{a.weekNumber ? ` · W${a.weekNumber}` : ""}</small> : null}</td>
+                          <td data-label="Fitness"><span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)", fontSize: 11 }}>{FITNESS_META[a.fitnessType] || a.fitnessType}</span></td>
+                          <td data-label="Target">{(() => { if (a.metricType === "time" && a.targetTimeSec != null) return `${a.targetTimeSec} sec`; if (a.targetQuantity != null) return `${a.targetQuantity}${a.targetUnit ? ` ${a.targetUnit}` : ""}`; if (a.targetDistance != null) return `${a.targetDistance} m`; return "—"; })()}</td>
+                          <td data-label="Status">{meta}{log?.performedAt ? <small> · {fmtDate(log.performedAt)}</small> : null}</td>
+                          <td data-label="Completion" style={{ textAlign: "center" }}>{a.completion ? <strong style={{ color: percentColor(a.completion.percent) }}>{a.completion.percent}%</strong> : "—"}</td>
+                          <td data-label="Score">{log?.score != null ? <strong>{log.score}/10</strong> : "—"}</td>
+                          <td data-label="Attempts">{log?.attempts != null ? log.attempts : "—"}</td>
+                          <td style={{ textAlign: "right", width: 40 }}>
+                            <span style={{ fontSize: 14, color: "var(--muted)" }}>{isExpanded ? "▲" : "▼"}</span>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr>
+                            <td colSpan="8" style={{ padding: "14px 14px 20px", background: "transparent" }}>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                                {/* Activity history */}
+                                <div>
+                                  <h4 style={{ margin: "0 0 10px", color: "var(--accent)", fontSize: 14 }}>Full history ({historyLogs.length} session{historyLogs.length === 1 ? "" : "s"})</h4>
+                                  {historyLogs.length === 0 ? <p className={styles.empty} style={{ margin: 0 }}>No sessions logged yet.</p> : (
+                                    <div className={styles.tableWrap}>
+                                      <table style={{ fontSize: 13 }}>
+                                        <thead>
+                                          <tr><th style={{ textAlign: "center" }}>Date</th><th>Status</th><th>Measured result</th><th style={{ textAlign: "center" }}>Score</th><th style={{ textAlign: "center" }}>Attempts</th><th>Notes</th></tr>
+                                        </thead>
+                                        <tbody>
+                                          {historyLogs.map((l) => (
+                                            <tr key={l.id}>
+                                              <td data-label="Date" style={{ textAlign: "center" }}>{fmtDate(l.performedAt)}</td>
+                                              <td data-label="Status"><span className={`${styles.badge} ${styles[LOG_STATUS[l.status]?.cls || "badgeMuted"]}`}>{LOG_STATUS[l.status]?.label || l.status}</span></td>
+                                              <td data-label="Result">{logResultText(l) || "—"}</td>
+                                              <td data-label="Score" style={{ textAlign: "center" }}>{l.score != null ? <strong>{l.score}</strong> : "—"}</td>
+                                              <td data-label="Attempts" style={{ textAlign: "center" }}>{l.attempts != null ? l.attempts : "—"}</td>
+                                              <td data-label="Notes">{l.notes || "—"}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Activity comment thread */}
+                                <ActivityCommentThread
+                                  planId={plan.id}
+                                  activityId={a.id}
+                                  athleteId={athlete.id}
+                                  isAdmin={isAdmin}
+                                  athleteName={`${athlete.firstName} ${athlete.lastName}`}
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                 </tbody>
