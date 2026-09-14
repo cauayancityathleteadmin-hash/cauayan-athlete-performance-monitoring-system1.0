@@ -2,6 +2,7 @@ import { put, del } from "@vercel/blob";
 import { prisma } from "../../../lib/prisma";
 import { requireCsrf, requireSession, text, validId, setSecurityHeaders } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
+import { resolveWeekGate } from "../../../lib/plan-weeks";
 
 export const config = { api: { bodyParser: { sizeLimit: "4mb" } } };
 
@@ -79,6 +80,11 @@ export default async function handler(req, res) {
 
     const evidenceDate = new Date(`${dateStr}T00:00:00.000Z`);
     if (isNaN(evidenceDate)) return res.status(400).json({ error: "Invalid date." });
+
+    const gate = await resolveWeekGate(prisma, planId, evidenceDate);
+    if (gate.plan && gate.locked) {
+      return res.status(423).json({ error: `Week ${gate.gateWeek} is locked. Evidence can only be uploaded during the current week (Week ${gate.currentWeek}). Ask the admin to allow late assessment if needed.` });
+    }
 
     try {
       const ext = ALLOWED[mime];

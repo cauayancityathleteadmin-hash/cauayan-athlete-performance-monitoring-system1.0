@@ -84,7 +84,7 @@ export default function AdminCoachAccounts({ coaches, session }) {
         setMessage({ kind: "error", text: result.error || "Could not update approval rights." });
       } else {
         coach.canApproveCoaches = result.canApproveCoaches;
-        setMessage({ kind: "success", text: `${coach.firstName} ${coach.lastName} ${result.canApproveCoaches ? "can now" : "can no longer"} approve coach applications.` });
+        setMessage({ kind: "success", text: result.message || `${coach.firstName} ${coach.lastName} ${result.canApproveCoaches ? "can now" : "can no longer"} approve coach applications.` });
       }
     } catch (err) {
       setMessage({ kind: "error", text: "Unable to reach the server. Please try again later." });

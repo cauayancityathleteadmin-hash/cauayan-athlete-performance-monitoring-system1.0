@@ -59,6 +59,7 @@ export async function getServerSideProps(context) {
     coachScope ? prisma.assessment.count({ where: { athlete: coachScope } }) : prisma.assessment.count(),
     prisma.eventPlan.count({ where: { status: "open" } }), prisma.auditLog.count(),
     prisma.coachPerformance.count(),
+    coachScope ? prisma.coachPerformance.count({ where: { coachId: coachScope.coachId } }) : prisma.coachPerformance.count(),
     coachScope ? prisma.athlete.count({ where: { ...coachScope, healthStatus: { in: ["sick", "injured", "recovering", "inactive"] } } }) : prisma.athlete.count({ where: { healthStatus: { in: ["sick", "injured", "recovering", "inactive"] } } }),
     coachScope ? prisma.trainingPlan.count({ where: coachScope }) : prisma.trainingPlan.count(),
     coachScope
@@ -80,7 +81,11 @@ export async function getServerSideProps(context) {
       orderBy: { sessionDate: "asc" },
       select: { id: true, sessionDate: true, sessionType: true, venue: true, sport: { select: { sportName: true } } },
     }),
-    isAdmin ? prisma.coachPerformance.findMany({ select: { coach: { select: { id: true, firstName: true, lastName: true } }, overallScore: true } }) : Promise.resolve([]),
+    isAdmin
+      ? prisma.coachPerformance.findMany({ select: { coach: { select: { id: true, firstName: true, lastName: true } }, overallScore: true } })
+      : coachScope
+        ? prisma.coachPerformance.findMany({ where: { coachId: coachScope.coachId }, select: { coach: { select: { id: true, firstName: true, lastName: true } }, overallScore: true } })
+        : Promise.resolve([]),
     coachScope ? prisma.athlete.groupBy({ by: ["healthStatus"], where: coachScope, _count: { _all: true } }) : prisma.athlete.groupBy({ by: ["healthStatus"], _count: { _all: true } }),
     coachScope ? prisma.trainingAssessment.findMany({ where: { athlete: coachScope, assessmentDate: { gte: ratingSince } }, select: { rating: true } }) : prisma.trainingAssessment.findMany({ where: { assessmentDate: { gte: ratingSince } }, select: { rating: true } }),
     coachScope ? prisma.achievement.count({ where: { athlete: coachScope } }) : prisma.achievement.count(),
@@ -204,7 +209,7 @@ export default function Dashboard({ stats, completion, ratingSeries, upcomingSes
     <AppShell session={session} isAdmin={isAdmin} active="/dashboard">
       <section className={styles.intro}><div><p className={styles.eyebrow}>Overview</p><Greeting greetingName={greetingName} /><p>One summary of every feature in the system. Click any card or chart to dig in.</p></div></section>
       <section className={styles.cards} aria-label="System totals">{cards.map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>
-      {isAdmin && <section className={styles.cards} aria-label="Administration summary">{[["Training plans", stats.trainingPlans, "/training-plans"], ["Coach evaluations", stats.evals, "/admin/coach-performances"], ["Athletes with health flags", stats.healthIssues, "/athletes?health=flagged"], ["Open event plans", stats.plans, "/event-plans"]].map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>}
+      <section className={styles.cards} aria-label="Administration summary">{[["Training plans", stats.trainingPlans, "/training-plans"], ["Coach evaluations", stats.evals, "/admin/coach-performances"], ["Athletes with health flags", stats.healthIssues, "/athletes?health=flagged"], ["Open event plans", stats.plans, "/event-plans"]].map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>
       {(canApprove && stats.pendingCoaches > 0) || stats.healthIssues > 0 ? (
         <section className={styles.alertList} aria-label="Alerts">
           {canApprove && stats.pendingCoaches > 0 && <Link className={`${styles.alertItem} ${styles.alertWarn}`} href="/coach-approvals"><span className={`${styles.dot} ${styles.dotWarn}`} aria-hidden="true" /><span><strong>{stats.pendingCoaches} pending coach approval{stats.pendingCoaches === 1 ? "" : "s"}</strong><small>Review new coach accounts waiting for approval.</small></span></Link>}
@@ -269,12 +274,10 @@ export default function Dashboard({ stats, completion, ratingSeries, upcomingSes
           <p className={styles.formHint} style={{ marginTop: 0 }}>Last 90 days — how often each 1–10 score was given.</p>
           {histData.length ? <HBars data={histData} axisLabel="Score" axisValue="Assessments" /> : <p className={styles.empty}>No training ratings in the last 90 days yet.</p>}
         </div>
-        {isAdmin && (
-          <div className={styles.panel}>
+        <div className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Coaches</p><h2>Evaluation averages</h2></div><Link href="/admin/coach-performances">Evaluations</Link></div>
-            {evalsData.length ? <HBars data={evalsData} axisLabel="Coach" axisValue="Avg" /> : <p className={styles.empty}>No coach evaluations on file yet.</p>}
+            {evalsData.length ? <HBars data={evalsData} axisLabel={isAdmin ? "Coach" : "Your average"} axisValue="Avg" /> : <p className={styles.empty}>No coach evaluations on file yet.</p>}
           </div>
-        )}
       </section>
       <section className={styles.gridAuto} aria-label="Feature summaries">
         <FeatureCard eyebrow="People" title="Athletes" href="/athletes">{plural(stats.athletes, "athlete")} registered{healthNote ? `, ${healthNote}` : ""}.</FeatureCard>
@@ -284,8 +287,7 @@ export default function Dashboard({ stats, completion, ratingSeries, upcomingSes
         <FeatureCard eyebrow="Standings" title="Standings" href="/standings">{plural(achievementsCount, "achievement")} recorded and ranked on the standings board.</FeatureCard>
         <FeatureCard eyebrow="Records" title="Reports" href="/reports">Generate official records — personnel, performance summaries, and coach files.</FeatureCard>
       </section>
-      {isAdmin && (
-        <section className={styles.gridAuto} aria-label="Administration summaries">
+      <section className={styles.gridAuto} aria-label="Administration summaries">
           <FeatureCard eyebrow="People" title="Coaches" href="/admin/coaches">{plural(stats.coaches, "coach")} on file. Review records, approvals, and account access on each page.</FeatureCard>
           <FeatureCard eyebrow="People" title="Coach approvals" href="/coach-approvals">{plural(stats.pendingCoaches, "account")} waiting for approval.</FeatureCard>
           <FeatureCard eyebrow="Catalog" title="Sports &amp; discipline" href="/admin/catalog">{plural(stats.sports, "sport")} registered under the program catalog.</FeatureCard>
@@ -293,7 +295,6 @@ export default function Dashboard({ stats, completion, ratingSeries, upcomingSes
           <FeatureCard eyebrow="Records" title="Audit trail" href="/admin/audit-logs">{plural(stats.logs, "meaningful action")} recorded in the database.</FeatureCard>
           <FeatureCard eyebrow="Maintenance" title="Database backup" href="/admin/backup">Request backups and plan off-site snapshots.</FeatureCard>
         </section>
-      )}
     </AppShell>
   </>;
 }

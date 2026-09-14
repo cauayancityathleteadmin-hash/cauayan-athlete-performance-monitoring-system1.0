@@ -2,6 +2,7 @@ import { prisma } from "../../../lib/prisma";
 import { requireCsrf, requireSession, text, validId, setSecurityHeaders } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
 import { notifyAthlete } from "../../../lib/notify";
+import { resolveWeekGate } from "../../../lib/plan-weeks";
 
 const STATUSES = ["done", "partial", "missed"];
 const DIM_SCORE = { done: 3, partial: 2, missed: 1 };
@@ -61,6 +62,11 @@ export default async function handler(req, res) {
   const performedAtBody = text(body.performedAt, 30);
   const performedAt = performedAtBody ? new Date(performedAtBody) : new Date();
   if (isNaN(performedAt)) return res.status(400).json({ error: "Invalid date." });
+
+  const gate = await resolveWeekGate(prisma, planId, performedAt);
+  if (gate.plan && gate.locked) {
+    return res.status(423).json({ error: `Week ${gate.gateWeek} is locked. Assessments can only be entered during the current week (Week ${gate.currentWeek}). Ask the admin to allow late assessment if needed.` });
+  }
 
   const planActivities = await prisma.planActivity.findMany({ where: { planId }, select: { id: true, athleteId: true, fitnessType: true } });
   const actById = new Map(planActivities.map((a) => [a.id, a]));

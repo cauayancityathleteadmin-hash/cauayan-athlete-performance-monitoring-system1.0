@@ -1,8 +1,32 @@
 import { prisma } from "../../../lib/prisma";
 import { requireCsrf, requireSession, text, validId, setSecurityHeaders } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
-import { sendCoachApprovalEmail, sendCoachRejectionEmail } from "../../../lib/email";
+import { sendCoachApprovalEmail, sendCoachRejectionEmail, sendNotificationEmail } from "../../../lib/email";
+import { sendSms } from "../../../lib/sms";
 import { notifyCoach } from "../../../lib/notify";
+import { generateApprovalCode, hashApprovalCode, verifyApprovalCode, APPROVAL_CODE_EXPIRY_MS } from "../../../lib/security-codes";
+
+const NOT_ACTIVATED = "APPROVAL_NOT_ACTIVATED";
+const CODE_PATTERN = /^\d{6}$/;
+
+async function approverFor(session) {
+  return prisma.coach.findUnique({
+    where: { userId: Number(session.user.id) },
+    select: { id: true, canApproveCoaches: true, approvalActivatedAt: true, approvalCodeHash: true, approvalCodeExpiresAt: true, email: true, contactNumber: true, firstName: true, lastName: true },
+  });
+}
+
+function activationRequired(res) {
+  return res.status(403).json({ error: "Your coach approval power is not activated yet. Enter the 6-digit code we sent you to activate it.", code: NOT_ACTIVATED });
+}
+
+async function deliverCode(approver, code) {
+  const name = `${approver.firstName || ""} ${approver.lastName || ""}`.trim();
+  const message = `Your coach application approval power is now waiting for activation.\n\nYour 6-digit activation code is: ${code}\n\nEnter this code on the Coach Approvals page within 24 hours. Do not share this code.`;
+  const emailed = await sendNotificationEmail({ email: approver.email, name, subject: "Your coach approval power is ready to activate", message });
+  const smsSent = approver.contactNumber ? await sendSms({ to: approver.contactNumber, message: `Cauayan Coach Approvals activation code: ${code}. Valid for 24 hours. Do not share it.` }) : false;
+  return { email: emailed, sms: smsSent };
+}
 
 export default async function handler(req, res) {
   setSecurityHeaders(res);
@@ -14,11 +38,13 @@ export default async function handler(req, res) {
   if (!rate.allowed) return res.status(429).json({ error: "Too many requests. Please try again later." });
 
   // This endpoint is a coach-registration approval power. It is open to an ACTIVE coach
-  // who has been granted `canApproveCoaches`. It grants NO other admin authority.
-  const approver = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true, canApproveCoaches: true } });
+  // who has been granted `canApproveCoaches` and activated it with a one-time code.
+  // It grants NO other admin authority.
+  const approver = await approverFor(session);
   if (!approver || !approver.canApproveCoaches) return res.status(403).json({ error: "You do not have coach application approval rights." });
 
   if (req.method === "GET") {
+    if (!approver.approvalActivatedAt) return activationRequired(res);
     const applications = await prisma.coach.findMany({
       where: { user: { status: "pending" } },
       orderBy: { dateRegistered: "asc" },
@@ -41,6 +67,38 @@ export default async function handler(req, res) {
 
   if (req.method === "POST") {
     if (!requireCsrf(req, res)) return;
+    const action = req.body?.action;
+
+    if (action === "activate") {
+      const code = text(req.body?.code, 10);
+      if (!code || !CODE_PATTERN.test(code)) return res.status(400).json({ error: "Enter the 6-digit code sent to you." });
+      if (!approver.approvalCodeHash || !approver.approvalCodeExpiresAt) return res.status(409).json({ error: "There is no pending activation code. Ask the admin to grant your approval rights again or request a new code." });
+      if (new Date(approver.approvalCodeExpiresAt).getTime() < Date.now()) {
+        return res.status(410).json({ error: "That activation code has expired. Request a new code.", code: "APPROVAL_CODE_EXPIRED" });
+      }
+      if (!verifyApprovalCode(code, approver.approvalCodeHash)) {
+        return res.status(400).json({ error: "That code is incorrect. Check the email/SMS we sent you." });
+      }
+      await prisma.$transaction([
+        prisma.coach.update({ where: { id: approver.id }, data: { approvalActivatedAt: new Date(), approvalCodeHash: null, approvalCodeExpiresAt: null } }),
+        prisma.auditLog.create({ data: { userId: Number(session.user.id), action: "activate", entityType: "coach", entityId: approver.id, description: `Activated coach application approval power with a verification code (coach #${approver.id}).` } }),
+      ]);
+      return res.status(200).json({ success: true, activated: true, message: "Your approval power is now active. You can review pending coach applications." });
+    }
+
+    if (action === "resend_code") {
+      if (approver.approvalActivatedAt) return res.status(409).json({ error: "Your approval power is already active." });
+      const code = generateApprovalCode();
+      const expiresAt = new Date(Date.now() + APPROVAL_CODE_EXPIRY_MS);
+      await prisma.coach.update({ where: { id: approver.id }, data: { approvalCodeHash: hashApprovalCode(code), approvalCodeExpiresAt: expiresAt } });
+      const { email, sms } = await deliverCode(approver, code);
+      const failed = (email ? [] : ["email"]).concat(approver.contactNumber && !sms ? ["SMS"] : []);
+      await prisma.auditLog.create({ data: { userId: Number(session.user.id), action: "resend", entityType: "coach", entityId: approver.id, description: `Sent a new activation code for coach approval power (#${approver.id}).` } });
+      return res.status(200).json({ success: true, message: failed.length ? `A new code should be on its way, but delivery failed by ${failed.join(" and ")}. Contact the admin.` : "A new code was sent to your email and phone. It is valid for 24 hours." });
+    }
+
+    if (!approver.approvalActivatedAt) return activationRequired(res);
+
     const coachId = validId(req.body?.coachId);
     const decision = req.body?.decision;
     const reason = text(req.body?.reason, 500) || null;

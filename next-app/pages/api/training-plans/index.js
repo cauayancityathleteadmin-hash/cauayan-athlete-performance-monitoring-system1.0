@@ -254,7 +254,8 @@ export default async function handler(req, res) {
     const access = await canAccessPlan(prisma, session, planId);
     if (access === null) return res.status(404).json({ error: "Training plan not found." });
     if (access === false) return res.status(403).json({ error: "You do not have permission to edit this plan." });
-    if (isAdmin && !access.isTemplate) return res.status(403).json({ error: "Only the assigned coach can edit this training plan." });
+    const onlyLateFlag = isAdmin && Object.keys(req.body || {}).length > 0 && Object.keys(req.body || {}).every((k) => k === "allowLateAssessment");
+    if (isAdmin && !access.isTemplate && !onlyLateFlag) return res.status(403).json({ error: "Only the assigned coach can edit this training plan." });
 
     const body = req.body || {};
     const data = {};
@@ -304,6 +305,9 @@ export default async function handler(req, res) {
     if (isAdmin && body.isTemplate !== undefined) {
       data.isTemplate = Boolean(body.isTemplate);
     }
+    if (isAdmin && body.allowLateAssessment !== undefined) {
+      data.allowLateAssessment = Boolean(body.allowLateAssessment);
+    }
     if (body.coachId !== undefined && isAdmin) {
       const coachId = validId(body.coachId);
       if (!coachId) return res.status(400).json({ error: "A valid coach is required." });
@@ -315,7 +319,8 @@ export default async function handler(req, res) {
     if (Object.keys(data).length === 0) return res.status(400).json({ error: "No valid fields to update." });
 
     await prisma.trainingPlan.update({ where: { id: planId }, data });
-    await prisma.auditLog.create({ data: { userId: Number(session.user.id), action: "update", entityType: "trainingPlan", entityId: planId, description: `Updated training plan #${planId}` } });
+    const flagDetail = isAdmin && body.allowLateAssessment !== undefined ? (data.allowLateAssessment ? " — late assessment ALLOWED" : " — late assessment disabled") : "";
+    await prisma.auditLog.create({ data: { userId: Number(session.user.id), action: "update", entityType: "trainingPlan", entityId: planId, description: `Updated training plan #${planId}${flagDetail}` } });
 
     const updated = await prisma.trainingPlan.findUnique({
       where: { id: planId },

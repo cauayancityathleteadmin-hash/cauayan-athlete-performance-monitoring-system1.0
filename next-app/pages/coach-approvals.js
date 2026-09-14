@@ -23,18 +23,86 @@ export default function CoachApprovals({ session }) {
   const [error, setError] = React.useState("");
   const [message, setMessage] = React.useState(null);
   const [busy, setBusy] = React.useState(false);
+  const [activationRequired, setActivationRequired] = React.useState(false);
+  const [code, setCode] = React.useState("");
+  const [activating, setActivating] = React.useState(false);
 
   const load = React.useCallback(() => {
     fetch("/api/coaches/approvals")
-      .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
-      .then(({ ok, data }) => {
-        if (!ok) { setError(data.error || "Could not load pending applications."); setApplications([]); }
-        else { setError(""); setApplications(Array.isArray(data) ? data : []); }
+      .then((r) => r.json().then((data) => ({ ok: r.ok, status: r.status, data })))
+      .then(({ ok, status, data }) => {
+        if (!ok) {
+          if (status === 403 && data?.code === "APPROVAL_NOT_ACTIVATED") {
+            setActivationRequired(true);
+            setError("");
+            setApplications([]);
+          } else {
+            setError(data.error || "Could not load pending applications.");
+            setApplications([]);
+          }
+        } else {
+          setError("");
+          setActivationRequired(false);
+          setApplications(Array.isArray(data) ? data : []);
+        }
       })
       .catch(() => { setError("Could not load pending applications."); })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setBusy(false);
+        setActivating(false);
+      });
   }, []);
   React.useEffect(() => { load(); }, [load]);
+
+  async function activate() {
+    if (!/^\d{6}$/.test(code.trim())) { setMessage({ kind: "error", text: "Enter the 6-digit code." }); return; }
+    setActivating(true);
+    setMessage(null);
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/coaches/approvals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify({ action: "activate", code: code.trim() }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.error) {
+        setMessage({ kind: "error", text: result.error || "Activation failed." });
+        setActivating(false);
+        return;
+      }
+      setMessage({ kind: "success", text: result.message || "Approval power activated." });
+      setCode("");
+      load();
+    } catch (err) {
+      setMessage({ kind: "error", text: "Unable to reach the server. Please try again later." });
+      setActivating(false);
+    }
+  }
+
+  async function resendCode() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/coaches/approvals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify({ action: "resend_code" }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.error) {
+        setMessage({ kind: "error", text: result.error || "Could not send a new code." });
+      } else {
+        setMessage({ kind: "success", text: result.message || "A new code was sent." });
+      }
+    } catch (err) {
+      setMessage({ kind: "error", text: "Unable to reach the server. Please try again later." });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function act(app, decision) {
     const actionLabel = decision === "approved" ? "approve" : "reject";
@@ -77,7 +145,31 @@ export default function CoachApprovals({ session }) {
             </p>
           )}
 
-          {loading ? <p className={styles.empty}>Loading pending applications...</p> : error ? <p className={styles.empty}>{error}</p> : applications.length === 0 ? (
+          {activationRequired ? (
+            <div style={{ border: "1px solid rgba(45,212,168,.5)", borderRadius: 10, padding: "14px 16px", background: "rgba(6,38,30,.5)", marginBottom: 16 }}>
+              <p className={styles.eyebrow}>Activation required</p>
+              <h3 style={{ margin: "0 0 6px" }}>Your coach approval power is ready but not yet active</h3>
+              <p className={styles.formHint} style={{ marginTop: 0 }}>The administrator granted you the ability to approve coach applications. Enter the 6-digit activation code that was emailed and sent by SMS to finish activating it. Codes expire after 24 hours.</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginTop: 10 }}>
+                <input
+                  className={styles.fieldControl}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength="6"
+                  value={code}
+                  placeholder="6-digit code"
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); activate(); } }}
+                  style={{ width: 150, letterSpacing: 4, textAlign: "center", fontSize: 18 }}
+                />
+                <button className={styles.primary} disabled={activating || busy} onClick={activate}>{activating ? "Activating..." : "Activate"}</button>
+                <button className={styles.secondary} disabled={activating || busy} onClick={resendCode}>{busy ? "Sending..." : "Resend code"}</button>
+              </div>
+            </div>
+          ) : null}
+
+          {loading ? <p className={styles.empty}>Loading pending applications...</p> : activationRequired ? null : error ? <p className={styles.empty}>{error}</p> : applications.length === 0 ? (
             <p className={styles.empty}>No pending coach applications right now.</p>
           ) : (
             <div className={styles.tableWrap}>

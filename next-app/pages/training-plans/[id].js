@@ -179,6 +179,23 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
   const [currentWeek, setCurrentWeek] = React.useState(initialMonitoringData?.currentWeek || 1);
   const [monitoringData, setMonitoringData] = React.useState(initialMonitoringData);
   const [message, setMessage] = React.useState(null);
+  const [lateOverride, setLateOverride] = React.useState(Boolean(plan.allowLateAssessment));
+
+  async function setLateAssessment(enabled) {
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    try {
+      const response = await fetch(`/api/training-plans?id=${plan.id}`, { method: "PUT", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ allowLateAssessment: enabled }) });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok && !result.error) {
+        setLateOverride(enabled);
+        setMessage({ kind: "success", text: enabled ? "Late assessment allowed — all weeks are unlocked for the coach." : "Late assessment disabled — only the current week can be assessed." });
+      } else {
+        setMessage({ kind: "error", text: result.error || "Could not update the flag." });
+      }
+    } catch {
+      setMessage({ kind: "error", text: "Unable to reach the server." });
+    }
+  }
 
   const loadActivities = React.useCallback((show) => {
     fetch(`/api/plan-activities?planId=${plan.id}`).then((r) => r.json()).then((data) => {
@@ -277,6 +294,12 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
               <h2>{plan.planName}</h2>
               <p style={{ color: "var(--muted)" }}>{fmtDate(plan.startDate)}{plan.endDate ? ` – ${fmtDate(plan.endDate)}` : ""}</p>
             </div>
+            {isAdmin && (
+              <label title="Temporarily unlock all weeks so the coach can backfill or fix assessments" style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", padding: "6px 10px", border: "1px solid var(--border)", borderRadius: 8, background: "rgba(255,255,255,.03)" }}>
+                <input type="checkbox" checked={lateOverride} onChange={(e) => setLateAssessment(e.target.checked)} />
+                <span>Allow late assessment{lateOverride ? <strong style={{ color: "var(--accent)" }}> (ON)</strong> : ""}</span>
+              </label>
+            )}
             <span className={styles.badge}>{plan.status === "completed" ? "Completed" : "Active"}</span>
           </div>
           {plan.description ? <p>{plan.description}</p> : null}
@@ -390,7 +413,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
             </div>
             <p className={styles.formHint} style={{ marginTop: 0 }}>Score everyone on the plan in one pass: set status for each athlete&apos;s activity, then save once with an optional 1&ndash;10 rating per athlete. Untouched cells are skipped; existing records are preserved until you save.</p>
             {showBulkAssess && (
-              <AssessStudio plan={plan} planId={plan.id} athletes={athletes} activities={activities} logs={logs} onDone={refresh} />
+              <AssessStudio plan={lateOverride ? { ...plan, allowLateAssessment: true } : plan} planId={plan.id} athletes={athletes} activities={activities} logs={logs} onDone={refresh} />
             )}
           </section>
         )}
@@ -866,8 +889,35 @@ function evidenceDayKey(iso) {
 function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
   const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
   const [dayFilter, setDayFilter] = React.useState("all");
-  const [weekFilter, setWeekFilter] = React.useState("all");
   const maxWeek = (plan?.durationDays != null ? Math.ceil(plan.durationDays / 7) : null) || plan?.durationWeeks || 1;
+
+  // Week-gating: compute current week from plan.startDate (UTC)
+  const getCurrentWeek = React.useCallback(() => {
+    if (!plan?.startDate) return 1;
+    const start = new Date(plan.startDate);
+    if (isNaN(start)) return 1;
+    const now = new Date();
+    const diffMs = now.getTime() - start.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    return Math.max(1, Math.floor(diffDays / 7) + 1);
+  }, [plan]);
+
+  const currentWeek = getCurrentWeek();
+  const [weekFilter, setWeekFilter] = React.useState(String(currentWeek));
+  const isWeekLocked = (w) => w !== currentWeek && !plan?.allowLateAssessment;
+  const selectedWeekNum = weekFilter === "all" ? null : Number(weekFilter);
+  const mixingLocked = weekFilter === "all" && maxWeek > 1 && !plan?.allowLateAssessment;
+  const isCurrentViewLocked = (selectedWeekNum != null && isWeekLocked(selectedWeekNum)) || mixingLocked;
+
+  function weekWindowLabel(w) {
+    if (!plan?.startDate) return "";
+    const s = new Date(plan.startDate);
+    if (isNaN(s)) return "";
+    const startIso = new Date(Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate() + (w - 1) * 7)).toISOString();
+    const endIso = new Date(Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate() + (w - 1) * 7 + 6)).toISOString();
+    return w > currentWeek ? `starts ${startIso.slice(0, 10)}` : `ended ${endIso.slice(0, 10)}`;
+  }
+
   const [cells, setCells] = React.useState({});
   const [ratings, setRatings] = React.useState({});
   const [openRatingId, setOpenRatingId] = React.useState(null);
@@ -1185,28 +1235,28 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
       <style jsx>{`
         .studioBar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
         .mkWrap { overflow: auto; border: 1px solid rgba(26,92,74,.55); border-radius: 10px; background: rgba(6,38,30,.25); max-height: 560px; }
-        .mkTable { border-collapse: collapse; min-width: 100%; font-size: 12px; }
-        .mkTable th, .mkTable td { border-bottom: 1px solid rgba(26,92,74,.45); padding: 6px 8px; text-align: left; vertical-align: middle; }
+        .mkTable { border-collapse: collapse; min-width: 100%; font-size: 13px; }
+        .mkTable th, .mkTable td { border-bottom: 1px solid rgba(26,92,74,.45); padding: 8px 10px; text-align: left; vertical-align: middle; }
         .mkTable tbody tr:last-child td { border-bottom: none; }
         .mkTable thead th { position: sticky; top: 0; background: #0a3228; z-index: 2; }
-        .mkTable th.fix, .mkTable td.fix { position: sticky; left: 0; background: #0d3d31; z-index: 1; min-width: 185px; }
+        .mkTable th.fix, .mkTable td.fix { position: sticky; left: 0; background: #0d3d31; z-index: 1; min-width: 200px; }
         .mkTable thead th.fix { z-index: 3; }
         .mkTable .mkTypeRow th { position: static; z-index: auto; background: #0d3d31; border-bottom: 1px solid rgba(45,212,168,.28); padding: 4px 8px; }
-        .mkCell { display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; }
-        .dotBtn { width: 26px; height: 24px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255,255,255,.04); color: var(--muted); font-size: 11px; font-weight: 700; cursor: pointer; transition: .12s; flex: 0 0 auto; }
+        .mkCell { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
+        .dotBtn { width: 36px; height: 32px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255,255,255,.04); color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; transition: .12s; flex: 0 0 auto; }
         .dotBtn:hover { border-color: rgba(45,212,168,.6); color: var(--foreground); }
         .dotBtn.on { background: rgba(45,212,168,.2); color: var(--accent); border-color: rgba(45,212,168,.5); }
         .dotBtn.part { background: rgba(255,193,7,.18); color: #ffc107; border-color: rgba(255,193,7,.45); }
         .dotBtn.miss { background: rgba(248,113,113,.16); color: #f87171; border-color: rgba(248,113,113,.45); }
         .dotBtn.touchedD { outline: 1px solid rgba(45,212,168,.4); }
-        .qtyIn { width: 56px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255,255,255,.04); color: var(--foreground); font-size: 11px; }
+        .qtyIn { width: 72px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255,255,255,.04); color: var(--foreground); font-size: 13px; }
         .rowHead { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-        .rowActions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-        .miniBtn { padding: 2px 6px; font-size: 10px; border-radius: 5px; border: 1px solid var(--border); background: rgba(255,255,255,.04); color: var(--muted); cursor: pointer; }
+        .rowActions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+        .miniBtn { padding: 6px 10px; font-size: 12px; border-radius: 5px; border: 1px solid var(--border); background: rgba(255,255,255,.04); color: var(--muted); cursor: pointer; min-height: 36px; }
         .miniBtn:hover { color: var(--accent); border-color: rgba(45,212,168,.5); }
-        .evColBtn { margin-top: 2px; display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; font-size: 10px; border-radius: 5px; border: 1px solid rgba(45,212,168,.45); background: rgba(45,212,168,.1); color: var(--accent); cursor: pointer; }
+        .evColBtn { margin-top: 2px; display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; font-size: 12px; border-radius: 5px; border: 1px solid rgba(45,212,168,.45); background: rgba(45,212,168,.1); color: var(--accent); cursor: pointer; min-height: 32px; }
         .evColBtn:hover { background: rgba(45,212,168,.22); }
-        .evCellDot { flex: 0 0 auto; width: 22px; height: 22px; border-radius: 6px; border: 1px solid rgba(45,212,168,.4); background: transparent; color: var(--accent); font-size: 11px; cursor: pointer; }
+        .evCellDot { flex: 0 0 auto; width: 28px; height: 28px; border-radius: 6px; border: 1px solid rgba(45,212,168,.4); background: transparent; color: var(--accent); font-size: 12px; cursor: pointer; }
         .evCellDot:hover { background: rgba(45,212,168,.2); }
         .revPanel { border: 1px solid rgba(45,212,168,.5); border-radius: 10px; background: rgba(6,38,30,.5); padding: 12px 14px; margin-top: 12px; }
         .revAthlete { padding: 8px 0; border-bottom: 1px dashed rgba(26,92,74,.5); }
@@ -1230,7 +1280,8 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
             {[...Array(maxWeek)].map((_, i) => <option key={i + 1} value={i + 1}>Week {i + 1}</option>)}
           </select>
         </label>
-        <button className={styles.primary} disabled={busy} onClick={save}>{busy ? "Saving..." : "Save assessment"}</button>
+        <button className={styles.primary} disabled={busy || isCurrentViewLocked} onClick={save}>{busy ? "Saving..." : isCurrentViewLocked ? "Week locked" : "Save assessment"}</button>
+        <button className={styles.secondary} onClick={() => setReviewColumn('all')}>📷 View all evidence by activity</button>
         {toast && (
           <span role="status" style={{ color: toast.kind === "error" ? "var(--danger)" : toast.kind === "info" ? "var(--muted)" : "var(--accent)", fontSize: 12, lineHeight: 1.4 }}>
             {toast.text}
@@ -1238,6 +1289,20 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
           </span>
         )}
       </div>
+
+      {isCurrentViewLocked && (
+        <div style={{ marginTop: 8, padding: "10px 12px", background: "rgba(248,113,113,.15)", border: "1px solid rgba(248,113,113,.4)", borderRadius: 8, color: "#f87171", fontSize: 12 }}>
+          {mixingLocked ? (
+            <>
+              <strong>Mix-week assessment is locked.</strong> Assessments can only be entered during the current week (Week {currentWeek}). Admin override only.
+            </>
+          ) : (
+            <>
+              <strong>Week {selectedWeekNum} is locked{weekWindowLabel(selectedWeekNum) ? ` — ${weekWindowLabel(selectedWeekNum)}` : ""}.</strong> Assessments can only be entered during the current week (Week {currentWeek}). Admin override only.
+            </>
+          )}
+        </div>
+      )}
 
       <p className={styles.formHint} style={{ marginTop: 0, marginBottom: 12 }}>Tap a cell&apos;s button to flip its status (D → P → M → open). Untouched cells are not part of the save. Type an amount and the status picks itself. Row buttons fill one athlete; the ✓ / ✗ buttons above each activity fill that activity for everyone. Activities without a set week are shown under Week 1.</p>
 
@@ -1305,11 +1370,11 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                       </div>
                       <small style={{ color: "var(--muted)", display: "block" }}>{athlete.athleteCode}</small>
                       <div className="rowActions">
-                        <button className="miniBtn" title="Mark all this athlete's shown activities as done" onClick={() => applyPreset(athlete.id, "full")}>Full</button>
-                        <button className="miniBtn" title="Mark all at half target" onClick={() => applyPreset(athlete.id, "light")}>Half</button>
-                        <button className="miniBtn" title="Mark all missed" onClick={() => applyPreset(athlete.id, "rest")}>Rest</button>
-                        <button className={`miniBtn ${openRatingId === athlete.id ? "on" : ""}`} onClick={() => setOpenRatingId(openRatingId === athlete.id ? null : athlete.id)}>Rating</button>
-                        {(() => { const ev = evFor(athlete.id); return <button className={`miniBtn ${ev && ev.url ? "on" : ""}`} title="Upload a training photo as proof the session happened" onClick={() => pickEvidence(athlete.id)}>{ev && ev.uploading ? "Uploading…" : "📷 Evidence"}</button>; })()}
+                        <button className="miniBtn" disabled={isCurrentViewLocked} title="Mark all this athlete's shown activities as done" onClick={() => applyPreset(athlete.id, "full")}>Full</button>
+                        <button className="miniBtn" disabled={isCurrentViewLocked} title="Mark all at half target" onClick={() => applyPreset(athlete.id, "light")}>Half</button>
+                        <button className="miniBtn" disabled={isCurrentViewLocked} title="Mark all missed" onClick={() => applyPreset(athlete.id, "rest")}>Rest</button>
+                        <button className={`miniBtn ${openRatingId === athlete.id ? "on" : ""}`} disabled={isCurrentViewLocked} onClick={() => setOpenRatingId(openRatingId === athlete.id ? null : athlete.id)}>Rating</button>
+                        {(() => { const ev = evFor(athlete.id); return <button className={`miniBtn ${ev && ev.url ? "on" : ""}`} disabled={isCurrentViewLocked} title="Upload a training photo as proof the session happened" onClick={() => pickEvidence(athlete.id)}>{ev && ev.uploading ? "Uploading…" : "📷 Evidence"}</button>; })()}
                       </div>
                     </td>
                     {columns.map((column) => {
@@ -1323,10 +1388,10 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                       return (
                         <td key={column.gkey}>
                           <span className="mkCell">
-                            <button className={`dotBtn ${status === "done" ? "on" : status === "partial" ? "part" : status === "missed" ? "miss" : ""} ${touched ? "touchedD" : ""}`} title={status ? `Status: ${status === "done" ? "Done" : status === "partial" ? "Partial" : "Missed"}. Tap to change.` : "Open. Tap to mark Done."} onClick={() => cycleStatus(athlete.id, activityId, activity)}>{status === "done" ? "D" : status === "partial" ? "P" : status === "missed" ? "M" : "–"}</button>
-                            <input className="qtyIn" type="number" min="0" step="any" placeholder={target && target.unit ? `amt (${target.unit})` : "amt"} value={qty != null ? qty : ""} onChange={(e) => onQty(athlete.id, activityId, activity, e.target.value)} />
+                            <button className={`dotBtn ${status === "done" ? "on" : status === "partial" ? "part" : status === "missed" ? "miss" : ""} ${touched ? "touchedD" : ""}`} disabled={isCurrentViewLocked} title={status ? `Status: ${status === "done" ? "Done" : status === "partial" ? "Partial" : "Missed"}. Tap to change.` : "Open. Tap to mark Done."} onClick={() => cycleStatus(athlete.id, activityId, activity)}>{status === "done" ? "D" : status === "partial" ? "P" : status === "missed" ? "M" : "–"}</button>
+                            <input className="qtyIn" disabled={isCurrentViewLocked} type="number" min="0" step="any" placeholder={target && target.unit ? `amt (${target.unit})` : "amt"} value={qty != null ? qty : ""} onChange={(e) => onQty(athlete.id, activityId, activity, e.target.value)} />
                             {evFor(athlete.id) && <button type="button" className="evCellDot" title="View today's evidence photo" onClick={() => setShowLightbox(evFor(athlete.id))}>📷</button>}
-                            {touched && <button className="miniBtn" title="Clear this cell (not part of the save)" onClick={() => clearCell(athlete.id, activityId)}>✕</button>}
+                            {touched && <button className="miniBtn" disabled={isCurrentViewLocked} title="Clear this cell (not part of the save)" onClick={() => clearCell(athlete.id, activityId)}>✕</button>}
                           </span>
                         </td>
                       );
@@ -1338,15 +1403,15 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                       <td colSpan={columns.length} style={{ padding: 0 }}>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, padding: "10px 12px", alignItems: "center" }}>
                           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>Score
-                            <select className={styles.fieldControl} value={ratings[athlete.id]?.rating || ""} onChange={(e) => setRating(athlete.id, { rating: e.target.value ? Number(e.target.value) : null })}>
+                            <select className={styles.fieldControl} disabled={isCurrentViewLocked} value={ratings[athlete.id]?.rating || ""} onChange={(e) => setRating(athlete.id, { rating: e.target.value ? Number(e.target.value) : null })}>
                               <option value="">No score</option>
                               {[1,2,3,4,5,6,7,8,9,10].map((n) => <option key={n} value={n}>{n}/10</option>)}
                             </select>
                           </label>
                           {suggestRating(athlete.id) != null && (
-                            <button className={styles.secondary} style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => setRating(athlete.id, { rating: suggestRating(athlete.id) })}>Use suggestion ({suggestRating(athlete.id)}/10)</button>
+                            <button className={styles.secondary} disabled={isCurrentViewLocked} style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => setRating(athlete.id, { rating: suggestRating(athlete.id) })}>Use suggestion ({suggestRating(athlete.id)}/10)</button>
                           )}
-                          <input className={styles.fieldControl} style={{ flex: "1 1 200px", minWidth: 160 }} value={ratings[athlete.id]?.comments || ""} onChange={(e) => setRating(athlete.id, { comments: e.target.value })} placeholder="Summary comment (optional)" />
+                          <input className={styles.fieldControl} disabled={isCurrentViewLocked} style={{ flex: "1 1 200px", minWidth: 160 }} value={ratings[athlete.id]?.comments || ""} onChange={(e) => setRating(athlete.id, { comments: e.target.value })} placeholder="Summary comment (optional)" />
                           <small style={{ color: "var(--muted)" }}>10 = exceeded · 7–8 = solid · 5–6 = partial · 1–4 = needs work</small>
                         </div>
                       </td>
@@ -1359,48 +1424,54 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
         </table>
       </div>
       {reviewColumn && (() => {
-  const column = columns.find((c) => c.gkey === reviewColumn);
-  if (!column) return null;
+  const isAll = reviewColumn === 'all';
+  const colsToShow = isAll ? columns : [columns.find((c) => c.gkey === reviewColumn)].filter(Boolean);
+  if (!colsToShow.length) return null;
   return (
     <div className="revPanel">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-        <strong style={{ color: "var(--accent)" }}>Evidence by activity: {column.activityName}</strong>
+        <strong style={{ color: "var(--accent)" }}>{isAll ? 'Evidence by activity (all)' : `Evidence by activity: ${colsToShow[0].activityName}`}</strong>
         <button className="miniBtn" onClick={() => setReviewColumn(null)}>Close</button>
       </div>
-      <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--muted)" }}>Review which athletes have proof for each day they performed this activity. Click a photo to view it full-size.</p>
-      {column.members.map((m) => {
-        const athlete = athletes.find((x) => x.id === m.athleteId);
-        const act = m.activity;
-        const logMap = {};
-        for (const l of logs) if (l.athleteId === m.athleteId && l.activityId === act.id && !(logMap[l.performedAt.slice(0, 10)] && new Date(l.performedAt) < new Date(logMap[l.performedAt.slice(0, 10)].performedAt))) logMap[l.performedAt.slice(0, 10)] = l;
-        const entries = Object.keys(logMap).sort((a, b) => (a < b ? 1 : -1)).map((ds) => ({ ds, status: logMap[ds].status, log: logMap[ds], photo: evidenceMap[`${m.athleteId}:${ds}`] || null }));
-        const todayTouched = !!cells[key(m.athleteId, act.id)];
-        const todayStatus = effective(m.athleteId, act.id, "status");
-        if (todayTouched || todayStatus) {
-          const ds = date;
-          if (!logMap[ds]) entries.push({ ds, status: todayStatus, log: null, photo: evFor(m.athleteId), pending: true });
-        }
-        return (
-          <div key={m.athleteId} className="revAthlete">
-            <strong style={{ fontSize: 12 }}>{athlete ? `${athlete.lastName}, ${athlete.firstName}` : `Athlete #${m.athleteId}`}</strong>
-            {athlete && <small style={{ color: "var(--muted)", marginLeft: 6 }}>{athlete.athleteCode}</small>}
-            {entries.length ? (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
-                {entries.map((en) => (
-                  <span key={en.ds} className="revChip">
-                    <span style={{ fontWeight: 600 }}>{fmtDate(en.ds + "T00:00:00Z")}</span>
-                    <span style={{ color: en.status === "done" ? "var(--accent)" : en.status === "partial" ? "#ffc107" : en.status === "missed" ? "#f87171" : "var(--muted)", textTransform: "capitalize" }}>{en.status || "—"}</span>
-                    {en.pending && <small style={{ color: "#ffc107" }}>to be saved</small>}
-                    {en.photo && en.photo.url ? (
-                      <img src={en.photo.url} alt="Evidence" className="revThumb" onClick={() => setShowLightbox(en.photo)} />
-                    ) : <span style={{ color: "var(--muted)" }}>no photo</span>}
-                  </span>
-                ))}
+      <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--muted)" }}>Review which athletes have proof for each day they performed each activity. Click a photo to view it full-size.</p>
+      {colsToShow.map((column) => (
+        <div key={column.gkey} style={{ marginBottom: isAll ? 16 : 0 }}>
+          {isAll && <h4 style={{ margin: "8px 0 4px", color: "var(--accent)", fontSize: 13 }}>{column.activityName} <small style={{ color: "var(--muted)", fontWeight: 400 }}>({column.fitnessType}{column.dayIndex ? ` · Day ${column.dayIndex}` : ''})</small></h4>}
+          {column.members.map((m) => {
+            const athlete = athletes.find((x) => x.id === m.athleteId);
+            const act = m.activity;
+            const logMap = {};
+            for (const l of logs) if (l.athleteId === m.athleteId && l.activityId === act.id && !(logMap[l.performedAt.slice(0, 10)] && new Date(l.performedAt) < new Date(logMap[l.performedAt.slice(0, 10)].performedAt))) logMap[l.performedAt.slice(0, 10)] = l;
+            const entries = Object.keys(logMap).sort((a, b) => (a < b ? 1 : -1)).map((ds) => ({ ds, status: logMap[ds].status, log: logMap[ds], photo: evidenceMap[`${m.athleteId}:${ds}`] || null }));
+            const todayTouched = !!cells[key(m.athleteId, act.id)];
+            const todayStatus = effective(m.athleteId, act.id, "status");
+            if (todayTouched || todayStatus) {
+              const ds = date;
+              if (!logMap[ds]) entries.push({ ds, status: todayStatus, log: null, photo: evFor(m.athleteId), pending: true });
+            }
+            return (
+              <div key={m.athleteId} className="revAthlete">
+                <strong style={{ fontSize: 12 }}>{athlete ? `${athlete.lastName}, ${athlete.firstName}` : `Athlete #${m.athleteId}`}</strong>
+                {athlete && <small style={{ color: "var(--muted)", marginLeft: 6 }}>{athlete.athleteCode}</small>}
+                {entries.length ? (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+                    {entries.map((en) => (
+                      <span key={en.ds} className="revChip">
+                        <span style={{ fontWeight: 600 }}>{fmtDate(en.ds + "T00:00:00Z")}</span>
+                        <span style={{ color: en.status === "done" ? "var(--accent)" : en.status === "partial" ? "#ffc107" : en.status === "missed" ? "#f87171" : "var(--muted)", textTransform: "capitalize" }}>{en.status || "—"}</span>
+                        {en.pending && <small style={{ color: "#ffc107" }}>to be saved</small>}
+                        {en.photo && en.photo.url ? (
+                          <img src={en.photo.url} alt="Evidence" className="revThumb" onClick={() => setShowLightbox(en.photo)} />
+                        ) : <span style={{ color: "var(--muted)" }}>no photo</span>}
+                      </span>
+                    ))}
+                  </div>
+                ) : <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--muted)" }}>No sessions recorded yet.</p>}
               </div>
-            ) : <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--muted)" }}>No sessions recorded yet.</p>}
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 })()}
@@ -1653,10 +1724,10 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
           <h4>Completion rate by athlete <small style={{ color: "var(--muted)", fontWeight: 400 }}>(green ≥ 80%, yellow ≥ 50%, red &lt; 50%)</small></h4>
           {perAthlete.length && perAthlete.some((r) => r.total > 0) ? (
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={barData} margin={{ top: 6, right: 10, left: 16, bottom: 0 }}>
+              <BarChart data={barData} margin={{ top: 6, right: 10, left: 16, bottom: 24 }}>
                 <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="name" tick={{ fill: "#9db6c7", fontSize: 12 }} />
-                <YAxis domain={[0, 100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
+                <YAxis domain={[0, 100]} ticks={[0,20,40,60,80,100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
                 <Tooltip {...chartTooltip} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l, p) => p?.[0]?.payload?.full || l} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
                 <Bar dataKey="percent" radius={[4, 4, 0, 0]}>{barData.map((d) => <Cell key={d.full} fill={percentColor(d.percent)} />)}</Bar>
               </BarChart>
@@ -1686,10 +1757,10 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
           <h4>Weekly completion trend <small style={{ color: "var(--muted)", fontWeight: 400 }}>(done + partial ÷ planned)</small></h4>
           {weekly.some((w) => w.total > 0) ? (
             <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={weekly} margin={{ top: 6, right: 12, left: 16, bottom: 0 }}>
+              <LineChart data={weekly} margin={{ top: 6, right: 12, left: 16, bottom: 24 }}>
                 <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
                 <XAxis dataKey="week" tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `W${v}`} />
-                <YAxis domain={[0, 100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
+                <YAxis domain={[0, 100]} ticks={[0,20,40,60,80,100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
                 <Tooltip {...chartTooltip} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l) => `Week ${l}`} cursor={{ stroke: "rgba(45,212,168,0.4)" }} />
                 <Line type="monotone" dataKey="percent" name="Completion" stroke="#2dd4a8" strokeWidth={2} dot={{ fill: "#2dd4a8", r: 3 }} activeDot={{ r: 5 }} />
               </LineChart>
@@ -1726,9 +1797,9 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
             <div className={`${styles.detailPanel} panelBox`}>
               <h4>Activity completion <small style={{ color: "var(--muted)", fontWeight: 400 }}>{focus.name}</small></h4>
               <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={focus.byActivity} layout="vertical" margin={{ top: 6, right: 16, left: 16, bottom: 0 }}>
+                <BarChart data={focus.byActivity} layout="vertical" margin={{ top: 6, right: 16, left: 16, bottom: 24 }}>
                   <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" domain={[0, 100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
+                  <XAxis type="number" domain={[0, 100]} ticks={[0,20,40,60,80,100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
                   <YAxis type="category" dataKey="name" width={170} tick={{ fill: "#9db6c7", fontSize: 12 }} />
                   <Tooltip {...chartTooltip} formatter={(v) => [`${v}%`, "Completion"]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
                   <Bar dataKey="percent" radius={[0, 4, 4, 0]}>{focus.byActivity.map((act) => <Cell key={act.id} fill={percentColor(act.percent)} />)}</Bar>
