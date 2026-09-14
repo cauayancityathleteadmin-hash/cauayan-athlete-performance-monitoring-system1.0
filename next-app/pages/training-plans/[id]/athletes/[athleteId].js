@@ -34,7 +34,7 @@ function percentColor(p) {
 export async function getServerSideProps(context) {
   const session = await getSession(context);
   if (!session) return { redirect: { destination: "/login", permanent: false } };
-  const planId = Number(context.params?.planId);
+  const planId = Number(context.params?.id);
   const athleteId = Number(context.params?.athleteId);
   if (!Number.isSafeInteger(planId) || !Number.isSafeInteger(athleteId)) return { redirect: { destination: "/training-plans", permanent: false } };
   const isAdmin = session.user.role === "admin";

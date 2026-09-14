@@ -1458,7 +1458,8 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                       const metricType = activity.metricType || "none";
                       const resultField = metricType === "time" ? "time" : metricType === "distance" ? "dist" : metricType === "load" ? "load" : metricType === "reps" ? "reps" : metricType === "sets" ? "sets" : "qty";
                       const result = resultField === "qty" ? qty : effective(athlete.id, activityId, resultField);
-                      const resultPlaceholder = metricType === "time" ? "secs" : metricType === "distance" ? "m" : metricType === "load" ? "kg" : metricType === "reps" ? "reps" : metricType === "sets" ? "sets" : target && target.unit ? `amt (${target.unit})` : "amt";
+                      const cellTargetUnit = metricType === "time" ? "secs" : metricType === "distance" ? "m" : metricType === "load" ? "kg" : null;
+                      const resultPlaceholder = metricType === "time" ? "secs" : metricType === "distance" ? "m" : metricType === "load" ? "kg" : metricType === "reps" ? "reps" : metricType === "sets" ? "sets" : (cellTargetUnit || activity.targetUnit) ? `amt${cellTargetUnit ? ` (${cellTargetUnit})` : activity.targetUnit ? ` (${activity.targetUnit})` : ""}` : "amt";
                       const onResult = (value) => {
                         if (resultField === "qty") onQty(athlete.id, activityId, activity, value);
                         else setCell(athlete.id, activityId, { [resultField]: value });
