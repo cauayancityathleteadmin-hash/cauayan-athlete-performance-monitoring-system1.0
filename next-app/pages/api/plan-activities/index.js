@@ -3,6 +3,7 @@ import { requireCsrf, requireSession, text, validId, setSecurityHeaders } from "
 import { rateLimiters } from "../../../lib/rate-limit";
 
 const FITNESS_TYPES = ["endurance", "strength", "power", "speed_agility", "skill_technique", "mobility", "recovery"];
+const METRIC_TYPES = ["time", "distance", "load", "reps", "sets", "quantity", "none"];
 
 const UNITS_BY_FITNESS = {
   endurance: ["km", "m", "miles", "min", "hr"],
@@ -137,18 +138,22 @@ export default async function handler(req, res) {
       const athleteId = validId(item.athleteId);
       if (!athleteId || !allowedAthleteIds.has(athleteId)) continue;
       const fitnessType = FITNESS_TYPES.includes(item.fitnessType) ? item.fitnessType : "endurance";
+      const metricType = METRIC_TYPES.includes(item.metricType) ? item.metricType : "none";
+      const targetTimeSec = metricType === "time" ? toDecimal(item.targetTimeSec) : null;
       const targetUnit = text(item.targetUnit, 50) || null;
       if (targetUnit && !validateUnit(fitnessType, targetUnit)) continue;
       const sanitized = sanitizeTargetFields(fitnessType, {
         athleteId,
         activityName: name,
         fitnessType,
+        metricType,
         targetQuantity: toDecimal(item.targetQuantity),
         targetUnit,
         targetSets: toInt(item.targetSets),
         targetReps: toInt(item.targetReps),
         targetDistance: toDecimal(item.targetDistance),
         targetLoad: toDecimal(item.targetLoad),
+        targetTimeSec,
         instructions: text(item.instructions, 2000) || null,
       });
       const validated = validateTargetFields(fitnessType, {
@@ -170,12 +175,14 @@ export default async function handler(req, res) {
         athleteId: item.athleteId,
         activityName: item.activityName,
         fitnessType: item.fitnessType,
+        metricType: item.metricType,
         targetQuantity: item.targetQuantity,
         targetUnit: item.targetUnit,
         targetSets: item.targetSets,
         targetReps: item.targetReps,
         targetDistance: item.targetDistance,
         targetLoad: item.targetLoad,
+        targetTimeSec: item.targetTimeSec,
         instructions: item.instructions,
         dayIndex: toInt(item.dayIndex),
         weekNumber: toInt(item.weekNumber),
@@ -202,6 +209,8 @@ export default async function handler(req, res) {
     const name = text(body.activityName, 191, true);
     if (!name) return res.status(400).json({ error: "An activity name is required." });
     const fitnessType = FITNESS_TYPES.includes(body.fitnessType) ? body.fitnessType : "endurance";
+    const metricType = METRIC_TYPES.includes(body.metricType) ? body.metricType : "none";
+    const targetTimeSec = metricType === "time" ? toDecimal(body.targetTimeSec) : null;
     const athleteId = validId(body.athleteId);
     if (!athleteId) return res.status(400).json({ error: "A valid athleteId is required." });
     const onPlan = await prisma.trainingPlanAthlete.findFirst({ where: { planId, athleteId } });
@@ -219,6 +228,8 @@ export default async function handler(req, res) {
       targetReps: toInt(body.targetReps),
       targetDistance: toDecimal(body.targetDistance),
       targetLoad: toDecimal(body.targetLoad),
+      metricType,
+      targetTimeSec,
     });
 
     const validated = validateTargetFields(fitnessType, {
@@ -239,12 +250,14 @@ export default async function handler(req, res) {
         athleteId,
         activityName: name,
         fitnessType,
+        metricType,
         targetQuantity: targetData.targetQuantity,
         targetUnit: targetData.targetUnit,
         targetSets: targetData.targetSets,
         targetReps: targetData.targetReps,
         targetDistance: targetData.targetDistance,
         targetLoad: targetData.targetLoad,
+        targetTimeSec: targetData.targetTimeSec,
         instructions: text(body.instructions, 2000) || null,
         dayIndex: toInt(body.dayIndex),
         weekNumber: toInt(body.weekNumber),
@@ -283,6 +296,13 @@ export default async function handler(req, res) {
     if ("targetReps" in body) data.targetReps = toInt(body.targetReps);
     if ("targetDistance" in body) data.targetDistance = toDecimal(body.targetDistance);
     if ("targetLoad" in body) data.targetLoad = toDecimal(body.targetLoad);
+    if ("metricType" in body) {
+      if (METRIC_TYPES.includes(body.metricType)) data.metricType = body.metricType;
+    }
+    if ("targetTimeSec" in body) {
+      const type = data.metricType || activity.metricType;
+      data.targetTimeSec = type === "time" ? toDecimal(body.targetTimeSec) : null;
+    }
     if ("instructions" in body) data.instructions = text(body.instructions, 2000) || null;
     if ("dayIndex" in body) data.dayIndex = toInt(body.dayIndex);
     if ("weekNumber" in body) data.weekNumber = toInt(body.weekNumber);
@@ -301,6 +321,7 @@ export default async function handler(req, res) {
     if (!finalRules.reps) data.targetReps = null;
     if (!finalRules.distance) data.targetDistance = null;
     if (!finalRules.load) data.targetLoad = null;
+    if ((data.metricType || activity.metricType) !== "time") data.targetTimeSec = null;
 
     const validated = validateTargetFields(finalFitness, {
       targetQuantity: data.targetQuantity,

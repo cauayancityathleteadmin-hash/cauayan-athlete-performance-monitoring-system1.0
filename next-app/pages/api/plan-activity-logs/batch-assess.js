@@ -3,6 +3,7 @@ import { requireCsrf, requireSession, text, validId, setSecurityHeaders } from "
 import { rateLimiters } from "../../../lib/rate-limit";
 import { notifyAthlete } from "../../../lib/notify";
 import { resolveWeekGate } from "../../../lib/plan-weeks";
+import { computeAutoScore, resultValueOf } from "../../../lib/activity-score";
 
 const STATUSES = ["done", "partial", "missed"];
 const DIM_SCORE = { done: 3, partial: 2, missed: 1 };
@@ -28,6 +29,24 @@ function toInt(v) {
   if (v === "" || v == null) return null;
   const n = Number(v);
   return Number.isSafeInteger(n) && n >= 0 ? n : null;
+}
+function toScore(v) {
+  if (v === "" || v == null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 && n <= 10 ? Math.round(n * 10) / 10 : null;
+}
+
+function targetOf(act) {
+  if (!act) return null;
+  switch (act.metricType) {
+    case "time": return act.targetTimeSec == null ? null : Number(act.targetTimeSec);
+    case "distance": return act.targetDistance == null ? null : Number(act.targetDistance);
+    case "load": return act.targetLoad == null ? null : Number(act.targetLoad);
+    case "reps": return act.targetReps == null ? null : Number(act.targetReps);
+    case "sets": return act.targetSets == null ? null : Number(act.targetSets);
+    case "quantity": return act.targetQuantity == null ? null : Number(act.targetQuantity);
+    default: return null;
+  }
 }
 
 async function canAccessPlan(prismaClient, session, planId) {
@@ -68,7 +87,21 @@ export default async function handler(req, res) {
     return res.status(423).json({ error: `Week ${gate.gateWeek} is locked. Assessments can only be entered during the current week (Week ${gate.currentWeek}). Ask the admin to allow late assessment if needed.` });
   }
 
-  const planActivities = await prisma.planActivity.findMany({ where: { planId }, select: { id: true, athleteId: true, fitnessType: true } });
+  const planActivities = await prisma.planActivity.findMany({
+    where: { planId },
+    select: {
+      id: true,
+      athleteId: true,
+      fitnessType: true,
+      metricType: true,
+      targetTimeSec: true,
+      targetQuantity: true,
+      targetDistance: true,
+      targetLoad: true,
+      targetSets: true,
+      targetReps: true,
+    },
+  });
   const actById = new Map(planActivities.map((a) => [a.id, a]));
 
   const rows = Array.isArray(body.rows) ? body.rows : [];
@@ -79,15 +112,22 @@ export default async function handler(req, res) {
     const athleteId = validId(row.athleteId);
     const act = activityId ? actById.get(activityId) : null;
     if (!act || act.athleteId !== athleteId) continue;
-    validRows.push({
+    const raw = {
       athleteId,
       activityId,
       status: STATUSES.includes(row.status) ? row.status : null,
       quantityDone: toDecimal(row.quantityDone),
       setsDone: toInt(row.setsDone),
       repsDone: toInt(row.repsDone),
+      timeSec: toDecimal(row.timeSec),
+      distanceDone: toDecimal(row.distanceDone),
+      loadUsed: toDecimal(row.loadUsed),
+      attempts: toInt(row.attempts),
+      score: toScore(row.score),
       notes: text(row.notes, 2000) || null,
-    });
+    };
+    raw.score = raw.score != null ? raw.score : computeAutoScore(act.metricType, resultValueOf(raw, act.metricType), targetOf(act));
+    validRows.push(raw);
     athleteIds.add(athleteId);
   }
 
@@ -128,6 +168,11 @@ export default async function handler(req, res) {
           quantityDone: r.quantityDone,
           setsDone: r.setsDone,
           repsDone: r.repsDone,
+          timeSec: r.timeSec,
+          distanceDone: r.distanceDone,
+          loadUsed: r.loadUsed,
+          score: r.score,
+          attempts: r.attempts,
           notes: r.notes,
           loggedBy: Number(session.user.id),
         })),

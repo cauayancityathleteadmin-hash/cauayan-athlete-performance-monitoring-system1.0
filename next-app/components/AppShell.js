@@ -156,9 +156,17 @@ const NAV_GROUPS = [
     ],
   },
   {
-    label: "Training & Assessment",
+    label: "Training",
     links: [
-      { href: "/training-plans", label: "Training", icon: "clipboardCheck" },
+      {
+        href: "/training-plans",
+        label: "Trainings",
+        icon: "clipboardCheck",
+        submenu: [
+          { href: "/training-plans", label: "Trainings" },
+          { href: "/progress", label: "Progress" },
+        ],
+      },
     ],
   },
   {
@@ -209,10 +217,14 @@ export default function AppShell({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [subOpen, setSubOpen] = useState({});
   const person = session?.user?.name || session?.user?.email || "Account";
   const currentPath = active || router.pathname;
 
-  const isActive = (href) => (currentPath === href ? styles.navLinkActive : undefined);
+  function isActiveHref(href) {
+    return currentPath === href || (href !== "/" && currentPath.startsWith(href + "/"));
+  }
+  const isActive = (href) => (isActiveHref(href) ? styles.navLinkActive : undefined);
 
 useEffect(() => {
   if (typeof window === "undefined") return;
@@ -255,12 +267,43 @@ useEffect(() => {
         if (!links.length) return null;
         return (
           <React.Fragment key={group.label}>
-            {links.map((link) => (
-              <Link key={link.href} href={link.href} className={isActive(link.href)} title={link.label} aria-label={link.label} aria-current={isActive(link.href) ? "page" : undefined} onClick={() => setOpen(false)}>
-                <span className={styles.navIcon} aria-hidden="true">{ICONS[link.icon]}</span>
-                <span className={styles.navLabel}>{link.label}</span>
-              </Link>
-            ))}
+            {links.map((link) => {
+              if (!link.submenu) {
+                return (
+                  <Link key={link.href} href={link.href} className={isActive(link.href)} title={link.label} aria-label={link.label} aria-current={isActive(link.href) ? "page" : undefined} onClick={() => setOpen(false)}>
+                    <span className={styles.navIcon} aria-hidden="true">{ICONS[link.icon]}</span>
+                    <span className={styles.navLabel}>{link.label}</span>
+                  </Link>
+                );
+              }
+              const anyActive = link.submenu.some((s) => isActiveHref(s.href));
+              const manual = subOpen[link.href];
+              const expanded = manual !== undefined ? manual : anyActive;
+              return (
+                <div key={link.href} style={{ display: "flex", flexDirection: "column" }}>
+                  <button
+                    type="button"
+                    className={anyActive ? styles.navLinkActive : undefined}
+                    style={{ display: "flex", alignItems: "center", gap: 0, width: "100%", background: "transparent", border: "none", padding: "var(--space-2) var(--space-5)", color: "inherit", fontSize: "var(--text-base)", fontWeight: 500, textAlign: "left", cursor: "pointer" }}
+                    aria-expanded={expanded}
+                    onClick={() => setSubOpen((cur) => ({ ...cur, [link.href]: !expanded }))}
+                  >
+                    <span className={styles.navIcon} aria-hidden="true">{ICONS[link.icon]}</span>
+                    <span className={styles.navLabel} style={{ flex: "1 1 auto" }}>{link.label}</span>
+                    <span style={{ fontSize: 10, opacity: 0.7, transition: "transform .15s", transform: expanded ? "rotate(90deg)" : "none" }}>▶</span>
+                  </button>
+                  {expanded && (
+                    <div style={{ display: "flex", flexDirection: "column", paddingLeft: 18 }}>
+                      {link.submenu.map((s) => (
+                        <Link key={s.href} href={s.href} className={isActiveHref(s.href) ? styles.navLinkActive : undefined} style={{ padding: "7px 10px", fontSize: 12.5 }} title={s.label} aria-current={isActiveHref(s.href) ? "page" : undefined} onClick={() => setOpen(false)}>
+                          <span className={styles.navLabel}>{s.label}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </React.Fragment>
         );
       })}

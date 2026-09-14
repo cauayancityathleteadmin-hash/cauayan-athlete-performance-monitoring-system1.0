@@ -38,7 +38,7 @@ export default async function handler(req, res) {
         where: { status: { in: ["done", "partial", "missed"] } },
         orderBy: { performedAt: "desc" },
         take: 1,
-        select: { id: true, status: true, performedAt: true, quantityDone: true, setsDone: true, repsDone: true, notes: true }
+        select: { id: true, status: true, performedAt: true, quantityDone: true, setsDone: true, repsDone: true, timeSec: true, distanceDone: true, loadUsed: true, score: true, attempts: true, notes: true }
       }
     },
     orderBy: [{ dayIndex: "asc" }, { weekNumber: "asc" }, { orderIndex: "asc" }],

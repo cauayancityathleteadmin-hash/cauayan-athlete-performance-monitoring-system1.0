@@ -120,6 +120,16 @@ enum ActivityStatus {
   missed
 }
 
+enum ActivityMetric {
+  time
+  distance
+  load
+  reps
+  sets
+  quantity
+  none
+}
+
 model SystemSetting {
   id        Int      @id @default(autoincrement())
   key       String   @unique
@@ -700,6 +710,8 @@ model PlanActivity {
   targetReps     Int?            @map("target_reps")
   targetDistance Decimal?        @map("target_distance")
   targetLoad     Decimal?        @map("target_load")
+  targetTimeSec  Decimal?        @map("target_time_sec")
+  metricType     ActivityMetric  @default(none) @map("metric_type")
   instructions   String?
   orderIndex     Int             @default(0) @map("order_index")
   dayIndex       Int?            @map("day_index")
@@ -722,9 +734,14 @@ model PlanActivityLog {
   quantityDone Decimal?        @map("quantity_done")
   setsDone     Int?            @map("sets_done")
   repsDone     Int?            @map("reps_done")
-  notes        String?
-  loggedBy     Int             @map("logged_by")
-  createdAt    DateTime        @default(now()) @map("created_at")
+  timeSec        Decimal?        @map("time_sec")
+  distanceDone   Decimal?        @map("distance_done")
+  loadUsed       Decimal?        @map("load_used")
+  score          Decimal?        @map("score")
+  attempts       Int?            @map("attempts")
+  notes          String?
+  loggedBy       Int             @map("logged_by")
+  createdAt      DateTime        @default(now()) @map("created_at")
   activity     PlanActivity    @relation(fields: [activityId], references: [id], onDelete: Cascade)
   athlete      Athlete         @relation(fields: [athleteId], references: [id], onDelete: Cascade)
   logger       User            @relation("ActivityLogger", fields: [loggedBy], references: [id])

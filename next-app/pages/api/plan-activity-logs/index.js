@@ -2,6 +2,7 @@ import { prisma } from "../../../lib/prisma";
 import { requireCsrf, requireSession, text, validId, setSecurityHeaders } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
 import { notifyAthlete } from "../../../lib/notify";
+import { computeAutoScore } from "../../../lib/activity-score";
 
 const STATUSES = ["planned", "done", "partial", "missed"];
 
@@ -14,6 +15,34 @@ function toInt(v) {
   if (v === "" || v == null) return null;
   const n = Number(v);
   return Number.isSafeInteger(n) && n >= 0 ? n : null;
+}
+function toScore(v) {
+  if (v === "" || v == null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 && n <= 10 ? Math.round(n * 10) / 10 : null;
+}
+function resultValueOf(r, metricType) {
+  switch (metricType) {
+    case "time": return r.timeSec == null ? null : Number(r.timeSec);
+    case "distance": return r.distanceDone == null ? null : Number(r.distanceDone);
+    case "load": return r.loadUsed == null ? null : Number(r.loadUsed);
+    case "reps": return r.repsDone == null ? null : Number(r.repsDone);
+    case "sets": return r.setsDone == null ? null : Number(r.setsDone);
+    case "quantity": return r.quantityDone == null ? null : Number(r.quantityDone);
+    default: return null;
+  }
+}
+function targetOf(act) {
+  if (!act) return null;
+  switch (act.metricType) {
+    case "time": return act.targetTimeSec == null ? null : Number(act.targetTimeSec);
+    case "distance": return act.targetDistance == null ? null : Number(act.targetDistance);
+    case "load": return act.targetLoad == null ? null : Number(act.targetLoad);
+    case "reps": return act.targetReps == null ? null : Number(act.targetReps);
+    case "sets": return act.targetSets == null ? null : Number(act.targetSets);
+    case "quantity": return act.targetQuantity == null ? null : Number(act.targetQuantity);
+    default: return null;
+  }
 }
 
 async function isPlanOwnerForActivity(prismaClient, session, activityId) {
@@ -109,9 +138,15 @@ export default async function handler(req, res) {
     quantityDone: toDecimal(body.quantityDone),
     setsDone: toInt(body.setsDone),
     repsDone: toInt(body.repsDone),
+    timeSec: toDecimal(body.timeSec),
+    distanceDone: toDecimal(body.distanceDone),
+    loadUsed: toDecimal(body.loadUsed),
+    attempts: toInt(body.attempts),
     notes: text(body.notes, 2000) || null,
     loggedBy: Number(session.user.id),
   };
+  const metricType = access.activity.metricType || "none";
+  create.score = toScore(body.score) != null ? toScore(body.score) : computeAutoScore(metricType, resultValueOf(create, metricType), targetOf(access.activity));
   const log = await prisma.$transaction(async (tx) => {
     const created = await tx.planActivityLog.create({ data: create });
     await tx.auditLog.create({
