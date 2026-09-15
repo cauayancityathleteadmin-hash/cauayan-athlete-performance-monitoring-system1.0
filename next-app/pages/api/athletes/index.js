@@ -19,10 +19,25 @@ export default async function handler(req, res) {
 
   if (req.method === "GET") {
     try {
+      const coachParam = req.query.coach ? String(req.query.coach).trim() : "";
       let whereClause = undefined;
-      if (session.user.role === "coach") {
+      if (session.user.role === "coach" && !coachParam) {
         const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
         if (coach) whereClause = { coachId: coach.id };
+      }
+      if (coachParam) {
+        if (/^\d+$/.test(coachParam)) {
+          whereClause = { coachId: Number(coachParam) };
+        } else {
+          const matchingCoaches = await prisma.coach.findMany({
+            where: {
+              status: "active",
+              OR: [{ firstName: { contains: coachParam, mode: "insensitive" } }, { lastName: { contains: coachParam, mode: "insensitive" } }],
+            },
+            select: { id: true },
+          });
+          whereClause = { coachId: { in: matchingCoaches.map((c) => c.id) } };
+        }
       }
       const athletes = await prisma.athlete.findMany({ where: whereClause, orderBy: { lastName: "asc" }, include: { school: true, sport: true, event: true, coach: true } });
       return res.status(200).json(athletes);

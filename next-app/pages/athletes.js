@@ -56,7 +56,6 @@ export async function getServerSideProps(context) {
       ? prisma.athlete.findMany({
           orderBy: { lastName: "asc" },
           include: { school: { select: { schoolName: true } }, sport: { select: { sportName: true } }, event: { select: { eventName: true } }, coach: { select: { id: true, firstName: true, lastName: true } } },
-          where: ownCoach ? { OR: [{ coachId: null }, { coachId: { not: ownCoach.id } }] } : undefined,
         })
       : Promise.resolve([]),
     prisma.sport.findMany({ where: { status: "active" }, orderBy: { sportName: "asc" } }),
@@ -93,6 +92,16 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
     return isNaN(date) ? "—" : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
   }
 
+  const directoryAthletes = React.useMemo(() => (isAdmin ? athletes : allAthletes), [isAdmin, athletes, allAthletes]);
+  const [coachFilter, setCoachFilter] = React.useState(null);
+  const [dirSort, setDirSort] = React.useState("name");
+  const [dirDir, setDirDir] = React.useState("asc");
+
+  function toggleDirSort(nextSort) {
+    if (dirSort === nextSort) setDirDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setDirSort(nextSort); setDirDir("asc"); }
+  }
+
   const filteredAthletes = React.useMemo(() => {
     if (!search.trim()) return athletes;
     const q = search.trim().toLowerCase();
@@ -119,19 +128,28 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
   }, [filteredAthletes]);
 
   const filteredAll = React.useMemo(() => {
-    if (!search.trim()) return allAthletes;
-    const q = search.trim().toLowerCase();
-    return allAthletes.filter((a) =>
-      a.firstName.toLowerCase().includes(q) ||
-      a.lastName.toLowerCase().includes(q) ||
-      (a.middleName || "").toLowerCase().includes(q) ||
-      a.athleteCode.toLowerCase().includes(q) ||
-      (a.sport?.sportName || "").toLowerCase().includes(q) ||
-      (a.event?.eventName || "").toLowerCase().includes(q) ||
-      (a.school?.schoolName || "").toLowerCase().includes(q) ||
-      (a.coach ? `${a.coach.firstName} ${a.coach.lastName}`.toLowerCase() : "").includes(q)
-    );
-  }, [allAthletes, search]);
+    let list = directoryAthletes;
+    if (coachFilter) list = list.filter((a) => a.coachId === coachFilter);
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter((a) =>
+        a.firstName.toLowerCase().includes(q) ||
+        a.lastName.toLowerCase().includes(q) ||
+        (a.middleName || "").toLowerCase().includes(q) ||
+        a.athleteCode.toLowerCase().includes(q) ||
+        (a.sport?.sportName || "").toLowerCase().includes(q) ||
+        (a.event?.eventName || "").toLowerCase().includes(q) ||
+        (a.school?.schoolName || "").toLowerCase().includes(q) ||
+        (a.coach ? `${a.coach.firstName} ${a.coach.lastName}`.toLowerCase() : "").includes(q)
+      );
+    }
+    const dir = dirDir === "desc" ? -1 : 1;
+    return [...list].sort((a, b) => {
+      if (dirSort === "code") return String(a.athleteCode).localeCompare(String(b.athleteCode)) * dir;
+      if (dirSort === "sport") return (a.sport?.sportName || "").localeCompare(b.sport?.sportName || "") * dir || `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`);
+      return `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`) * dir;
+    });
+  }, [directoryAthletes, coachFilter, search, dirSort, dirDir]);
 
   const groupedByCoach = React.useMemo(() => {
     const map = new Map();
@@ -163,7 +181,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
           <div className={styles.segmented}>
             <button className={view === "sport" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("sport")}>By sport</button>
             <button className={view === "list" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("list")}>List</button>
-            {isCoach && <button className={view === "all" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("all")}>All athletes</button>}
+            {(isCoach || isAdmin) && <button className={view === "all" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("all")}>All athletes</button>}
             {isCoach && <button className={view === "requests" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("requests")}>Transfer center</button>}
             {isAdmin && <button className={view === "requests" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("requests")}>Transfer requests</button>}
             {isAdmin && <button className={view === "transfer" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("transfer")}>Transfer athletes</button>}
@@ -227,11 +245,42 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
         {view === "all" && (
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Full directory</p><h2>All athletes by coach</h2></div><span className={styles.formHint} style={{ alignSelf: "center" }}>{filteredAll.length} athlete{filteredAll.length === 1 ? "" : "s"}</span></div>
-            <p className={styles.formHint} style={{ marginTop: 0 }}>Browse every registered athlete, grouped by their coach, including athletes with no coach assigned yet. This is a read-only directory — you can only manage the athletes assigned to you.</p>
+            <p className={styles.formHint} style={{ marginTop: 0 }}>Browse every registered athlete, including athletes with no coach assigned. This is a read-only directory — type a coach name to see only that coach&apos;s athletes.</p>
             <div className={styles.toolbar}>
+              <CoachFilter coaches={catalog.coaches || []} value={coachFilter} onChange={setCoachFilter} />
               <label className={styles.searchLabel}>Search athletes<input type="text" placeholder="Name, code, sport, event, school, coach…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
             </div>
-            {groupedByCoach.length ? groupedByCoach.map(([coachName, roster]) => (
+            {(() => {
+              const selectedCoach = catalog.coaches.find((c) => c.id === coachFilter);
+              return selectedCoach ? (
+                <div className={styles.actionCell} style={{ marginBottom: 12 }}>
+                  <span className={`${styles.badge} ${styles.badgeActive}`}>Showing {selectedCoach.firstName} {selectedCoach.lastName}&apos;s athletes</span>
+                  <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setCoachFilter(null)}>Clear filter</button>
+                </div>
+              ) : null;
+            })()}
+            {coachFilter ? (
+              <div className={styles.tableWrap}><table>
+                <thead><tr>
+                  <th><button type="button" className={styles.sortLink} onClick={() => toggleDirSort("code")}>{dirSort === "code" && (dirDir === "asc" ? "↑ " : "↓ ")}Code</button></th>
+                  <th><button type="button" className={styles.sortLink} onClick={() => toggleDirSort("name")}>{dirSort === "name" && (dirDir === "asc" ? "↑ " : "↓ ")}Athlete</button></th>
+                  <th><button type="button" className={styles.sortLink} onClick={() => toggleDirSort("sport")}>{dirSort === "sport" && (dirDir === "asc" ? "↑ " : "↓ ")}Sport</button></th>
+                  <th>Coach</th><th>Status</th><th></th>
+                </tr></thead>
+                <tbody>
+                  {filteredAll.map((athlete) => (
+                    <tr key={athlete.id}>
+                      <td data-label="Code">{athlete.athleteCode}</td>
+                      <td data-label="Athlete" className={styles.avatarCell}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></span></td>
+                      <td data-label="Sport">{athlete.sport?.sportName || "Unassigned"}<small>{athlete.event?.eventName || ""}</small></td>
+                      <td data-label="Coach">{athlete.coach ? `${athlete.coach.firstName} ${athlete.coach.lastName}` : "Unassigned"}</td>
+                      <td data-label="Status"><StatusBadge status={athlete.status} /></td>
+                      <td data-label="Profile"><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table></div>
+            ) : groupedByCoach.length ? groupedByCoach.map(([coachName, roster]) => (
               <div key={coachName} style={{ marginBottom: 22 }}>
                 <h3 className={styles.sectionTitle}>{coachName} <span className={styles.formHint}>({roster.length})</span></h3>
                 {roster.length ? (
@@ -599,6 +648,36 @@ function CoachPicker({ coaches, value, onChange, placeholder = "Search coaches�
               </button>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CoachFilter({ coaches, value, onChange }) {
+  const [query, setQuery] = React.useState("");
+  const selected = coaches.find((c) => c.id === value) || null;
+  const inputValue = selected && query === "" ? `${selected.firstName} ${selected.lastName}` : query;
+  const q = query.trim().toLowerCase();
+  const suggestions = q
+    ? coaches.filter((c) => `${c.firstName} ${c.lastName} ${c.coachCode || ""} ${c.school?.schoolName || ""}`.toLowerCase().includes(q)).slice(0, 8)
+    : [];
+
+  return (
+    <div>
+      <label className={styles.searchLabel}>
+        Filter by coach
+        <input type="text" placeholder="Type a coach name…" value={inputValue} onChange={(event) => { setQuery(event.target.value); if (value) onChange(null); }} />
+      </label>
+      {q && suggestions.length === 0 && <p className={styles.formHint}>No coach matches your search.</p>}
+      {suggestions.length > 0 && (
+        <div className={styles.coachList} style={{ marginTop: 8 }}>
+          {suggestions.map((coach) => (
+            <button type="button" key={coach.id} className={styles.coachCard} onClick={() => { onChange(coach.id); setQuery(""); }}>
+              <span className={styles.coachName}>{coach.firstName} {coach.lastName}</span>
+              <small className={styles.coachDetail}>{coach.coachCode}{coach.school?.schoolName ? ` · ${coach.school.schoolName}` : ""}</small>
+            </button>
+          ))}
         </div>
       )}
     </div>
