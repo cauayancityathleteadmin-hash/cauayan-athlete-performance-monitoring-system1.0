@@ -37,15 +37,14 @@ export default async function handler(req, res) {
     const body = text(req.body?.body, 2000);
     if (!body) return res.status(400).json({ error: "Write a comment first." });
 
-    const athleteId = req.body?.athleteId != null ? validId(req.body.athleteId) : null;
+    const athleteId = validId(req.body?.athleteId);
+    if (!athleteId) return res.status(400).json({ error: "This comment must be attached to an athlete in the plan." });
 
-    if (athleteId) {
-      const inPlan = await prisma.trainingPlanAthlete.findUnique({
-        where: { planId_athleteId: { planId, athleteId } },
-        select: { id: true },
-      });
-      if (!inPlan) return res.status(400).json({ error: "That athlete is not part of this training plan." });
-    }
+    const inPlan = await prisma.trainingPlanAthlete.findUnique({
+      where: { planId_athleteId: { planId, athleteId } },
+      select: { id: true },
+    });
+    if (!inPlan) return res.status(400).json({ error: "That athlete is not part of this training plan." });
 
     const comment = await prisma.activityPlanComment.create({
       data: { planId, activityId, athleteId, authorId: Number(session.user.id), body },

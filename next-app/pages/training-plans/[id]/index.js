@@ -169,12 +169,12 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
   const [showAddActivity, setShowAddActivity] = React.useState(false);
-  const [showBulkAssess, setShowBulkAssess] = React.useState(true);
+  const [showBulkAssess, setShowBulkAssess] = React.useState(false);
   const [currentWeek, setCurrentWeek] = React.useState(initialMonitoringData?.currentWeek || 1);
   const [monitoringData, setMonitoringData] = React.useState(initialMonitoringData);
   const [message, setMessage] = React.useState(null);
   const [lateOverride, setLateOverride] = React.useState(Boolean(plan.allowLateAssessment));
-  const [tab, setTab] = React.useState("athletes");
+  const [tab, setTab] = React.useState("charts");
 
   async function setLateAssessment(enabled) {
     const csrf = await fetch("/api/csrf").then((r) => r.json());
@@ -273,7 +273,7 @@ function updateActivity(activityId, payload) {
         </section>
 
 <nav aria-label="Plan sections" style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "0 0 18px" }}>
-          {[["athletes", "Athletes"], ["squad", "Squad view"], ["planActivities", "Plan activities"]].map(([id, label]) => (
+          {[["charts", "Charts"], ["athletes", "Athletes"], ["activities", "Activities"]].map(([id, label]) => (
             <button key={id} className={tab === id ? styles.primary : styles.secondary} onClick={() => setTab(id)}>{label}</button>
           ))}
         </nav>
@@ -284,7 +284,7 @@ function updateActivity(activityId, payload) {
           </p>
         )}
 
-        {tab === "squad" && (
+        {tab === "charts" && (
           <>
             <section className={styles.panel}>
               <div className={styles.panelHeader}>
@@ -323,59 +323,25 @@ function updateActivity(activityId, payload) {
             )}
 
             {!isAdmin && !showBulkAssess && (
-              <button className={styles.primary} onClick={() => setShowBulkAssess(true)}>Open assessment</button>
+              <button className={styles.primary} onClick={() => setShowBulkAssess(true)}>Assess athletes</button>
             )}
           </>
         )}
 
 {tab === "athletes" && (
-          <section className={styles.panel}>
-            <div className={styles.panelHeader}>
-              <div><p className={styles.eyebrow}>Athletes on this training</p><h2>Roster</h2></div>
-              <span className={styles.formHint} style={{ alignSelf: "center" }}>{athletes.length} athlete{athletes.length === 1 ? "" : "s"}</span>
-            </div>
-            <p className={styles.formHint} style={{ marginTop: 0 }}>
-              {isAdmin ? "Each row is an athlete under this training. Open guidance to talk to them directly, or drill into their progress page." : "Each row is an athlete on your training. Open guidance to read who the administrator wants you to focus on, then view progress for full activity history."}
-            </p>
-            {loading ? <p className={styles.empty}>Loading plan details...</p> : error ? <p className={styles.empty}>{error}</p> : athletes.length === 0 ? (
-              <p className={styles.empty}>No athletes on this plan.</p>
-            ) : (
-              <AthleteRosterTable plan={plan} athletes={athletes} activities={activities} logs={logs} isAdmin={isAdmin} />
-            )}
-          </section>
-        )}
-
-        {tab === "planActivities" && (
           <>
             <section className={styles.panel}>
               <div className={styles.panelHeader}>
-                <div><p className={styles.eyebrow}>Training plan &amp; assessment</p><h2>Planned activities</h2></div>
+                <div><p className={styles.eyebrow}>Athletes on this training</p><h2>Roster</h2></div>
+                <span className={styles.formHint} style={{ alignSelf: "center" }}>{athletes.length} athlete{athletes.length === 1 ? "" : "s"}</span>
               </div>
-              <p className={styles.formHint} style={{ marginTop: 0 }}>Each athlete&apos;s activities and latest status. Open the per-athlete view for full score history and notes.</p>
-
+              <p className={styles.formHint} style={{ marginTop: 0 }}>
+                {isAdmin ? "Each row is an athlete under this training. Open guidance to talk to them directly, or drill into their progress page." : "Each row is an athlete on your training. Open guidance to read who the administrator wants you to focus on, then view progress for full activity history."}
+              </p>
               {loading ? <p className={styles.empty}>Loading plan details...</p> : error ? <p className={styles.empty}>{error}</p> : athletes.length === 0 ? (
                 <p className={styles.empty}>No athletes on this plan.</p>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-                  {athletes.map((athlete) => (
-                    <div key={athlete.id}>
-                      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-                        <button className={styles.secondary} onClick={() => router.push(`/training-plans/${plan.id}/athletes/${athlete.id}`)}>View progress →</button>
-                      </div>
-                      <AthleteActivitiesBlock
-                        key={athlete.id}
-                        planId={plan.id}
-                        athlete={athlete}
-                        activities={activities.filter((act) => act.athleteId === athlete.id)}
-                        logs={logs}
-                        onRemove={removeActivity}
-                        onEdit={updateActivity}
-                        onChanged={refresh}
-                        readOnly={isAdmin}
-                      />
-                    </div>
-                  ))}
-                </div>
+                <AthleteRosterTable plan={plan} athletes={athletes} activities={activities} logs={logs} isAdmin={isAdmin} />
               )}
             </section>
 
@@ -393,6 +359,40 @@ function updateActivity(activityId, payload) {
               ) : <p className={styles.empty}>No athletes on this plan yet.</p>}
             </section>
           </>
+        )}
+
+        {tab === "activities" && (
+          <section className={styles.panel}>
+            <div className={styles.panelHeader}>
+              <div><p className={styles.eyebrow}>Plan activities</p><h2>Activities</h2></div>
+            </div>
+            <p className={styles.formHint} style={{ marginTop: 0 }}>Each athlete&apos;s activities and latest status. Open the per-athlete view for full score history and notes.</p>
+
+            {loading ? <p className={styles.empty}>Loading plan details...</p> : error ? <p className={styles.empty}>{error}</p> : athletes.length === 0 ? (
+              <p className={styles.empty}>No athletes on this plan.</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                {athletes.map((athlete) => (
+                  <div key={athlete.id}>
+                    <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+                      <button className={styles.secondary} onClick={() => router.push(`/training-plans/${plan.id}/athletes/${athlete.id}`)}>View progress →</button>
+                    </div>
+                    <AthleteActivitiesBlock
+                      key={athlete.id}
+                      planId={plan.id}
+                      athlete={athlete}
+                      activities={activities.filter((act) => act.athleteId === athlete.id)}
+                      logs={logs}
+                      onRemove={removeActivity}
+                      onEdit={updateActivity}
+                      onChanged={refresh}
+                      readOnly={isAdmin}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         )}
       </AppShell>
     </>

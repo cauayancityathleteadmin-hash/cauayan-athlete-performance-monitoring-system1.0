@@ -803,13 +803,13 @@ model ActivityPlanComment {
   id         Int          @id @default(autoincrement())
   planId     Int          @map("plan_id")
   activityId Int          @map("activity_id")
-  athleteId  Int?         @map("athlete_id") // null = general note for the activity
+  athleteId  Int          @map("athlete_id")
   authorId   Int          @map("author_id")
   body       String       @map("body")
   createdAt  DateTime     @default(now()) @map("created_at")
   plan       TrainingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
   activity   PlanActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
-  athlete    Athlete?     @relation("ActivityPlanCommentAthlete", fields: [athleteId], references: [id], onDelete: Cascade)
+  athlete    Athlete      @relation("ActivityPlanCommentAthlete", fields: [athleteId], references: [id], onDelete: Cascade)
   author     User         @relation("ActivityPlanCommentAuthor", fields: [authorId], references: [id])
 
   @@index([activityId, athleteId])

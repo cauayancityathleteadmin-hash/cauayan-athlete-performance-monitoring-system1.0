@@ -139,7 +139,6 @@ function AthleteGuidanceRow({ planId, athlete, isAdmin }) {
 }
 
 function ActivityCommentThread({ planId, activityId, athleteId, isAdmin, athleteName }) {
-  const [scope, setScope] = React.useState("everyone"); // "everyone" | "thisAthlete"
   const [comments, setComments] = React.useState(null);
   const [draft, setDraft] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -147,10 +146,9 @@ function ActivityCommentThread({ planId, activityId, athleteId, isAdmin, athlete
 
   const load = React.useCallback(async () => {
     const res = await fetch(`/api/training-plans/${planId}/activities/${activityId}/comments`).then((r) => r.json()).catch(() => ({}));
-    const all = Array.isArray(res.comments) ? res.comments : [];
-    const filtered = all.filter((c) => scope === "everyone" ? c.athleteId === null : c.athleteId === athleteId);
+    const filtered = Array.isArray(res.comments) ? res.comments.filter((c) => c.athleteId === athleteId) : [];
     setComments(filtered);
-  }, [planId, activityId, scope, athleteId]);
+  }, [planId, activityId, athleteId]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   React.useEffect(() => { load(); }, [load]);
@@ -160,8 +158,7 @@ function ActivityCommentThread({ planId, activityId, athleteId, isAdmin, athlete
     if (!draft.trim()) return;
     setBusy(true); setMsg("");
     const csrf = await fetch("/api/csrf").then((r) => r.json());
-    const body = { body: draft.trim() };
-    if (scope === "thisAthlete") body.athleteId = athleteId;
+    const body = { body: draft.trim(), athleteId };
     const res = await fetch(`/api/training-plans/${planId}/activities/${activityId}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
@@ -179,14 +176,7 @@ function ActivityCommentThread({ planId, activityId, athleteId, isAdmin, athlete
   return (
     <div style={{ borderTop: "1px solid rgba(26,92,74,.5)", marginTop: 10, paddingTop: 10 }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 8 }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
-          <input type="radio" name="scope" value="everyone" checked={scope === "everyone"} onChange={() => setScope("everyone")} />
-          Everyone (general note)
-        </label>
-        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}>
-          <input type="radio" name="scope" value="thisAthlete" checked={scope === "thisAthlete"} onChange={() => setScope("thisAthlete")} />
-          This athlete ({athleteName})
-        </label>
+        <span style={{ fontSize: 12, color: "var(--muted)" }}>Notes on this activity for {athleteName}</span>
       </div>
       {comments === null ? <p className={styles.empty} style={{ margin: 0 }}>Loading comments...</p> : comments.length === 0 ? <p className={styles.empty} style={{ margin: 0 }}>No comments yet.</p> : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
@@ -195,7 +185,7 @@ function ActivityCommentThread({ planId, activityId, athleteId, isAdmin, athlete
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                   <strong style={{ fontSize: 13 }}>{commentAuthorName(c.author)}</strong>
-                  {c.athleteId ? <span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)", fontSize: 9 }}>{c.athlete?.firstName} {c.athlete?.lastName}</span> : <span className={styles.badge} style={{ background: "rgba(255,193,7,.16)", color: "#ffc107", fontSize: 9 }}>Everyone</span>}
+                  <span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)", fontSize: 9 }}>{c.athlete?.firstName} {c.athlete?.lastName}</span>
                 </span>
                 <small style={{ color: "var(--muted)" }}>{fmtDate(c.createdAt)}</small>
               </div>
@@ -206,7 +196,7 @@ function ActivityCommentThread({ planId, activityId, athleteId, isAdmin, athlete
       )}
       {isAdmin && (
         <form onSubmit={post} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <textarea className={styles.fieldControl} rows="2" maxLength="2000" placeholder={scope === "everyone" ? "General note for all athletes doing this activity..." : `Note for ${athleteName}...`} value={draft} onChange={(e) => setDraft(e.target.value)} />
+          <textarea className={styles.fieldControl} rows="2" maxLength="2000" placeholder={`Note for ${athleteName}...`} value={draft} onChange={(e) => setDraft(e.target.value)} />
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <button className={styles.primary} disabled={busy || !draft.trim()}>{busy ? "Posting..." : "Post comment"}</button>
             {msg && <small style={{ color: "var(--danger)" }}>{msg}</small>}
