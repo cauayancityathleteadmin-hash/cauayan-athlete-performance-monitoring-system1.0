@@ -131,6 +131,12 @@ const ICONS = {
       <path d="M5.5 19a7.5 7.5 0 0 1 13 0" />
     </svg>
   ),
+  trendingUp: (
+    <svg {...iconProps}>
+      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+      <polyline points="16 7 22 7 22 13" />
+    </svg>
+  ),
 };
 
 const NAV_GROUPS = [
@@ -158,15 +164,8 @@ const NAV_GROUPS = [
   {
     label: "Training",
     links: [
-      {
-        href: "/training-plans",
-        label: "Training",
-        icon: "clipboardCheck",
-        children: [
-          { href: "/training-plans", label: "Trainings" },
-          { href: "/progress", label: "Progress" },
-        ],
-      },
+      { href: "/training-plans", label: "Training", icon: "clipboardCheck" },
+      { href: "/progress", label: "Progress", icon: "trendingUp" },
     ],
   },
   {
@@ -266,34 +265,12 @@ useEffect(() => {
         if (!links.length) return null;
         return (
           <React.Fragment key={group.label}>
-            {links.map((link) => {
-              if (!link.children) {
-                return (
-                  <Link key={link.href} href={link.href} className={isActive(link.href)} title={link.label} aria-label={link.label} aria-current={isActive(link.href) ? "page" : undefined} onClick={() => setOpen(false)}>
-                    <span className={styles.navIcon} aria-hidden="true">{ICONS[link.icon]}</span>
-                    <span className={styles.navLabel}>{link.label}</span>
-                  </Link>
-                );
-              }
-              const anyActive = link.children.some((s) => isActiveHref(s.href));
-              return (
-                <React.Fragment key={link.href}>
-                  <Link href={link.href} className={anyActive ? styles.navLinkActive : undefined} title={link.label} aria-label={link.label} aria-current={anyActive ? "page" : undefined} onClick={() => setOpen(false)}>
-                    <span className={styles.navIcon} aria-hidden="true">{ICONS[link.icon]}</span>
-                    <span className={styles.navLabel}>{link.label}</span>
-                  </Link>
-                  {anyActive && (
-                    <div style={{ display: "flex", flexDirection: "column", paddingLeft: 18 }}>
-                      {link.children.map((s) => (
-                        <Link key={s.href} href={s.href} className={isActiveHref(s.href) ? styles.navLinkActive : undefined} style={{ padding: "7px 10px", fontSize: 12.5 }} title={s.label} aria-current={isActiveHref(s.href) ? "page" : undefined} onClick={() => setOpen(false)}>
-                          <span className={styles.navLabel}>{s.label}</span>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </React.Fragment>
-              );
-            })}
+            {links.map((link) => (
+              <Link key={link.href} href={link.href} className={isActive(link.href)} title={link.label} aria-label={link.label} aria-current={isActive(link.href) ? "page" : undefined} onClick={() => setOpen(false)}>
+                <span className={styles.navIcon} aria-hidden="true">{ICONS[link.icon]}</span>
+                <span className={styles.navLabel}>{link.label}</span>
+              </Link>
+            ))}
           </React.Fragment>
         );
       })}
