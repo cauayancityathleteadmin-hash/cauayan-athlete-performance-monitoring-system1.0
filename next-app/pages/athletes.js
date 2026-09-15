@@ -5,6 +5,7 @@ import { useRouter } from "next/router";
 import { getSession } from "next-auth/react";
 import { prisma } from "../lib/prisma";
 import Pagination from "../components/Pagination";
+import AthletePickList from "../components/AthletePickList";
 import IdPhotoUpload from "../components/IdPhotoUpload";
 import ProfilePhoto from "../components/ProfilePhoto";
 import AppShell from "../components/AppShell";
@@ -43,7 +44,7 @@ export async function getServerSideProps(context) {
   const sort = Object.keys(SORT_KEYS).includes(context.query.sort) ? context.query.sort : "name";
   const dir = context.query.dir === "desc" ? "desc" : "asc";
   const health = ["flagged", "healthy", "sick", "injured", "recovering", "inactive"].includes(context.query.health) ? context.query.health : "";
-  const student = { orderBy: athleteOrderBy(sort, dir), include: { school: { select: { schoolName: true } }, sport: { select: { sportName: true } }, event: { select: { eventName: true } }, coach: { select: { firstName: true, lastName: true } } } };
+  const student = { orderBy: athleteOrderBy(sort, dir), include: { school: { select: { schoolName: true } }, sport: { select: { sportName: true } }, event: { select: { eventName: true } }, coach: { select: { id: true, firstName: true, lastName: true } } } };
   if (health === "flagged") student.where = { healthStatus: { in: ["sick", "injured", "recovering", "inactive"] } };
   else if (health) student.where = { healthStatus: health };
   const isCoach = session.user.role === "coach";
@@ -54,7 +55,7 @@ export async function getServerSideProps(context) {
     isCoach
       ? prisma.athlete.findMany({
           orderBy: { lastName: "asc" },
-          include: { school: { select: { schoolName: true } }, sport: { select: { sportName: true } }, event: { select: { eventName: true } }, coach: { select: { firstName: true, lastName: true } } },
+          include: { school: { select: { schoolName: true } }, sport: { select: { sportName: true } }, event: { select: { eventName: true } }, coach: { select: { id: true, firstName: true, lastName: true } } },
           where: ownCoach ? { OR: [{ coachId: null }, { coachId: { not: ownCoach.id } }] } : undefined,
         })
       : Promise.resolve([]),
@@ -163,7 +164,8 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
             <button className={view === "sport" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("sport")}>By sport</button>
             <button className={view === "list" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("list")}>List</button>
             {isCoach && <button className={view === "all" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("all")}>All athletes</button>}
-            <button className={view === "requests" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("requests")}>Transfer requests</button>
+            {isCoach && <button className={view === "requests" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("requests")}>Transfer center</button>}
+            {isAdmin && <button className={view === "requests" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("requests")}>Transfer requests</button>}
             {isAdmin && <button className={view === "transfer" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("transfer")}>Transfer athletes</button>}
           </div>
           <button className={view === "add" ? `${styles.primary} ${styles.btnSm}` : styles.primary} onClick={() => setView(view === "add" ? "sport" : "add")}>{view === "add" ? "Close form" : "Add athlete"}</button>
@@ -486,25 +488,11 @@ function ImportPanel({ isAdmin, onDone }) {
 
 function TransferPanel({ athletes, coaches, onDone }) {
   const [selected, setSelected] = React.useState(new Set());
-  const [targetCoachId, setTargetCoachId] = React.useState("");
-  const [search, setSearch] = React.useState("");
+  const [targetCoachId, setTargetCoachId] = React.useState(null);
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState({ kind: "", text: "" });
 
-  const filtered = React.useMemo(() => {
-    if (!search.trim()) return athletes;
-    const q = search.trim().toLowerCase();
-    return athletes.filter((a) =>
-      a.firstName.toLowerCase().includes(q) ||
-      a.lastName.toLowerCase().includes(q) ||
-      (a.middleName || "").toLowerCase().includes(q) ||
-      a.athleteCode.toLowerCase().includes(q) ||
-      (a.sport?.sportName || "").toLowerCase().includes(q) ||
-      (a.coach ? `${a.coach.firstName} ${a.coach.lastName}`.toLowerCase() : "").includes(q)
-    );
-  }, [athletes, search]);
-
-  function toggle(id) {
+  function toggleSelected(id) {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
@@ -512,15 +500,23 @@ function TransferPanel({ athletes, coaches, onDone }) {
     });
   }
 
-  function toggleAll() {
-    setSelected((prev) => (prev.size === filtered.length ? new Set() : new Set(filtered.map((a) => a.id))));
+  function toggleAll(ids) {
+    setSelected((prev) => {
+      const allSelected = ids.length > 0 && ids.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) ids.forEach((id) => next.delete(id));
+      else ids.forEach((id) => next.add(id));
+      return next;
+    });
   }
 
   async function submit(event) {
     event.preventDefault();
     setMessage({ kind: "", text: "" });
     if (!selected.size) { setMessage({ kind: "danger", text: "Select at least one athlete to transfer." }); return; }
-    if (!targetCoachId) { setMessage({ kind: "danger", text: "Choose the coach to transfer the selected athletes to." }); return; }
+    const target = coaches.find((c) => c.id === targetCoachId);
+    if (!target) { setMessage({ kind: "danger", text: "Choose the coach to transfer the selected athletes to." }); return; }
+    if (!window.confirm(`Reassign ${selected.size} athlete${selected.size === 1 ? "" : "s"} to ${target.firstName} ${target.lastName}? This takes effect immediately.`)) return;
     setBusy(true);
     const csrf = await fetch("/api/csrf").then((r) => r.json());
     const response = await fetch("/api/athletes/transfer", {
@@ -532,6 +528,8 @@ function TransferPanel({ athletes, coaches, onDone }) {
     setBusy(false);
     if (response && response.ok && result.success) {
       setMessage({ kind: "success", text: result.message });
+      setSelected(new Set());
+      setTargetCoachId(null);
       setTimeout(onDone, 1200);
     } else {
       setMessage({ kind: "danger", text: result.error || "Transfer failed." });
@@ -542,36 +540,24 @@ function TransferPanel({ athletes, coaches, onDone }) {
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div><p className={styles.eyebrow}>Admin · Transfer</p><h2>Transfer athletes</h2></div>
-        <span className={styles.formHint} style={{ alignSelf: "center" }}>{selected.size} selected</span>
       </div>
-      <p className={styles.formHint} style={{ marginTop: 0 }}>Reassign athletes to a different coach. Each athlete keeps exactly one coach — selected athletes already under the target coach are skipped automatically. A history entry records every transfer.</p>
+      <p className={styles.formHint} style={{ marginTop: 0 }}>Reassign athletes to a different coach. Each athlete keeps exactly one coach — athletes already under the target coach are skipped automatically. A history entry records every transfer.</p>
       <form onSubmit={submit}>
-        <div className={styles.toolbar}>
-          <label className={styles.searchLabel}>Search athletes<input type="text" placeholder="Name, code, sport, coach…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
-          <label className={styles.searchLabel}>Transfer to coach
-            <select value={targetCoachId} onChange={(event) => setTargetCoachId(event.target.value)}>
-              <option value="">Choose a coach…</option>
-              {coaches.map((c) => <option value={c.id} key={c.id}>{c.firstName} {c.lastName} ({c.coachCode}){c.school?.schoolName ? ` – ${c.school.schoolName}` : ""}</option>)}
-            </select>
-          </label>
-          <button className={styles.primary} disabled={busy || !selected.size || !targetCoachId}>{busy ? "Transferring..." : `Transfer ${selected.size || ""} athlete${selected.size === 1 ? "" : "s"}`}</button>
+        <AthletePickList
+          athletes={athletes}
+          selected={selected}
+          onToggle={toggleSelected}
+          onToggleAll={toggleAll}
+          nameCell={(athlete) => (
+            <span className={styles.avatarCell}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}<small>{athlete.gender}</small></span></span>
+          )}
+          emptyText="No athletes to transfer."
+        />
+        <div style={{ marginTop: 16 }}>
+          <CoachPicker coaches={coaches} value={targetCoachId} onChange={setTargetCoachId} emptyText="No coaches available." />
         </div>
-        <div className={styles.tableWrap} style={{ marginTop: 14 }}>
-          <table>
-            <thead><tr><th style={{ width: 40 }}><input type="checkbox" checked={filtered.length > 0 && selected.size === filtered.length} onChange={toggleAll} aria-label="Select all" /></th><th>Code</th><th>Athlete</th><th>Sport</th><th>Current coach</th><th>Status</th></tr></thead>
-            <tbody>
-              {filtered.map((athlete) => (
-                <tr key={athlete.id} style={{ opacity: selected.has(athlete.id) ? 1 : .82 }}>
-                  <td><input type="checkbox" checked={selected.has(athlete.id)} onChange={() => toggle(athlete.id)} aria-label={`Select ${athlete.firstName} ${athlete.lastName}`} /></td>
-                  <td data-label="Code">{athlete.athleteCode}</td>
-                  <td data-label="Athlete" className={styles.avatarCell}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}<small>{athlete.gender}</small></span></td>
-                  <td data-label="Sport">{athlete.sport?.sportName || "Unassigned"}</td>
-                  <td data-label="Current coach">{athlete.coach ? `${athlete.coach.firstName} ${athlete.coach.lastName}` : "Unassigned"}</td>
-                  <td data-label="Status"><StatusBadge status={athlete.status} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className={styles.formActions} style={{ marginTop: 16 }}>
+          <button className={styles.primary} disabled={busy || !selected.size || !targetCoachId}>{busy ? "Transferring..." : `Transfer ${selected.size || ""} athlete${selected.size === 1 ? "" : "s"}`}</button>
         </div>
         {message.text && <p role="status" className={`${styles.fullField} ${message.kind === "success" ? styles.formSuccess : styles.formError}`}>{message.text}</p>}
       </form>
@@ -587,60 +573,35 @@ function TransferStatusBadge({ status }) {
   return <span className={`${styles.badge} ${styles.badgeMuted}`}>Cancelled</span>;
 }
 
-function RequestTransferForm({ athletes, coaches, onDone, onMessage }) {
-  const [athleteId, setAthleteId] = React.useState("");
-  const [toCoachId, setToCoachId] = React.useState("");
-  const [reason, setReason] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
-
-  async function submit(event) {
-    event.preventDefault();
-    if (!athleteId) { onMessage({ kind: "error", text: "Choose an athlete to transfer." }); return; }
-    if (!toCoachId) { onMessage({ kind: "error", text: "Choose the coach you want to send this athlete to." }); return; }
-    setBusy(true);
-    try {
-      const csrf = await fetch("/api/csrf").then((r) => r.json());
-      const response = await fetch("/api/transfers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
-        body: JSON.stringify({ athleteId: Number(athleteId), toCoachId: Number(toCoachId), reason: reason || null }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || result.error) {
-        onMessage({ kind: "error", text: result.error || "Could not send the request." });
-      } else {
-        onMessage({ kind: "success", text: result.message });
-        setAthleteId("");
-        setToCoachId("");
-        setReason("");
-        onDone();
-      }
-    } catch (err) {
-      onMessage({ kind: "error", text: "Unable to reach the server. Please try again." });
-    } finally {
-      setBusy(false);
-    }
-  }
+function CoachPicker({ coaches, value, onChange, placeholder = "Search coaches…", emptyText = "No other coaches found." }) {
+  const [search, setSearch] = React.useState("");
+  const query = search.trim().toLowerCase();
+  const filtered = query
+    ? coaches.filter((c) => `${c.firstName} ${c.lastName} ${c.coachCode || ""} ${c.school?.schoolName || ""}`.toLowerCase().includes(query))
+    : coaches;
 
   return (
-    <form onSubmit={submit} className={styles.formGrid}>
-      <label className={styles.searchLabel}>Athlete
-        <select value={athleteId} onChange={(e) => setAthleteId(e.target.value)}>
-          <option value="">Choose an athlete…</option>
-          {athletes.map((a) => <option value={a.id} key={a.id}>{a.firstName} {a.middleName || ""} {a.lastName} ({a.athleteCode})</option>)}
-        </select>
+    <div>
+      <label className={styles.searchLabel}>
+        Coach
+        <input type="text" placeholder={placeholder} value={search} onChange={(event) => setSearch(event.target.value)} />
       </label>
-      <label className={styles.searchLabel}>Transfer to coach
-        <select value={toCoachId} onChange={(e) => setToCoachId(e.target.value)}>
-          <option value="">Choose a coach…</option>
-          {coaches.map((c) => <option value={c.id} key={c.id}>{c.firstName} {c.lastName} ({c.coachCode}){c.school?.schoolName ? ` – ${c.school.schoolName}` : ""}</option>)}
-        </select>
-      </label>
-      <label className={styles.fullField}>Reason (optional)<input value={reason} maxLength="500" onChange={(e) => setReason(e.target.value)} placeholder="Briefly explain why this athlete should move to the new coach." /></label>
-      <div className={styles.formActions} style={{ marginTop: 0 }}>
-        <button className={styles.primary} disabled={busy}>{busy ? "Sending request..." : "Request transfer"}</button>
-      </div>
-    </form>
+      {filtered.length === 0 ? (
+        <p className={styles.empty}>{emptyText}</p>
+      ) : (
+        <div className={styles.coachList}>
+          {filtered.map((coach) => {
+            const active = value === coach.id;
+            return (
+              <button type="button" key={coach.id} className={active ? `${styles.coachCard} ${styles.coachCardSelected}` : styles.coachCard} onClick={() => onChange(active ? null : coach.id)} aria-pressed={active}>
+                <span className={styles.coachName}>{coach.firstName} {coach.lastName}</span>
+                <small className={styles.coachDetail}>{coach.coachCode}{coach.school?.schoolName ? ` · ${coach.school.schoolName}` : ""}</small>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -652,6 +613,9 @@ function CoachRequestsPanel({ athletes, uncoached = [], coaches, ownCoachId, onC
   const [message, setMessage] = React.useState(null);
   const [busy, setBusy] = React.useState(false);
   const [note, setNote] = React.useState({});
+  const [tab, setTab] = React.useState("transfer");
+  const [selected, setSelected] = React.useState(new Set());
+  const [targetCoachId, setTargetCoachId] = React.useState(null);
 
   const load = React.useCallback(() => {
     fetch("/api/transfers")
@@ -665,9 +629,76 @@ function CoachRequestsPanel({ athletes, uncoached = [], coaches, ownCoachId, onC
   }, []);
   React.useEffect(() => { load(); }, [load]);
 
+  function selectTab(nextTab) {
+    if (nextTab === tab) return;
+    setTab(nextTab);
+    setSelected(new Set());
+    setTargetCoachId(null);
+  }
+
   function dateLabel(value) {
     const date = new Date(value);
     return isNaN(date) ? "—" : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  }
+
+  const targets = coaches.filter((c) => c.id !== ownCoachId);
+  const list = tab === "transfer" ? athletes : uncoached;
+
+  function toggleSelected(id) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll(ids) {
+    setSelected((prev) => {
+      const allSelected = ids.length > 0 && ids.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) ids.forEach((id) => next.delete(id));
+      else ids.forEach((id) => next.add(id));
+      return next;
+    });
+  }
+
+  const selectedList = list.filter((a) => selected.has(a.id));
+  const targetName = targetCoachId ? `${coaches.find((c) => c.id === targetCoachId)?.firstName || ""} ${coaches.find((c) => c.id === targetCoachId)?.lastName || ""}`.trim() : "";
+
+  async function sendBatch() {
+    if (!selected.size) { setMessage({ kind: "error", text: "Select at least one athlete." }); return; }
+    if (tab === "transfer" && !targetCoachId) { setMessage({ kind: "error", text: "Choose the coach you want to send the selected athletes to." }); return; }
+    if (tab === "claim" && !ownCoachId) { setMessage({ kind: "error", text: "Your coach profile could not be found." }); return; }
+    const toCoachId = tab === "transfer" ? targetCoachId : ownCoachId;
+    const preview = selectedList.slice(0, 6).map((a) => `${a.firstName} ${a.lastName}`).join(", ");
+    const more = selectedList.length > 6 ? ` and ${selectedList.length - 6} more` : "";
+    const confirmText = tab === "transfer"
+      ? `Send ${selected.size} athlete${selected.size === 1 ? "" : "s"}: ${preview}${more} to ${targetName || "the chosen coach"}?`
+      : `Request ${selected.size} uncoached athlete${selected.size === 1 ? "" : "s"}: ${preview}${more} to join your roster? An administrator will approve it.`;
+    if (!window.confirm(confirmText)) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/transfers/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify({ athleteIds: [...selected], toCoachId, type: tab }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.error) setMessage({ kind: "error", text: result.error || "Could not send requests." });
+      else {
+        setMessage({ kind: "success", text: result.message });
+        setSelected(new Set());
+        setTargetCoachId(null);
+        load();
+        onChanged();
+      }
+    } catch (err) {
+      setMessage({ kind: "error", text: "Unable to reach the server. Please try again later." });
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function decide(id, decision) {
@@ -700,54 +731,113 @@ function CoachRequestsPanel({ athletes, uncoached = [], coaches, ownCoachId, onC
     }
   }
 
-  const targets = coaches.filter((c) => c.id !== ownCoachId);
+  async function decideMany(ids, decision) {
+    if (!ids.length) return;
+    const verb = decision === "approved" ? "Accept" : "Reject";
+    if (!window.confirm(`${verb} ${ids.length} request${ids.length === 1 ? "" : "s"}?`)) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/transfers/batch-decision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify({ ids, decision }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.error) setMessage({ kind: "error", text: result.error || "Action failed." });
+      else { setMessage({ kind: "success", text: result.message }); load(); }
+    } catch (err) {
+      setMessage({ kind: "error", text: "Unable to reach the server. Please try again later." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const incomingGroups = React.useMemo(() => {
+    const map = new Map();
+    for (const t of received) {
+      const key = t.fromCoach ? `${t.fromCoach.id}` : "admin";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(t);
+    }
+    return [...map.entries()].map(([key, rows]) => ({ key, coach: rows[0].fromCoach, rows }));
+  }, [received]);
 
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
-        <div><p className={styles.eyebrow}>Coach transfers</p><h2>Transfer requests</h2></div>
+        <div><p className={styles.eyebrow}>Coach transfers</p><h2>Transfer center</h2></div>
         <div className={styles.actionCell}>
           {message && <p role="status" className={message.kind === "success" ? styles.formSuccess : styles.formError} style={{ margin: 0 }}>{message.text}</p>}
         </div>
       </div>
-      <p className={styles.formHint} style={{ marginTop: 0 }}>Request to move one of your athletes to another coach, or handle requests other coaches sent to you. The athlete stays with you until the receiving coach accepts.</p>
+      <p className={styles.formHint} style={{ marginTop: 0 }}>Move several athletes at once with a checklist. Requests stay pending until the target coach (transfers) or the administrator (claims) accepts.</p>
 
-      <div style={{ margin: "18px 0 24px" }}>
-        <h3 className={styles.sectionTitle} style={{ marginBottom: 10 }}>Request a transfer</h3>
-        <RequestTransferForm athletes={athletes} coaches={targets} onDone={load} onMessage={setMessage} />
+      <div style={{ margin: "0 0 24px" }}>
+        <div className={styles.segmented}>
+          <button className={tab === "transfer" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => selectTab("transfer")}>Send athletes to a coach</button>
+          <button className={tab === "claim" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => selectTab("claim")}>Request uncoached athletes</button>
+        </div>
+
+        <h3 className={styles.sectionTitle} style={{ margin: "18px 0 10px" }}>{tab === "transfer" ? "My athletes" : "Uncoached athletes"} <span className={styles.formHint}>({list.length} available)</span></h3>
+        <AthletePickList
+          key={tab}
+          athletes={list}
+          selected={selected}
+          onToggle={toggleSelected}
+          onToggleAll={toggleAll}
+          nameCell={(athlete) => (
+            <span className={styles.avatarCell}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}<small>{athlete.gender}</small></span></span>
+          )}
+          emptyText={tab === "transfer" ? "You have no athletes to transfer." : "There are no uncoached athletes right now."}
+        />
+        <div style={{ marginTop: 16 }}>
+          {tab === "transfer" ? (
+            <CoachPicker coaches={targets} value={targetCoachId} onChange={setTargetCoachId} />
+          ) : (
+            <p className={styles.formHint}>Selected athletes will join your roster once an administrator approves.</p>
+          )}
+        </div>
+        <div className={styles.formActions} style={{ marginTop: 16 }}>
+          <button className={styles.primary} disabled={busy || !selected.size || (tab === "transfer" && !targetCoachId)} onClick={sendBatch}>
+            {busy ? "Sending..." : tab === "transfer" ? `Send ${selected.size || ""} athlete${selected.size === 1 ? "" : "s"} to ${targetName || "coach"}` : `Request ${selected.size || ""} athlete${selected.size === 1 ? "" : "s"} for my roster`}
+          </button>
+        </div>
       </div>
 
-      {uncoached.length > 0 && (
-        <div style={{ margin: "0 0 24px" }}>
-          <h3 className={styles.sectionTitle} style={{ marginBottom: 10 }}>Claim an uncoached athlete <span className={styles.formHint}>({uncoached.length} available)</span></h3>
-          <ClaimUncoachedForm uncoached={uncoached} ownCoachId={ownCoachId} onDone={load} onMessage={setMessage} />
-        </div>
-      )}
-
       <h3 className={styles.sectionTitle}>Incoming requests <span className={styles.formHint}>({received.length})</span></h3>
-      {loading ? <p className={styles.formHint}>Loading requests…</p> : error ? <p className={`${styles.formError} ${styles.fullField}`}>{error}</p> : received.length === 0 ? <p className={styles.empty}>You have no incoming transfer requests.</p> : (
-        <div className={styles.tableWrap}><table>
-          <thead><tr><th>Athlete</th><th>From coach</th><th>Sport / event</th><th>Reason</th><th>Requested</th><th>Actions</th></tr></thead>
-          <tbody>
-            {received.map((t) => (
-              <tr key={t.id}>
-                <td data-label="Athlete" className={styles.avatarCell}><Avi name={`${t.athlete.firstName} ${t.athlete.lastName}`} /><span><span style={{ fontWeight: 700 }}>{t.athlete.firstName} {t.athlete.lastName}</span><small>{t.athlete.athleteCode}</small></span></td>
-                <td data-label="From coach">{t.fromCoach ? `${t.fromCoach.firstName} ${t.fromCoach.lastName}` : "—"}</td>
-                <td data-label="Sport / event">{t.athlete.sport?.sportName || "Unassigned"}<small>{t.athlete.event?.eventName || ""}</small></td>
-                <td data-label="Reason">{t.reason || "—"}</td>
-                <td data-label="Requested">{dateLabel(t.createdAt)}</td>
-                <td data-label="Actions">
-                  <div className={styles.actionCell}>
-                    <button className={`${styles.primary} ${styles.btnSm}`} disabled={busy} onClick={() => decide(t.id, "approved")}>Accept</button>
-                    <button className={`${styles.danger} ${styles.btnSm}`} disabled={busy} onClick={() => decide(t.id, "rejected")}>Reject</button>
-                    <input type="text" placeholder="Note (optional)" value={note[t.id] || ""} onChange={(e) => setNote((cur) => ({ ...cur, [t.id]: e.target.value }))} style={{ maxWidth: 170 }} aria-label={`Note for request ${t.id}`} />
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table></div>
-      )}
+      {loading ? <p className={styles.formHint}>Loading requests…</p> : error ? <p className={`${styles.formError} ${styles.fullField}`}>{error}</p> : received.length === 0 ? <p className={styles.empty}>You have no incoming transfer requests.</p> : incomingGroups.map((group) => (
+        <div key={group.key} style={{ margin: "0 0 22px" }}>
+          <div className={styles.actionCell} style={{ justifyContent: "space-between", marginBottom: 8 }}>
+            <h4 className={styles.sectionTitle} style={{ margin: 0 }}>{group.coach ? `${group.coach.firstName} ${group.coach.lastName}` : "Administrator"} <span className={styles.formHint}>({group.rows.length})</span></h4>
+            <div className={styles.actionCell}>
+              <button className={`${styles.primary} ${styles.btnSm}`} disabled={busy} onClick={() => decideMany(group.rows.map((t) => t.id), "approved")}>Accept all</button>
+              <button className={`${styles.danger} ${styles.btnSm}`} disabled={busy} onClick={() => decideMany(group.rows.map((t) => t.id), "rejected")}>Reject all</button>
+            </div>
+          </div>
+          <div className={styles.tableWrap}><table>
+            <thead><tr><th>Athlete</th><th>Sport / event</th><th>Reason</th><th>Requested</th><th>Actions</th></tr></thead>
+            <tbody>
+              {group.rows.map((t) => (
+                <tr key={t.id}>
+                  <td data-label="Athlete" className={styles.avatarCell}><Avi name={`${t.athlete.firstName} ${t.athlete.lastName}`} /><span><span style={{ fontWeight: 700 }}>{t.athlete.firstName} {t.athlete.lastName}</span><small>{t.athlete.athleteCode}</small></span></td>
+                  <td data-label="Sport / event">{t.athlete.sport?.sportName || "Unassigned"}<small>{t.athlete.event?.eventName || ""}</small></td>
+                  <td data-label="Reason">{t.reason || "—"}</td>
+                  <td data-label="Requested">{dateLabel(t.createdAt)}</td>
+                  <td data-label="Actions">
+                    <div className={styles.actionCell}>
+                      <button className={`${styles.primary} ${styles.btnSm}`} disabled={busy} onClick={() => decide(t.id, "approved")}>Accept</button>
+                      <button className={`${styles.danger} ${styles.btnSm}`} disabled={busy} onClick={() => decide(t.id, "rejected")}>Reject</button>
+                      <input type="text" placeholder="Note (optional)" value={note[t.id] || ""} onChange={(e) => setNote((cur) => ({ ...cur, [t.id]: e.target.value }))} style={{ maxWidth: 170 }} aria-label={`Note for request ${t.id}`} />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table></div>
+        </div>
+      ))}
 
       <h3 className={styles.sectionTitle} style={{ marginTop: 24 }}>Requests I sent <span className={styles.formHint}>({sent.length})</span></h3>
       {sent.length === 0 ? <p className={styles.empty}>You have not sent any transfer requests.</p> : (
@@ -768,54 +858,6 @@ function CoachRequestsPanel({ athletes, uncoached = [], coaches, ownCoachId, onC
         </table></div>
       )}
     </section>
-  );
-}
-
-function ClaimUncoachedForm({ uncoached, ownCoachId, onDone, onMessage }) {
-  const [athleteId, setAthleteId] = React.useState("");
-  const [reason, setReason] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
-
-  async function submit(event) {
-    event.preventDefault();
-    if (!athleteId) { onMessage({ kind: "error", text: "Choose which uncoached athlete you want to add to your roster." }); return; }
-    if (!ownCoachId) { onMessage({ kind: "error", text: "Your coach profile could not be found." }); return; }
-    setBusy(true);
-    try {
-      const csrf = await fetch("/api/csrf").then((r) => r.json());
-      const response = await fetch("/api/transfers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
-        body: JSON.stringify({ athleteId: Number(athleteId), toCoachId: Number(ownCoachId), reason: reason || null }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || result.error) onMessage({ kind: "error", text: result.error || "Could not send the request." });
-      else {
-        onMessage({ kind: "success", text: result.message });
-        setAthleteId("");
-        setReason("");
-        onDone();
-      }
-    } catch (err) {
-      onMessage({ kind: "error", text: "Unable to reach the server. Please try again." });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <form onSubmit={submit} className={styles.formGrid}>
-      <label style={{ minWidth: 240 }}>Uncoached athlete
-        <select value={athleteId} onChange={(e) => setAthleteId(e.target.value)}>
-          <option value="">Choose an athlete…</option>
-          {uncoached.map((a) => <option value={a.id} key={a.id}>{a.firstName} {a.middleName || ""} {a.lastName} ({a.athleteCode}){a.sport?.sportName ? ` – ${a.sport.sportName}` : ""}</option>)}
-        </select>
-      </label>
-      <label className={styles.fullField}>Reason (optional)<input value={reason} maxLength="500" onChange={(e) => setReason(e.target.value)} placeholder="Briefly explain why you want this athlete in your roster." /></label>
-      <div className={styles.formActions} style={{ marginTop: 0 }}>
-        <button className={styles.primary} disabled={busy}>{busy ? "Sending request..." : "Request athlete (admin approval)"}</button>
-      </div>
-    </form>
   );
 }
 
@@ -866,6 +908,39 @@ function AdminClaimsPanel({ onChanged }) {
     }
   }
 
+  async function decideMany(ids, decision) {
+    if (!ids.length) return;
+    const verb = decision === "approved" ? "Approve" : "Reject";
+    if (!window.confirm(`${verb} ${ids.length} claim${ids.length === 1 ? "" : "s"}?`)) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/transfers/batch-decision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify({ ids, decision }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.error) setMessage({ kind: "error", text: result.error || "Action failed." });
+      else { setMessage({ kind: "success", text: result.message }); load(); }
+    } catch (err) {
+      setMessage({ kind: "error", text: "Unable to reach the server. Please try again later." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const groups = React.useMemo(() => {
+    const map = new Map();
+    for (const claim of claims) {
+      const key = claim.toCoach ? `${claim.toCoach.id}` : "unknown";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(claim);
+    }
+    return [...map.entries()].map(([key, rows]) => ({ key, coach: rows[0].toCoach, rows }));
+  }, [claims]);
+
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
@@ -877,29 +952,37 @@ function AdminClaimsPanel({ onChanged }) {
       <p className={styles.formHint} style={{ marginTop: 0 }}>Coaches request to take in athletes who have no coach assigned. Approving moves the athlete into the roster of the requesting coach and records the assignment.</p>
 
       <h3 className={styles.sectionTitle}>Pending claims <span className={styles.formHint}>({claims.length})</span></h3>
-      {loading ? <p className={styles.formHint}>Loading requests…</p> : error ? <p className={`${styles.formError} ${styles.fullField}`}>{error}</p> : claims.length === 0 ? <p className={styles.empty}>No pending uncoached-athlete requests.</p> : (
-        <div className={styles.tableWrap}><table>
-          <thead><tr><th>Athlete</th><th>Requesting coach</th><th>Sport / event</th><th>Reason</th><th>Requested</th><th>Actions</th></tr></thead>
-          <tbody>
-            {claims.map((c) => (
-              <tr key={c.id}>
-                <td data-label="Athlete" className={styles.avatarCell}><Avi name={`${c.athlete.firstName} ${c.athlete.lastName}`} /><span><span style={{ fontWeight: 700 }}>{c.athlete.firstName} {c.athlete.lastName}</span><small>{c.athlete.athleteCode}</small></span></td>
-                <td data-label="Requesting coach">{c.toCoach ? `${c.toCoach.firstName} ${c.toCoach.lastName}` : "—"}<small>{c.toCoach?.coachCode || ""}</small></td>
-                <td data-label="Sport / event">{c.athlete.sport?.sportName || "Unassigned"}<small>{c.athlete.event?.eventName || ""}</small></td>
-                <td data-label="Reason">{c.reason || "—"}</td>
-                <td data-label="Requested">{dateLabel(c.createdAt)}</td>
-                <td data-label="Actions">
-                  <div className={styles.actionCell}>
-                    <button className={`${styles.primary} ${styles.btnSm}`} disabled={busy} onClick={() => decide(c.id, "approved")}>Approve</button>
-                    <button className={`${styles.danger} ${styles.btnSm}`} disabled={busy} onClick={() => decide(c.id, "rejected")}>Reject</button>
-                    <input type="text" placeholder="Note (optional)" value={note[c.id] || ""} onChange={(e) => setNote((cur) => ({ ...cur, [c.id]: e.target.value }))} style={{ maxWidth: 170 }} aria-label={`Note for request ${c.id}`} />
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table></div>
-      )}
+      {loading ? <p className={styles.formHint}>Loading requests…</p> : error ? <p className={`${styles.formError} ${styles.fullField}`}>{error}</p> : claims.length === 0 ? <p className={styles.empty}>No pending uncoached-athlete requests.</p> : groups.map((group) => (
+        <div key={group.key} style={{ margin: "0 0 22px" }}>
+          <div className={styles.actionCell} style={{ justifyContent: "space-between", marginBottom: 8 }}>
+            <h4 className={styles.sectionTitle} style={{ margin: 0 }}>{group.coach ? `${group.coach.firstName} ${group.coach.lastName}` : "Unknown coach"} <span className={styles.formHint}>({group.rows.length})</span></h4>
+            <div className={styles.actionCell}>
+              <button className={`${styles.primary} ${styles.btnSm}`} disabled={busy} onClick={() => decideMany(group.rows.map((claim) => claim.id), "approved")}>Approve all</button>
+              <button className={`${styles.danger} ${styles.btnSm}`} disabled={busy} onClick={() => decideMany(group.rows.map((claim) => claim.id), "rejected")}>Reject all</button>
+            </div>
+          </div>
+          <div className={styles.tableWrap}><table>
+            <thead><tr><th>Athlete</th><th>Sport / event</th><th>Reason</th><th>Requested</th><th>Actions</th></tr></thead>
+            <tbody>
+              {group.rows.map((c) => (
+                <tr key={c.id}>
+                  <td data-label="Athlete" className={styles.avatarCell}><Avi name={`${c.athlete.firstName} ${c.athlete.lastName}`} /><span><span style={{ fontWeight: 700 }}>{c.athlete.firstName} {c.athlete.lastName}</span><small>{c.athlete.athleteCode}</small></span></td>
+                  <td data-label="Sport / event">{c.athlete.sport?.sportName || "Unassigned"}<small>{c.athlete.event?.eventName || ""}</small></td>
+                  <td data-label="Reason">{c.reason || "—"}</td>
+                  <td data-label="Requested">{dateLabel(c.createdAt)}</td>
+                  <td data-label="Actions">
+                    <div className={styles.actionCell}>
+                      <button className={`${styles.primary} ${styles.btnSm}`} disabled={busy} onClick={() => decide(c.id, "approved")}>Approve</button>
+                      <button className={`${styles.danger} ${styles.btnSm}`} disabled={busy} onClick={() => decide(c.id, "rejected")}>Reject</button>
+                      <input type="text" placeholder="Note (optional)" value={note[c.id] || ""} onChange={(e) => setNote((cur) => ({ ...cur, [c.id]: e.target.value }))} style={{ maxWidth: 170 }} aria-label={`Note for request ${c.id}`} />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table></div>
+        </div>
+      ))}
 
       <h3 className={styles.sectionTitle} style={{ marginTop: 24 }}>Recent decisions <span className={styles.formHint}>({history.length})</span></h3>
       {history.length === 0 ? <p className={styles.empty}>No requests have been decided yet.</p> : (

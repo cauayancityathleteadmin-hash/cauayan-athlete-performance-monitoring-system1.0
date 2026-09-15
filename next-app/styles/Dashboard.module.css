@@ -2613,3 +2613,48 @@
   display: block;
   margin-top: 2px;
 }
+
+/* ===== Transfer center: selectable coach cards (no dropdowns) ===== */
+.coachList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.coachCard {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 200px;
+  padding: var(--space-3) var(--space-4);
+  background: rgba(6, 38, 30, 0.45);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: #f0fdf4;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.coachCard:hover {
+  border-color: var(--accent);
+  background: rgba(45, 212, 168, 0.08);
+}
+
+.coachCardSelected,
+.coachCardSelected:hover {
+  border-color: var(--accent);
+  background: rgba(45, 212, 168, 0.14);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.coachName {
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+
+.coachDetail {
+  color: var(--muted);
+  font-size: 12px;
+}
