@@ -172,9 +172,7 @@ const NAV_GROUPS = [
     icon: "clipboardCheck",
     menu: true,
     shortcuts: "plans",
-    links: [
-      { href: "/training-plans", label: "Trainings", icon: "clipboardCheck" },
-    ],
+    links: [],
   },
   {
     key: "analytics",
@@ -269,7 +267,10 @@ export default function AppShell({
       const raw = window.localStorage.getItem("apms.sidebarMenus");
       if (raw) stored.push(...JSON.parse(raw));
     } catch (e) {}
-    const grp = NAV_GROUPS.find((g) => g.links.some((l) => isActiveHref(l.href)));
+    const grp = NAV_GROUPS.find((g) =>
+      g.links.some((l) => isActiveHref(l.href)) ||
+      (g.key === "training" && currentPath.startsWith("/training-plans"))
+    );
     if (grp) {
       if (!stored.includes(grp.key)) stored.push(grp.key);
       if (grp.shortcuts) ensureShortcuts();
