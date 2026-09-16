@@ -189,6 +189,7 @@ export default function AppShell({
   const [collapsed, setCollapsed] = useState(false);
   const [shortcuts, setShortcuts] = React.useState(null);
   const shortcutsRef = React.useRef(null);
+  const [shortcutsLoaded, setShortcutsLoaded] = React.useState(false);
   const [navSearch, setNavSearch] = React.useState({});
   const person = session?.user?.name || session?.user?.email || "Account";
   const currentPath = active || router.pathname;
@@ -208,6 +209,7 @@ export default function AppShell({
         href: `/training-plans/${p.id}`,
       })) : [];
       setShortcuts({ plans });
+      setShortcutsLoaded(true);
     }).catch(() => {});
   }
 
@@ -283,9 +285,9 @@ export default function AppShell({
 
         // Groups with shortcuts: Coaches, Training, System - inline expand
         if (group.shortcuts) {
-          const shortcuts = Array.isArray(group.shortcuts) ? group.shortcuts : (shortcuts?.[group.shortcuts] || []);
+          const shortcutItems = Array.isArray(group.shortcuts) ? group.shortcuts : (shortcuts?.[group.shortcuts] || []);
           const q = (navSearch[group.key] || "").toLowerCase().trim();
-          const filtered = q ? shortcuts.filter((it) => it.label.toLowerCase().includes(q)) : shortcuts;
+          const filtered = q ? shortcutItems.filter((it) => it.label.toLowerCase().includes(q)) : shortcutItems;
           
           return (
             <React.Fragment key={group.key}>
@@ -304,10 +306,10 @@ export default function AppShell({
                 )}
               </div>
               <div className={`${styles.navShortcuts} ${isExpanded ? styles.navShortcutsOpen : ""}`} style={{ maxHeight: isExpanded ? "none" : 0, overflow: "hidden", transition: "max-height 0.25s ease" }}>
-                {(shortcuts.length > 8) && (
+                {(shortcutItems.length > 8) && (
                   <input className={styles.navShortcutSearch} type="search" placeholder="Search..." value={navSearch[group.key] || ""} onChange={(e) => setNavSearch((s) => ({ ...s, [group.key]: e.target.value }))} aria-label="Search" />
                 )}
-                {shortcuts.length === 0 && group.shortcuts === "plans" && !shortcutsRef.current ? (
+                {shortcutItems.length === 0 && group.shortcuts === "plans" && !shortcutsLoaded ? (
                   <span className={styles.navShortcutEmpty}>Loading...</span>
                 ) : filtered.length === 0 ? (
                   <span className={styles.navShortcutEmpty}>No matches.</span>
