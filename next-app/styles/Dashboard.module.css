@@ -337,6 +337,42 @@
   font-weight: 400;
 }
 
+.navExpandBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 6px;
+  flex-shrink: 0;
+  margin-right: var(--space-2);
+}
+.navExpandBtn:hover {
+  color: var(--accent);
+  background: rgba(45, 212, 168, 0.12);
+}
+.navExpandBtnOpen .navChevron {
+  transform: rotate(90deg);
+  color: var(--accent);
+}
+
+.navShortcuts {
+  display: flex;
+  flex-direction: column;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease;
+  padding-left: 0;
+  margin-top: 0;
+}
+.navShortcutsOpen {
+  max-height: 500px;
+}
+
 .navShortcutGroup {
   display: flex;
   flex-direction: column;

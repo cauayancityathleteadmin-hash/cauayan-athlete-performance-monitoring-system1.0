@@ -239,6 +239,7 @@ export default function AppShell({
   const [shortcuts, setShortcuts] = React.useState(null);
   const shortcutsRef = React.useRef(null);
   const [navSearch, setNavSearch] = React.useState({});
+  const [trainingExpanded, setTrainingExpanded] = useState(false);
   const person = session?.user?.name || session?.user?.email || "Account";
   const currentPath = active || router.pathname;
 
@@ -329,6 +330,47 @@ export default function AppShell({
     <nav className={styles.sidebar} aria-label="Primary navigation">
       {NAV_GROUPS.map((group) => {
         const links = group.links.filter((link) => (!link.adminOnly || isAdmin) && (!link.coachApproveOnly || (canApproveCoaches && !isAdmin)));
+        
+        // Training: inline smooth expand with plan shortcuts
+        if (group.key === "training") {
+          if (!group.shortcuts || !shortcuts) return null;
+          const plans = shortcuts[group.shortcuts] || [];
+          const q = (navSearch[group.key] || "").toLowerCase().trim();
+          const filtered = q ? plans.filter((it) => it.label.toLowerCase().includes(q)) : plans;
+          const isActive = currentPath === "/training-plans" || currentPath.startsWith("/training-plans/");
+          
+          return (
+            <React.Fragment key="training">
+              <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+                <Link href="/training-plans" className={`${styles.navLink}${isActive ? ` ${styles.navLinkActive}` : ""}`} onClick={() => setOpen(false)} style={{ flex: 1 }}>
+                  <span className={styles.navIcon} aria-hidden="true">{ICONS[group.icon]}</span>
+                  <span className={styles.navLabel}>Training</span>
+                </Link>
+                <button type="button" className={`${styles.navExpandBtn}${trainingExpanded ? ` ${styles.navExpandBtnOpen}` : ""}`} aria-expanded={trainingExpanded} aria-label="Toggle training shortcuts" onClick={(e) => { e.preventDefault(); setTrainingExpanded(!trainingExpanded); }}>
+                  <span className={styles.navChevron} aria-hidden="true">›</span>
+                </button>
+              </div>
+              <div className={`${styles.navShortcuts} ${trainingExpanded ? styles.navShortcutsOpen : ""}`} style={{ maxHeight: trainingExpanded ? "none" : 0, overflow: "hidden", transition: "max-height 0.25s ease" }}>
+                {(plans.length > 8) && (
+                  <input className={styles.navShortcutSearch} type="search" placeholder="Search plans..." value={navSearch[group.key] || ""} onChange={(e) => setNavSearch((s) => ({ ...s, [group.key]: e.target.value }))} aria-label="Search plans" />
+                )}
+                {filtered.length === 0 && plans.length > 0 ? (
+                  <span className={styles.navShortcutEmpty}>No matches.</span>
+                ) : filtered.length === 0 ? (
+                  <span className={styles.navShortcutEmpty}>Loading...</span>
+                ) : (
+                  filtered.map((it) => (
+                    <Link key={it.id} href={it.href} className={`${styles.navShortcutLink}${isActive(it.href) ? ` ${styles.navLinkActive}` : ""}`} onClick={() => { setOpen(false); setTrainingExpanded(false); }}>
+                      <span className={styles.navSubDot} aria-hidden="true" />
+                      <span className={styles.navSubLabel}>{it.label}</span>
+                    </Link>
+                  ))
+                )}
+              </div>
+            </React.Fragment>
+          );
+        }
+        
         if (!group.menu) {
           if (!links.length) return null;
           return (
