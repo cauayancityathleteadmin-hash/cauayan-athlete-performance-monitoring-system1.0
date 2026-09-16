@@ -140,26 +140,13 @@ const ICONS = {
 };
 
 const NAV_GROUPS = [
-  {
-    key: "home",
-    label: "Home",
-    links: [
-      { href: "/dashboard", label: "Dashboard", icon: "grid" },
-    ],
-  },
-  {
-    key: "athletes",
-    label: "Athletes",
-    links: [
-      { href: "/athletes", label: "Athletes", icon: "user" },
-    ],
-  },
+  { key: "home", label: "Home", links: [{ href: "/dashboard", label: "Dashboard", icon: "grid" }] },
+  { key: "athletes", label: "Athletes", links: [{ href: "/athletes", label: "Athletes", icon: "user" }] },
   {
     key: "coaches",
     label: "Coaches",
     icon: "users",
-    menu: true,
-    links: [
+    shortcuts: [
       { href: "/admin/coaches", label: "Coaches", icon: "users", adminOnly: true },
       { href: "/admin/coach-performances", label: "Coach evaluations", icon: "star", adminOnly: true },
       { href: "/coach-approvals", label: "Coach approvals", icon: "badgeCheck", coachApproveOnly: true },
@@ -170,51 +157,22 @@ const NAV_GROUPS = [
     key: "training",
     label: "Training",
     icon: "clipboardCheck",
-    menu: true,
     shortcuts: "plans",
-    links: [],
   },
-  {
-    key: "analytics",
-    label: "Analytics",
-    links: [
-      { href: "/analytics", label: "Analytics", icon: "barChart" },
-      { href: "/standings", label: "Standings", icon: "trophy" },
-    ],
-  },
-  {
-    key: "events",
-    label: "Events & Program",
-    links: [
-      { href: "/event-plans", label: "Event plans", icon: "calendar" },
-      { href: "/admin/catalog", label: "Sports & Discipline", icon: "flag", adminOnly: true },
-    ],
-  },
-  {
-    key: "reports",
-    label: "Reports",
-    links: [
-      { href: "/reports", label: "Reports", icon: "fileText" },
-    ],
-  },
+  { key: "analytics", label: "Analytics", links: [{ href: "/analytics", label: "Analytics", icon: "barChart" }, { href: "/standings", label: "Standings", icon: "trophy" }] },
+  { key: "events", label: "Events & Program", links: [{ href: "/event-plans", label: "Event plans", icon: "calendar" }, { href: "/admin/catalog", label: "Sports & Discipline", icon: "flag", adminOnly: true }] },
+  { key: "reports", label: "Reports", links: [{ href: "/reports", label: "Reports", icon: "fileText" }] },
   {
     key: "system",
     label: "System",
     icon: "gauge",
-    menu: true,
-    links: [
+    shortcuts: [
       { href: "/admin/metrics", label: "Metrics", icon: "gauge", adminOnly: true },
       { href: "/admin/audit-logs", label: "Audit logs", icon: "list", adminOnly: true },
       { href: "/admin/backup", label: "Backup", icon: "database", adminOnly: true },
     ],
   },
-  {
-    key: "account",
-    label: "Account",
-    links: [
-      { href: "/account", label: "My account", icon: "userCircle" },
-    ],
-  },
+  { key: "account", label: "Account", links: [{ href: "/account", label: "My account", icon: "userCircle" }] },
 ];
 
 export default function AppShell({
@@ -229,17 +187,9 @@ export default function AppShell({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [openMenus, setOpenMenus] = useState(() => {
-    let stored = [];
-    if (typeof window !== "undefined") {
-      try { const raw = window.localStorage.getItem("apms.sidebarMenus"); if (raw) stored = JSON.parse(raw); } catch (e) {}
-    }
-    return stored;
-  });
   const [shortcuts, setShortcuts] = React.useState(null);
   const shortcutsRef = React.useRef(null);
   const [navSearch, setNavSearch] = React.useState({});
-  const [trainingExpanded, setTrainingExpanded] = useState(false);
   const person = session?.user?.name || session?.user?.email || "Account";
   const currentPath = active || router.pathname;
 
@@ -261,6 +211,15 @@ export default function AppShell({
     }).catch(() => {});
   }
 
+  // Derive which group should be expanded from current path
+  function getExpandedGroup(path) {
+    if (path.startsWith("/admin/coaches") || path.startsWith("/coach-approvals")) return "coaches";
+    if (path.startsWith("/training-plans")) return "training";
+    if (path.startsWith("/admin/metrics") || path.startsWith("/admin/audit-logs") || path.startsWith("/admin/backup")) return "system";
+    return null;
+  }
+  const expandedGroup = getExpandedGroup(currentPath);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const stored = [];
@@ -276,7 +235,7 @@ export default function AppShell({
       if (!stored.includes(grp.key)) stored.push(grp.key);
       if (grp.shortcuts) ensureShortcuts();
     }
-    const t = window.setTimeout(() => setOpenMenus([...new Set(stored)]), 0);
+    const t = window.setTimeout(() => {}, 0);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -315,117 +274,70 @@ export default function AppShell({
     });
   };
 
-  function toggleMenu(key) {
-    const grp = NAV_GROUPS.find((g) => g.key === key);
-    const willOpen = !openMenus.includes(key);
-    if (grp?.shortcuts && willOpen) ensureShortcuts();
-    setOpenMenus((prev) => {
-      const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
-      try { if (typeof window !== "undefined") window.localStorage.setItem("apms.sidebarMenus", JSON.stringify(next)); } catch (e) {}
-      return next;
-    });
-  }
-
   const nav = (
     <nav className={styles.sidebar} aria-label="Primary navigation">
       {NAV_GROUPS.map((group) => {
         const links = group.links.filter((link) => (!link.adminOnly || isAdmin) && (!link.coachApproveOnly || (canApproveCoaches && !isAdmin)));
-        
-        // Training: inline smooth expand with plan shortcuts
-        if (group.key === "training") {
-          const plans = shortcuts?.[group.shortcuts] || [];
+        const isExpanded = expandedGroup === group.key;
+        const groupActive = links.some((link) => isActiveHref(link.href)) || (group.shortcuts && isExpanded);
+
+        // Groups with shortcuts: Coaches, Training, System - inline expand
+        if (group.shortcuts) {
+          const shortcuts = Array.isArray(group.shortcuts) ? group.shortcuts : (shortcuts?.[group.shortcuts] || []);
           const q = (navSearch[group.key] || "").toLowerCase().trim();
-          const filtered = q ? plans.filter((it) => it.label.toLowerCase().includes(q)) : plans;
-          const trainingIsActive = currentPath === "/training-plans" || currentPath.startsWith("/training-plans/");
+          const filtered = q ? shortcuts.filter((it) => it.label.toLowerCase().includes(q)) : shortcuts;
           
           return (
-            <React.Fragment key="training">
-              <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
-                <Link href="/training-plans" className={`${styles.navLink}${trainingIsActive ? ` ${styles.navLinkActive}` : ""}`} onClick={() => setOpen(false)} style={{ flex: 1 }}>
-                  <span className={styles.navIcon} aria-hidden="true">{ICONS[group.icon]}</span>
-                  <span className={styles.navLabel}>Training</span>
-                </Link>
-                <button type="button" className={`${styles.navExpandBtn}${trainingExpanded ? ` ${styles.navExpandBtnOpen}` : ""}`} aria-expanded={trainingExpanded} aria-label="Toggle training shortcuts" onClick={(e) => { e.preventDefault(); setTrainingExpanded(!trainingExpanded); }}>
-                  <span className={styles.navChevron} aria-hidden="true">›</span>
-                </button>
-              </div>
-              <div className={`${styles.navShortcuts} ${trainingExpanded ? styles.navShortcutsOpen : ""}`} style={{ maxHeight: trainingExpanded ? "none" : 0, overflow: "hidden", transition: "max-height 0.25s ease" }}>
-                {(plans.length > 8) && (
-                  <input className={styles.navShortcutSearch} type="search" placeholder="Search plans..." value={navSearch[group.key] || ""} onChange={(e) => setNavSearch((s) => ({ ...s, [group.key]: e.target.value }))} aria-label="Search plans" />
-                )}
-                {filtered.length === 0 && plans.length > 0 ? (
-                  <span className={styles.navShortcutEmpty}>No matches.</span>
-                ) : filtered.length === 0 && !shortcuts ? (
-                  <span className={styles.navShortcutEmpty}>Loading...</span>
-                ) : (
-                  filtered.map((it) => (
-                    <Link key={it.id} href={it.href} className={`${styles.navShortcutLink}${isActive(it.href) ? ` ${styles.navLinkActive}` : ""}`} onClick={() => { setOpen(false); setTrainingExpanded(false); }}>
-                      <span className={styles.navSubDot} aria-hidden="true" />
-                      <span className={styles.navSubLabel}>{it.label}</span>
-                    </Link>
-                  ))
-                )}
-              </div>
-            </React.Fragment>
-          );
-        }
-        
-        if (!group.menu) {
-          if (!links.length) return null;
-          return (
             <React.Fragment key={group.key}>
-              {links.map((link) => (
-                <Link key={link.href} href={link.href} className={isActive(link.href)} title={link.label} aria-label={link.label} aria-current={isActive(link.href) ? "page" : undefined} onClick={() => setOpen(false)}>
-                  <span className={styles.navIcon} aria-hidden="true">{ICONS[link.icon]}</span>
-                  <span className={styles.navLabel}>{link.label}</span>
-                </Link>
-              ))}
+              <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+                {group.key === "training" ? (
+                  <Link href="/training-plans" className={`${styles.navLink}${groupActive ? ` ${styles.navLinkActive}` : ""}`} onClick={() => setOpen(false)} style={{ flex: 1 }}>
+                    <span className={styles.navIcon} aria-hidden="true">{ICONS[group.icon]}</span>
+                    <span className={styles.navLabel}>{group.label}</span>
+                  </Link>
+                ) : (
+                  <button type="button" className={`${styles.navGroupBtn}${groupActive ? ` ${styles.navGroupBtnActive}` : ""}${isExpanded ? ` ${styles.navGroupBtnOpen}` : ""}`} aria-expanded={isExpanded} style={{ width: "100%", textAlign: "left" }}>
+                    <span className={styles.navIcon} aria-hidden="true">{ICONS[group.icon]}</span>
+                    <span className={styles.navLabel}>{group.label}</span>
+                    <span className={`${styles.navChevron}${isExpanded ? ` ${styles.navChevronOpen}` : ""}`} aria-hidden="true">›</span>
+                  </button>
+                )}
+              </div>
+              <div className={`${styles.navShortcuts} ${isExpanded ? styles.navShortcutsOpen : ""}`} style={{ maxHeight: isExpanded ? "none" : 0, overflow: "hidden", transition: "max-height 0.25s ease" }}>
+                {(shortcuts.length > 8) && (
+                  <input className={styles.navShortcutSearch} type="search" placeholder="Search..." value={navSearch[group.key] || ""} onChange={(e) => setNavSearch((s) => ({ ...s, [group.key]: e.target.value }))} aria-label="Search" />
+                )}
+                {shortcuts.length === 0 && group.shortcuts === "plans" && !shortcutsRef.current ? (
+                  <span className={styles.navShortcutEmpty}>Loading...</span>
+                ) : filtered.length === 0 ? (
+                  <span className={styles.navShortcutEmpty}>No matches.</span>
+                ) : (
+                  filtered.map((it) => {
+                    const isShortcutActive = isActive(it.href);
+                    return (
+                      <Link key={it.id} href={it.href} className={`${styles.navShortcutLink}${isShortcutActive ? ` ${styles.navLinkActive}` : ""}`} onClick={() => setOpen(false)}>
+                        <span className={styles.navSubDot} aria-hidden="true" />
+                        <span className={styles.navSubLabel}>{it.label}</span>
+                      </Link>
+                    );
+                  })
+                )}
+              </div>
             </React.Fragment>
           );
         }
-        if (!links.length && !group.shortcuts) return null;
-        const isOpen = openMenus.includes(group.key);
-        const groupActive = links.some((link) => isActiveHref(link.href));
+
+        // Flat groups: Home, Athletes, Analytics, Events, Reports, Account
+        if (!links.length) return null;
         return (
-          <div key={group.key} className={styles.navGroup}>
-            <button type="button" className={`${styles.navGroupBtn}${groupActive ? ` ${styles.navGroupBtnActive}` : ""}${isOpen ? ` ${styles.navGroupBtnOpen}` : ""}`} aria-expanded={isOpen} onClick={() => toggleMenu(group.key)}>
-              <span className={styles.navIcon} aria-hidden="true">{ICONS[group.icon]}</span>
-              <span className={styles.navLabel}>{group.label}</span>
-              <span className={`${styles.navChevron}${isOpen ? ` ${styles.navChevronOpen}` : ""}`} aria-hidden="true">›</span>
-            </button>
-            {isOpen && (
-              <div className={styles.navGroupBody}>
-                {links.map((link) => (
-                  <Link key={link.href} href={link.href} className={`${styles.navSubLink}${isActive(link.href) ? ` ${styles.navLinkActive}` : ""}`} onClick={() => setOpen(false)}>
-                    <span className={styles.navIcon} aria-hidden="true">{ICONS[link.icon]}</span>
-                    <span className={styles.navSubLabel}>{link.label}</span>
-                  </Link>
-                ))}
-                {group.shortcuts && shortcuts && (
-                  <div className={styles.navShortcuts}>
-                    {(shortcuts[group.shortcuts] || []).length > 8 && (
-                      <input className={styles.navShortcutSearch} type="search" placeholder="Search plans..." value={navSearch[group.key] || ""} onChange={(e) => setNavSearch((s) => ({ ...s, [group.key]: e.target.value }))} aria-label="Search plans" />
-                    )}
-                    {(() => {
-                      const items = shortcuts[group.shortcuts] || [];
-                      const q = (navSearch[group.key] || "").toLowerCase().trim();
-                      const filtered = q ? items.filter((it) => it.label.toLowerCase().includes(q)) : items;
-                      if (!filtered.length) return <span className={styles.navShortcutEmpty}>{items.length ? "No matches." : "Loading..."}</span>;
-                      return filtered.map((it) => (
-                        <Link key={it.id} href={it.href} className={`${styles.navShortcutLink}${isActive(it.href) ? ` ${styles.navLinkActive}` : ""}`} onClick={() => setOpen(false)}>
-                          <span className={styles.navSubDot} aria-hidden="true" />
-                          <span className={styles.navSubLabel}>{it.label}</span>
-                        </Link>
-                      ));
-                    })()}
-                  </div>
-                )}
-                {group.shortcuts && !shortcuts && (
-                  <span className={styles.navShortcutEmpty}>Loading...</span>
-                )}
-              </div>
-            )}
-          </div>
+          <React.Fragment key={group.key}>
+            {links.map((link) => (
+              <Link key={link.href} href={link.href} className={isActive(link.href)} title={link.label} aria-label={link.label} aria-current={isActive(link.href) ? "page" : undefined} onClick={() => setOpen(false)}>
+                <span className={styles.navIcon} aria-hidden="true">{ICONS[link.icon]}</span>
+                <span className={styles.navLabel}>{link.label}</span>
+              </Link>
+            ))}
+          </React.Fragment>
         );
       })}
     </nav>
