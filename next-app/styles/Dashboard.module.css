@@ -368,19 +368,6 @@
   color: #f0fdf4;
 }
 
-.navShortcutsMini {
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.6;
-  font-weight: 700;
-  padding: var(--space-1) 0 var(--space-1);
-}
-
-.navShortcutAthlete {
-  padding-left: var(--space-10) !important;
-}
-
 .navShortcutEmpty {
   padding: var(--space-1) var(--space-6) var(--space-1);
   font-size: var(--text-sm);

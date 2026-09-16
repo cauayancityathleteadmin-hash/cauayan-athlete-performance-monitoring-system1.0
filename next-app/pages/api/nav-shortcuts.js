@@ -25,23 +25,10 @@ export default async function handler(req, res) {
   const plans = await prisma.trainingPlan.findMany({
     where: { ...where, isTemplate: false },
     orderBy: { startDate: "desc" },
-    select: {
-      id: true,
-      planName: true,
-      athletes: {
-        select: { athlete: { select: { id: true, firstName: true, lastName: true } } },
-        orderBy: { athlete: { lastName: "asc" } },
-      },
-    },
+    select: { id: true, planName: true },
     take: 100,
   });
 
-  const payload = plans.map((p) => ({
-    id: p.id,
-    planName: p.planName,
-    athletes: p.athletes.map((a) => a.athlete),
-  }));
-
   res.setHeader("Cache-Control", "private, no-store");
-  return res.status(200).json(JSON.parse(JSON.stringify({ plans: payload })));
+  return res.status(200).json(JSON.parse(JSON.stringify({ plans })));
 }
