@@ -336,12 +336,12 @@ export default function AppShell({
           const plans = shortcuts?.[group.shortcuts] || [];
           const q = (navSearch[group.key] || "").toLowerCase().trim();
           const filtered = q ? plans.filter((it) => it.label.toLowerCase().includes(q)) : plans;
-          const isActive = currentPath === "/training-plans" || currentPath.startsWith("/training-plans/");
+          const trainingIsActive = currentPath === "/training-plans" || currentPath.startsWith("/training-plans/");
           
           return (
             <React.Fragment key="training">
               <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
-                <Link href="/training-plans" className={`${styles.navLink}${isActive ? ` ${styles.navLinkActive}` : ""}`} onClick={() => setOpen(false)} style={{ flex: 1 }}>
+                <Link href="/training-plans" className={`${styles.navLink}${trainingIsActive ? ` ${styles.navLinkActive}` : ""}`} onClick={() => setOpen(false)} style={{ flex: 1 }}>
                   <span className={styles.navIcon} aria-hidden="true">{ICONS[group.icon]}</span>
                   <span className={styles.navLabel}>Training</span>
                 </Link>
