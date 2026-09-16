@@ -22,21 +22,26 @@ export default async function handler(req, res) {
 
   const where = isAdmin ? {} : coachId ? { coachId } : { coachId: -1 };
 
-  const [plans, athletes] = await Promise.all([
-    prisma.trainingPlan.findMany({
-      where: { ...where, isTemplate: false },
-      orderBy: { startDate: "desc" },
-      select: { id: true, planName: true },
-      take: 100,
-    }),
-    prisma.athlete.findMany({
-      where: { status: "active", ...(!isAdmin && coachId ? { coachId } : {}) },
-      orderBy: { lastName: "asc" },
-      select: { id: true, firstName: true, lastName: true },
-      take: 200,
-    }),
-  ]);
+  const plans = await prisma.trainingPlan.findMany({
+    where: { ...where, isTemplate: false },
+    orderBy: { startDate: "desc" },
+    select: {
+      id: true,
+      planName: true,
+      athletes: {
+        select: { athlete: { select: { id: true, firstName: true, lastName: true } } },
+        orderBy: { athlete: { lastName: "asc" } },
+      },
+    },
+    take: 100,
+  });
+
+  const payload = plans.map((p) => ({
+    id: p.id,
+    planName: p.planName,
+    athletes: p.athletes.map((a) => a.athlete),
+  }));
 
   res.setHeader("Cache-Control", "private, no-store");
-  return res.status(200).json(JSON.parse(JSON.stringify({ plans, athletes })));
+  return res.status(200).json(JSON.parse(JSON.stringify({ plans: payload })));
 }

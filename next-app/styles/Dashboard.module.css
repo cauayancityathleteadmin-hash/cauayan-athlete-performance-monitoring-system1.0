@@ -337,6 +337,50 @@
   font-weight: 400;
 }
 
+.navShortcutGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.navShortcutToggle {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 2px;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  text-align: left;
+  padding: var(--space-1) var(--space-5);
+  cursor: pointer;
+  font-family: inherit;
+}
+.navShortcutToggle .navChevron {
+  margin-left: 0;
+  margin-right: 4px;
+}
+.navShortcutToggle .navChevronOpen {
+  margin-left: 0;
+  margin-right: 4px;
+}
+.navShortcutToggle:hover {
+  color: #f0fdf4;
+}
+
+.navShortcutsMini {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
+  font-weight: 700;
+  padding: var(--space-1) 0 var(--space-1);
+}
+
+.navShortcutAthlete {
+  padding-left: var(--space-10) !important;
+}
+
 .navShortcutEmpty {
   padding: var(--space-1) var(--space-6) var(--space-1);
   font-size: var(--text-sm);
@@ -799,6 +843,7 @@
   border: 1px solid #1a5c4a;
   padding: var(--space-7);
   border-radius: var(--radius-xl);
+  scroll-margin-top: calc(var(--topbar-h, 60px) + 16px);
 }
 
 .panelHeader {

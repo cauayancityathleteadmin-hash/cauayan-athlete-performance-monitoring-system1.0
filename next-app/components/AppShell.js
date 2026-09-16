@@ -150,9 +150,6 @@ const NAV_GROUPS = [
   {
     key: "athletes",
     label: "Athletes",
-    icon: "user",
-    menu: true,
-    shortcuts: "athletes",
     links: [
       { href: "/athletes", label: "Athletes", icon: "user" },
     ],
@@ -244,6 +241,7 @@ export default function AppShell({
   const [shortcuts, setShortcuts] = React.useState(null);
   const shortcutsRef = React.useRef(null);
   const [navSearch, setNavSearch] = React.useState({});
+  const [openPlans, setOpenPlans] = React.useState([]);
   const person = session?.user?.name || session?.user?.email || "Account";
   const currentPath = active || router.pathname;
 
@@ -256,10 +254,17 @@ export default function AppShell({
     if (shortcutsRef.current) return;
     shortcutsRef.current = true;
     fetch("/api/nav-shortcuts").then((r) => r.json()).then((data) => {
-      setShortcuts({
-        plans: Array.isArray(data?.plans) ? data.plans.map((p) => ({ id: p.id, label: p.planName || "Untitled plan", href: `/training-plans/${p.id}` })) : [],
-        athletes: Array.isArray(data?.athletes) ? data.athletes.map((a) => ({ id: a.id, label: `${a.lastName || ""}${a.lastName && a.firstName ? ", " : ""}${a.firstName || ""}` || "Athlete", href: `/athletes/${a.id}` })) : [],
-      });
+      const plans = Array.isArray(data?.plans) ? data.plans.map((p) => ({
+        id: p.id,
+        label: p.planName || "Untitled plan",
+        href: `/training-plans/${p.id}`,
+        athletes: Array.isArray(p.athletes) ? p.athletes.map((a) => ({
+          id: a.id,
+          label: `${a.lastName || ""}${a.lastName && a.firstName ? ", " : ""}${a.firstName || ""}` || "Athlete",
+          href: `/training-plans/${p.id}/athletes/${a.id}`,
+        })) : [],
+      })) : [];
+      setShortcuts({ plans });
     }).catch(() => {});
   }
 
@@ -325,6 +330,13 @@ export default function AppShell({
     });
   }
 
+  function togglePlan(id) {
+    setOpenPlans((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      return next;
+    });
+  }
+
   const nav = (
     <nav className={styles.sidebar} aria-label="Primary navigation">
       {NAV_GROUPS.map((group) => {
@@ -362,21 +374,65 @@ export default function AppShell({
                 ))}
                 {group.shortcuts && shortcuts && (
                   <div className={styles.navShortcuts}>
-                    <span className={styles.navShortcutsTitle}>{group.shortcuts === "plans" ? "Your training plans" : "Your athletes"}</span>
                     {(shortcuts[group.shortcuts] || []).length > 8 && (
-                      <input className={styles.navShortcutSearch} type="search" placeholder={group.shortcuts === "plans" ? "Search plans..." : "Search athletes..."} value={navSearch[group.key] || ""} onChange={(e) => setNavSearch((s) => ({ ...s, [group.key]: e.target.value }))} aria-label={group.shortcuts === "plans" ? "Search plans" : "Search athletes"} />
+                      <input className={styles.navShortcutSearch} type="search" placeholder="Search plans..." value={navSearch[group.key] || ""} onChange={(e) => setNavSearch((s) => ({ ...s, [group.key]: e.target.value }))} aria-label="Search plans" />
                     )}
                     {(() => {
                       const items = shortcuts[group.shortcuts] || [];
                       const q = (navSearch[group.key] || "").toLowerCase().trim();
                       const filtered = q ? items.filter((it) => it.label.toLowerCase().includes(q)) : items;
                       if (!filtered.length) return <span className={styles.navShortcutEmpty}>{items.length ? "No matches." : "Loading..."}</span>;
-                      return filtered.map((it) => (
-                        <Link key={it.id} href={it.href} className={`${styles.navShortcutLink}${isActive(it.href) ? ` ${styles.navLinkActive}` : ""}`} onClick={() => setOpen(false)}>
-                          <span className={styles.navSubDot} aria-hidden="true" />
-                          <span className={styles.navSubLabel}>{it.label}</span>
-                        </Link>
-                      ));
+                      return filtered.map((it) => {
+                        const expanded = openPlans.includes(it.id);
+                        return (
+                          <div key={it.id} className={styles.navShortcutGroup}>
+                            <button type="button" className={`${styles.navShortcutToggle}${expanded ? ` ${styles.navGroupBtnOpen}` : ""}`} aria-expanded={expanded} onClick={() => togglePlan(it.id)}>
+                              <span className={styles.navChevron} aria-hidden="true">›</span>
+                              <span className={styles.navSubLabel}>{it.label}</span>
+                            </button>
+                            {expanded && (
+                              <div className={styles.navGroupBody} style={{ paddingBottom: 0 }}>
+                                <div className={styles.navSubLink} style={{ cursor: "default" }}>
+                                  <span className={styles.navSubDot} aria-hidden="true" />
+                                  <span className={`${styles.navSubLabel} ${styles.navShortcutsMini}`}>Jump to:</span>
+                                </div>
+                                <Link href={`/training-plans/${it.id}#overview`} className={styles.navSubLink} onClick={() => setOpen(false)}>
+                                  <span className={styles.navSubDot} aria-hidden="true" />
+                                  <span className={styles.navSubLabel}>Overview</span>
+                                </Link>
+                                <Link href={`/training-plans/${it.id}#monitoring`} className={styles.navSubLink} onClick={() => setOpen(false)}>
+                                  <span className={styles.navSubDot} aria-hidden="true" />
+                                  <span className={styles.navSubLabel}>Monitoring</span>
+                                </Link>
+                                {!isAdmin && (
+                                  <Link href={`/training-plans/${it.id}#assess`} className={styles.navSubLink} onClick={() => setOpen(false)}>
+                                    <span className={styles.navSubDot} aria-hidden="true" />
+                                    <span className={styles.navSubLabel}>Assess athletes</span>
+                                  </Link>
+                                )}
+                                <Link href={`/training-plans/${it.id}#roster`} className={styles.navSubLink} onClick={() => setOpen(false)}>
+                                  <span className={styles.navSubDot} aria-hidden="true" />
+                                  <span className={styles.navSubLabel}>Roster</span>
+                                </Link>
+                                {it.athletes?.length > 0 && (
+                                  <>
+                                    <div className={styles.navSubLink} style={{ cursor: "default", marginTop: 4 }}>
+                                      <span className={styles.navSubDot} aria-hidden="true" />
+                                      <span className={`${styles.navSubLabel} ${styles.navShortcutsMini}`}>Athletes on this plan:</span>
+                                    </div>
+                                    {it.athletes.map((a) => (
+                                      <Link key={a.id} href={a.href} className={`${styles.navSubLink} ${styles.navShortcutAthlete}`} onClick={() => setOpen(false)}>
+                                        <span className={styles.navSubDot} aria-hidden="true" />
+                                        <span className={styles.navSubLabel}>{a.label}</span>
+                                      </Link>
+                                    ))}
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      });
                     })()}
                   </div>
                 )}

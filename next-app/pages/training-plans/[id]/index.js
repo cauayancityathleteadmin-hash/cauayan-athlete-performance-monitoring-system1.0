@@ -242,7 +242,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
           </p>
         )}
 
-        <section className={styles.panel}>
+        <section className={styles.panel} id="overview">
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Overview</p><h2>Progress overview</h2></div>
             <span className={styles.formHint} style={{ alignSelf: "center" }}>{plan.durationDays ? `${plan.durationDays} days` : plan.durationWeeks ? `${plan.durationWeeks} wks` : "No duration set"}</span>
@@ -250,7 +250,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
           <TrainingCharts plan={plan} athletes={athletes} activities={activities} logs={logs} />
         </section>
 
-        <section className={styles.panel}>
+        <section className={styles.panel} id="monitoring">
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Monitor</p><h2>Daily training monitoring</h2></div>
           </div>
@@ -268,7 +268,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
         </section>
 
         {!isAdmin && (
-          <section className={styles.panel}>
+          <section className={styles.panel} id="assess">
             <div className={styles.panelHeader}>
               <div><p className={styles.eyebrow}>Training plan &amp; assessment</p><h2>Assess athletes</h2></div>
               {showBulkAssess && <button className={styles.secondary} onClick={() => setShowBulkAssess(false)}>Close assessment</button>}
@@ -287,7 +287,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
           </section>
         )}
 
-        <section className={styles.panel}>
+        <section className={styles.panel} id="roster">
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Athletes on this training</p><h2>Roster</h2></div>
             <span className={styles.formHint} style={{ alignSelf: "center" }}>{athletes.length} athlete{athletes.length === 1 ? "" : "s"}</span>
