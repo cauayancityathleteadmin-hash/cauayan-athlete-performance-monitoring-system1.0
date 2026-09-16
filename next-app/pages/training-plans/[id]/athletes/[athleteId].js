@@ -5,6 +5,7 @@ import { getSession } from "next-auth/react";
 import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { prisma } from "../../../../lib/prisma";
 import AppShell from "../../../../components/AppShell";
+import { AthleteActivitiesBlock } from "../../../../components/AthleteActivityManager";
 import styles from "../../../../styles/Dashboard.module.css";
 
 const FITNESS_META = {
@@ -164,6 +165,9 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
   const router = useRouter();
   const [data, setData] = React.useState(null);
   const [allLogs, setAllLogs] = React.useState([]);
+  const [allActivities, setAllActivities] = React.useState([]);
+  const [manageOpen, setManageOpen] = React.useState(false);
+  const [manageMsg, setManageMsg] = React.useState("");
   const [error, setError] = React.useState("");
   const [expandedActivityId, setExpandedActivityId] = React.useState(null);
 
@@ -172,14 +176,57 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
     Promise.all([
       fetch(`/api/progress?planId=${plan.id}&athleteId=${athlete.id}`).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
       fetch(`/api/plan-activity-logs?planId=${plan.id}&athleteId=${athlete.id}`).then((r) => (r.ok ? r.json() : [])).catch(() => []),
-    ]).then(([progressData, logsData]) => {
+      fetch(`/api/plan-activities?planId=${plan.id}`).then((r) => (r.ok ? r.json() : [])).catch(() => []),
+    ]).then(([progressData, logsData, activitiesData]) => {
       if (cancelled) return;
       if (progressData.activities) setData(progressData);
       else setError(progressData.error || "Could not load progress.");
       setAllLogs(logsData || []);
+      setAllActivities(Array.isArray(activitiesData) ? activitiesData : []);
     }).catch(() => { if (!cancelled) setError("Unable to reach the server."); });
     return () => { cancelled = true; };
   }, [plan.id, athlete.id]);
+
+  async function refresh() {
+    const [progressData, logsData, activitiesData] = await Promise.all([
+      fetch(`/api/progress?planId=${plan.id}&athleteId=${athlete.id}`).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+      fetch(`/api/plan-activity-logs?planId=${plan.id}&athleteId=${athlete.id}`).then((r) => (r.ok ? r.json() : [])).catch(() => []),
+      fetch(`/api/plan-activities?planId=${plan.id}`).then((r) => (r.ok ? r.json() : [])).catch(() => []),
+    ]);
+    if (progressData.activities) setData(progressData);
+    else setError(progressData.error || "Could not load progress.");
+    setAllLogs(logsData || []);
+    setAllActivities(Array.isArray(activitiesData) ? activitiesData : []);
+  }
+
+  async function removeActivity(activityId) {
+    if (!window.confirm("Remove this activity? Its saved logs stay on record but the activity no longer applies to this athlete.")) return;
+    setManageMsg("");
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    const res = await fetch("/api/plan-activities", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+      body: JSON.stringify({ planId: plan.id, action: "delete", activityId }),
+    }).then((r) => r.json()).catch(() => ({}));
+    if (res.success) await refresh();
+    else setManageMsg(res.error || "Could not remove the activity.");
+  }
+
+  async function editActivity(activityId, patch) {
+    setManageMsg("");
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    const res = await fetch("/api/plan-activities", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+      body: JSON.stringify({ planId: plan.id, action: "update", activityId, ...patch }),
+    }).then((r) => r.json()).catch(() => ({}));
+    if (res.success) await refresh();
+    else setManageMsg(res.error || "Could not update the activity.");
+  }
+
+  async function onActivitiesChanged() {
+    await refresh();
+  }
 
   const activities = React.useMemo(() => data?.activities || [], [data]);
   const summary = data?.summary || { total: 0, completed: 0, partial: 0, missed: 0, completionPercent: 0, rating: null, ratingDate: null };
@@ -213,8 +260,25 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
           <div className={styles.pageActions}>
             <span className={styles.eyebrow}>{athlete.athleteCode} {athlete.sport?.sportName ? `· ${athlete.sport.sportName}` : ""}</span>
           </div>
+          {!isAdmin && <button className={styles.secondary} onClick={() => setManageOpen((c) => !c)}>{manageOpen ? "Close activity manager" : "Manage activities"}</button>}
           <button className={styles.secondary} onClick={() => router.push(`/training-plans/${plan.id}`)}>← Back to plan</button>
         </div>
+
+        {manageOpen && !isAdmin && (
+          <section className={styles.panel} style={{ marginBottom: 20 }}>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Activity manager</p><h2>Manage {athlete.firstName}&apos;s activities</h2></div></div>
+            {manageMsg && <p role="status" className={styles.empty} style={{ margin: "0 16px 12px", color: "var(--danger)" }}>{manageMsg}</p>}
+            <AthleteActivitiesBlock
+              planId={plan.id}
+              athlete={athlete}
+              activities={allActivities.filter((a) => a.athleteId === athlete.id)}
+              logs={allLogs}
+              onRemove={removeActivity}
+              onEdit={editActivity}
+              onChanged={onActivitiesChanged}
+            />
+          </section>
+        )}
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16, marginBottom: 20 }}>
           <div className={styles.detailPanel}><h4>Planned activities</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{summary.total}</div></div>

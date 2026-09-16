@@ -8,7 +8,7 @@ import {
 } from "recharts";
 import { prisma } from "../../../lib/prisma";
 import { buildMonitoringGrid } from "../../../lib/plan-monitoring";
-import { METRIC_TYPES, METRIC_LABELS, resultUnitFor, targetValueFor } from "../../../lib/activity-score";
+import { METRIC_LABELS, resultUnitFor, targetValueFor } from "../../../lib/activity-score";
 import AppShell from "../../../components/AppShell";
 import styles from "../../../styles/Dashboard.module.css";
 
@@ -103,23 +103,6 @@ const FITNESS_META = {
 
 const FITNESS_ORDER = ["endurance", "speed_agility", "power", "skill_technique", "mobility", "strength", "recovery"];
 
-const UNITS_BY_FITNESS = {
-  endurance: ["km", "m", "miles", "min", "hr"],
-  strength: ["kg", "lb", "reps", "sets"],
-  power: ["w", "kg", "lb", "reps"],
-  speed_agility: ["sec", "m", "reps"],
-  skill_technique: ["reps", "attempts", "rating"],
-  mobility: ["min", "sec", "deg", "reps"],
-  recovery: ["min", "hr", "sessions"],
-};
-
-const LOG_STATUS = {
-  planned: { label: "Planned", cls: "badgeMuted" },
-  done: { label: "Done", cls: "badgeActive" },
-  partial: { label: "Partial", cls: "badgePending" },
-  missed: { label: "Missed", cls: "badgeRejected" },
-};
-
 const normName = (s) => (s || "").trim().replace(/\s+/g, " ").toLowerCase();
 const dayOf = (activity) => (activity.dayIndex == null ? 1 : activity.dayIndex);
 const groupKey = (activity) => `${normName(activity.activityName)}|${activity.fitnessType || "endurance"}|${dayOf(activity)}`;
@@ -168,13 +151,11 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
   const [logs, setLogs] = React.useState(initialLogs);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
-  const [showAddActivity, setShowAddActivity] = React.useState(false);
   const [showBulkAssess, setShowBulkAssess] = React.useState(false);
   const [currentWeek, setCurrentWeek] = React.useState(initialMonitoringData?.currentWeek || 1);
   const [monitoringData, setMonitoringData] = React.useState(initialMonitoringData);
   const [message, setMessage] = React.useState(null);
   const [lateOverride, setLateOverride] = React.useState(Boolean(plan.allowLateAssessment));
-  const [tab, setTab] = React.useState("charts");
 
   async function setLateAssessment(enabled) {
     const csrf = await fetch("/api/csrf").then((r) => r.json());
@@ -228,23 +209,6 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
     loadMonitoring();
   }
 
-  function removeActivity(activityId) {
-    if (!window.confirm("Remove this activity from the plan?")) return;
-    fetch("/api/csrf").then((r) => r.json()).then((csrf) =>
-      fetch("/api/plan-activities", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ planId: plan.id, action: "delete", activityId }) })
-        .then((r) => r.json()).then((res) => { if (res.error) setMessage({ kind: "error", text: res.error }); else { setMessage({ kind: "success", text: res.message }); refresh(); } })
-        .catch(() => setMessage({ kind: "error", text: "Could not remove activity." }))
-    );
-  }
-
-function updateActivity(activityId, payload) {
-    fetch("/api/csrf").then((r) => r.json()).then((csrf) =>
-      fetch("/api/plan-activities", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ planId: plan.id, action: "update", activityId, ...payload }) })
-        .then((r) => r.json()).then((res) => { if (res.error) setMessage({ kind: "error", text: res.error }); else { setMessage({ kind: "success", text: "Activity updated." }); refresh(); } })
-        .catch(() => setMessage({ kind: "error", text: "Could not update activity." }))
-    );
-  }
-
   return (
     <>
       <Head><title>{plan.planName} | Cauayan Athlete Performance</title></Head>
@@ -272,114 +236,71 @@ function updateActivity(activityId, payload) {
           {plan.description ? <p>{plan.description}</p> : null}
         </section>
 
-<nav aria-label="Plan sections" style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "0 0 18px" }}>
-          {[["charts", "Charts"], ["athletes", "Athletes"], ["activities", "Activities"]].map(([id, label]) => (
-            <button key={id} className={tab === id ? styles.primary : styles.secondary} onClick={() => setTab(id)}>{label}</button>
-          ))}
-        </nav>
-
-        {message && (
+{message && (
           <p role="status" style={{ margin: "0 0 16px", padding: "12px 14px", borderRadius: "8px", border: `1px solid ${message.kind === "error" ? "var(--danger)" : "var(--accent)"}`, background: `rgba(${message.kind === "error" ? "248,113,113" : "45,212,168"}, .14)`, color: message.kind === "error" ? "var(--danger)" : "var(--foreground)" }}>
             {message.text}
           </p>
         )}
 
-        {tab === "charts" && (
-          <>
-            <section className={styles.panel}>
-              <div className={styles.panelHeader}>
-                <div><p className={styles.eyebrow}>Overview</p><h2>Progress overview</h2></div>
-                <span className={styles.formHint} style={{ alignSelf: "center" }}>{plan.durationDays ? `${plan.durationDays} days` : plan.durationWeeks ? `${plan.durationWeeks} wks` : "No duration set"}</span>
-              </div>
-              <TrainingCharts plan={plan} athletes={athletes} activities={activities} logs={logs} />
-            </section>
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div><p className={styles.eyebrow}>Overview</p><h2>Progress overview</h2></div>
+            <span className={styles.formHint} style={{ alignSelf: "center" }}>{plan.durationDays ? `${plan.durationDays} days` : plan.durationWeeks ? `${plan.durationWeeks} wks` : "No duration set"}</span>
+          </div>
+          <TrainingCharts plan={plan} athletes={athletes} activities={activities} logs={logs} />
+        </section>
 
-            <section className={styles.panel}>
-              <div className={styles.panelHeader}>
-                <div><p className={styles.eyebrow}>Monitor</p><h2>Daily training monitoring</h2></div>
-              </div>
-              {monitoringData ? (
-                <MonitoringGrid
-                  data={monitoringData}
-                  athletes={athletes}
-                  maxWeek={monitoringData.maxWeek}
-                  currentWeek={monitoringData.currentWeek}
-                  onWeekChange={setCurrentWeek}
-                />
-              ) : (
-                <p className={styles.empty}>Loading daily training monitoring...</p>
-              )}
-            </section>
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div><p className={styles.eyebrow}>Monitor</p><h2>Daily training monitoring</h2></div>
+          </div>
+          {monitoringData ? (
+            <MonitoringGrid
+              data={monitoringData}
+              athletes={athletes}
+              maxWeek={monitoringData.maxWeek}
+              currentWeek={monitoringData.currentWeek}
+              onWeekChange={setCurrentWeek}
+            />
+          ) : (
+            <p className={styles.empty}>Loading daily training monitoring...</p>
+          )}
+        </section>
 
-            {!isAdmin && showBulkAssess && (
-              <section className={styles.panel}>
-                <div className={styles.panelHeader}>
-                  <div><p className={styles.eyebrow}>Training plan &amp; assessment</p><h2>Assess an athlete</h2></div>
-                  <button className={styles.secondary} onClick={() => setShowBulkAssess(false)}>Close assessment</button>
-                </div>
-                <p className={styles.formHint} style={{ marginTop: 0 }}>Rate everyone on the plan in one pass: set status for each athlete&apos;s activity, then save once with an optional 1&ndash;10 rating per athlete. Untouched cells are skipped; existing records are preserved until you save.</p>
-                <AssessStudio plan={lateOverride ? { ...plan, allowLateAssessment: true } : plan} planId={plan.id} athletes={athletes} activities={activities} logs={logs} onDone={refresh} />
-              </section>
-            )}
-
-            {!isAdmin && !showBulkAssess && (
-              <button className={styles.primary} onClick={() => setShowBulkAssess(true)}>Assess athletes</button>
-            )}
-          </>
-        )}
-
-{tab === "athletes" && (
-          <>
-            <section className={styles.panel}>
-              <div className={styles.panelHeader}>
-                <div><p className={styles.eyebrow}>Athletes on this training</p><h2>Roster</h2></div>
-                <span className={styles.formHint} style={{ alignSelf: "center" }}>{athletes.length} athlete{athletes.length === 1 ? "" : "s"}</span>
-              </div>
-              <p className={styles.formHint} style={{ marginTop: 0 }}>
-                {isAdmin ? "Each row is an athlete under this training. Drill into their progress page for full history." : "Each row is an athlete on your training. Drill into their progress page for full activity history."}
-              </p>
-              {loading ? <p className={styles.empty}>Loading plan details...</p> : error ? <p className={styles.empty}>{error}</p> : athletes.length === 0 ? (
-                <p className={styles.empty}>No athletes on this plan.</p>
-              ) : (
-                <AthleteRosterTable plan={plan} athletes={athletes} activities={activities} logs={logs} isAdmin={isAdmin} />
-              )}
-            </section>
-          </>
-        )}
-
-        {tab === "activities" && (
+        {!isAdmin && (
           <section className={styles.panel}>
             <div className={styles.panelHeader}>
-              <div><p className={styles.eyebrow}>Plan activities</p><h2>Activities</h2></div>
+              <div><p className={styles.eyebrow}>Training plan &amp; assessment</p><h2>Assess athletes</h2></div>
+              {showBulkAssess && <button className={styles.secondary} onClick={() => setShowBulkAssess(false)}>Close assessment</button>}
             </div>
-            <p className={styles.formHint} style={{ marginTop: 0 }}>Each athlete&apos;s activities and latest status. Open the per-athlete view for full progress history and notes.</p>
-
-            {loading ? <p className={styles.empty}>Loading plan details...</p> : error ? <p className={styles.empty}>{error}</p> : athletes.length === 0 ? (
-              <p className={styles.empty}>No athletes on this plan.</p>
+            {showBulkAssess ? (
+              <>
+                <p className={styles.formHint} style={{ marginTop: 0 }}>Rate everyone on the plan in one pass. Cells start marked done at their target for the selected date &mdash; switch exceptions to part/missed, add results, or use the Everyone buttons. Ratings auto-fill as cells are completed; adjust any athlete&apos;s rating to override. Save once with an optional 1&ndash;10 rating per athlete. Existing records for that date are preserved until you save.</p>
+                <AssessStudio plan={lateOverride ? { ...plan, allowLateAssessment: true } : plan} planId={plan.id} athletes={athletes} activities={activities} logs={logs} onDone={refresh} />
+              </>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-                {athletes.map((athlete) => (
-                  <div key={athlete.id}>
-                    <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-                      <button className={styles.secondary} onClick={() => router.push(`/training-plans/${plan.id}/athletes/${athlete.id}`)}>View progress →</button>
-                    </div>
-                    <AthleteActivitiesBlock
-                      key={athlete.id}
-                      planId={plan.id}
-                      athlete={athlete}
-                      activities={activities.filter((act) => act.athleteId === athlete.id)}
-                      logs={logs}
-                      onRemove={removeActivity}
-                      onEdit={updateActivity}
-                      onChanged={refresh}
-                      readOnly={isAdmin}
-                    />
-                  </div>
-                ))}
-              </div>
+              <>
+                <p className={styles.formHint} style={{ marginTop: 0 }}>One pass over everyone on the plan: cells start marked done at their target &mdash; mark exceptions as partial or missed, and add a rating. Existing records for the selected date are kept until you save.</p>
+                <button className={styles.primary} onClick={() => setShowBulkAssess(true)}>Assess athletes</button>
+              </>
             )}
           </section>
         )}
+
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div><p className={styles.eyebrow}>Athletes on this training</p><h2>Roster</h2></div>
+            <span className={styles.formHint} style={{ alignSelf: "center" }}>{athletes.length} athlete{athletes.length === 1 ? "" : "s"}</span>
+          </div>
+          <p className={styles.formHint} style={{ marginTop: 0 }}>
+            {isAdmin ? "Each row is an athlete under this training. See progress to view their full history." : "Each row is an athlete on your training. See progress to view their full activity history and manage their activities."}
+          </p>
+          {loading ? <p className={styles.empty}>Loading plan details...</p> : error ? <p className={styles.empty}>{error}</p> : athletes.length === 0 ? (
+            <p className={styles.empty}>No athletes on this plan.</p>
+          ) : (
+            <AthleteRosterTable plan={plan} athletes={athletes} activities={activities} logs={logs} isAdmin={isAdmin} />
+          )}
+        </section>
       </AppShell>
     </>
   );
@@ -413,468 +334,7 @@ function computeProgress(activity, log) {
   return { percent, done, target };
 }
 
-function logResultText(log) {
-  if (!log) return "";
-  const parts = [];
-  if (log.timeSec != null) parts.push(`${log.timeSec} sec`);
-  if (log.distanceDone != null) parts.push(`${log.distanceDone} m`);
-  if (log.loadUsed != null) parts.push(`${log.loadUsed} kg`);
-  if (log.quantityDone != null) parts.push(`${log.quantityDone}${log.activity?.targetUnit ? ` ${log.activity.targetUnit}` : ""}`);
-  if (log.setsDone != null) parts.push(`${log.setsDone} sets`);
-  if (log.repsDone != null) parts.push(`${log.repsDone} reps`);
-  if (log.attempts != null) parts.push(`${log.attempts} attempts`);
-  return parts.join(" · ");
-}
 
-const TARGET_FIELD_RULES = {
-  endurance: { quantity: true, sets: false, reps: false, distance: true, load: false },
-  strength: { quantity: true, sets: true, reps: true, distance: false, load: true },
-  power: { quantity: true, sets: true, reps: true, distance: false, load: true },
-  speed_agility: { quantity: true, sets: true, reps: true, distance: true, load: false },
-  skill_technique: { quantity: true, sets: true, reps: true, distance: false, load: false },
-  mobility: { quantity: true, sets: true, reps: true, distance: false, load: false },
-  recovery: { quantity: true, sets: false, reps: false, distance: false, load: false },
-};
-
-function targetFieldRules(fitnessType) {
-  return TARGET_FIELD_RULES[fitnessType] || { quantity: true, sets: true, reps: true, distance: false, load: false };
-}
-
-function sanitizeTargetFields(fitnessType, fields) {
-  const rules = targetFieldRules(fitnessType);
-  const out = { ...fields };
-  if (!rules.sets) out.targetSets = null;
-  if (!rules.reps) out.targetReps = null;
-  if (!rules.distance) out.targetDistance = null;
-  if (!rules.load) out.targetLoad = null;
-  return out;
-}
-
-function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, onEdit, onChanged, readOnly = false }) {
-  const [adding, setAdding] = React.useState(false);
-  const [showActivities, setShowActivities] = React.useState(true);
-  const [editingId, setEditingId] = React.useState(null);
-  const [draft, setDraft] = React.useState(null);
-  const [saving, setSaving] = React.useState(false);
-
-  function startEdit(act) {
-    setDraft({
-      id: act.id,
-      activityName: act.activityName,
-      fitnessType: act.fitnessType,
-      metricType: act.metricType || "none",
-      targetTimeSec: act.targetTimeSec != null ? String(act.targetTimeSec) : "",
-      targetQuantity: act.targetQuantity != null ? String(act.targetQuantity) : "",
-      targetUnit: act.targetUnit || "",
-      targetSets: act.targetSets != null ? String(act.targetSets) : "",
-      targetReps: act.targetReps != null ? String(act.targetReps) : "",
-      targetDistance: act.targetDistance != null ? String(act.targetDistance) : "",
-      targetLoad: act.targetLoad != null ? String(act.targetLoad) : "",
-      instructions: act.instructions || "",
-      dayIndex: act.dayIndex != null ? String(act.dayIndex) : "",
-      weekNumber: act.weekNumber != null ? String(act.weekNumber) : "",
-    });
-    setEditingId(act.id);
-  }
-
-  function setField(name, value) {
-    setDraft((d) => {
-      const next = { ...d, [name]: value };
-      if (name === "fitnessType") {
-        const allowed = UNITS_BY_FITNESS[value] || [];
-        if (!allowed.includes(next.targetUnit)) next.targetUnit = allowed[0] || "";
-        const rules = targetFieldRules(value);
-        if (!rules.sets) next.targetSets = "";
-        if (!rules.reps) next.targetReps = "";
-        if (!rules.distance) next.targetDistance = "";
-        if (!rules.load) next.targetLoad = "";
-      }
-      return next;
-    });
-  }
-
-  function submitEdit(e) {
-    e.preventDefault();
-    setSaving(true);
-    onEdit(draft.id, {
-      activityName: draft.activityName,
-      fitnessType: draft.fitnessType,
-      metricType: draft.metricType,
-      targetTimeSec: draft.metricType === "time" ? draft.targetTimeSec || null : null,
-      targetQuantity: draft.targetQuantity || null,
-      targetUnit: draft.targetUnit || null,
-      targetSets: draft.targetSets || null,
-      targetReps: draft.targetReps || null,
-      targetDistance: draft.targetDistance || null,
-      targetLoad: draft.targetLoad || null,
-      instructions: draft.instructions || null,
-      dayIndex: draft.dayIndex ? parseInt(draft.dayIndex) : null,
-      weekNumber: draft.weekNumber ? parseInt(draft.weekNumber) : null,
-    });
-    setEditingId(null);
-    setSaving(false);
-  }
-  return (
-    <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "14px 16px", background: "rgba(6,38,30,.35)" }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <strong>{athlete.lastName}, {athlete.firstName}</strong>
-          {athlete.athleteCode ? <small style={{ color: "var(--muted)", display: "block" }}>{athlete.athleteCode}</small> : null}
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <button className={styles.secondary} onClick={() => setShowActivities((c) => !c)}>{showActivities ? "Hide activities" : "Show activities"}</button>
-          {!readOnly && <button className={styles.secondary} onClick={() => setAdding((c) => !c)}>{adding ? "Close add" : "Add activities"}</button>}
-        </div>
-      </div>
-
-      {adding && (
-        <AddAthleteActivitiesForm
-          key={activities.length}
-          planId={planId}
-          athlete={athlete}
-          onCreated={() => { setAdding(false); onChanged && onChanged(); }}
-        />
-      )}
-
-      {showActivities && (activities.length === 0 ? (
-        <p className={styles.empty} style={{ marginTop: 12 }}>{readOnly ? "No activities defined yet for this athlete." : "No activities for this athlete yet."}</p>
-      ) : (
-        <div className={styles.tableWrap} style={{ marginTop: 12 }}>
-          <table>
-            <thead><tr><th>Fitness Type</th><th>Target</th><th>Latest status</th>{!readOnly && <th></th>}</tr></thead>
-            <tbody>
-              {(() => {
-                const grouped = activities.reduce((acc, act) => {
-                  const ft = act.fitnessType || "endurance";
-                  if (!acc[ft]) acc[ft] = [];
-                  acc[ft].push(act);
-                  return acc;
-                }, {});
-                return Object.entries(grouped).map(([fitnessType, groupActs]) => {
-                  const firstActivity = groupActs[0];
-                  const latestLogs = groupActs.map((a) => {
-                    const aLogs = logs.filter((l) => l.activityId === a.id && l.athleteId === athlete.id);
-                    return aLogs.length ? [...aLogs].sort((a, b) => new Date(b.performedAt) - new Date(a.performedAt))[0] : null;
-                  });
-                  const latest = latestLogs.length ? [...latestLogs].filter(Boolean).sort((a, b) => new Date(b.performedAt) - new Date(a.performedAt))[0] : null;
-                  const p = latest ? computeProgress(firstActivity, latest) : null;
-                  const meta = LOG_STATUS[latest?.status] || LOG_STATUS.planned;
-                  const targetText = (() => {
-                    if (firstActivity.metricType === "time" && firstActivity.targetTimeSec != null) return `${firstActivity.targetTimeSec} sec (time)`;
-                    if (firstActivity.targetQuantity != null) return `${firstActivity.targetQuantity}${firstActivity.targetUnit ? ` ${firstActivity.targetUnit}` : ""}`;
-                    if (firstActivity.targetDistance != null) return `${firstActivity.targetDistance} m`;
-                    return "—";
-                  })();
-                  const isEditing = editingId === firstActivity.id;
-                  return (
-                    <React.Fragment key={fitnessType}>
-                    <tr>
-                      <td data-label="Fitness Type">
-                        <span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)" }}>{FITNESS_META[fitnessType] || fitnessType}</span>
-                      </td>
-                      <td data-label="Target">{targetText}</td>
-                      <td data-label="Latest status" style={{ textAlign: "center" }}>
-                        {(() => {
-                          if (!latest) return <span className={styles.badge} style={{ background: "rgba(26,92,74,.08)", color: "var(--muted)", border: "1px dashed rgba(100,116,139,.3)", fontSize: "11px" }}>Not started</span>;
-                          return (
-                            <span title={`${fmtDate(latest.performedAt)}${logResultText(latest) ? ` · ${logResultText(latest)}` : ""}`} className={`${styles.badge} ${styles[meta.cls]}`} style={{ fontSize: "11px" }}>
-                              {meta.label}
-                              <small style={{ marginLeft: 6, opacity: 0.7 }}>{fmtDate(latest.performedAt)}</small>
-                            </span>
-                          );
-                        })()}
-                      </td>
-                      {!readOnly && <td><button className={`${styles.secondary} ${styles.btnSm}`} onClick={() => { if (isEditing) setEditingId(null); else startEdit(firstActivity); }} style={{ padding: "4px 8px", fontSize: "12px" }}>{isEditing ? "Cancel" : "Edit"}</button> <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => onRemove(firstActivity.id)}>Remove</button></td>}
-                    </tr>
-                    {isEditing && draft && (
-                      <tr><td colSpan="4" style={{ padding: 0, background: "transparent" }}>
-                        <div className={styles.detailPanel}>
-                          <form onSubmit={submitEdit} className={styles.formGrid} style={{ marginTop: 0 }}>
-                            <label className={styles.fullField}>Activity name *<input className={styles.fieldControl} value={draft.activityName} onChange={(e) => setField("activityName", e.target.value)} required maxLength="191" /></label>
-                            <label>Fitness dimension<select className={styles.fieldControl} value={draft.fitnessType} onChange={(e) => setField("fitnessType", e.target.value)}>{Object.keys(FITNESS_META).map((k) => <option key={k} value={k}>{FITNESS_META[k]}</option>)}</select></label>
-                            <label>What to measure<select className={styles.fieldControl} value={draft.metricType} onChange={(e) => setField("metricType", e.target.value)} title="How this activity is measured. Time = how fast.">{METRIC_TYPES.map((m) => <option key={m} value={m}>{METRIC_LABELS[m]}</option>)}</select></label>
-                            {draft.metricType === "time" && <label>Time target (seconds)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetTimeSec} onChange={(e) => setField("targetTimeSec", e.target.value)} placeholder="e.g. 60" /></label>}
-                            {targetFieldRules(draft.fitnessType).quantity && <>
-                              <label>Target quantity<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetQuantity} onChange={(e) => setField("targetQuantity", e.target.value)} placeholder="e.g. 20" /></label>
-                              <label>Target unit<select className={styles.fieldControl} value={draft.targetUnit} onChange={(e) => setField("targetUnit", e.target.value)}><option value="">— select —</option>{(UNITS_BY_FITNESS[draft.fitnessType] || []).map((u) => <option key={u} value={u}>{u}</option>)}</select></label>
-                            </>}
-                            {targetFieldRules(draft.fitnessType).sets && <label>Sets<input className={styles.fieldControl} type="number" min="0" value={draft.targetSets} onChange={(e) => setField("targetSets", e.target.value)} /></label>}
-                            {targetFieldRules(draft.fitnessType).reps && <label>Reps<input className={styles.fieldControl} type="number" min="0" value={draft.targetReps} onChange={(e) => setField("targetReps", e.target.value)} /></label>}
-                            {targetFieldRules(draft.fitnessType).distance && <label>Distance (m)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetDistance} onChange={(e) => setField("targetDistance", e.target.value)} /></label>}
-                            {targetFieldRules(draft.fitnessType).load && <label>Load (kg)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetLoad} onChange={(e) => setField("targetLoad", e.target.value)} /></label>}
-                            <label>Day (1–7)<input className={styles.fieldControl} type="number" min="1" max="7" value={draft.dayIndex} onChange={(e) => setField("dayIndex", e.target.value)} placeholder="Day" /></label>
-                            <label>Week<input className={styles.fieldControl} type="number" min="1" value={draft.weekNumber} onChange={(e) => setField("weekNumber", e.target.value)} placeholder="Week" /></label>
-                            <label className={styles.fullField}>Instructions<textarea className={styles.fieldControl} rows="2" maxLength="2000" value={draft.instructions} onChange={(e) => setField("instructions", e.target.value)} /></label>
-                            <div className={styles.formActions}>
-                              <button type="button" className={styles.secondary} onClick={() => setEditingId(null)} disabled={saving}>Cancel</button>
-                              <button className={styles.primary} disabled={saving}>{saving ? "Saving..." : "Save changes"}</button>
-                            </div>
-                          </form>
-                        </div>
-                      </td></tr>
-                    )}
-                    </React.Fragment>
-                  );
-                });
-              })()}
-            </tbody>
-          </table>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ActivityRow({ athlete, activity, logs, onRemove, onEdit, readOnly = false }) {
-  const [editing, setEditing] = React.useState(false);
-  const [saving, setSaving] = React.useState(false);
-
-  const targetText = activity.targetQuantity != null ? `${activity.targetQuantity}${activity.targetUnit ? ` ${activity.targetUnit}` : ""}` : null;
-
-  // Find latest log for this activity + athlete
-  const activityLogs = logs.filter((l) => l.activityId === activity.id && l.athleteId === athlete.id);
-  const latestLog = activityLogs.length ? [...activityLogs].sort((a, b) => new Date(b.performedAt) - new Date(a.performedAt))[0] : null;
-
-  const [draft, setDraft] = React.useState(() => ({
-    activityName: activity.activityName,
-    fitnessType: activity.fitnessType,
-    targetQuantity: activity.targetQuantity != null ? String(activity.targetQuantity) : "",
-    targetUnit: activity.targetUnit || "",
-    targetSets: activity.targetSets != null ? String(activity.targetSets) : "",
-    targetReps: activity.targetReps != null ? String(activity.targetReps) : "",
-    targetDistance: activity.targetDistance != null ? String(activity.targetDistance) : "",
-    targetLoad: activity.targetLoad != null ? String(activity.targetLoad) : "",
-    instructions: activity.instructions || "",
-    dayIndex: activity.dayIndex != null ? String(activity.dayIndex) : "",
-    weekNumber: activity.weekNumber != null ? String(activity.weekNumber) : "",
-  }));
-
-  function setField(name, value) {
-    setDraft((d) => {
-      const next = { ...d, [name]: value };
-      if (name === "fitnessType") {
-        const allowed = UNITS_BY_FITNESS[value] || [];
-        if (!allowed.includes(next.targetUnit)) next.targetUnit = allowed[0] || "";
-        const rules = targetFieldRules(value);
-        if (!rules.sets) next.targetSets = "";
-        if (!rules.reps) next.targetReps = "";
-        if (!rules.distance) next.targetDistance = "";
-        if (!rules.load) next.targetLoad = "";
-      }
-      return next;
-    });
-  }
-
-  function startEdit() {
-    setDraft({
-      activityName: activity.activityName,
-      fitnessType: activity.fitnessType,
-      targetQuantity: activity.targetQuantity != null ? String(activity.targetQuantity) : "",
-      targetUnit: activity.targetUnit || "",
-      targetSets: activity.targetSets != null ? String(activity.targetSets) : "",
-      targetReps: activity.targetReps != null ? String(activity.targetReps) : "",
-      targetDistance: activity.targetDistance != null ? String(activity.targetDistance) : "",
-      targetLoad: activity.targetLoad != null ? String(activity.targetLoad) : "",
-      instructions: activity.instructions || "",
-      dayIndex: activity.dayIndex != null ? String(activity.dayIndex) : "",
-      weekNumber: activity.weekNumber != null ? String(activity.weekNumber) : "",
-    });
-    setEditing(true);
-  }
-
-  function submitEdit(e) {
-    e.preventDefault();
-    setSaving(true);
-    onEdit(activity.id, {
-      activityName: draft.activityName,
-      fitnessType: draft.fitnessType,
-      targetQuantity: draft.targetQuantity || null,
-      targetUnit: draft.targetUnit || null,
-      targetSets: draft.targetSets || null,
-      targetReps: draft.targetReps || null,
-      targetDistance: draft.targetDistance || null,
-      targetLoad: draft.targetLoad || null,
-      instructions: draft.instructions || null,
-      dayIndex: draft.dayIndex ? parseInt(draft.dayIndex) : null,
-      weekNumber: draft.weekNumber ? parseInt(draft.weekNumber) : null,
-    });
-    setEditing(false);
-    setSaving(false);
-  }
-
-  return (
-    <React.Fragment>
-      <tr>
-        <td><strong>{activity.activityName}</strong>{activity.instructions ? <small>{activity.instructions}</small> : null}</td>
-        <td><span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)" }}>{FITNESS_META[activity.fitnessType] || activity.fitnessType}</span></td>
-        <td>
-          {targetText ? <strong>{targetText}</strong> : "—"}
-          {activity.targetSets ? <small>{activity.targetSets} sets</small> : null}
-          {activity.targetReps ? <small>{activity.targetReps} reps</small> : null}
-          {activity.targetDistance != null ? <small>{activity.targetDistance} m</small> : null}
-          {activity.targetLoad != null ? <small>{activity.targetLoad} kg</small> : null}
-          {activity.dayIndex ? <small>Day {activity.dayIndex}{activity.weekNumber ? ` | W${activity.weekNumber}` : ""}</small> : null}
-        </td>
-        <td style={{ textAlign: "center" }}>
-          {(() => {
-            if (!latestLog) return <span className={styles.badge} style={{ background: "rgba(26,92,74,.08)", color: "var(--muted)", border: "1px dashed rgba(100,116,139,.3)", fontSize: "11px" }}>Not started</span>;
-            const meta = LOG_STATUS[latestLog.status] || LOG_STATUS.planned;
-            const p = computeProgress(activity, latestLog);
-            const title = `${fmtDate(latestLog.performedAt)}${logResultText(latestLog) ? ` · ${logResultText(latestLog)}` : ""}`;
-            if (!p) {
-              return (
-                <span title={title} className={`${styles.badge} ${styles[meta.cls]}`} style={{ fontSize: "11px" }}>
-                  {meta.label}
-                  <small style={{ marginLeft: 6, opacity: 0.7 }}>{fmtDate(latestLog.performedAt)}</small>
-                </span>
-              );
-            }
-            return (
-              <span title={title} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <strong style={{ color: percentColor(p.percent), fontSize: 14 }}>{p.percent}%</strong>
-                <small style={{ opacity: 0.75, fontSize: 10, textTransform: "uppercase", letterSpacing: 0.4 }}>{meta.label}</small>
-              </span>
-            );
-          })()}
-        </td>
-        {!readOnly && <td><button className={`${styles.secondary} ${styles.btnSm}`} onClick={() => { if (editing) setEditing(false); else startEdit(); }} style={{ padding: "4px 8px", fontSize: "12px" }}>{editing ? "Cancel" : "Edit"}</button> <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => onRemove(activity.id)}>Remove</button></td>}
-      </tr>
-      {editing && (
-        <tr><td colSpan="5" style={{ padding: 0, background: "transparent" }}>
-          <div className={styles.detailPanel}>
-            <form onSubmit={submitEdit} className={styles.formGrid} style={{ marginTop: 0 }}>
-              <label className={styles.fullField}>Activity name *<input className={styles.fieldControl} value={draft.activityName} onChange={(e) => setField("activityName", e.target.value)} required maxLength="191" /></label>
-              <label>Fitness dimension<select className={styles.fieldControl} value={draft.fitnessType} onChange={(e) => setField("fitnessType", e.target.value)}>{Object.keys(FITNESS_META).map((k) => <option key={k} value={k}>{FITNESS_META[k]}</option>)}</select></label>
-              {targetFieldRules(draft.fitnessType).quantity && <>
-                <label>Target quantity<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetQuantity} onChange={(e) => setField("targetQuantity", e.target.value)} placeholder="e.g. 20" /></label>
-                <label>Target unit<select className={styles.fieldControl} value={draft.targetUnit} onChange={(e) => setField("targetUnit", e.target.value)}><option value="">— select —</option>{(UNITS_BY_FITNESS[draft.fitnessType] || []).map((u) => <option key={u} value={u}>{u}</option>)}</select></label>
-              </>}
-              {targetFieldRules(draft.fitnessType).sets && <label>Sets<input className={styles.fieldControl} type="number" min="0" value={draft.targetSets} onChange={(e) => setField("targetSets", e.target.value)} /></label>}
-              {targetFieldRules(draft.fitnessType).reps && <label>Reps<input className={styles.fieldControl} type="number" min="0" value={draft.targetReps} onChange={(e) => setField("targetReps", e.target.value)} /></label>}
-              {targetFieldRules(draft.fitnessType).distance && <label>Distance (m)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetDistance} onChange={(e) => setField("targetDistance", e.target.value)} /></label>}
-              {targetFieldRules(draft.fitnessType).load && <label>Load (kg)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetLoad} onChange={(e) => setField("targetLoad", e.target.value)} /></label>}
-              <label>Day (1–7)<input className={styles.fieldControl} type="number" min="1" max="7" value={draft.dayIndex} onChange={(e) => setField("dayIndex", e.target.value)} placeholder="Day" /></label>
-              <label>Week<input className={styles.fieldControl} type="number" min="1" value={draft.weekNumber} onChange={(e) => setField("weekNumber", e.target.value)} placeholder="Week" /></label>
-              <label className={styles.fullField}>Instructions<textarea className={styles.fieldControl} rows="2" maxLength="2000" value={draft.instructions} onChange={(e) => setField("instructions", e.target.value)} /></label>
-
-              <div className={styles.formActions}>
-                <button type="button" className={styles.secondary} onClick={() => setEditing(false)} disabled={saving}>Cancel</button>
-                <button className={styles.primary} disabled={saving}>{saving ? "Saving..." : "Save changes"}</button>
-              </div>
-            </form>
-          </div>
-        </td></tr>
-      )}
-    </React.Fragment>
-  );
-}
-
-
-function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
-  const [busy, setBusy] = React.useState(false);
-  const [message, setMessage] = React.useState("");
-  const [rows, setRows] = React.useState([{ id: 0, name: "", fitness: "endurance", metric: "none", tsec: "", qty: "", unit: "", sets: "", reps: "", dist: "", load: "", instr: "", day: "", week: "" }]);
-
-  function addRow() {
-    setRows((cur) => [...cur, { id: Date.now(), name: "", fitness: "endurance", metric: "none", tsec: "", qty: "", unit: "", sets: "", reps: "", dist: "", load: "", instr: "", day: "", week: "" }]);
-  }
-  function removeRow(id) {
-    setRows((cur) => cur.filter((r) => r.id !== id));
-  }
-  function updateRow(id, key, value) {
-    setRows((cur) => cur.map((r) => {
-      if (r.id !== id) return r;
-      const next = { ...r, [key]: value };
-      if (key === "fitness") {
-        const allowed = UNITS_BY_FITNESS[value] || [];
-        if (!allowed.includes(next.unit)) next.unit = allowed[0] || "";
-        const fRules = targetFieldRules(value);
-        if (!fRules.sets) next.sets = "";
-        if (!fRules.reps) next.reps = "";
-        if (!fRules.distance) next.dist = "";
-        if (!fRules.load) next.load = "";
-      }
-      return next;
-    }));
-  }
-
-  async function submit(event) {
-    event.preventDefault();
-    const valid = rows.filter((r) => r.name.trim());
-    if (!valid.length) { setMessage("Enter at least one activity with a name."); return; }
-    setBusy(true); setMessage("");
-    const activities = valid.map((r) => ({
-      athleteId: athlete.id,
-      activityName: r.name.trim(),
-      fitnessType: r.fitness,
-      metricType: r.metric,
-      targetTimeSec: r.metric === "time" ? r.tsec || null : null,
-      targetQuantity: r.qty || null,
-      targetUnit: r.unit || null,
-      targetSets: r.sets || null,
-      targetReps: r.reps || null,
-      targetDistance: r.dist || null,
-      targetLoad: r.load || null,
-      instructions: r.instr || null,
-      dayIndex: r.day ? parseInt(r.day) : null,
-      weekNumber: r.week ? parseInt(r.week) : null,
-    }));
-    const csrf = await fetch("/api/csrf").then((r) => r.json());
-    try {
-      const response = await fetch("/api/plan-activities", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ planId, action: "bulk", activities }) });
-      const result = await response.json().catch(() => ({}));
-      if (response.ok && !result.error) { setRows([{ id: 0, name: "", fitness: "endurance", metric: "none", tsec: "", qty: "", unit: "", sets: "", reps: "", dist: "", load: "", instr: "", day: "", week: "" }]); onCreated(); return; }
-      setMessage(result.error || "Could not add the activities.");
-    } catch (e) { setMessage("Unable to reach the server."); }
-    setBusy(false);
-  }
-
-  return (
-    <div style={{ borderTop: "1px solid rgba(26,92,74,.5)", marginTop: 12, paddingTop: 12 }}>
-      <form onSubmit={submit} className={styles.formGrid}>
-        {rows.map((r) => {
-          const allowedUnits = UNITS_BY_FITNESS[r.fitness] || [];
-          const fRules = targetFieldRules(r.fitness);
-          return (
-            <div key={r.id} className={styles.fullField} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <strong style={{ fontSize: 13 }}>Activity {rows.indexOf(r) + 1}</strong>
-                {rows.length > 1 && <button type="button" className={`${styles.danger} ${styles.btnSm}`} onClick={() => removeRow(r.id)}>Remove</button>}
-              </div>
-              <label className={styles.fullField} style={{ marginBottom: 8 }}>Name *<input value={r.name} onChange={(e) => updateRow(r.id, "name", e.target.value)} maxLength="191" placeholder="e.g. Endurance run" /></label>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
-                <label style={{ flex: "1 1 150px" }}>Fitness type<select value={r.fitness} onChange={(e) => updateRow(r.id, "fitness", e.target.value)}>{Object.keys(FITNESS_META).map((k) => <option key={k} value={k}>{FITNESS_META[k]}</option>)}</select></label>
-                <label style={{ flex: "1 1 150px" }}>What to measure<select value={r.metric} onChange={(e) => updateRow(r.id, "metric", e.target.value)} title="How this activity is measured. Time = how fast.">{METRIC_TYPES.map((m) => <option key={m} value={m}>{METRIC_LABELS[m]}</option>)}</select></label>
-                {r.metric === "time" && <label style={{ flex: "0 1 120px" }}>Time target (sec)<input value={r.tsec} onChange={(e) => updateRow(r.id, "tsec", e.target.value)} type="number" min="0" step="any" placeholder="e.g. 60" /></label>}
-                {fRules.quantity && <label style={{ flex: "0 1 110px" }}>Quantity<input value={r.qty} onChange={(e) => updateRow(r.id, "qty", e.target.value)} type="number" min="0" step="any" placeholder="e.g. 1" /></label>}
-                {fRules.quantity && <label style={{ flex: "0 1 120px" }}>Unit<select value={r.unit} onChange={(e) => updateRow(r.id, "unit", e.target.value)}><option value="">— select —</option>{allowedUnits.map((u) => <option key={u} value={u}>{u}</option>)}</select></label>}
-                {fRules.sets && <label style={{ flex: "0 1 90px" }}>Sets<input value={r.sets} onChange={(e) => updateRow(r.id, "sets", e.target.value)} type="number" min="0" /></label>}
-                {fRules.reps && <label style={{ flex: "0 1 90px" }}>Reps<input value={r.reps} onChange={(e) => updateRow(r.id, "reps", e.target.value)} type="number" min="0" /></label>}
-                {fRules.distance && <label style={{ flex: "0 1 100px" }}>Dist (m)<input value={r.dist} onChange={(e) => updateRow(r.id, "dist", e.target.value)} type="number" min="0" step="any" /></label>}
-                {fRules.load && <label style={{ flex: "0 1 90px" }}>Load (kg)<input value={r.load} onChange={(e) => updateRow(r.id, "load", e.target.value)} type="number" min="0" step="any" /></label>}
-              </div>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
-                <label style={{ flex: "0 1 90px" }}>Day (1–7)<input value={r.day} onChange={(e) => updateRow(r.id, "day", e.target.value)} type="number" min="1" max="7" placeholder="Day" /></label>
-                <label style={{ flex: "0 1 90px" }}>Week<input value={r.week} onChange={(e) => updateRow(r.id, "week", e.target.value)} type="number" min="1" placeholder="Week" /></label>
-              </div>
-              <label className={styles.fullField}>Instructions<textarea value={r.instr} onChange={(e) => updateRow(r.id, "instr", e.target.value)} rows="1" maxLength="2000" placeholder="How to do it, safety notes, etc." /></label>
-            </div>
-          );
-        })}
-
-        <div className={styles.fullField}>
-          <button type="button" className={styles.secondary} onClick={addRow}>+ Add another activity</button>
-        </div>
-
-        <div className={styles.formActions}>
-          <button type="button" className={styles.secondary} onClick={onCreated} disabled={busy}>Cancel</button>
-          <button className={styles.primary} disabled={busy}>{busy ? "Adding..." : `Add ${rows.filter((r) => r.name.trim()).length || rows.length} activit${rows.length === 1 ? "y" : "ies"} for ${athlete.firstName}`}</button>
-        </div>
-        {message && <p role="status" className={`${styles.fullField} ${styles.formError}`}>{message}</p>}
-      </form>
-    </div>
-  );
-}
 
 
 function evidenceDayKey(iso) {
@@ -924,6 +384,50 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
   const [reviewColumn, setReviewColumn] = React.useState(null);
   const [showLightbox, setShowLightbox] = React.useState(null);
   const undoRef = React.useRef(null);
+  const manualRatingIds = React.useRef(new Set());
+  const seededDateRef = React.useRef(null);
+
+  React.useEffect(() => {
+    function buildDefaultCells(onlyAddMissing) {
+      const next = onlyAddMissing ? { ...cells } : {};
+      for (const athlete of athletes) {
+        for (const activity of visibleActivities(athlete.id)) {
+          const k = key(athlete.id, activity.id);
+          if (onlyAddMissing && next[k]) continue;
+          const hasSavedForDate = logs.some((l) => l.athleteId === athlete.id && l.activityId === activity.id && l.performedAt && l.performedAt.slice(0, 10) === date);
+          if (hasSavedForDate) continue;
+          const target = targetOf(activity);
+          const cell = { touched: true, status: "done", qty: "", sets: "", reps: "", time: "", dist: "", load: "", attempts: "", note: "" };
+          if (target) {
+            if (target.kind === "qty") cell.qty = target.n;
+            else if (target.kind === "sets") cell.sets = target.n;
+            else if (target.kind === "reps") cell.reps = target.n;
+          }
+          if (activity.metricType === "time" && activity.targetTimeSec != null) cell.time = activity.targetTimeSec;
+          next[k] = cell;
+        }
+      }
+      return next;
+    }
+    const reset = seededDateRef.current !== date;
+    seededDateRef.current = date;
+    setCells(buildDefaultCells(reset ? false : true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, weekFilter, dayFilter]);
+
+  React.useEffect(() => {
+    for (const athlete of athletes) {
+      if (manualRatingIds.current.has(athlete.id)) continue;
+      const suggestion = suggestRating(athlete.id);
+      if (suggestion == null) continue;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRatings((cur) => {
+        if (cur[athlete.id]?.rating === suggestion) return cur;
+        return { ...cur, [athlete.id]: { rating: null, comments: "", ...cur[athlete.id], rating: suggestion } };
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cells]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -1134,6 +638,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
   }
 
   function setRating(athleteId, patch) {
+    if (patch && patch.rating !== undefined) manualRatingIds.current.add(athleteId);
     setRatings((cur) => ({ ...cur, [athleteId]: { rating: null, comments: "", ...cur[athleteId], ...patch } }));
   }
 
@@ -1141,7 +646,11 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
     const statuses = (byAthlete[athleteId] || []).map((a) => cells[key(athleteId, a.id)] && cells[key(athleteId, a.id)].status).filter(Boolean);
     if (!statuses.length) return null;
     const avg = statuses.reduce((sum, s) => sum + (s === "done" ? 1 : s === "partial" ? 0.6 : 0.2), 0) / statuses.length;
-    return Math.max(1, Math.min(10, Math.round(avg * 10)));
+    return Math.max(1, Math.min(9, Math.round(avg * 10)));
+  }
+
+  function presetAll(preset) {
+    for (const athlete of athletes) applyPreset(athlete.id, preset);
   }
 
   function summary() {
@@ -1304,7 +813,14 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
         </div>
       )}
 
-      <p className={styles.formHint} style={{ marginTop: 0, marginBottom: 12 }}>Tap a cell&apos;s button to flip its status (D → P → M → open). Untouched cells are not part of the save. Type an amount and the status picks itself. Row buttons fill one athlete; the ✓ / ✗ buttons above each activity fill that activity for everyone. Activities without a set week are shown under Week 1.</p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 12 }}>
+        <span style={{ fontSize: 12, color: "var(--muted)" }}>Everything shown, everyone:</span>
+        <button type="button" className={styles.secondary} disabled={isCurrentViewLocked} onClick={() => presetAll("full")}>All done</button>
+        <button type="button" className={styles.secondary} disabled={isCurrentViewLocked} onClick={() => presetAll("light")}>Everyone half</button>
+        <button type="button" className={styles.secondary} disabled={isCurrentViewLocked} onClick={() => presetAll("rest")}>Rest day (missed)</button>
+      </div>
+
+      <p className={styles.formHint} style={{ marginTop: 0, marginBottom: 12 }}>Cells start marked done at their target for the selected date. Tap a cell&apos;s button to flip its status (D → P → M → open), type an amount and the status picks itself, or use the Everyone buttons to fill the whole view at once. Ratings auto-fill as cells are completed — adjust any athlete&apos;s rating to override. Activities without a set week are shown under Week 1.</p>
 
       {confirm && (
         <div style={{ border: "1px solid rgba(45,212,168,.5)", borderRadius: 10, padding: "12px 14px", background: "rgba(6,38,30,.5)", marginBottom: 12 }}>
@@ -1425,7 +941,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                             </select>
                           </label>
                           {suggestRating(athlete.id) != null && (
-                            <button className={styles.secondary} disabled={isCurrentViewLocked} style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => setRating(athlete.id, { rating: suggestRating(athlete.id) })}>Use suggestion ({suggestRating(athlete.id)}/10)</button>
+                            <button className={styles.secondary} disabled={isCurrentViewLocked} style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => setRating(athlete.id, { rating: suggestRating(athlete.id) })}>Use suggestion ({suggestRating(athlete.id)})</button>
                           )}
                           <input className={styles.fieldControl} disabled={isCurrentViewLocked} style={{ flex: "1 1 200px", minWidth: 160 }} value={ratings[athlete.id]?.comments || ""} onChange={(e) => setRating(athlete.id, { comments: e.target.value })} placeholder="Summary comment (optional)" />
                           <small style={{ color: "var(--muted)" }}>10 = exceeded · 7–8 = solid · 5–6 = partial · 1–4 = needs work</small>
@@ -1905,7 +1421,7 @@ function AthleteRosterRow({ plan, row, isAdmin }) {
           )}
         </td>
         <td style={{ textAlign: "right" }}>
-          <button className={styles.secondary} onClick={() => router.push(`/training-plans/${plan.id}/athletes/${row.id}`)}>View progress →</button>
+          <button className={styles.secondary} onClick={() => router.push(`/training-plans/${plan.id}/athletes/${row.id}`)}>See progress →</button>
         </td>
       </tr>
     </React.Fragment>
