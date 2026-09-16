@@ -333,8 +333,7 @@ export default function AppShell({
         
         // Training: inline smooth expand with plan shortcuts
         if (group.key === "training") {
-          if (!group.shortcuts || !shortcuts) return null;
-          const plans = shortcuts[group.shortcuts] || [];
+          const plans = shortcuts?.[group.shortcuts] || [];
           const q = (navSearch[group.key] || "").toLowerCase().trim();
           const filtered = q ? plans.filter((it) => it.label.toLowerCase().includes(q)) : plans;
           const isActive = currentPath === "/training-plans" || currentPath.startsWith("/training-plans/");
@@ -356,7 +355,7 @@ export default function AppShell({
                 )}
                 {filtered.length === 0 && plans.length > 0 ? (
                   <span className={styles.navShortcutEmpty}>No matches.</span>
-                ) : filtered.length === 0 ? (
+                ) : filtered.length === 0 && !shortcuts ? (
                   <span className={styles.navShortcutEmpty}>Loading...</span>
                 ) : (
                   filtered.map((it) => (
