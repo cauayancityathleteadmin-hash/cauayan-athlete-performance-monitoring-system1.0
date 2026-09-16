@@ -84,7 +84,7 @@ export default function ProgressRoster({ session, isAdmin }) {
                     <th>Partial</th>
                     <th>Missed</th>
                     <th>Completion</th>
-                    <th>Avg score</th>
+                    <th>Rating</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -98,7 +98,7 @@ export default function ProgressRoster({ session, isAdmin }) {
                       <td data-label="Partial" style={{ textAlign: "center" }}><span style={{ color: "#ffc107" }}>{r.partial}</span></td>
                       <td data-label="Missed" style={{ textAlign: "center" }}><span style={{ color: r.missed > 0 ? "#f87171" : "var(--muted)" }}>{r.missed}</span></td>
                       <td data-label="Completion" style={{ textAlign: "center" }}><strong style={{ color: percentColor(r.completionPercent) }}>{r.completionPercent}%</strong></td>
-                      <td data-label="Avg score" style={{ textAlign: "center" }}>{r.averageScore != null ? r.averageScore : "—"}</td>
+                      <td data-label="Rating" style={{ textAlign: "center" }}>{r.rating != null ? r.rating : "—"}</td>
                       <td><button className={styles.secondary} onClick={() => router.push(`/training-plans/${r.planId}/athletes/${r.athleteId}`)}>View</button></td>
                     </tr>
                   ))}

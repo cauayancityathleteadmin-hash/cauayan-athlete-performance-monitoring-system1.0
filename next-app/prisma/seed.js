@@ -1045,7 +1045,7 @@ async function seedTestData(ref) {
     if (existing) continue;
     await prisma.trainingAssessment.create({
       data: {
-        planId: plan.id, sessionId: null, athleteId: athlete.id,
+        planId: plan.id, athleteId: athlete.id,
         assessmentDate: new Date("2026-09-05"), rating, fitnessDimension: fitness,
         comments, assessedBy: coachUsers.coachTwo.id,
       },

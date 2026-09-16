@@ -317,7 +317,7 @@ function updateActivity(activityId, payload) {
                   <div><p className={styles.eyebrow}>Training plan &amp; assessment</p><h2>Assess an athlete</h2></div>
                   <button className={styles.secondary} onClick={() => setShowBulkAssess(false)}>Close assessment</button>
                 </div>
-                <p className={styles.formHint} style={{ marginTop: 0 }}>Score everyone on the plan in one pass: set status for each athlete&apos;s activity, then save once with an optional 1&ndash;10 rating per athlete. Untouched cells are skipped; existing records are preserved until you save.</p>
+                <p className={styles.formHint} style={{ marginTop: 0 }}>Rate everyone on the plan in one pass: set status for each athlete&apos;s activity, then save once with an optional 1&ndash;10 rating per athlete. Untouched cells are skipped; existing records are preserved until you save.</p>
                 <AssessStudio plan={lateOverride ? { ...plan, allowLateAssessment: true } : plan} planId={plan.id} athletes={athletes} activities={activities} logs={logs} onDone={refresh} />
               </section>
             )}
@@ -336,27 +336,13 @@ function updateActivity(activityId, payload) {
                 <span className={styles.formHint} style={{ alignSelf: "center" }}>{athletes.length} athlete{athletes.length === 1 ? "" : "s"}</span>
               </div>
               <p className={styles.formHint} style={{ marginTop: 0 }}>
-                {isAdmin ? "Each row is an athlete under this training. Open guidance to talk to them directly, or drill into their progress page." : "Each row is an athlete on your training. Open guidance to read who the administrator wants you to focus on, then view progress for full activity history."}
+                {isAdmin ? "Each row is an athlete under this training. Drill into their progress page for full history." : "Each row is an athlete on your training. Drill into their progress page for full activity history."}
               </p>
               {loading ? <p className={styles.empty}>Loading plan details...</p> : error ? <p className={styles.empty}>{error}</p> : athletes.length === 0 ? (
                 <p className={styles.empty}>No athletes on this plan.</p>
               ) : (
                 <AthleteRosterTable plan={plan} athletes={athletes} activities={activities} logs={logs} isAdmin={isAdmin} />
               )}
-            </section>
-
-            <section className={styles.panel}>
-              <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Admin guidance</p><h2>Guidance per athlete</h2></div></div>
-              <p className={styles.formHint} style={{ marginTop: 0 }}>
-                {isAdmin ? "Add targeted guidance for an athlete; the implementing coach can read it." : "Guidance written by the administrator for each athlete appears here."}
-              </p>
-              {athletes.length ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {athletes.map((athlete) => (
-                    <AthleteGuidanceRow key={athlete.id} planId={plan.id} athlete={athlete} isAdmin={isAdmin} />
-                  ))}
-                </div>
-              ) : <p className={styles.empty}>No athletes on this plan yet.</p>}
             </section>
           </>
         )}
@@ -366,7 +352,7 @@ function updateActivity(activityId, payload) {
             <div className={styles.panelHeader}>
               <div><p className={styles.eyebrow}>Plan activities</p><h2>Activities</h2></div>
             </div>
-            <p className={styles.formHint} style={{ marginTop: 0 }}>Each athlete&apos;s activities and latest status. Open the per-athlete view for full score history and notes.</p>
+            <p className={styles.formHint} style={{ marginTop: 0 }}>Each athlete&apos;s activities and latest status. Open the per-athlete view for full progress history and notes.</p>
 
             {loading ? <p className={styles.empty}>Loading plan details...</p> : error ? <p className={styles.empty}>{error}</p> : athletes.length === 0 ? (
               <p className={styles.empty}>No athletes on this plan.</p>
@@ -436,7 +422,6 @@ function logResultText(log) {
   if (log.quantityDone != null) parts.push(`${log.quantityDone}${log.activity?.targetUnit ? ` ${log.activity.targetUnit}` : ""}`);
   if (log.setsDone != null) parts.push(`${log.setsDone} sets`);
   if (log.repsDone != null) parts.push(`${log.repsDone} reps`);
-  if (log.score != null) parts.push(`score ${log.score}`);
   if (log.attempts != null) parts.push(`${log.attempts} attempts`);
   return parts.join(" · ");
 }
@@ -607,7 +592,7 @@ function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, o
                           <form onSubmit={submitEdit} className={styles.formGrid} style={{ marginTop: 0 }}>
                             <label className={styles.fullField}>Activity name *<input className={styles.fieldControl} value={draft.activityName} onChange={(e) => setField("activityName", e.target.value)} required maxLength="191" /></label>
                             <label>Fitness dimension<select className={styles.fieldControl} value={draft.fitnessType} onChange={(e) => setField("fitnessType", e.target.value)}>{Object.keys(FITNESS_META).map((k) => <option key={k} value={k}>{FITNESS_META[k]}</option>)}</select></label>
-                            <label>Score metric<select className={styles.fieldControl} value={draft.metricType} onChange={(e) => setField("metricType", e.target.value)} title="How this activity is measured. Time = how fast.">{METRIC_TYPES.map((m) => <option key={m} value={m}>{METRIC_LABELS[m]}</option>)}</select></label>
+                            <label>What to measure<select className={styles.fieldControl} value={draft.metricType} onChange={(e) => setField("metricType", e.target.value)} title="How this activity is measured. Time = how fast.">{METRIC_TYPES.map((m) => <option key={m} value={m}>{METRIC_LABELS[m]}</option>)}</select></label>
                             {draft.metricType === "time" && <label>Time target (seconds)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetTimeSec} onChange={(e) => setField("targetTimeSec", e.target.value)} placeholder="e.g. 60" /></label>}
                             {targetFieldRules(draft.fitnessType).quantity && <>
                               <label>Target quantity<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetQuantity} onChange={(e) => setField("targetQuantity", e.target.value)} placeholder="e.g. 20" /></label>
@@ -859,7 +844,7 @@ function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
               <label className={styles.fullField} style={{ marginBottom: 8 }}>Name *<input value={r.name} onChange={(e) => updateRow(r.id, "name", e.target.value)} maxLength="191" placeholder="e.g. Endurance run" /></label>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
                 <label style={{ flex: "1 1 150px" }}>Fitness type<select value={r.fitness} onChange={(e) => updateRow(r.id, "fitness", e.target.value)}>{Object.keys(FITNESS_META).map((k) => <option key={k} value={k}>{FITNESS_META[k]}</option>)}</select></label>
-                <label style={{ flex: "1 1 150px" }}>Score metric<select value={r.metric} onChange={(e) => updateRow(r.id, "metric", e.target.value)} title="How this activity is measured. Time = how fast.">{METRIC_TYPES.map((m) => <option key={m} value={m}>{METRIC_LABELS[m]}</option>)}</select></label>
+                <label style={{ flex: "1 1 150px" }}>What to measure<select value={r.metric} onChange={(e) => updateRow(r.id, "metric", e.target.value)} title="How this activity is measured. Time = how fast.">{METRIC_TYPES.map((m) => <option key={m} value={m}>{METRIC_LABELS[m]}</option>)}</select></label>
                 {r.metric === "time" && <label style={{ flex: "0 1 120px" }}>Time target (sec)<input value={r.tsec} onChange={(e) => updateRow(r.id, "tsec", e.target.value)} type="number" min="0" step="any" placeholder="e.g. 60" /></label>}
                 {fRules.quantity && <label style={{ flex: "0 1 110px" }}>Quantity<input value={r.qty} onChange={(e) => updateRow(r.id, "qty", e.target.value)} type="number" min="0" step="any" placeholder="e.g. 1" /></label>}
                 {fRules.quantity && <label style={{ flex: "0 1 120px" }}>Unit<select value={r.unit} onChange={(e) => updateRow(r.id, "unit", e.target.value)}><option value="">— select —</option>{allowedUnits.map((u) => <option key={u} value={u}>{u}</option>)}</select></label>}
@@ -1078,7 +1063,6 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
     if (field === "time") return l.timeSec != null ? Number(l.timeSec) : null;
     if (field === "dist") return l.distanceDone != null ? Number(l.distanceDone) : null;
     if (field === "load") return l.loadUsed != null ? Number(l.loadUsed) : null;
-    if (field === "score") return l.score != null ? Number(l.score) : null;
     if (field === "attempts") return l.attempts != null ? Number(l.attempts) : null;
     if (field === "note") return l.notes || null;
     return null;
@@ -1104,7 +1088,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
 
   function setCell(athleteId, activityId, patch) {
     const k = key(athleteId, activityId);
-    setCells((cur) => ({ ...cur, [k]: { touched: true, status: null, qty: "", sets: "", reps: "", time: "", dist: "", load: "", score: "", attempts: "", note: "", ...cur[k], ...patch } }));
+    setCells((cur) => ({ ...cur, [k]: { touched: true, status: null, qty: "", sets: "", reps: "", time: "", dist: "", load: "", attempts: "", note: "", ...cur[k], ...patch } }));
   }
 
   function cycleStatus(athleteId, activityId, activity) {
@@ -1156,8 +1140,8 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
   function suggestRating(athleteId) {
     const statuses = (byAthlete[athleteId] || []).map((a) => cells[key(athleteId, a.id)] && cells[key(athleteId, a.id)].status).filter(Boolean);
     if (!statuses.length) return null;
-    const score = statuses.reduce((sum, s) => sum + (s === "done" ? 1 : s === "partial" ? 0.6 : 0.2), 0) / statuses.length;
-    return Math.max(1, Math.min(10, Math.round(score * 10)));
+    const avg = statuses.reduce((sum, s) => sum + (s === "done" ? 1 : s === "partial" ? 0.6 : 0.2), 0) / statuses.length;
+    return Math.max(1, Math.min(10, Math.round(avg * 10)));
   }
 
   function summary() {
@@ -1173,7 +1157,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
     const rows = Object.keys(cells).map((k) => {
       const [aid, actId] = k.split(":");
       const c = cells[k];
-      return { athleteId: Number(aid), activityId: Number(actId), status: c.status, quantityDone: c.qty !== "" ? c.qty : null, setsDone: c.sets !== "" ? c.sets : null, repsDone: c.reps !== "" ? c.reps : null, timeSec: c.time !== "" ? c.time : null, distanceDone: c.dist !== "" ? c.dist : null, loadUsed: c.load !== "" ? c.load : null, score: c.score !== "" ? c.score : null, attempts: c.attempts !== "" ? c.attempts : null, notes: c.note || null };
+      return { athleteId: Number(aid), activityId: Number(actId), status: c.status, quantityDone: c.qty !== "" ? c.qty : null, setsDone: c.sets !== "" ? c.sets : null, repsDone: c.reps !== "" ? c.reps : null, timeSec: c.time !== "" ? c.time : null, distanceDone: c.dist !== "" ? c.dist : null, loadUsed: c.load !== "" ? c.load : null, attempts: c.attempts !== "" ? c.attempts : null, notes: c.note || null };
     });
     const assessments = Object.keys(ratings).filter((aid) => ratings[aid].rating).map((aid) => ({ athleteId: Number(aid), rating: ratings[aid].rating, comments: ratings[aid].comments || null }));
     return { rows, assessments };
@@ -1191,14 +1175,14 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
     undoRef.current = { date, rows: {}, hasRatings: payload.assessments.length > 0 };
     for (const k of Object.keys(cells)) {
       const prevLog = latestByKey[k];
-      undoRef.current.rows[k] = prevLog ? { status: prevLog.status, qty: prevLog.quantityDone != null ? Number(prevLog.quantityDone) : null, sets: prevLog.setsDone != null ? Number(prevLog.setsDone) : null, reps: prevLog.repsDone != null ? Number(prevLog.repsDone) : null, time: prevLog.timeSec != null ? Number(prevLog.timeSec) : null, dist: prevLog.distanceDone != null ? Number(prevLog.distanceDone) : null, load: prevLog.loadUsed != null ? Number(prevLog.loadUsed) : null, score: prevLog.score != null ? Number(prevLog.score) : null, attempts: prevLog.attempts != null ? Number(prevLog.attempts) : null, note: prevLog.notes || null } : null;
+      undoRef.current.rows[k] = prevLog ? { status: prevLog.status, qty: prevLog.quantityDone != null ? Number(prevLog.quantityDone) : null, sets: prevLog.setsDone != null ? Number(prevLog.setsDone) : null, reps: prevLog.repsDone != null ? Number(prevLog.repsDone) : null, time: prevLog.timeSec != null ? Number(prevLog.timeSec) : null, dist: prevLog.distanceDone != null ? Number(prevLog.distanceDone) : null, load: prevLog.loadUsed != null ? Number(prevLog.loadUsed) : null, attempts: prevLog.attempts != null ? Number(prevLog.attempts) : null, note: prevLog.notes || null } : null;
     }
     const csrf = await fetch("/api/csrf").then((r) => r.json());
     try {
       const response = await fetch("/api/plan-activity-logs/batch-assess", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ planId, performedAt: date, rows: payload.rows, assessments: payload.assessments }) });
       const result = await response.json().catch(() => ({}));
       if (response.ok && result.success) {
-        setToast({ kind: "success", text: `Saved ${result.logged} activit${result.logged === 1 ? "y" : "ies"}${result.ratings ? ` and ${result.ratings} rating${result.ratings === 1 ? "" : "s"}` : ""} across ${result.athletes} athlete${result.athletes === 1 ? "" : "s"}`, undo: true });
+        setToast({ kind: "success", text: `Saved ${result.logged} activit${result.logged === 1 ? "y" : "ies"}${result.rated ? ` and ${result.rated} rating${result.rated === 1 ? "" : "s"}` : ""} across ${result.athletes} athlete${result.athletes === 1 ? "" : "s"}`, undo: true });
         onDone();
       } else { setToast({ kind: "error", text: result.error || "Could not save the assessment." }); }
     } catch (e) { setToast({ kind: "error", text: "Unable to reach the server." }); }
@@ -1212,7 +1196,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
       .map((k) => {
         const [aid, actId] = k.split(":");
         const prev = snap.rows[k];
-        return prev ? { athleteId: Number(aid), activityId: Number(actId), status: prev.status, quantityDone: prev.qty != null ? prev.qty : null, setsDone: prev.sets != null ? prev.sets : null, repsDone: prev.reps != null ? prev.reps : null, timeSec: prev.time != null ? prev.time : null, distanceDone: prev.dist != null ? prev.dist : null, loadUsed: prev.load != null ? prev.load : null, score: prev.score != null ? prev.score : null, attempts: prev.attempts != null ? prev.attempts : null, notes: prev.note || null } : { athleteId: Number(aid), activityId: Number(actId), status: null };
+        return prev ? { athleteId: Number(aid), activityId: Number(actId), status: prev.status, quantityDone: prev.qty != null ? prev.qty : null, setsDone: prev.sets != null ? prev.sets : null, repsDone: prev.reps != null ? prev.reps : null, timeSec: prev.time != null ? prev.time : null, distanceDone: prev.dist != null ? prev.dist : null, loadUsed: prev.load != null ? prev.load : null, attempts: prev.attempts != null ? prev.attempts : null, notes: prev.note || null } : { athleteId: Number(aid), activityId: Number(actId), status: null };
       })
       .filter((r) => r);
     setCells((cur) => {
@@ -1220,7 +1204,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
       for (const k of Object.keys(snap.rows)) {
         const prev = snap.rows[k];
         if (!prev) { delete n[k]; continue; }
-        n[k] = { touched: true, status: prev.status, qty: prev.qty != null ? prev.qty : "", sets: prev.sets != null ? prev.sets : "", reps: prev.reps != null ? prev.reps : "", time: prev.time != null ? prev.time : "", dist: prev.dist != null ? prev.dist : "", load: prev.load != null ? prev.load : "", score: prev.score != null ? prev.score : "", attempts: prev.attempts != null ? prev.attempts : "", note: prev.note || "" };
+        n[k] = { touched: true, status: prev.status, qty: prev.qty != null ? prev.qty : "", sets: prev.sets != null ? prev.sets : "", reps: prev.reps != null ? prev.reps : "", time: prev.time != null ? prev.time : "", dist: prev.dist != null ? prev.dist : "", load: prev.load != null ? prev.load : "", attempts: prev.attempts != null ? prev.attempts : "", note: prev.note || "" };
       }
       return n;
     });
@@ -1415,14 +1399,12 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                         if (resultField === "qty") onQty(athlete.id, activityId, activity, value);
                         else setCell(athlete.id, activityId, { [resultField]: value });
                       };
-                      const effScore = effective(athlete.id, activityId, "score");
                       const effAttempts = effective(athlete.id, activityId, "attempts");
                       return (
                         <td key={column.gkey}>
                           <span className="mkCell">
                             <button className={`dotBtn ${status === "done" ? "on" : status === "partial" ? "part" : status === "missed" ? "miss" : ""} ${touched ? "touchedD" : ""}`} disabled={isCurrentViewLocked} title={status ? `Status: ${status === "done" ? "Done" : status === "partial" ? "Partial" : "Missed"}. Tap to change.` : "Open. Tap to mark Done."} onClick={() => cycleStatus(athlete.id, activityId, activity)}>{status === "done" ? "D" : status === "partial" ? "P" : status === "missed" ? "M" : "–"}</button>
                             <input className="qtyIn" disabled={isCurrentViewLocked} type="number" min="0" step="any" placeholder={resultPlaceholder} value={result != null ? result : ""} onChange={(e) => onResult(e.target.value)} title={metricType === "none" ? "Amount done" : `${METRIC_LABELS[metricType] || metricType} result`} />
-                            <input className="qtyIn" disabled={isCurrentViewLocked} type="number" min="0" max="10" step="0.1" placeholder="0-10" value={effScore != null ? effScore : ""} onChange={(e) => setCell(athlete.id, activityId, { score: e.target.value })} style={{ width: 54 }} title="Score 0–10. Leave blank to auto-calculate from result vs target." />
                             <input className="qtyIn" disabled={isCurrentViewLocked} type="number" min="0" step="1" placeholder="#" value={effAttempts != null ? effAttempts : ""} onChange={(e) => setCell(athlete.id, activityId, { attempts: e.target.value })} style={{ width: 46 }} title="Attempts taken" />
                             {evFor(athlete.id) && <button type="button" className="evCellDot" title="View today's evidence photo" onClick={() => setShowLightbox(evFor(athlete.id))}>📷</button>}
                             {touched && <button className="miniBtn" disabled={isCurrentViewLocked} title="Clear this cell (not part of the save)" onClick={() => clearCell(athlete.id, activityId)}>✕</button>}
@@ -1436,9 +1418,9 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                       <td className="fix"><strong style={{ fontSize: 11 }}>Rating &amp; comment</strong></td>
                       <td colSpan={columns.length} style={{ padding: 0 }}>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, padding: "10px 12px", alignItems: "center" }}>
-                          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>Score
+                          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>Rating
                             <select className={styles.fieldControl} disabled={isCurrentViewLocked} value={ratings[athlete.id]?.rating || ""} onChange={(e) => setRating(athlete.id, { rating: e.target.value ? Number(e.target.value) : null })}>
-                              <option value="">No score</option>
+                              <option value="">No rating</option>
                               {[1,2,3,4,5,6,7,8,9,10].map((n) => <option key={n} value={n}>{n}/10</option>)}
                             </select>
                           </label>
@@ -1854,92 +1836,6 @@ function totalActivitiesLabel(activities) {
   return `${activities.length} planned activit${activities.length === 1 ? "y" : "ies"}`;
 }
 
-function commentAuthorName(author) {
-  if (!author) return "Admin";
-  if (author.coach?.firstName || author.coach?.lastName) return `${author.coach.firstName} ${author.coach.lastName}`.trim();
-  return author.username || author.email || "Admin";
-}
-
-function AthleteGuidanceRow({ planId, athlete, isAdmin }) {
-  const [open, setOpen] = React.useState(false);
-  const [comments, setComments] = React.useState(null);
-  const [draft, setDraft] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
-  const [msg, setMsg] = React.useState("");
-
-  async function load() {
-    const res = await fetch(`/api/training-plans/${planId}/athlete/${athlete.id}/comments`).then((r) => r.json()).catch(() => ({}));
-    setComments(Array.isArray(res.comments) ? res.comments : []);
-  }
-
-  function toggle() {
-    setOpen((o) => {
-      const next = !o;
-      if (next && comments === null) load();
-      return next;
-    });
-  }
-
-  async function post(e) {
-    e.preventDefault();
-    if (!draft.trim()) return;
-    setBusy(true);
-    setMsg("");
-    const csrf = await fetch("/api/csrf").then((r) => r.json());
-    const res = await fetch(`/api/training-plans/${planId}/athlete/${athlete.id}/comments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
-      body: JSON.stringify({ body: draft.trim() }),
-    }).then((r) => r.json()).catch(() => ({}));
-    setBusy(false);
-    if (res.comment) {
-      setDraft("");
-      setComments((c) => [...(c || []), res.comment]);
-    } else {
-      setMsg(res.error || "Could not post guidance.");
-    }
-  }
-
-  return (
-    <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "12px 14px", background: "rgba(6,38,30,.35)" }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <strong>{athlete.lastName}, {athlete.firstName}</strong>
-          {athlete.athleteCode ? <small style={{ color: "var(--muted)", display: "block" }}>{athlete.athleteCode}</small> : null}
-        </div>
-        <button type="button" className={styles.secondary} onClick={toggle}>{open ? "Close" : comments === null ? "View guidance" : `Guidance (${comments.length})`}</button>
-      </div>
-      {open && (
-        <div style={{ borderTop: "1px solid rgba(26,92,74,.5)", marginTop: 12, paddingTop: 12 }}>
-          {comments === null ? <p className={styles.empty}>Loading guidance...</p> : comments.length === 0 ? <p className={styles.empty}>No guidance yet for {athlete.firstName}.</p> : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
-              {comments.map((c) => (
-                <div key={c.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "rgba(6,38,30,.4)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                    <strong style={{ fontSize: 13 }}>{commentAuthorName(c.author)}</strong>
-                    <small style={{ color: "var(--muted)" }}>{fmtDate(c.createdAt)}</small>
-                  </div>
-                  <p style={{ margin: 0 }}>{c.body}</p>
-                </div>
-              ))}
-            </div>
-          )}
-          {isAdmin && (
-            <form onSubmit={post} className={styles.formStack} style={{ margin: 0 }}>
-              <label>Add guidance for {athlete.firstName}</label>
-              <textarea className={styles.fieldControl} rows="2" maxLength="2000" placeholder="e.g. Focus on form before adding load; watch the knee." value={draft} onChange={(e) => setDraft(e.target.value)} />
-              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <button className={styles.primary} disabled={busy || !draft.trim()}>{busy ? "Posting..." : "Post guidance"}</button>
-                {msg && <small style={{ color: "var(--danger)" }}>{msg}</small>}
-              </div>
-            </form>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 const HEALTH_BADGE = {
   healthy: { cls: "badgeActive", label: "Healthy" },
   sick: { cls: "badgePending", label: "Sick" },
@@ -1975,7 +1871,6 @@ function AthleteRosterTable({ plan, athletes, activities, logs, isAdmin }) {
             <th>Sport</th>
             <th>Health</th>
             <th>Completion</th>
-            <th>Guidance</th>
             <th style={{ textAlign: "right" }}></th>
           </tr>
         </thead>
@@ -1991,7 +1886,6 @@ function AthleteRosterTable({ plan, athletes, activities, logs, isAdmin }) {
 
 function AthleteRosterRow({ plan, row, isAdmin }) {
   const router = useRouter();
-  const [showGuidance, setShowGuidance] = React.useState(false);
   const health = HEALTH_BADGE[row.healthStatus] || HEALTH_BADGE.healthy;
   return (
     <React.Fragment>
@@ -2010,20 +1904,10 @@ function AthleteRosterRow({ plan, row, isAdmin }) {
             </div>
           )}
         </td>
-        <td data-label="Guidance">
-          <button type="button" className={styles.secondary} style={{ padding: "5px 10px", fontSize: 12 }} onClick={() => setShowGuidance((v) => !v)}>{showGuidance ? "Close guidance" : "Guidance"}</button>
-        </td>
         <td style={{ textAlign: "right" }}>
           <button className={styles.secondary} onClick={() => router.push(`/training-plans/${plan.id}/athletes/${row.id}`)}>View progress →</button>
         </td>
       </tr>
-      {showGuidance && (
-        <tr>
-          <td colSpan="6" style={{ padding: "14px 14px 20px", background: "transparent" }}>
-            <AthleteGuidanceRow planId={plan.id} athlete={row} isAdmin={isAdmin} />
-          </td>
-        </tr>
-      )}
     </React.Fragment>
   );
 }

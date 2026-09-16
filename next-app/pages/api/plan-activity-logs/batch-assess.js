@@ -3,22 +3,8 @@ import { requireCsrf, requireSession, text, validId, setSecurityHeaders } from "
 import { rateLimiters } from "../../../lib/rate-limit";
 import { notifyAthlete } from "../../../lib/notify";
 import { resolveWeekGate } from "../../../lib/plan-weeks";
-import { computeAutoScore, resultValueOf } from "../../../lib/activity-score";
 
 const STATUSES = ["done", "partial", "missed"];
-const DIM_SCORE = { done: 3, partial: 2, missed: 1 };
-
-function deriveFitness(rows, fitnessByActivity) {
-  const scores = new Map();
-  for (const r of rows) {
-    const f = fitnessByActivity.get(r.activityId);
-    if (!f) continue;
-    scores.set(f, (scores.get(f) || 0) + (DIM_SCORE[r.status] || 0));
-  }
-  let best = null, bestScore = -1;
-  for (const [f, s] of scores) if (s > bestScore) { best = f; bestScore = s; }
-  return best;
-}
 
 function toDecimal(v) {
   if (v === "" || v == null) return null;
@@ -29,24 +15,6 @@ function toInt(v) {
   if (v === "" || v == null) return null;
   const n = Number(v);
   return Number.isSafeInteger(n) && n >= 0 ? n : null;
-}
-function toScore(v) {
-  if (v === "" || v == null) return null;
-  const n = Number(v);
-  return Number.isFinite(n) && n >= 0 && n <= 10 ? Math.round(n * 10) / 10 : null;
-}
-
-function targetOf(act) {
-  if (!act) return null;
-  switch (act.metricType) {
-    case "time": return act.targetTimeSec == null ? null : Number(act.targetTimeSec);
-    case "distance": return act.targetDistance == null ? null : Number(act.targetDistance);
-    case "load": return act.targetLoad == null ? null : Number(act.targetLoad);
-    case "reps": return act.targetReps == null ? null : Number(act.targetReps);
-    case "sets": return act.targetSets == null ? null : Number(act.targetSets);
-    case "quantity": return act.targetQuantity == null ? null : Number(act.targetQuantity);
-    default: return null;
-  }
 }
 
 async function canAccessPlan(prismaClient, session, planId) {
@@ -71,7 +39,7 @@ export default async function handler(req, res) {
   if (!rate.allowed) return res.status(429).json({ error: "Too many requests. Please try again later." });
 
   const body = req.body || {};
-  const planId = validId(body.planId);
+  const planId = validId(body.planId) || validId(req.query.planId);
   if (!planId) return res.status(400).json({ error: "A valid planId is required." });
 
   const access = await canAccessPlan(prisma, session, planId);
@@ -89,18 +57,7 @@ export default async function handler(req, res) {
 
   const planActivities = await prisma.planActivity.findMany({
     where: { planId },
-    select: {
-      id: true,
-      athleteId: true,
-      fitnessType: true,
-      metricType: true,
-      targetTimeSec: true,
-      targetQuantity: true,
-      targetDistance: true,
-      targetLoad: true,
-      targetSets: true,
-      targetReps: true,
-    },
+    select: { id: true, athleteId: true },
   });
   const actById = new Map(planActivities.map((a) => [a.id, a]));
 
@@ -112,10 +69,12 @@ export default async function handler(req, res) {
     const athleteId = validId(row.athleteId);
     const act = activityId ? actById.get(activityId) : null;
     if (!act || act.athleteId !== athleteId) continue;
-    const raw = {
+    const status = STATUSES.includes(row.status) ? row.status : null;
+    if (!status) continue;
+    validRows.push({
       athleteId,
       activityId,
-      status: STATUSES.includes(row.status) ? row.status : null,
+      status,
       quantityDone: toDecimal(row.quantityDone),
       setsDone: toInt(row.setsDone),
       repsDone: toInt(row.repsDone),
@@ -123,11 +82,8 @@ export default async function handler(req, res) {
       distanceDone: toDecimal(row.distanceDone),
       loadUsed: toDecimal(row.loadUsed),
       attempts: toInt(row.attempts),
-      score: toScore(row.score),
       notes: text(row.notes, 2000) || null,
-    };
-    raw.score = raw.score != null ? raw.score : computeAutoScore(act.metricType, resultValueOf(raw, act.metricType), targetOf(act));
-    validRows.push(raw);
+    });
     athleteIds.add(athleteId);
   }
 
@@ -149,18 +105,15 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Nothing to save — mark at least one activity or leave a rating." });
   }
 
-  const fitnessByActivity = new Map(planActivities.map((p) => [p.id, p.fitnessType]));
-  const createdRows = validRows.filter((r) => r.status);
+  const activityIds = validRows.map((r) => r.activityId);
 
   await prisma.$transaction(async (tx) => {
     if (validRows.length) {
       await tx.planActivityLog.deleteMany({
-        where: { athleteId: { in: [...athleteIds] }, activityId: { in: validRows.map((r) => r.activityId) } },
+        where: { athleteId: { in: [...athleteIds] }, activityId: { in: activityIds } },
       });
-    }
-    if (createdRows.length) {
       await tx.planActivityLog.createMany({
-        data: createdRows.map((r) => ({
+        data: validRows.map((r) => ({
           activityId: r.activityId,
           athleteId: r.athleteId,
           performedAt,
@@ -171,7 +124,6 @@ export default async function handler(req, res) {
           timeSec: r.timeSec,
           distanceDone: r.distanceDone,
           loadUsed: r.loadUsed,
-          score: r.score,
           attempts: r.attempts,
           notes: r.notes,
           loggedBy: Number(session.user.id),
@@ -179,17 +131,10 @@ export default async function handler(req, res) {
       });
     }
     for (const a of validAssessments) {
-      const athleteRows = validRows.filter((r) => r.athleteId === a.athleteId);
-      await tx.trainingAssessment.create({
-        data: {
-          planId,
-          athleteId: a.athleteId,
-          assessmentDate: performedAt,
-          rating: a.rating,
-          fitnessDimension: deriveFitness(athleteRows, fitnessByActivity),
-          comments: a.comments,
-          assessedBy: Number(session.user.id),
-        },
+      await tx.trainingAssessment.upsert({
+        where: { planId_athleteId: { planId, athleteId: a.athleteId } },
+        create: { planId, athleteId: a.athleteId, assessmentDate: performedAt, rating: a.rating, comments: a.comments, assessedBy: Number(session.user.id) },
+        update: { rating: a.rating, comments: a.comments, assessmentDate: performedAt },
       });
     }
   });
@@ -200,22 +145,22 @@ export default async function handler(req, res) {
       action: "batch_assess",
       entityType: "planActivityLog",
       entityId: null,
-      description: `Batch-assessed ${createdRows.length} activity/activities across ${athleteIds.size} athlete(s) on plan #${planId}${validAssessments.length ? ` with ${validAssessments.length} rating(s)` : ""}.`,
+      description: `Saved ${validRows.length} activity log(s) across ${athleteIds.size} athlete(s)${validAssessments.length ? ` and ${validAssessments.length} assessment rating(s)` : ""} on plan #${planId}.`,
     },
   });
 
   const athleteIdsArr = [...athleteIds];
   const athletes = await prisma.athlete.findMany({ where: { id: { in: athleteIdsArr } }, select: { id: true, firstName: true, lastName: true, email: true, contactNumber: true } });
   for (const athlete of athletes) {
-    const count = createdRows.filter((r) => r.athleteId === athlete.id).length;
+    const count = validRows.filter((r) => r.athleteId === athlete.id).length;
     const rated = validAssessments.find((a) => a.athleteId === athlete.id);
     const name = athlete ? `${athlete.firstName} ${athlete.lastName}` : "";
     await notifyAthlete({
       athlete,
       subject: "Your training assessment is ready",
-      message: `Hello ${name}, your coach assessed ${count} activity/activities on training plan #${planId}.${rated ? ` Overall rating: ${rated.rating}/10.` : ""} Ask your coach for the full details.`,
+      message: `Hello ${name}, your coach updated ${count ? `${count} activity/activities` : "your assessment"} on training plan #${planId}.${rated ? ` Overall rating: ${rated.rating}/10.` : ""} Ask your coach for the full details.`,
     });
   }
 
-  return res.status(201).json({ success: true, logged: createdRows.length, athletes: athleteIdsArr.length, ratings: validAssessments.length });
+  return res.status(201).json({ success: true, logged: validRows.length, athletes: athleteIdsArr.length, rated: validAssessments.length });
 }

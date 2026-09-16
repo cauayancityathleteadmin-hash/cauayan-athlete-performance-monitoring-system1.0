@@ -68,16 +68,29 @@ export default async function handler(req, res) {
       ? await prisma.planActivityLog.findMany({
           where: { activityId: { in: allActivityIds } },
           orderBy: [{ activityId: "asc" }, { performedAt: "desc" }],
-          select: { activityId: true, status: true, score: true },
+          select: { activityId: true, status: true },
         })
       : [];
     const latestLogMap = new Map();
     for (const l of latestLogs) if (!latestLogMap.has(l.activityId)) latestLogMap.set(l.activityId, l);
 
+    const assessments = athleteIds.length
+      ? await prisma.trainingAssessment.findMany({
+          where: { planId: { in: planIds }, athleteId: { in: athleteIds } },
+          orderBy: { assessmentDate: "desc" },
+          select: { planId: true, athleteId: true, rating: true },
+        })
+      : [];
+    const latestAssessmentMap = new Map();
+    for (const t of assessments) {
+      const k = `${t.athleteId}:${t.planId}`;
+      if (!latestAssessmentMap.has(k)) latestAssessmentMap.set(k, t.rating);
+    }
+
     const athletePlanMap = new Map();
     for (const pa of planAthletes) {
       const k = `${pa.athleteId}:${pa.planId}`;
-      if (!athletePlanMap.has(k)) athletePlanMap.set(k, { athleteId: pa.athleteId, planId: pa.planId, total: 0, done: 0, partial: 0, missed: 0, scoreSum: 0, scored: 0 });
+      if (!athletePlanMap.has(k)) athletePlanMap.set(k, { athleteId: pa.athleteId, planId: pa.planId, total: 0, done: 0, partial: 0, missed: 0 });
     }
     for (const act of allActivities) {
       const entry = athletePlanMap.get(`${act.athleteId}:${act.planId}`);
@@ -87,7 +100,6 @@ export default async function handler(req, res) {
       if (log?.status === "done") entry.done++;
       else if (log?.status === "partial") entry.partial++;
       else if (log?.status === "missed") entry.missed++;
-      if (log?.score != null) { entry.scoreSum += Number(log.score); entry.scored++; }
     }
     const roster = [];
     for (const [key, entry] of athletePlanMap) {
@@ -105,7 +117,7 @@ export default async function handler(req, res) {
         partial: entry.partial,
         missed: entry.missed,
         completionPercent: entry.total > 0 ? Math.round(((entry.done + entry.partial) / entry.total) * 100) : 0,
-        averageScore: entry.scored > 0 ? Math.round((entry.scoreSum / entry.scored) * 10) / 10 : null,
+        rating: latestAssessmentMap.get(`${entry.athleteId}:${entry.planId}`) ?? null,
       });
     }
     roster.sort((a, b) => a.athlete.localeCompare(b.athlete) || a.planName.localeCompare(b.planName));
@@ -148,7 +160,7 @@ export default async function handler(req, res) {
         orderBy: [{ activityId: "asc" }, { performedAt: "desc" }],
         select: {
           id: true, activityId: true, athleteId: true, performedAt: true, status: true,
-          quantityDone: true, setsDone: true, repsDone: true, timeSec: true, distanceDone: true, loadUsed: true, score: true, attempts: true, notes: true,
+          quantityDone: true, setsDone: true, repsDone: true, timeSec: true, distanceDone: true, loadUsed: true, attempts: true, notes: true,
         },
       })
     : [];
@@ -159,7 +171,6 @@ export default async function handler(req, res) {
   }
 
   let completed = 0, partial = 0, missed = 0, total = activities.length;
-  let scoreSum = 0, scoredCount = 0;
 
   const enriched = activities.map((a) => {
     const log = latestMap.get(a.id) || null;
@@ -167,7 +178,6 @@ export default async function handler(req, res) {
     if (log?.status === "done") completed++;
     else if (log?.status === "partial") partial++;
     else if (log?.status === "missed") missed++;
-    if (log?.score != null) { scoreSum += Number(log.score); scoredCount++; }
     return { ...a, latestLog: log, completion };
   });
 
@@ -175,10 +185,14 @@ export default async function handler(req, res) {
     ? await prisma.athlete.findUnique({ where: { id: athleteId }, select: { id: true, firstName: true, lastName: true, athleteCode: true } })
     : null;
 
+  const latestAssessment = athleteId
+    ? await prisma.trainingAssessment.findFirst({ where: { planId, athleteId }, orderBy: { assessmentDate: "desc" }, select: { rating: true, assessmentDate: true } })
+    : null;
+
   return res.status(200).json(JSON.parse(JSON.stringify({
     plan: { id: plan.id, planName: plan.planName, startDate: plan.startDate.toISOString(), durationDays: plan.durationDays, durationWeeks: plan.durationWeeks },
     athlete,
     activities: enriched,
-    summary: { total, completed, partial, missed, completionPercent: total > 0 ? Math.round(((completed + partial) / total) * 100) : 0, averageScore: scoredCount > 0 ? Math.round((scoreSum / scoredCount) * 10) / 10 : null },
+    summary: { total, completed, partial, missed, completionPercent: total > 0 ? Math.round(((completed + partial) / total) * 100) : 0, rating: latestAssessment?.rating ?? null, ratingDate: latestAssessment?.assessmentDate ? latestAssessment.assessmentDate.toISOString() : null },
   })));
 }

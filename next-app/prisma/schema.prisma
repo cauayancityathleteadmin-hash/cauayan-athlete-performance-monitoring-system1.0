@@ -168,7 +168,6 @@ model User {
   trainingAssessments      TrainingAssessment[]   @relation("TrainingAssessor")
   planActivityLogs         PlanActivityLog[]      @relation("ActivityLogger")
   planEvidence             PlanEvidence[]         @relation("PlanEvidenceUploader")
-  athletePlanComments      AthletePlanComment[]   @relation("AthletePlanCommentAuthor")
   activityCommentsAuthored ActivityPlanComment[]  @relation("ActivityPlanCommentAuthor")
   transferRequests         AthleteTransfer[]      @relation("TransferRequester")
   transferDecisions        AthleteTransfer[]      @relation("TransferDecider")
@@ -343,7 +342,6 @@ model Athlete {
   planActivities       PlanActivity[]         @relation("ActivityAthlete")
   planActivityLogs     PlanActivityLog[]
   planEvidence         PlanEvidence[]
-  planComments         AthletePlanComment[]
   activityComments     ActivityPlanComment[]  @relation("ActivityPlanCommentAthlete")
   transfers            AthleteTransfer[]
 
@@ -608,7 +606,6 @@ model TrainingSession {
   plan        TrainingPlan?        @relation(fields: [planId], references: [id], onDelete: SetNull)
   exercises   TrainingExercise[]
   attendances TrainingAttendance[]
-  assessments TrainingAssessment[]
 
   @@index([coachId, sessionDate])
   @@index([sportId, sessionDate])
@@ -704,7 +701,6 @@ model TrainingPlan {
   assessments         TrainingAssessment[]
   sessions            TrainingSession[]
   activities          PlanActivity[]
-  athleteComments     AthletePlanComment[]
   activityComments    ActivityPlanComment[]
   evidence            PlanEvidence[]
 
@@ -767,7 +763,6 @@ model PlanActivityLog {
   timeSec      Decimal?       @map("time_sec")
   distanceDone Decimal?       @map("distance_done")
   loadUsed     Decimal?       @map("load_used")
-  score        Decimal?       @map("score")
   attempts     Int?           @map("attempts")
   notes        String?
   loggedBy     Int            @map("logged_by")
@@ -816,38 +811,22 @@ model ActivityPlanComment {
   @@map("activity_plan_comments")
 }
 
-model AthletePlanComment {
-  id        Int          @id @default(autoincrement())
-  planId    Int          @map("plan_id")
-  athleteId Int          @map("athlete_id")
-  authorId  Int          @map("author_id")
-  body      String       @map("body")
-  createdAt DateTime     @default(now()) @map("created_at")
-  plan      TrainingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
-  athlete   Athlete      @relation(fields: [athleteId], references: [id], onDelete: Cascade)
-  author    User         @relation("AthletePlanCommentAuthor", fields: [authorId], references: [id])
-
-  @@index([planId, athleteId])
-  @@map("athlete_plan_comments")
-}
-
 model TrainingAssessment {
   id               Int               @id @default(autoincrement())
-  planId           Int?              @map("plan_id")
-  sessionId        Int?              @map("session_id")
+  planId           Int               @map("plan_id")
   athleteId        Int               @map("athlete_id")
   assessmentDate   DateTime          @default(now()) @map("assessment_date")
   rating           Int               @map("rating")
   fitnessDimension FitnessDimension? @map("fitness_dimension")
   comments         String?
   assessedBy       Int               @map("assessed_by")
-  plan             TrainingPlan?     @relation(fields: [planId], references: [id], onDelete: Cascade)
-  session          TrainingSession?  @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  plan             TrainingPlan      @relation(fields: [planId], references: [id], onDelete: Cascade)
   athlete          Athlete           @relation(fields: [athleteId], references: [id], onDelete: Cascade)
   assessor         User              @relation("TrainingAssessor", fields: [assessedBy], references: [id])
 
   @@index([athleteId, assessmentDate])
   @@index([planId])
+  @@unique([planId, athleteId])
   @@map("training_assessments")
 }
 

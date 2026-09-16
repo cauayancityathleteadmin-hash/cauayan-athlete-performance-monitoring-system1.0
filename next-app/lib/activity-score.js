@@ -44,34 +44,3 @@ export function targetValueFor(activity) {
     default: return null;
   }
 }
-
-export function resultValueOf(log, metricType) {
-  if (!log) return null;
-  switch (metricType) {
-    case "time": return log.timeSec == null ? null : Number(log.timeSec);
-    case "distance": return log.distanceDone == null ? null : Number(log.distanceDone);
-    case "load": return log.loadUsed == null ? null : Number(log.loadUsed);
-    case "reps": return log.repsDone == null ? null : Number(log.repsDone);
-    case "sets": return log.setsDone == null ? null : Number(log.setsDone);
-    case "quantity": return log.quantityDone == null ? null : Number(log.quantityDone);
-    default: return null;
-  }
-}
-
-export function computeAutoScore(metricType, result, target) {
-  if (metricType === "none" || result == null || result === "") return null;
-  const r = Number(result);
-  const t = Number(target);
-  if (!Number.isFinite(r) || r < 0) return null;
-  if (!Number.isFinite(t) || t <= 0) return null;
-  let ratio;
-  if (metricType === "time") {
-    if (r <= 0) return null;
-    ratio = t / r;
-  } else {
-    ratio = r / t;
-  }
-  if (ratio < 0) ratio = 0;
-  const score = Math.round(Math.min(10, ratio * 10) * 10) / 10;
-  return Math.min(10, Math.max(0, score));
-}

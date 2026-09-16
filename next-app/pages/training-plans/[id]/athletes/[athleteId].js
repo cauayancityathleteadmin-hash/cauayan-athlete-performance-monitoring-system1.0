@@ -2,7 +2,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import React from "react";
 import { getSession } from "next-auth/react";
-import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { prisma } from "../../../../lib/prisma";
 import AppShell from "../../../../components/AppShell";
 import styles from "../../../../styles/Dashboard.module.css";
@@ -40,7 +40,6 @@ function logResultText(log) {
   if (log.quantityDone != null) parts.push(`${log.quantityDone}${log.activity?.targetUnit ? ` ${log.activity.targetUnit}` : ""}`);
   if (log.setsDone != null) parts.push(`${log.setsDone} sets`);
   if (log.repsDone != null) parts.push(`${log.repsDone} reps`);
-  if (log.score != null) parts.push(`score ${log.score}`);
   if (log.attempts != null) parts.push(`${log.attempts} attempts`);
   return parts.join(" · ");
 }
@@ -56,86 +55,6 @@ function commentAuthorName(author) {
   if (!author) return "Admin";
   if (author.coach?.firstName || author.coach?.lastName) return `${author.coach.firstName} ${author.coach.lastName}`.trim();
   return author.username || author.email || "Admin";
-}
-
-function AthleteGuidanceRow({ planId, athlete, isAdmin }) {
-  const [open, setOpen] = React.useState(false);
-  const [comments, setComments] = React.useState(null);
-  const [draft, setDraft] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
-  const [msg, setMsg] = React.useState("");
-
-  async function load() {
-    const res = await fetch(`/api/training-plans/${planId}/athlete/${athlete.id}/comments`).then((r) => r.json()).catch(() => ({}));
-    setComments(Array.isArray(res.comments) ? res.comments : []);
-  }
-
-  function toggle() {
-    setOpen((o) => {
-      const next = !o;
-      if (next && comments === null) load();
-      return next;
-    });
-  }
-
-  async function post(e) {
-    e.preventDefault();
-    if (!draft.trim()) return;
-    setBusy(true);
-    setMsg("");
-    const csrf = await fetch("/api/csrf").then((r) => r.json());
-    const res = await fetch(`/api/training-plans/${planId}/athlete/${athlete.id}/comments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
-      body: JSON.stringify({ body: draft.trim() }),
-    }).then((r) => r.json()).catch(() => ({}));
-    setBusy(false);
-    if (res.comment) {
-      setDraft("");
-      setComments((c) => [...(c || []), res.comment]);
-    } else {
-      setMsg(res.error || "Could not post guidance.");
-    }
-  }
-
-  return (
-    <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "12px 14px", background: "rgba(6,38,30,.35)" }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <strong>{athlete.lastName}, {athlete.firstName}</strong>
-          {athlete.athleteCode ? <small style={{ color: "var(--muted)", display: "block" }}>{athlete.athleteCode}</small> : null}
-        </div>
-        <button type="button" className={styles.secondary} onClick={toggle}>{open ? "Close" : comments === null ? "View guidance" : `Guidance (${comments.length})`}</button>
-      </div>
-      {open && (
-        <div style={{ borderTop: "1px solid rgba(26,92,74,.5)", marginTop: 12, paddingTop: 12 }}>
-          {comments === null ? <p className={styles.empty}>Loading guidance...</p> : comments.length === 0 ? <p className={styles.empty}>No guidance yet for {athlete.firstName}.</p> : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
-              {comments.map((c) => (
-                <div key={c.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "rgba(6,38,30,.4)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                    <strong style={{ fontSize: 13 }}>{commentAuthorName(c.author)}</strong>
-                    <small style={{ color: "var(--muted)" }}>{fmtDate(c.createdAt)}</small>
-                  </div>
-                  <p style={{ margin: 0 }}>{c.body}</p>
-                </div>
-              ))}
-            </div>
-          )}
-          {isAdmin && (
-            <form onSubmit={post} className={styles.formStack} style={{ margin: 0 }}>
-              <label>Add guidance for {athlete.firstName}</label>
-              <textarea className={styles.fieldControl} rows="2" maxLength="2000" placeholder="e.g. Focus on form before adding load; watch the knee." value={draft} onChange={(e) => setDraft(e.target.value)} />
-              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <button className={styles.primary} disabled={busy || !draft.trim()}>{busy ? "Posting..." : "Post guidance"}</button>
-                {msg && <small style={{ color: "var(--danger)" }}>{msg}</small>}
-              </div>
-            </form>
-          )}
-        </div>
-      )}
-    </div>
-  );
 }
 
 function ActivityCommentThread({ planId, activityId, athleteId, isAdmin, athleteName }) {
@@ -263,7 +182,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
   }, [plan.id, athlete.id]);
 
   const activities = React.useMemo(() => data?.activities || [], [data]);
-  const summary = data?.summary || { total: 0, completed: 0, partial: 0, missed: 0, completionPercent: 0, averageScore: null };
+  const summary = data?.summary || { total: 0, completed: 0, partial: 0, missed: 0, completionPercent: 0, rating: null, ratingDate: null };
 
   const logsByActivity = React.useMemo(() => {
     const map = new Map();
@@ -273,19 +192,6 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
     }
     return map;
   }, [allLogs]);
-
-  const scoreTimeline = React.useMemo(() => {
-    return activities
-      .filter((a) => a.latestLog?.score != null || a.latestLog?.performedAt)
-      .map((a) => ({
-        name: a.activityName.length > 14 ? a.activityName.slice(0, 14) + "…" : a.activityName,
-        score: a.latestLog?.score != null ? Number(a.latestLog.score) : 0,
-        completion: a.completion?.percent || 0,
-        fitness: a.fitnessType,
-        date: a.latestLog?.performedAt,
-      }))
-      .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-  }, [activities]);
 
   const fitnessDist = React.useMemo(() => {
     const map = new Map();
@@ -314,39 +220,14 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
           <div className={styles.detailPanel}><h4>Planned activities</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{summary.total}</div></div>
           <div className={styles.detailPanel}><h4>Completion</h4><div style={{ fontSize: 26, fontWeight: 800, color: percentColor(summary.completionPercent) }}>{summary.completionPercent}%</div><small style={{ color: "var(--muted)" }}>{summary.completed} done · {summary.partial} partial</small></div>
           <div className={styles.detailPanel}><h4>Missed</h4><div style={{ fontSize: 26, fontWeight: 800, color: summary.missed > 0 ? "#f87171" : "var(--muted)" }}>{summary.missed}</div></div>
-          <div className={styles.detailPanel}><h4>Avg score</h4><div style={{ fontSize: 26, fontWeight: 800, color: summary.averageScore != null ? (summary.averageScore >= 7 ? "var(--accent)" : summary.averageScore >= 5 ? "#fbbf24" : "#f87171") : "var(--muted)" }}>{summary.averageScore != null ? `${summary.averageScore}/10` : "—"}</div></div>
+          <div className={styles.detailPanel}><h4>Coach rating</h4><div style={{ fontSize: 26, fontWeight: 800, color: summary.rating != null ? (summary.rating >= 7 ? "var(--accent)" : summary.rating >= 5 ? "#fbbf24" : "#f87171") : "var(--muted)" }}>{summary.rating != null ? `${summary.rating}/10` : "—"}</div>{summary.rating != null && summary.ratingDate ? <small style={{ color: "var(--muted)" }}>{fmtDate(summary.ratingDate)}</small> : <small style={{ color: "var(--muted)" }}>No assessment yet</small>}</div>
         </div>
 
         {error && <p role="status" className={styles.empty}>{error}</p>}
 
-        {/* Athlete-level guidance */}
-        <section className={styles.panel}>
-          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Admin guidance</p><h2>Guidance for this athlete</h2></div></div>
-          <p className={styles.formHint} style={{ marginTop: 0 }}>
-            {isAdmin ? "Add targeted guidance for this athlete; the implementing coach can read it." : "Guidance written by the administrator for this athlete appears here."}
-          </p>
-          <AthleteGuidanceRow planId={plan.id} athlete={athlete} isAdmin={isAdmin} />
-        </section>
-
         {activities.length > 0 && (
           <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Scores</p><h2>Latest score by activity</h2></div></div>
-            {scoreTimeline.length ? (
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={scoreTimeline} margin={{ top: 6, right: 10, left: 16, bottom: 24 }}>
-                  <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fill: "#9db6c7", fontSize: 11 }} angle={-20} textAnchor="end" height={60} />
-                  <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} tick={{ fill: "#9db6c7", fontSize: 12 }} />
-                  <Tooltip {...chartTooltip} formatter={(v) => [`${v}/10`, "Score"]} labelFormatter={(l) => l} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
-                  <Bar dataKey="score" radius={[4, 4, 0, 0]}>{scoreTimeline.map((d) => <Cell key={d.name} fill={percentColor(d.score * 10)} />)}</Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : <p className={styles.empty}>No scored activities yet.</p>}
-          </section>
-        )}
-
-        <section className={styles.panel}>
-          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Activities</p><h2>Activities & progress</h2></div></div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Activities</p><h2>Activities & progress</h2></div></div>
           {activities.length === 0 ? <p className={styles.empty}>No activities on this plan for this athlete.</p> : (
             <div className={styles.tableWrap}>
               <table>
@@ -357,7 +238,6 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
                     <th>Target</th>
                     <th>Latest status</th>
                     <th>Completion</th>
-                    <th>Score</th>
                     <th>Attempts</th>
                     <th></th>
                   </tr>
@@ -376,7 +256,6 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
                           <td data-label="Target">{(() => { if (a.metricType === "time" && a.targetTimeSec != null) return `${a.targetTimeSec} sec`; if (a.targetQuantity != null) return `${a.targetQuantity}${a.targetUnit ? ` ${a.targetUnit}` : ""}`; if (a.targetDistance != null) return `${a.targetDistance} m`; return "—"; })()}</td>
                           <td data-label="Status">{meta}{log?.performedAt ? <small> · {fmtDate(log.performedAt)}</small> : null}</td>
                           <td data-label="Completion" style={{ textAlign: "center" }}>{a.completion ? <strong style={{ color: percentColor(a.completion.percent) }}>{a.completion.percent}%</strong> : "—"}</td>
-                          <td data-label="Score">{log?.score != null ? <strong>{log.score}/10</strong> : "—"}</td>
                           <td data-label="Attempts">{log?.attempts != null ? log.attempts : "—"}</td>
                           <td style={{ textAlign: "right", width: 40 }}>
                             <span style={{ fontSize: 14, color: "var(--muted)" }}>{isExpanded ? "▲" : "▼"}</span>
@@ -384,7 +263,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
                         </tr>
                         {isExpanded && (
                           <tr>
-                            <td colSpan="8" style={{ padding: "14px 14px 20px", background: "transparent" }}>
+                            <td colSpan="7" style={{ padding: "14px 14px 20px", background: "transparent" }}>
                               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                                 {/* Activity history */}
                                 <div>
@@ -393,7 +272,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
                                     <div className={styles.tableWrap}>
                                       <table style={{ fontSize: 13 }}>
                                         <thead>
-                                          <tr><th style={{ textAlign: "center" }}>Date</th><th>Status</th><th>Measured result</th><th style={{ textAlign: "center" }}>Score</th><th style={{ textAlign: "center" }}>Attempts</th><th>Notes</th></tr>
+                                          <tr><th style={{ textAlign: "center" }}>Date</th><th>Status</th><th>Measured result</th><th style={{ textAlign: "center" }}>Attempts</th><th>Notes</th></tr>
                                         </thead>
                                         <tbody>
                                           {historyLogs.map((l) => (
@@ -401,7 +280,6 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
                                               <td data-label="Date" style={{ textAlign: "center" }}>{fmtDate(l.performedAt)}</td>
                                               <td data-label="Status"><span className={`${styles.badge} ${styles[LOG_STATUS[l.status]?.cls || "badgeMuted"]}`}>{LOG_STATUS[l.status]?.label || l.status}</span></td>
                                               <td data-label="Result">{logResultText(l) || "—"}</td>
-                                              <td data-label="Score" style={{ textAlign: "center" }}>{l.score != null ? <strong>{l.score}</strong> : "—"}</td>
                                               <td data-label="Attempts" style={{ textAlign: "center" }}>{l.attempts != null ? l.attempts : "—"}</td>
                                               <td data-label="Notes">{l.notes || "—"}</td>
                                             </tr>
@@ -431,7 +309,8 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
               </table>
             </div>
           )}
-        </section>
+          </section>
+        )}
 
         {fitnessDist.length > 1 && (
           <section className={styles.panel}>
