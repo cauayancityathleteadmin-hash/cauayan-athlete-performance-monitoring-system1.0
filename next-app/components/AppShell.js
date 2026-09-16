@@ -141,19 +141,27 @@ const ICONS = {
 
 const NAV_GROUPS = [
   {
+    key: "home",
     label: "Home",
     links: [
       { href: "/dashboard", label: "Dashboard", icon: "grid" },
     ],
   },
   {
+    key: "athletes",
     label: "Athletes",
+    icon: "user",
+    menu: true,
+    shortcuts: "athletes",
     links: [
       { href: "/athletes", label: "Athletes", icon: "user" },
     ],
   },
   {
+    key: "coaches",
     label: "Coaches",
+    icon: "users",
+    menu: true,
     links: [
       { href: "/admin/coaches", label: "Coaches", icon: "users", adminOnly: true },
       { href: "/admin/coach-performances", label: "Coach evaluations", icon: "star", adminOnly: true },
@@ -162,13 +170,17 @@ const NAV_GROUPS = [
     ],
   },
   {
+    key: "training",
     label: "Training",
+    icon: "clipboardCheck",
+    menu: true,
+    shortcuts: "plans",
     links: [
-      { href: "/training-plans", label: "Training", icon: "clipboardCheck" },
-      { href: "/progress", label: "Progress", icon: "trendingUp" },
+      { href: "/training-plans", label: "Trainings", icon: "clipboardCheck" },
     ],
   },
   {
+    key: "analytics",
     label: "Analytics",
     links: [
       { href: "/analytics", label: "Analytics", icon: "barChart" },
@@ -176,6 +188,7 @@ const NAV_GROUPS = [
     ],
   },
   {
+    key: "events",
     label: "Events & Program",
     links: [
       { href: "/event-plans", label: "Event plans", icon: "calendar" },
@@ -183,13 +196,17 @@ const NAV_GROUPS = [
     ],
   },
   {
+    key: "reports",
     label: "Reports",
     links: [
       { href: "/reports", label: "Reports", icon: "fileText" },
     ],
   },
   {
+    key: "system",
     label: "System",
+    icon: "gauge",
+    menu: true,
     links: [
       { href: "/admin/metrics", label: "Metrics", icon: "gauge", adminOnly: true },
       { href: "/admin/audit-logs", label: "Audit logs", icon: "list", adminOnly: true },
@@ -197,6 +214,7 @@ const NAV_GROUPS = [
     ],
   },
   {
+    key: "account",
     label: "Account",
     links: [
       { href: "/account", label: "My account", icon: "userCircle" },
@@ -216,6 +234,16 @@ export default function AppShell({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [openMenus, setOpenMenus] = useState(() => {
+    let stored = [];
+    if (typeof window !== "undefined") {
+      try { const raw = window.localStorage.getItem("apms.sidebarMenus"); if (raw) stored = JSON.parse(raw); } catch (e) {}
+    }
+    return stored;
+  });
+  const [shortcuts, setShortcuts] = React.useState(null);
+  const shortcutsRef = React.useRef(null);
+  const [navSearch, setNavSearch] = React.useState({});
   const person = session?.user?.name || session?.user?.email || "Account";
   const currentPath = active || router.pathname;
 
@@ -224,19 +252,47 @@ export default function AppShell({
   }
   const isActive = (href) => (isActiveHref(href) ? styles.navLinkActive : undefined);
 
-useEffect(() => {
-  if (typeof window === "undefined") return;
-  let stored;
-  try {
-    stored = window.localStorage.getItem("apms.sidebarCollapsed");
-  } catch (e) {
-    return;
+  function ensureShortcuts() {
+    if (shortcutsRef.current) return;
+    shortcutsRef.current = true;
+    fetch("/api/nav-shortcuts").then((r) => r.json()).then((data) => {
+      setShortcuts({
+        plans: Array.isArray(data?.plans) ? data.plans.map((p) => ({ id: p.id, label: p.planName || "Untitled plan", href: `/training-plans/${p.id}` })) : [],
+        athletes: Array.isArray(data?.athletes) ? data.athletes.map((a) => ({ id: a.id, label: `${a.lastName || ""}${a.lastName && a.firstName ? ", " : ""}${a.firstName || ""}` || "Athlete", href: `/athletes/${a.id}` })) : [],
+      });
+    }).catch(() => {});
   }
-  if (stored === "true") {
-    const t = window.setTimeout(() => setCollapsed(true), 0);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = [];
+    try {
+      const raw = window.localStorage.getItem("apms.sidebarMenus");
+      if (raw) stored.push(...JSON.parse(raw));
+    } catch (e) {}
+    const grp = NAV_GROUPS.find((g) => g.links.some((l) => isActiveHref(l.href)));
+    if (grp) {
+      if (!stored.includes(grp.key)) stored.push(grp.key);
+      if (grp.shortcuts) ensureShortcuts();
+    }
+    const t = window.setTimeout(() => setOpenMenus([...new Set(stored)]), 0);
     return () => window.clearTimeout(t);
-  }
-}, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let stored;
+    try {
+      stored = window.localStorage.getItem("apms.sidebarCollapsed");
+    } catch (e) {
+      return;
+    }
+    if (stored === "true") {
+      const t = window.setTimeout(() => setCollapsed(true), 0);
+      return () => window.clearTimeout(t);
+    }
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -258,20 +314,78 @@ useEffect(() => {
     });
   };
 
+  function toggleMenu(key) {
+    const grp = NAV_GROUPS.find((g) => g.key === key);
+    const willOpen = !openMenus.includes(key);
+    if (grp?.shortcuts && willOpen) ensureShortcuts();
+    setOpenMenus((prev) => {
+      const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
+      try { if (typeof window !== "undefined") window.localStorage.setItem("apms.sidebarMenus", JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
+  }
+
   const nav = (
     <nav className={styles.sidebar} aria-label="Primary navigation">
       {NAV_GROUPS.map((group) => {
         const links = group.links.filter((link) => (!link.adminOnly || isAdmin) && (!link.coachApproveOnly || (canApproveCoaches && !isAdmin)));
-        if (!links.length) return null;
+        if (!group.menu) {
+          if (!links.length) return null;
+          return (
+            <React.Fragment key={group.key}>
+              {links.map((link) => (
+                <Link key={link.href} href={link.href} className={isActive(link.href)} title={link.label} aria-label={link.label} aria-current={isActive(link.href) ? "page" : undefined} onClick={() => setOpen(false)}>
+                  <span className={styles.navIcon} aria-hidden="true">{ICONS[link.icon]}</span>
+                  <span className={styles.navLabel}>{link.label}</span>
+                </Link>
+              ))}
+            </React.Fragment>
+          );
+        }
+        if (!links.length && !group.shortcuts) return null;
+        const isOpen = openMenus.includes(group.key);
+        const groupActive = links.some((link) => isActiveHref(link.href));
         return (
-          <React.Fragment key={group.label}>
-            {links.map((link) => (
-              <Link key={link.href} href={link.href} className={isActive(link.href)} title={link.label} aria-label={link.label} aria-current={isActive(link.href) ? "page" : undefined} onClick={() => setOpen(false)}>
-                <span className={styles.navIcon} aria-hidden="true">{ICONS[link.icon]}</span>
-                <span className={styles.navLabel}>{link.label}</span>
-              </Link>
-            ))}
-          </React.Fragment>
+          <div key={group.key} className={styles.navGroup}>
+            <button type="button" className={`${styles.navGroupBtn}${groupActive ? ` ${styles.navGroupBtnActive}` : ""}${isOpen ? ` ${styles.navGroupBtnOpen}` : ""}`} aria-expanded={isOpen} onClick={() => toggleMenu(group.key)}>
+              <span className={styles.navIcon} aria-hidden="true">{ICONS[group.icon]}</span>
+              <span className={styles.navLabel}>{group.label}</span>
+              <span className={`${styles.navChevron}${isOpen ? ` ${styles.navChevronOpen}` : ""}`} aria-hidden="true">›</span>
+            </button>
+            {isOpen && (
+              <div className={styles.navGroupBody}>
+                {links.map((link) => (
+                  <Link key={link.href} href={link.href} className={`${styles.navSubLink}${isActive(link.href) ? ` ${styles.navLinkActive}` : ""}`} onClick={() => setOpen(false)}>
+                    <span className={styles.navIcon} aria-hidden="true">{ICONS[link.icon]}</span>
+                    <span className={styles.navSubLabel}>{link.label}</span>
+                  </Link>
+                ))}
+                {group.shortcuts && shortcuts && (
+                  <div className={styles.navShortcuts}>
+                    <span className={styles.navShortcutsTitle}>{group.shortcuts === "plans" ? "Your training plans" : "Your athletes"}</span>
+                    {(shortcuts[group.shortcuts] || []).length > 8 && (
+                      <input className={styles.navShortcutSearch} type="search" placeholder={group.shortcuts === "plans" ? "Search plans..." : "Search athletes..."} value={navSearch[group.key] || ""} onChange={(e) => setNavSearch((s) => ({ ...s, [group.key]: e.target.value }))} aria-label={group.shortcuts === "plans" ? "Search plans" : "Search athletes"} />
+                    )}
+                    {(() => {
+                      const items = shortcuts[group.shortcuts] || [];
+                      const q = (navSearch[group.key] || "").toLowerCase().trim();
+                      const filtered = q ? items.filter((it) => it.label.toLowerCase().includes(q)) : items;
+                      if (!filtered.length) return <span className={styles.navShortcutEmpty}>{items.length ? "No matches." : "Loading..."}</span>;
+                      return filtered.map((it) => (
+                        <Link key={it.id} href={it.href} className={`${styles.navShortcutLink}${isActive(it.href) ? ` ${styles.navLinkActive}` : ""}`} onClick={() => setOpen(false)}>
+                          <span className={styles.navSubDot} aria-hidden="true" />
+                          <span className={styles.navSubLabel}>{it.label}</span>
+                        </Link>
+                      ));
+                    })()}
+                  </div>
+                )}
+                {group.shortcuts && !shortcuts && (
+                  <span className={styles.navShortcutEmpty}>Loading...</span>
+                )}
+              </div>
+            )}
+          </div>
         );
       })}
     </nav>

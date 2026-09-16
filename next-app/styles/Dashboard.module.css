@@ -234,6 +234,126 @@
   font-weight: 700;
 }
 
+.navGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.navGroupBtn {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: var(--text-base);
+  font-weight: 500;
+  text-align: left;
+  padding: var(--space-2) var(--space-5);
+  cursor: pointer;
+  font-family: inherit;
+}
+.navGroupBtn:hover {
+  background: rgba(45, 212, 168, 0.12);
+  color: #f0fdf4;
+}
+.navGroupBtnActive {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.navChevron {
+  margin-left: auto;
+  font-size: 1rem;
+  line-height: 1;
+  transition: transform 0.15s ease;
+  color: var(--muted);
+  font-weight: 400;
+}
+.navChevronOpen {
+  transform: rotate(90deg);
+  color: var(--accent);
+}
+
+.navGroupBody {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: var(--space-2);
+}
+
+.navSubLink {
+  padding-left: var(--space-8) !important;
+  padding-top: var(--space-1) !important;
+  padding-bottom: var(--space-1) !important;
+  font-size: var(--text-sm) !important;
+}
+
+.navSubLabel {
+  line-height: 1.25;
+}
+
+.navShortcuts {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: 1px dashed rgba(45, 212, 168, 0.25);
+}
+
+.navShortcutsTitle {
+  padding: var(--space-1) var(--space-6);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  opacity: 0.75;
+  font-weight: 700;
+}
+
+.navShortcutSearch {
+  margin: var(--space-1) var(--space-4) var(--space-2);
+  padding: 6px 10px;
+  width: 168px;
+  background: rgba(6, 32, 26, 0.6);
+  border: 1px solid rgba(45, 212, 168, 0.25);
+  border-radius: 6px;
+  color: #f0fdf4;
+  font-size: var(--text-sm);
+}
+.navShortcutSearch::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+.navShortcutSearch:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.navShortcutLink {
+  padding-top: var(--space-1) !important;
+  padding-bottom: var(--space-1) !important;
+  padding-left: var(--space-8) !important;
+  font-size: var(--text-sm) !important;
+  font-weight: 400;
+}
+
+.navShortcutEmpty {
+  padding: var(--space-1) var(--space-6) var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.navSubDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-right: 10px;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
 .navHeading {
   padding: var(--space-3) var(--space-5) var(--space-1);
   font-size: var(--text-xs);
@@ -505,6 +625,22 @@
 .badgeMuted {
   background: rgba(148, 163, 184, .16);
   color: #94a3b8;
+}
+
+.progressCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  line-height: 1.3;
+}
+.progressCell strong {
+  font-size: 0.95rem;
+  color: var(--text);
+}
+.progressCell small {
+  font-size: var(--text-sm);
+  color: var(--muted);
 }
 
 .pagination {

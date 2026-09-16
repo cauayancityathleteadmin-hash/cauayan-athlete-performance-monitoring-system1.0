@@ -7,6 +7,18 @@ import { prisma } from "../lib/prisma";
 import AppShell from "../components/AppShell";
 import styles from "../styles/Dashboard.module.css";
 
+function planProgress(plan, totals) {
+  const total = totals.activities || 0;
+  const done = Math.min(totals.done, total);
+  const partial = Math.min(totals.partial, total);
+  const missed = Math.min(totals.missed, total);
+  const completed = done + partial;
+  const percent = total ? Math.round((completed / total) * 100) : 0;
+  const ratings = (plan.assessments || []).map((a) => a.rating).filter((r) => typeof r === "number");
+  const avgRating = ratings.length ? (ratings.reduce((s, r) => s + r, 0) / ratings.length).toFixed(1) : null;
+  return { total, done, partial, missed, completed, percent, avgRating };
+}
+
 export async function getServerSideProps(context) {
   const session = await getSession(context);
   if (!session) return { redirect: { destination: "/login", permanent: false } };
@@ -48,6 +60,30 @@ export async function getServerSideProps(context) {
       });
     })(),
   ]);
+  const allPlans = [...plans, ...templates];
+  const planIds = allPlans.map((p) => p.id);
+  const activities = planIds.length
+    ? await prisma.planActivity.findMany({
+        where: { planId: { in: planIds } },
+        select: { id: true, planId: true, logs: { select: { activityId: true, status: true }, orderBy: { performedAt: "desc" }, take: 1 } },
+      })
+    : [];
+  const totals = new Map();
+  for (const act of activities) {
+    const cur = totals.get(act.planId) || { done: 0, partial: 0, missed: 0, activities: 0 };
+    cur.activities += 1;
+    if (act.logs?.[0]) {
+      const s = act.logs[0].status;
+      if (s === "done") cur.done += 1;
+      else if (s === "partial") cur.partial += 1;
+      else if (s === "missed") cur.missed += 1;
+    }
+    totals.set(act.planId, cur);
+  }
+  const progressMap = {};
+  for (const plan of allPlans) {
+    progressMap[plan.id] = planProgress(plan, totals.get(plan.id) || { done: 0, partial: 0, missed: 0, activities: 0 });
+  }
   return {
     props: {
       session,
@@ -58,6 +94,7 @@ export async function getServerSideProps(context) {
       athletes: JSON.parse(JSON.stringify(athletes)),
       initialPlans: JSON.parse(JSON.stringify(plans)),
       initialTemplates: JSON.parse(JSON.stringify(templates)),
+      progressMap: JSON.parse(JSON.stringify(progressMap)),
     },
   };
 }
@@ -77,7 +114,7 @@ function fmtDate(value) {
   return isNaN(d) ? "—" : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
-export default function TrainingPlans({ session, isAdmin, sports, coaches, athletes, initialPlans = [], initialTemplates = [] }) {
+export default function TrainingPlans({ session, isAdmin, sports, coaches, athletes, initialPlans = [], initialTemplates = [], progressMap = {} }) {
   const router = useRouter();
   const [showPlanForm, setShowPlanForm] = React.useState(false);
   const [editingPlan, setEditingPlan] = React.useState(null);
@@ -122,7 +159,7 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
   return (
     <>
       <Head><title>Training | Cauayan Athlete Performance</title></Head>
-      <AppShell session={session} isAdmin={isAdmin} eyebrow="Training" title="Plans & assessments" active="/training-plans">
+      <AppShell session={session} isAdmin={isAdmin} eyebrow="Training" title="Trainings" active="/training-plans">
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Coaching</p><h2>Training plans</h2></div>
@@ -148,9 +185,11 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
             <p className={styles.empty}>No training plans yet. Create the first plan to get started.</p>
           ) : (
             <div className={styles.tableWrap}><table>
-              <thead><tr><th>Plan</th><th>Frequency</th><th>Sport</th><th>Coach</th><th>Period</th><th>Athletes</th><th>Assessments</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>Plan</th><th>Frequency</th><th>Sport</th><th>Coach</th><th>Period</th><th>Athletes</th><th>Progress</th><th>Status</th><th></th></tr></thead>
               <tbody>
-                {plans.map((p) => (
+                {plans.map((p) => {
+                  const prog = progressMap[p.id];
+                  return (
                   <tr key={p.id}>
                     <td data-label="Plan"><strong>{p.planName}</strong>{p.description ? <small>{p.description}</small> : null}{p.isTemplate && <span className={`${styles.badge} ${styles.badgePending}`} style={{ marginLeft: 8 }}>Template</span>}</td>
                     <td data-label="Frequency">{FREQ_META[p.frequency] || p.frequency}{durationLabel(p) ? <small> · {durationLabel(p)}</small> : null}</td>
@@ -158,7 +197,15 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
                     <td data-label="Coach">{p.coach ? `${p.coach.firstName} ${p.coach.lastName}` : "—"}</td>
                     <td data-label="Period">{fmtDate(p.startDate)}{p.endDate ? ` – ${fmtDate(p.endDate)}` : ""}</td>
                     <td data-label="Athletes">{p.athletes?.length ?? 0}</td>
-                    <td data-label="Assessments">{p.assessments?.filter((a) => a.planId === p.id).length ?? 0}</td>
+                    <td data-label="Progress">
+                      {prog ? (
+                        <div className={styles.progressCell}>
+                          <strong>{prog.percent}%</strong>
+                          <small>{prog.completed} / {prog.total} done</small>
+                          {prog.avgRating != null && <span className={`${styles.badge} ${styles.badgeActive}`} style={{ marginTop: 4 }}>★ {prog.avgRating}</span>}
+                        </div>
+                      ) : "—"}
+                    </td>
                     <td data-label="Status"><span className={`${styles.badge} ${styles[STATUS_META[p.status]?.cls || "badgeMuted"]}`}>{STATUS_META[p.status]?.label || p.status}</span></td>
                     <td data-label="Actions">
                       <div className={styles.actionCell}>
@@ -168,7 +215,8 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table></div>
           )}
