@@ -170,7 +170,7 @@ function FeatureCard({ eyebrow, title, href, children }) {
   );
 }
 
-export default function Dashboard({ stats, completion, ratingSeries, upcomingSessions, healthDist, ratingHistogram, coachEvalAverages, achievementsCount, greetingName }) {
+export default function Dashboard({ stats, completion = [], ratingSeries = [], upcomingSessions = [], healthDist = [], ratingHistogram = [], coachEvalAverages = [], achievementsCount, greetingName }) {
   const router = useRouter();
   const { data: session } = useSession();
   useEffect(() => {
