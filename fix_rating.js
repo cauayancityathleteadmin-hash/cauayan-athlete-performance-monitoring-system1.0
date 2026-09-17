@@ -1,0 +1,13 @@
+const fs=require('fs');
+let c=fs.readFileSync('C:/Users/FUJITSU/Documents/Default Project/cauayan-athlete-performance-monitoring-system1.0/next-app/pages/training-plans/[id].js','utf8');
+const oldSel='<select className={styles.fieldControl} value={ratings[athlete.id]?.rating || ""} onChange={(e) => setRating(athlete.id, { rating: e.target.value ? Number(e.target.value) : null })}>';
+const newSel='<select className={styles.fieldControl} disabled={isCurrentViewLocked} value={ratings[athlete.id]?.rating || ""} onChange={(e) => setRating(athlete.id, { rating: e.target.value ? Number(e.target.value) : null })}>';
+c=c.replace(oldSel,newSel);
+const oldBtn='<button className={styles.secondary} style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => setRating(athlete.id, { rating: suggestRating(athlete.id) })}>Use suggestion';
+const newBtn='<button className={styles.secondary} disabled={isCurrentViewLocked} style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => setRating(athlete.id, { rating: suggestRating(athlete.id) })}>Use suggestion';
+c=c.replace(oldBtn,newBtn);
+const oldInp='<input className={styles.fieldControl} style={{ flex: "1 1 200px", minWidth: 160 }} value={ratings[athlete.id]?.comments || ""} onChange={(e) => setRating(athlete.id, { comments: e.target.value })} placeholder="Summary comment (optional)" />';
+const newInp='<input className={styles.fieldControl} disabled={isCurrentViewLocked} style={{ flex: "1 1 200px", minWidth: 160 }} value={ratings[athlete.id]?.comments || ""} onChange={(e) => setRating(athlete.id, { comments: e.target.value })} placeholder="Summary comment (optional)" />';
+c=c.replace(oldInp,newInp);
+fs.writeFileSync('C:/Users/FUJITSU/Documents/Default Project/cauayan-athlete-performance-monitoring-system1.0/next-app/pages/training-plans/[id].js',c);
+console.log('done');

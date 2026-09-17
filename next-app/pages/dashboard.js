@@ -193,16 +193,16 @@ export default function Dashboard({ stats, completion, ratingSeries, upcomingSes
         ["My assessments", stats.assessments, "/assessments"],
         ["My approved plans", stats.myApprovedPlans, "/event-plans"],
       ];
-  const hasCompletion = completion.some((w) => w.done > 0 || w.partial > 0 || w.missed > 0);
+  const hasCompletion = (completion || []).some((w) => w.done > 0 || w.partial > 0 || w.missed > 0);
   const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
   const healthNote = stats.healthIssues > 0 ? `${stats.healthIssues} athlete${stats.healthIssues === 1 ? "" : "s"} flagged for health` : "";
-  const healthSegments = healthDist.map((d) => ({
+  const healthSegments = (healthDist || []).map((d) => ({
     label: HEALTH_META[d.name]?.label || d.name,
     value: d.value,
     color: HEALTH_META[d.name]?.color || "#64748b",
   }));
-  const histData = ratingHistogram.filter((d) => d.value > 0).map((d) => ({ label: String(d.rating), value: d.value }));
-  const evalsData = coachEvalAverages.map((c) => ({ label: c.name, value: c.avg }));
+  const histData = (ratingHistogram || []).filter((d) => d.value > 0).map((d) => ({ label: String(d.rating), value: d.value }));
+  const evalsData = (coachEvalAverages || []).map((c) => ({ label: c.name, value: c.avg }));
   return <>
     <Head><title>Dashboard | Cauayan Athlete Performance</title><meta name="description" content="Athlete performance monitoring dashboard" /></Head>
     <AppShell session={session} isAdmin={isAdmin} active="/dashboard">
@@ -215,9 +215,9 @@ export default function Dashboard({ stats, completion, ratingSeries, upcomingSes
           {stats.healthIssues > 0 && <Link className={`${styles.alertItem} ${styles.alertDanger}`} href="/athletes?health=flagged"><span className={`${styles.dot} ${styles.dotDanger}`} aria-hidden="true" /><span><strong>{stats.healthIssues} athlete{stats.healthIssues === 1 ? "" : "s"} flagged for health</strong><small>Family doctor and manager notes need attention.</small></span></Link>}
         </section>
       ) : null}
-      {upcomingSessions.length > 0 && (
+      {upcomingSessions && upcomingSessions.length > 0 && (
         <section className={styles.scheduleList} aria-label="Upcoming training sessions">
-          {upcomingSessions.map((item) => {
+          {upcomingSessions?.map((item) => {
             const d = new Date(item.sessionDate);
             return (
               <div key={item.id} className={styles.scheduleItem}>
@@ -233,7 +233,7 @@ export default function Dashboard({ stats, completion, ratingSeries, upcomingSes
         <p className={styles.formHint} style={{ marginTop: 0 }}>Last 8 weeks, from real activity logs.</p>
         {hasCompletion ? (
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={completion} margin={{ top: 6, right: 12, left: 16, bottom: 0 }}>
+            <BarChart data={completion || []} margin={{ top: 6, right: 12, left: 16, bottom: 0 }}>
               <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
               <XAxis dataKey="when" tickFormatter={weekLabel} tick={{ fill: "#9db6c7", fontSize: 11 }} />
               <YAxis allowDecimals={false} tick={{ fill: "#9db6c7", fontSize: 11 }} />
@@ -250,9 +250,9 @@ export default function Dashboard({ stats, completion, ratingSeries, upcomingSes
         <div className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Ratings</p><h2>Training ratings</h2></div><Link href="/assessments">Assessments</Link></div>
           <p className={styles.formHint} style={{ marginTop: 0 }}>1–10 score per assessment.</p>
-          {ratingSeries.length >= 2 ? (
+          {(ratingSeries || []).length >= 2 ? (
             <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={ratingSeries} margin={{ top: 6, right: 12, left: 16, bottom: 0 }}>
+              <LineChart data={ratingSeries || []} margin={{ top: 6, right: 12, left: 16, bottom: 0 }}>
                 <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
                 <XAxis dataKey="when" tickFormatter={dateLabel} tick={{ fill: "#9db6c7", fontSize: 11 }} />
                 <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} tick={{ fill: "#9db6c7", fontSize: 11 }} />
@@ -264,18 +264,18 @@ export default function Dashboard({ stats, completion, ratingSeries, upcomingSes
         </div>
         <div className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Health</p><h2>Status today</h2></div><Link href="/athletes?health=flagged">Health flags</Link></div>
-          {healthSegments.length ? <Donut segments={healthSegments} ariaLabel="Share of athletes by health status" label="athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
+          {healthSegments && healthSegments.length ? <Donut segments={healthSegments} ariaLabel="Share of athletes by health status" label="athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
         </div>
       </section>
       <section className={styles.grid}>
         <div className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training &amp; assessment</p><h2>Rating distribution</h2></div><Link href="/training-plans">Training</Link></div>
           <p className={styles.formHint} style={{ marginTop: 0 }}>Last 90 days — how often each 1–10 score was given.</p>
-          {histData.length ? <HBars data={histData} axisLabel="Score" axisValue="Assessments" /> : <p className={styles.empty}>No training ratings in the last 90 days yet.</p>}
+          {histData && histData.length ? <HBars data={histData} axisLabel="Score" axisValue="Assessments" /> : <p className={styles.empty}>No training ratings in the last 90 days yet.</p>}
         </div>
         <div className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Coaches</p><h2>Evaluation averages</h2></div><Link href="/admin/coach-performances">Evaluations</Link></div>
-            {evalsData.length ? <HBars data={evalsData} axisLabel={isAdmin ? "Coach" : "Your average"} axisValue="Avg" /> : <p className={styles.empty}>No coach evaluations on file yet.</p>}
+            {evalsData && evalsData.length ? <HBars data={evalsData} axisLabel={isAdmin ? "Coach" : "Your average"} axisValue="Avg" /> : <p className={styles.empty}>No coach evaluations on file yet.</p>}
           </div>
       </section>
       <section className={styles.gridAuto} aria-label="Feature summaries">
