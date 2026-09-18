@@ -140,7 +140,7 @@ const ICONS = {
 };
 
 const NAV_GROUPS = [
-  { key: "home", label: "Home", links: [{ href: "/dashboard", label: "Dashboard", icon: "grid" }] },
+  { key: "home", label: "Dashboard", links: [{ href: "/dashboard", label: "Dashboard", icon: "grid" }] },
   { key: "athletes", label: "Athletes", links: [{ href: "/athletes", label: "Athletes", icon: "user" }] },
   {
     key: "coaches",
@@ -161,13 +161,13 @@ const NAV_GROUPS = [
     ],
   },
   { key: "analytics", label: "Analytics", links: [{ href: "/analytics", label: "Analytics", icon: "barChart" }, { href: "/standings", label: "Standings", icon: "trophy" }] },
-  { key: "events", label: "Events", links: [{ href: "/event-plans", label: "Events", icon: "calendar" }, { href: "/admin/catalog", label: "Sports", icon: "flag", adminOnly: true }] },
   { key: "reports", label: "Reports", links: [{ href: "/reports", label: "Reports", icon: "fileText" }] },
+  { key: "events", label: "Sports & Events", links: [{ href: "/event-plans", label: "Events", icon: "calendar" }, { href: "/admin/catalog", label: "Sports", icon: "flag", adminOnly: true }] },
+  { key: "metrics", label: "Metrics", links: [{ href: "/admin/metrics", label: "Metrics", icon: "gauge", adminOnly: true }] },
   {
     key: "system",
     label: "System",
     links: [
-      { href: "/admin/metrics", label: "Metrics", icon: "gauge", adminOnly: true },
       { href: "/admin/audit-logs", label: "Audit logs", icon: "list", adminOnly: true },
       { href: "/admin/backup", label: "Backup", icon: "database", adminOnly: true },
     ],
