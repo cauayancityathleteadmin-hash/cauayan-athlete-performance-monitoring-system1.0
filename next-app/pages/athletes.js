@@ -177,7 +177,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
   return (
     <>
       <Head><title>Athletes | Cauayan Athlete Performance</title></Head>
-      <AppShell session={session} isAdmin={isAdmin} eyebrow="Directory" title="Athletes" active="/athletes">
+      <AppShell session={session} isAdmin={isAdmin} eyebrow="Athletes" title="Athletes" active="/athletes">
         <div className={styles.pageTitle}><h1>Athletes</h1></div>
         <div className={styles.pageActions}>
           <div className={styles.segmented}>
@@ -284,7 +284,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
 
         {view === "all" && (
           <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Directory</p><h2>All athletes by coach</h2></div><span className={styles.formHint} style={{ alignSelf: "center" }}>{filteredAll.length} athlete{filteredAll.length === 1 ? "" : "s"}</span></div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>All athletes</h2></div><span className={styles.formHint} style={{ alignSelf: "center" }}>{filteredAll.length} athlete{filteredAll.length === 1 ? "" : "s"}</span></div>
             <p className={styles.formHint} style={{ marginTop: 0 }}>Every registered athlete, including those without a coach.</p>
             <div className={styles.toolbar}>
               <CoachFilter coaches={catalog.coaches || []} value={coachFilter} onChange={setCoachFilter} />
@@ -859,7 +859,7 @@ function CoachRequestsPanel({ athletes, uncoached = [], coaches, ownCoachId, onC
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
-        <div><p className={styles.eyebrow}>Coach transfers</p><h2>Transfer center</h2></div>
+        <div><p className={styles.eyebrow}>Transfers</p><h2>Transfers</h2></div>
         <div className={styles.actionCell}>
           {message && <p role="status" className={message.kind === "success" ? styles.formSuccess : styles.formError} style={{ margin: 0 }}>{message.text}</p>}
         </div>

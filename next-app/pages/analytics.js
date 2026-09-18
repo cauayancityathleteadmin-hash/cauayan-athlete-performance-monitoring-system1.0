@@ -205,7 +205,7 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
   return (
     <>
       <Head><title>Analytics | Cauayan Athlete Performance</title></Head>
-      <AppShell session={session} isAdmin={isAdmin} eyebrow="Evidence at a glance" title="Analytics" active="/analytics">
+      <AppShell session={session} isAdmin={isAdmin} eyebrow="Analytics" title="Analytics" active="/analytics">
         <div className={styles.pageTitle}><h1>Analytics</h1></div>
         <section className={styles.kpiRow}>
           <KPI label="Total athletes" value={kpi.totalAthletes} />

@@ -298,7 +298,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
 
         <section className={styles.panel} id="roster">
           <div className={styles.panelHeader}>
-            <div><p className={styles.eyebrow}>Athletes</p><h2>Roster</h2></div>
+            <div><p className={styles.eyebrow}>Athletes</p><h2>Athletes</h2></div>
             <span className={styles.formHint} style={{ alignSelf: "center" }}>{athletes.length} athlete{athletes.length === 1 ? "" : "s"}</span>
           </div>
           <p className={styles.formHint} style={{ marginTop: 0 }}>

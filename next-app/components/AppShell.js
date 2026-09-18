@@ -147,21 +147,21 @@ const NAV_GROUPS = [
     label: "Coaches",
     links: [
       { href: "/admin/coaches", label: "Coaches", icon: "users", adminOnly: true },
-      { href: "/admin/coach-performances", label: "Coach evaluations", icon: "star", adminOnly: true },
-      { href: "/coach-approvals", label: "Coach approvals", icon: "badgeCheck", coachApproveOnly: true },
-      { href: "/admin/coach-accounts", label: "Coach accounts", icon: "key", adminOnly: true },
+      { href: "/admin/coach-performances", label: "Evaluations", icon: "star", adminOnly: true },
+      { href: "/coach-approvals", label: "Approvals", icon: "badgeCheck", coachApproveOnly: true },
+      { href: "/admin/coach-accounts", label: "Accounts", icon: "key", adminOnly: true },
     ],
   },
   {
     key: "training",
     label: "Training",
     links: [
-      { href: "/training-plans", label: "Training plans", icon: "clipboardCheck" },
+      { href: "/training-plans", label: "Plans", icon: "clipboardCheck" },
       { href: "/progress", label: "Progress", icon: "trendingUp" },
     ],
   },
   { key: "analytics", label: "Analytics", links: [{ href: "/analytics", label: "Analytics", icon: "barChart" }, { href: "/standings", label: "Standings", icon: "trophy" }] },
-  { key: "events", label: "Events & Program", links: [{ href: "/event-plans", label: "Event plans", icon: "calendar" }, { href: "/admin/catalog", label: "Sports & Discipline", icon: "flag", adminOnly: true }] },
+  { key: "events", label: "Events", links: [{ href: "/event-plans", label: "Events", icon: "calendar" }, { href: "/admin/catalog", label: "Sports", icon: "flag", adminOnly: true }] },
   { key: "reports", label: "Reports", links: [{ href: "/reports", label: "Reports", icon: "fileText" }] },
   {
     key: "system",

@@ -60,10 +60,11 @@ export default function EventPlans({ plans, session, page, totalPages, sports, a
   return (
     <>
       <Head><title>Event plans | Cauayan Athlete Performance</title></Head>
-      <AppShell session={session} isAdmin={isAdmin} eyebrow="Participation" title="Event plans" active="/event-plans">
+      <AppShell session={session} isAdmin={isAdmin} eyebrow="Events" title="Event plans" active="/event-plans">
+        <div className={styles.pageTitle}><h1>Events</h1></div>
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
-            <div><p className={styles.eyebrow}>Participation</p><h2>Event plans</h2></div>
+            <div><p className={styles.eyebrow}>Events</p><h2>Events</h2></div>
             {isAdmin && <button className={styles.primary} onClick={() => setCreatePanel((current) => !current)}>{createPanel ? "Close form" : "Create plan"}</button>}
           </div>
 

@@ -230,7 +230,7 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
         </section>
       )}
       <section className={styles.panel}>
-        <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Activity</p><h2>Activity completion</h2></div><Link href="/training-plans">Training</Link></div>
+        <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Completion</h2></div><Link href="/training-plans">Training</Link></div>
         <p className={styles.formHint} style={{ marginTop: 0 }}>Last 8 weeks, from real activity logs.</p>
         {hasCompletion ? (
           <ResponsiveContainer width="100%" height={220}>
@@ -249,7 +249,7 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
       </section>
       <section className={styles.grid}>
         <div className={styles.panel}>
-          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Ratings</p><h2>Training ratings</h2></div><Link href="/assessments">Assessments</Link></div>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Ratings</p><h2>Ratings</h2></div><Link href="/assessments">Assessments</Link></div>
           <p className={styles.formHint} style={{ marginTop: 0 }}>1–10 rating per assessment.</p>
           {(ratingSeries || []).length >= 2 ? (
             <ResponsiveContainer width="100%" height={200}>
@@ -264,7 +264,7 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
           ) : <p className={styles.empty}>{ratingSeries.length ? "Add one more assessment to see the rating trend." : "No training assessments recorded yet."}</p>}
         </div>
         <div className={styles.panel}>
-          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Health</p><h2>Status today</h2></div><Link href="/athletes?health=flagged">Health flags</Link></div>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Health</p><h2>Status</h2></div><Link href="/athletes?health=flagged">Health flags</Link></div>
           {healthSegments && healthSegments.length ? <Donut segments={healthSegments} ariaLabel="Share of athletes by health status" label="athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
         </div>
       </section>
@@ -275,7 +275,7 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
           {histData && histData.length ? <HBars data={histData} axisLabel="Rating" axisValue="Assessments" /> : <p className={styles.empty}>No training ratings in the last 90 days yet.</p>}
         </div>
         <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Coaches</p><h2>Coach averages</h2></div>{isAdmin ? <Link href="/admin/coach-performances">Evaluations</Link> : <span className={styles.formHint}>Your average</span>}</div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Coaches</p><h2>Averages</h2></div>{isAdmin ? <Link href="/admin/coach-performances">Evaluations</Link> : <span className={styles.formHint}>Your average</span>}</div>
             {evalsData && evalsData.length ? <HBars data={evalsData} axisLabel={isAdmin ? "Coach" : "Your average"} axisValue="Avg" /> : <p className={styles.empty}>No coach evaluations on file yet.</p>}
           </div>
       </section>
