@@ -217,6 +217,64 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
     loadMonitoring();
   }
 
+  const perAthlete = React.useMemo(() => {
+    return athletes.map((a) => {
+      const acts = activities.filter((act) => act.athleteId === a.id);
+      let done = 0, partial = 0, missed = 0, open = 0;
+      const byActivity = acts.map((act) => {
+        const al = logs.filter((l) => l.activityId === act.id && l.athleteId === a.id);
+        const latest = al.length ? [...al].sort((x, y) => new Date(y.performedAt) - new Date(x.performedAt))[0] : null;
+        const status = latest ? latest.status : "open";
+        if (status === "done") done++;
+        else if (status === "partial") partial++;
+        else if (status === "missed") missed++;
+        else open++;
+        const p = computeProgress(act, latest);
+        return { id: act.id, name: act.activityName, fitness: act.fitnessType, status, percent: p ? p.percent : 0 };
+      });
+      const total = acts.length;
+      const percent = total ? Math.round(((done + partial) / total) * 100) : 0;
+      return { id: a.id, code: a.athleteCode, name: `${a.firstName} ${a.lastName}`, total, done, partial, missed, open, percent, byActivity };
+    });
+  }, [athletes, activities, logs]);
+
+  const overallCompletion = React.useMemo(() => {
+    const withActs = perAthlete.filter((r) => r.total > 0);
+    return withActs.length ? Math.round(withActs.reduce((s, r) => s + r.percent, 0) / withActs.length) : 0;
+  }, [perAthlete]);
+
+  const barData = React.useMemo(() => perAthlete.slice(0, 20).map((r) => ({ name: r.name.split(" ")[0], full: r.name, percent: r.total ? r.percent : 0, total: r.total })), [perAthlete]);
+
+  const fitnessDist = React.useMemo(() => {
+    const map = new Map();
+    for (const act of activities) map.set(act.fitnessType, (map.get(act.fitnessType) || 0) + 1);
+    const arr = [...map.entries()].map(([key, count]) => ({ key, name: FITNESS_META[key] || key, count })).sort((x, y) => y.count - x.count);
+    const top = arr.slice(0, 5);
+    const rest = arr.slice(5);
+    if (rest.length) top.push({ key: "other", name: "Other", count: rest.reduce((s, r) => s + r.count, 0) });
+    return top.map((d, i) => ({ ...d, color: CHART_PALETTE[i % CHART_PALETTE.length] }));
+  }, [activities]);
+
+  const weekly = React.useMemo(() => {
+    const maxWeek = (plan.durationDays != null ? Math.ceil(plan.durationDays / 7) : null) || plan.durationWeeks || 1;
+    const weeks = [];
+    for (let w = 1; w <= maxWeek; w++) {
+      const acts = activities.filter((act) => act.weekNumber == null || Number(act.weekNumber) === w);
+      if (!acts.length) { weeks.push({ week: w, percent: 0, total: 0 }); continue; }
+      let done = 0, partial = 0;
+      for (const act of acts) {
+        const latest = logs.filter((l) => l.activityId === l.activityId).sort((x, y) => new Date(y.performedAt) - new Date(x.performedAt))[0];
+        if (!latest) continue;
+        if (latest.status === "done") done++;
+        else if (latest.status === "partial") partial++;
+      }
+      const total = acts.length;
+      const percent = total ? Math.round(((done + partial) / total) * 100) : 0;
+      weeks.push({ week: w, percent, total });
+    }
+    return weeks;
+  }, [activities, logs, plan.durationDays, plan.durationWeeks]);
+
   return (
     <>
       <Head><title>{plan.planName} | Cauayan Athlete Performance</title></Head>
@@ -256,7 +314,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
               <div><p className={styles.eyebrow}>Overview</p><h2>Progress overview</h2></div>
               <span className={styles.formHint} style={{ alignSelf: "center" }}>{plan.durationDays ? `${plan.durationDays} days` : plan.durationWeeks ? `${plan.durationWeeks} wks` : "No duration set"}</span>
             </div>
-            <TrainingCharts plan={plan} athletes={athletes} activities={activities} logs={logs} />
+            <TrainingCharts plan={plan} athletes={athletes} activities={activities} logs={logs} perAthlete={perAthlete} barData={barData} fitnessDist={fitnessDist} weekly={weekly} overallCompletion={overallCompletion} />
             
             <div className="chartGrid" style={{ marginBottom: "var(--space-5)" }}>
               <div className={`${styles.detailPanel} panelBox`}>
@@ -349,7 +407,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
               <div><p className={styles.eyebrow}>Trends & Charts</p><h2>Progress trends</h2></div>
             </div>
             <p className={styles.formHint}>Trend charts for completion rates, ratings, and activity progress over time.</p>
-            <TrainingCharts plan={plan} athletes={athletes} activities={activities} logs={logs} />
+            <TrainingCharts plan={plan} athletes={athletes} activities={activities} logs={logs} perAthlete={perAthlete} barData={barData} fitnessDist={fitnessDist} weekly={weekly} overallCompletion={overallCompletion} />
           </section>
 
           <section id="roster">
@@ -1226,63 +1284,7 @@ const chartTooltip = {
   itemStyle: { color: "#9db6c7" },
 };
 
-function TrainingCharts({ plan, athletes, activities, logs }) {
-  const perAthlete = React.useMemo(() => {
-    return athletes.map((a) => {
-      const acts = activities.filter((act) => act.athleteId === a.id);
-      let done = 0, partial = 0, missed = 0, open = 0;
-      const byActivity = acts.map((act) => {
-        const al = logs.filter((l) => l.activityId === act.id && l.athleteId === a.id);
-        const latest = al.length ? [...al].sort((x, y) => new Date(y.performedAt) - new Date(x.performedAt))[0] : null;
-        const status = latest ? latest.status : "open";
-        if (status === "done") done++;
-        else if (status === "partial") partial++;
-        else if (status === "missed") missed++;
-        else open++;
-        const p = computeProgress(act, latest);
-        return { id: act.id, name: act.activityName, fitness: act.fitnessType, status, percent: p ? p.percent : 0 };
-      });
-      const total = acts.length;
-      const percent = total ? Math.round(((done + partial) / total) * 100) : 0;
-      return { id: a.id, code: a.athleteCode, name: `${a.firstName} ${a.lastName}`, total, done, partial, missed, open, percent, byActivity };
-    });
-  }, [athletes, activities, logs]);
-
-  const overallCompletion = React.useMemo(() => {
-    const withActs = perAthlete.filter((r) => r.total > 0);
-    return withActs.length ? Math.round(withActs.reduce((s, r) => s + r.percent, 0) / withActs.length) : 0;
-  }, [perAthlete]);
-
-  const barData = perAthlete.slice(0, 20).map((r) => ({ name: r.name.split(" ")[0], full: r.name, percent: r.total ? r.percent : 0, total: r.total }));
-
-  const fitnessDist = React.useMemo(() => {
-    const map = new Map();
-    for (const act of activities) map.set(act.fitnessType, (map.get(act.fitnessType) || 0) + 1);
-    const arr = [...map.entries()].map(([key, count]) => ({ key, name: FITNESS_META[key] || key, count })).sort((x, y) => y.count - x.count);
-    const top = arr.slice(0, 5);
-    const rest = arr.slice(5);
-    if (rest.length) top.push({ key: "other", name: "Other", count: rest.reduce((s, r) => s + r.count, 0) });
-    return top.map((d, i) => ({ ...d, color: CHART_PALETTE[i % CHART_PALETTE.length] }));
-  }, [activities]);
-
-  const weekly = React.useMemo(() => {
-    const maxWeek = (plan.durationDays != null ? Math.ceil(plan.durationDays / 7) : null) || plan.durationWeeks || 1;
-    const weeks = [];
-    for (let w = 1; w <= maxWeek; w++) {
-      const acts = activities.filter((act) => act.weekNumber == null || Number(act.weekNumber) === w);
-      if (!acts.length) { weeks.push({ week: w, percent: 0, total: 0 }); continue; }
-      let done = 0, partial = 0;
-      for (const act of acts) {
-        const latest = logs.filter((l) => l.activityId === act.id).sort((x, y) => new Date(y.performedAt) - new Date(x.performedAt))[0];
-        if (!latest) continue;
-        if (latest.status === "done") done++;
-        else if (latest.status === "partial") partial++;
-      }
-      weeks.push({ week: w, percent: Math.round(((done + partial) / acts.length) * 100), total: acts.length });
-    }
-    return weeks;
-  }, [activities, logs, plan.durationDays, plan.durationWeeks]);
-
+function TrainingCharts({ plan, athletes, activities, logs, perAthlete, barData, fitnessDist, weekly, overallCompletion }) {
   return (
     <div>
       <style jsx>{`

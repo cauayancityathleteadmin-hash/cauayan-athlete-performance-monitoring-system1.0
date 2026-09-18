@@ -1,7 +1,6 @@
 import Head from "next/head";
 import React from "react";
 import { getSession } from "next-auth/react";
-import { prisma } from "../lib/prisma";
 import {
   ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid,
   LineChart, Line, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend,
@@ -74,6 +73,12 @@ export async function getServerSideProps(context) {
   const session = await getSession(context);
   if (!session) return { redirect: { destination: "/login", permanent: false } };
   const isAdmin = session.user.role === "admin";
+
+  const { prisma } = await import("../lib/prisma");
+  if (!prisma) {
+    console.error("Prisma client is undefined");
+    return { props: { session, isAdmin, error: "Database connection unavailable" } };
+  }
 
   const [athletes, assessments, metrics, coaches, schools, events, sports, eventPlans, applications, participants] = await Promise.all([
     prisma.athlete.findMany({ where: { status: "active" }, include: { sport: true, event: true, school: true, coach: { select: { firstName: true, lastName: true, coachCode: true } }, _count: { select: { assessments: true } } }, orderBy: { lastName: "asc" } }),
