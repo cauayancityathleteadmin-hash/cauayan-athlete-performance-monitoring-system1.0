@@ -8,7 +8,7 @@ import {
 } from "recharts";
 import { prisma } from "../../../lib/prisma";
 import { buildMonitoringGrid } from "../../../lib/plan-monitoring";
-import SectionShortcutNav from "../../../components/SectionShortcutNav";
+import PageSectionTabs from "../../../components/PageSectionTabs";
 import { METRIC_LABELS, resultUnitFor, targetValueFor } from "../../../lib/activity-score";
 import AppShell from "../../../components/AppShell";
 import styles from "../../../styles/Dashboard.module.css";
@@ -250,9 +250,8 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
           </p>
         )}
 
-        <SectionShortcutNav sections={PLAN_SECTIONS} />
-
-        <section className={styles.panel} id="overview">
+        <PageSectionTabs sections={PLAN_SECTIONS} defaultSection="overview">
+          <section id="overview">
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Overview</p><h2>Progress overview</h2></div>
             <span className={styles.formHint} style={{ alignSelf: "center" }}>{plan.durationDays ? `${plan.durationDays} days` : plan.durationWeeks ? `${plan.durationWeeks} wks` : "No duration set"}</span>
@@ -310,7 +309,8 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
           ) : (
             <AthleteRosterTable plan={plan} athletes={athletes} activities={activities} logs={logs} isAdmin={isAdmin} />
           )}
-        </section>
+</section>
+      </PageSectionTabs>
       </AppShell>
     </>
   );

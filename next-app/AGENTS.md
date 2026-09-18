@@ -31,14 +31,17 @@ These are standing, always-on rules for this project. Follow them on every chang
 - Never remove or break the core purpose (athlete/assessment/event-plan monitoring, coach registration + admin approval).
 - Always keep the best working version backed up for rollback.
 
-## In-page shortcut nav (standing convention)
-- Qualifying checklist for adding `components/SectionShortcutNav.js` — apply to every current page that grows long AND every new feature built from now on:
+## Navigation: Plain Sidebar + Tabs Per Feature (standing convention)
+- Sidebar = main features only (Dashboard, Training, Athletes, Coaches, Settings, Admin). No nested sub-items, no sub-feature links, no scroll-shortcuts.
+- Tabs = sections inside a feature. Any feature page long/complex enough to need in-page navigation gets tabs (reuse `components/PageSectionTabs.js`), not sidebar nesting and not a scroll-anchor shortcut bar.
+- Qualifying checklist for tabs (same as before):
   1. The page has 3+ distinct stacked sections.
   2. It requires meaningful scrolling to reach later sections.
   3. The sections belong to one page/feature (not separate routes).
-- If a page doesn't meet the checklist, it does NOT get the nav. Flat/list pages (e.g. Training List, Athletes list) normally never qualify.
-- The nav lives inside the page component only — never in shared layout/shell code, never in the sidebar, never rendered after navigating away.
-- Sections must have stable `id` anchors; the nav stays generic (a list of `{ label, sectionId }`), never hardcoded per page.
+- Exclude: Dashboard, Athletes (list), Coaches (list) — these don't need tabs.
+- Tabs live inside the page component only; sidebar is never modified for sub-feature navigation.
+- Sections must have stable `id` anchors; the tabs component handles URL hash deep-linking (`#sectionId`).
+- Current pages with tabs: `/analytics`, `/athletes/[id]/progress`, `/training-plans/[id]`, `/training-plans/[id]/athletes/[athleteId]`, `/admin/catalog`.
 
 ## Layout, spacing & copy standard (standing convention)
 Only ONE value per use case; all values come from the token scale (`--space-1..8`, `--radius-*`, defined in globals.css AND Dashboard.module.css `:root`). NEVER hardcode off-token px (18/20/22/26/28px…).

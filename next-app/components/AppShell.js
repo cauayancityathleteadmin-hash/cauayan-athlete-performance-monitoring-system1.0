@@ -145,8 +145,7 @@ const NAV_GROUPS = [
   {
     key: "coaches",
     label: "Coaches",
-    icon: "users",
-    shortcuts: [
+    links: [
       { href: "/admin/coaches", label: "Coaches", icon: "users", adminOnly: true },
       { href: "/admin/coach-performances", label: "Coach evaluations", icon: "star", adminOnly: true },
       { href: "/coach-approvals", label: "Coach approvals", icon: "badgeCheck", coachApproveOnly: true },
@@ -156,8 +155,10 @@ const NAV_GROUPS = [
   {
     key: "training",
     label: "Training",
-    icon: "clipboardCheck",
-    shortcuts: "plans",
+    links: [
+      { href: "/training-plans", label: "Training plans", icon: "clipboardCheck" },
+      { href: "/progress", label: "Progress", icon: "trendingUp" },
+    ],
   },
   { key: "analytics", label: "Analytics", links: [{ href: "/analytics", label: "Analytics", icon: "barChart" }, { href: "/standings", label: "Standings", icon: "trophy" }] },
   { key: "events", label: "Events & Program", links: [{ href: "/event-plans", label: "Event plans", icon: "calendar" }, { href: "/admin/catalog", label: "Sports & Discipline", icon: "flag", adminOnly: true }] },
@@ -165,8 +166,7 @@ const NAV_GROUPS = [
   {
     key: "system",
     label: "System",
-    icon: "gauge",
-    shortcuts: [
+    links: [
       { href: "/admin/metrics", label: "Metrics", icon: "gauge", adminOnly: true },
       { href: "/admin/audit-logs", label: "Audit logs", icon: "list", adminOnly: true },
       { href: "/admin/backup", label: "Backup", icon: "database", adminOnly: true },
@@ -187,10 +187,6 @@ export default function AppShell({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [shortcuts, setShortcuts] = React.useState(null);
-  const shortcutsRef = React.useRef(null);
-  const [shortcutsLoaded, setShortcutsLoaded] = React.useState(false);
-  const [navSearch, setNavSearch] = React.useState({});
   const person = session?.user?.name || session?.user?.email || "Account";
   const currentPath = active || router.pathname;
 
@@ -198,49 +194,6 @@ export default function AppShell({
     return currentPath === href || (href !== "/" && currentPath.startsWith(href + "/"));
   }
   const isActive = (href) => (isActiveHref(href) ? styles.navLinkActive : undefined);
-
-  function ensureShortcuts() {
-    if (shortcutsRef.current) return;
-    shortcutsRef.current = true;
-    fetch("/api/nav-shortcuts").then((r) => r.json()).then((data) => {
-      const plans = Array.isArray(data?.plans) ? data.plans.map((p) => ({
-        id: p.id,
-        label: p.planName || "Untitled plan",
-        href: `/training-plans/${p.id}`,
-      })) : [];
-      setShortcuts({ plans });
-      setShortcutsLoaded(true);
-    }).catch(() => {});
-  }
-
-  // Derive which group should be expanded from current path
-  function getExpandedGroup(path) {
-    if (path.startsWith("/admin/coaches") || path.startsWith("/coach-approvals")) return "coaches";
-    if (path.startsWith("/training-plans")) return "training";
-    if (path.startsWith("/admin/metrics") || path.startsWith("/admin/audit-logs") || path.startsWith("/admin/backup")) return "system";
-    return null;
-  }
-  const expandedGroup = getExpandedGroup(currentPath);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = [];
-    try {
-      const raw = window.localStorage.getItem("apms.sidebarMenus");
-      if (raw) stored.push(...JSON.parse(raw));
-    } catch (e) {}
-    const grp = NAV_GROUPS.find((g) =>
-      ((g.links || []).some((l) => isActiveHref(l.href))) ||
-      (g.key === "training" && currentPath.startsWith("/training-plans"))
-    );
-    if (grp) {
-      if (!stored.includes(grp.key)) stored.push(grp.key);
-      if (grp.shortcuts) ensureShortcuts();
-    }
-    const t = window.setTimeout(() => {}, 0);
-    return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -279,58 +232,6 @@ export default function AppShell({
   const nav = (
     <nav className={styles.sidebar} aria-label="Primary navigation">
       {NAV_GROUPS.map((group) => {
-        // Groups with shortcuts: Coaches, Training, System - inline expand
-        if (group.shortcuts) {
-          const allShortcutItems = Array.isArray(group.shortcuts) ? group.shortcuts : (shortcuts?.[group.shortcuts] || []);
-          const shortcutItems = allShortcutItems.filter((it) => (!it.adminOnly || isAdmin) && (!it.coachApproveOnly || (canApproveCoaches && !isAdmin)));
-          const q = (navSearch[group.key] || "").toLowerCase().trim();
-          const filtered = q ? shortcutItems.filter((it) => it.label.toLowerCase().includes(q)) : shortcutItems;
-          const isExpanded = expandedGroup === group.key;
-          const groupActive = isExpanded || shortcutItems.some((it) => isActiveHref(it.href));
-
-          if (shortcutItems.length === 0 && group.key !== "training") return null;;
-          
-          return (
-            <React.Fragment key={group.key}>
-              <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
-                {group.key === "training" ? (
-                  <Link href="/training-plans" className={`${styles.navLink}${groupActive ? ` ${styles.navLinkActive}` : ""}`} onClick={() => setOpen(false)} style={{ flex: 1 }}>
-                    <span className={styles.navIcon} aria-hidden="true">{ICONS[group.icon]}</span>
-                    <span className={styles.navLabel}>{group.label}</span>
-                  </Link>
-                ) : (
-                  <button type="button" className={`${styles.navGroupBtn}${groupActive ? ` ${styles.navGroupBtnActive}` : ""}${isExpanded ? ` ${styles.navGroupBtnOpen}` : ""}`} aria-expanded={isExpanded} style={{ width: "100%", textAlign: "left" }}>
-                    <span className={styles.navIcon} aria-hidden="true">{ICONS[group.icon]}</span>
-                    <span className={styles.navLabel}>{group.label}</span>
-                    <span className={`${styles.navChevron}${isExpanded ? ` ${styles.navChevronOpen}` : ""}`} aria-hidden="true">›</span>
-                  </button>
-                )}
-              </div>
-              <div className={`${styles.navShortcuts} ${isExpanded ? styles.navShortcutsOpen : ""}`} style={{ maxHeight: isExpanded ? "none" : 0, overflow: "hidden", transition: "max-height 0.25s ease" }}>
-                {(shortcutItems.length > 8) && (
-                  <input className={styles.navShortcutSearch} type="search" placeholder="Search..." value={navSearch[group.key] || ""} onChange={(e) => setNavSearch((s) => ({ ...s, [group.key]: e.target.value }))} aria-label="Search" />
-                )}
-                {shortcutItems.length === 0 && group.shortcuts === "plans" && !shortcutsLoaded ? (
-                  <span className={styles.navShortcutEmpty}>Loading...</span>
-                ) : filtered.length === 0 ? (
-                  <span className={styles.navShortcutEmpty}>No matches.</span>
-                ) : (
-                  filtered.map((it) => {
-                    const isShortcutActive = isActive(it.href);
-                    return (
-                      <Link key={it.id} href={it.href} className={`${styles.navShortcutLink}${isShortcutActive ? ` ${styles.navLinkActive}` : ""}`} onClick={() => setOpen(false)}>
-                        <span className={styles.navSubDot} aria-hidden="true" />
-                        <span className={styles.navSubLabel}>{it.label}</span>
-                      </Link>
-                    );
-                  })
-                )}
-              </div>
-            </React.Fragment>
-          );
-        }
-
-        // Flat groups: Home, Athletes, Analytics, Events, Reports, Account
         const links = group.links.filter((link) => (!link.adminOnly || isAdmin) && (!link.coachApproveOnly || (canApproveCoaches && !isAdmin)));
         if (!links.length) return null;
         return (

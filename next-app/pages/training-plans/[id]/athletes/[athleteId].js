@@ -7,7 +7,7 @@ import { METRIC_LABELS, resultFieldFor, resultUnitFor, targetValueFor } from "..
 import { prisma } from "../../../../lib/prisma";
 import AppShell from "../../../../components/AppShell";
 import { AthleteActivitiesBlock } from "../../../../components/AthleteActivityManager";
-import SectionShortcutNav from "../../../../components/SectionShortcutNav";
+import PageSectionTabs from "../../../../components/PageSectionTabs";
 import styles from "../../../../styles/Dashboard.module.css";
 
 const FITNESS_META = {
@@ -333,9 +333,8 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
           <button className={styles.secondary} onClick={() => router.push(`/training-plans/${plan.id}`)}>← Back to plan</button>
         </div>
 
-        <SectionShortcutNav sections={ATHLETE_SECTIONS} />
-
-        {manageOpen && !isAdmin && (
+        <PageSectionTabs sections={ATHLETE_SECTIONS} defaultSection="overview">
+          {manageOpen && !isAdmin && (
           <section className={styles.panel} style={{ marginBottom: "var(--space-5)" }}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Activity manager</p><h2>Manage {athlete.firstName}&apos;s activities</h2></div></div>
             {manageMsg && <p role="status" className={styles.empty} style={{ margin: "0 16px 12px", color: "var(--danger)" }}>{manageMsg}</p>}
@@ -551,6 +550,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
             </ResponsiveContainer>
           </section>
         )}
+      </PageSectionTabs>
       </AppShell>
     </>
   );
