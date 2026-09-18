@@ -1375,7 +1375,9 @@ function AthleteRosterTable({ plan, athletes, activities, logs, isAdmin }) {
     }
     const total = acts.length;
     const percent = total ? Math.round(((done + partial) / total) * 100) : 0;
-    return { ...a, total, done, partial, missed, open, percent };
+    const myLogs = logs.filter((l) => l.athleteId === a.id);
+    const lastSession = myLogs.length ? [...myLogs].sort((x, y) => new Date(y.performedAt) - new Date(x.performedAt))[0].performedAt : null;
+    return { ...a, total, done, partial, missed, open, percent, lastSession };
   });
 
   return (
@@ -1387,6 +1389,7 @@ function AthleteRosterTable({ plan, athletes, activities, logs, isAdmin }) {
             <th>Sport</th>
             <th>Health</th>
             <th>Completion</th>
+            <th>Last session</th>
             <th style={{ textAlign: "right" }}></th>
           </tr>
         </thead>
@@ -1420,6 +1423,7 @@ function AthleteRosterRow({ plan, row, isAdmin }) {
             </div>
           )}
         </td>
+        <td data-label="Last session">{row.lastSession ? fmtDate(row.lastSession) : "—"}</td>
         <td style={{ textAlign: "right" }}>
           <button className={styles.secondary} onClick={() => router.push(`/training-plans/${plan.id}/athletes/${row.id}`)}>See progress →</button>
         </td>

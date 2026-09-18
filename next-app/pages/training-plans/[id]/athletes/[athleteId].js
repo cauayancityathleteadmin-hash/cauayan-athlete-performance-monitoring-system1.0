@@ -2,7 +2,8 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import React from "react";
 import { getSession } from "next-auth/react";
-import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, ReferenceLine } from "recharts";
+import { METRIC_LABELS, resultFieldFor, resultUnitFor, targetValueFor } from "../../../../lib/activity-score";
 import { prisma } from "../../../../lib/prisma";
 import AppShell from "../../../../components/AppShell";
 import { AthleteActivitiesBlock } from "../../../../components/AthleteActivityManager";
@@ -170,6 +171,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
   const [manageMsg, setManageMsg] = React.useState("");
   const [error, setError] = React.useState("");
   const [expandedActivityId, setExpandedActivityId] = React.useState(null);
+  const [metricActivityId, setMetricActivityId] = React.useState(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -245,6 +247,43 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
     for (const a of activities) map.set(a.fitnessType, (map.get(a.fitnessType) || 0) + 1);
     return [...map.entries()].map(([k, count], i) => ({ name: FITNESS_META[k] || k, count, color: CHART_PALETTE[i % CHART_PALETTE.length] }));
   }, [activities]);
+
+  const weeklyTrend = React.useMemo(() => {
+    const maxWeek = activities.reduce((m, a) => Math.max(m, a.weekNumber == null ? 1 : Number(a.weekNumber)), 0);
+    const byWeek = new Map();
+    for (const a of activities) {
+      const w = a.weekNumber == null ? 1 : Number(a.weekNumber);
+      if (!byWeek.has(w)) byWeek.set(w, { total: 0, done: 0, partial: 0 });
+      const row = byWeek.get(w);
+      row.total += 1;
+      const s = a.latestLog?.status;
+      if (s === "done") row.done += 1;
+      else if (s === "partial") row.partial += 1;
+    }
+    const arr = [];
+    for (let w = 1; w <= maxWeek; w++) {
+      const row = byWeek.get(w) || { total: 0, done: 0, partial: 0 };
+      arr.push({ week: w, percent: row.total ? Math.round(((row.done + row.partial) / row.total) * 100) : 0, total: row.total });
+    }
+    return arr;
+  }, [activities]);
+
+  const measurableActivities = React.useMemo(() => activities.filter((a) => a.metricType && a.metricType !== "none"), [activities]);
+
+  const selectedMetric = measurableActivities.find((a) => a.id === metricActivityId) || measurableActivities[0] || null;
+
+  const metricSeries = React.useMemo(() => {
+    if (!selectedMetric) return [];
+    const field = resultFieldFor(selectedMetric.metricType);
+    return allLogs
+      .filter((l) => l.activityId === selectedMetric.id)
+      .map((l) => ({ date: l.performedAt, label: fmtDate(l.performedAt), value: l[field] == null ? null : Number(l[field]) }))
+      .filter((d) => d.value != null && Number.isFinite(d.value))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+  }, [allLogs, selectedMetric]);
+
+  const metricTarget = selectedMetric ? targetValueFor(selectedMetric) : null;
+  const metricUnit = selectedMetric ? resultUnitFor(selectedMetric.metricType) : "";
 
   return (
     <>
@@ -373,6 +412,57 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
               </table>
             </div>
           )}
+          </section>
+        )}
+
+        {activities.length > 0 && (
+          <section className={styles.panel}>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Trends</p><h2>Progress over time</h2></div></div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 16, alignItems: "stretch" }}>
+              <div className={styles.detailPanel}>
+                <h4>Completion trend <small style={{ color: "var(--muted)", fontWeight: 400 }}>(done + partial ÷ planned, per week)</small></h4>
+                {weeklyTrend.some((w) => w.total > 0) ? (
+                  <ResponsiveContainer width="100%" height={240}>
+                    <LineChart data={weeklyTrend} margin={{ top: 6, right: 12, left: 16, bottom: 24 }}>
+                      <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
+                      <XAxis dataKey="week" tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `W${v}`} />
+                      <YAxis domain={[0, 100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
+                      <Tooltip {...chartTooltip} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l) => `Week ${l}`} cursor={{ stroke: "rgba(45,212,168,0.4)" }} />
+                      <Line type="monotone" dataKey="percent" name="Completion" stroke="#2dd4a8" strokeWidth={2} dot={{ fill: "#2dd4a8", r: 3 }} activeDot={{ r: 5 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : <p className={styles.empty}>No logged sessions yet.</p>}
+              </div>
+
+              <div className={styles.detailPanel}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <h4 style={{ margin: 0 }}>Metric trend</h4>
+                  {measurableActivities.length > 1 && (
+                    <label style={{ minWidth: 200, fontSize: 12 }}>Activity
+                      <select className={styles.fieldControl} value={selectedMetric?.id ?? ""} onChange={(e) => setMetricActivityId(Number(e.target.value))}>
+                        {measurableActivities.map((a) => <option key={a.id} value={a.id}>{a.activityName} — {METRIC_LABELS[a.metricType] || a.metricType}</option>)}
+                      </select>
+                    </label>
+                  )}
+                </div>
+                {!selectedMetric ? (
+                  <p className={styles.empty}>No measurable activities on this plan for this athlete.</p>
+                ) : metricSeries.length === 0 ? (
+                  <p className={styles.empty}>No logged results yet for this activity.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={240}>
+                    <LineChart data={metricSeries} margin={{ top: 6, right: 12, left: 16, bottom: 24 }}>
+                      <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
+                      <XAxis dataKey="label" tick={{ fill: "#9db6c7", fontSize: 11 }} />
+                      <YAxis tick={{ fill: "#9db6c7", fontSize: 12 }} />
+                      <Tooltip {...chartTooltip} formatter={(v) => [`${v}${metricUnit ? ` ${metricUnit}` : ""}`, "Result"]} />
+                      {metricTarget != null && <ReferenceLine y={metricTarget} stroke="#fbbf24" strokeDasharray="4 4" label={{ value: `Target ${metricTarget}${metricUnit ? ` ${metricUnit}` : ""}`, fill: "#fbbf24", fontSize: 11, position: "insideTopRight" }} />}
+                      <Line type="monotone" dataKey="value" name="Result" stroke="#2dd4a8" strokeWidth={2} dot={{ fill: "#2dd4a8", r: 3 }} activeDot={{ r: 5 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
           </section>
         )}
 

@@ -122,6 +122,25 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
   const [templates, setTemplates] = React.useState(initialTemplates);
   const [loadingPlans, setLoadingPlans] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState("all");
+  const [sportFilter, setSportFilter] = React.useState("");
+
+  const filteredPlans = React.useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return plans.filter((p) => {
+      if (statusFilter !== "all" && p.status !== statusFilter) return false;
+      if (sportFilter && p.sport?.id !== Number(sportFilter)) return false;
+      if (!q) return true;
+      const coachName = p.coach ? `${p.coach.firstName} ${p.coach.lastName}` : "";
+      return (
+        p.planName.toLowerCase().includes(q) ||
+        (p.description || "").toLowerCase().includes(q) ||
+        coachName.toLowerCase().includes(q) ||
+        (p.sport?.sportName || "").toLowerCase().includes(q)
+      );
+    });
+  }, [plans, statusFilter, sportFilter, searchQuery]);
 
   function loadPlans() {
     fetch("/api/training-plans").then((r) => r.json()).then((data) => { setPlans(Array.isArray(data) ? data : []); setLoadingPlans(false); }).catch(() => { setLoadingPlans(false); setError("Could not load training plans."); });
@@ -169,6 +188,25 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
           </div>
           <p className={styles.formHint} style={{ marginTop: 0 }}>Coaches build a plan for their athletes over a day, week, or month. Coaches and the admin can then record assessments against it to track progress.</p>
 
+          <div className={styles.toolbar} style={{ marginBottom: 16 }}>
+            <label className={styles.searchLabel}>Search plans<input type="text" placeholder="Name, coach, sport…" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} /></label>
+            <label>Status
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                <option value="all">All statuses</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+              </select>
+            </label>
+            <label>Sport
+              <select value={sportFilter} onChange={(event) => setSportFilter(event.target.value)}>
+                <option value="">All sports</option>
+                {sports.map((s) => <option key={s.id} value={s.id}>{s.sportName}</option>)}
+              </select>
+            </label>
+            <span className={styles.toolbarSpacer} />
+            <span className={styles.formHint} style={{ alignSelf: "center" }}>{filteredPlans.length} of {plans.length} plan{plans.length === 1 ? "" : "s"}</span>
+          </div>
+
           {showPlanForm && (
             <div style={{ marginBottom: 22 }}>
               <CreatePlanForm isAdmin={isAdmin} sports={sports} coaches={coaches} athletes={athletes} templates={templates} onCreated={() => { setShowPlanForm(false); refresh(); router.push("/training-plans"); }} onCancel={() => setShowPlanForm(false)} />
@@ -183,11 +221,13 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
 
           {loadingPlans ? <p className={styles.empty}>Loading plans...</p> : plans.length === 0 ? (
             <p className={styles.empty}>No training plans yet. Create the first plan to get started.</p>
+          ) : filteredPlans.length === 0 ? (
+            <p className={styles.empty}>No plans match your filters.</p>
           ) : (
             <div className={styles.tableWrap}><table>
               <thead><tr><th>Plan</th><th>Frequency</th><th>Sport</th><th>Coach</th><th>Period</th><th>Athletes</th><th>Progress</th><th>Status</th><th></th></tr></thead>
               <tbody>
-                {plans.map((p) => {
+                {filteredPlans.map((p) => {
                   const prog = progressMap[p.id];
                   return (
                   <tr key={p.id}>
