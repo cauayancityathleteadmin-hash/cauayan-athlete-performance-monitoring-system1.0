@@ -11,9 +11,23 @@ export async function getServerSideProps(context) {
   const session = await getSession(context);
   if (!session) return { redirect: { destination: "/login", permanent: false } };
   const page = Number(context.query.page) || 1;
+  const isAdmin = session.user.role === "admin";
+  let assessmentWhere = undefined;
+  let athleteWhere = { status: "active" };
+  if (!isAdmin) {
+    const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
+    if (coach) {
+      const roster = { athlete: { coachId: coach.id } };
+      assessmentWhere = roster;
+      athleteWhere = { ...athleteWhere, coachId: coach.id };
+    } else {
+      assessmentWhere = { athlete: { coachId: -1 } };
+      athleteWhere = { ...athleteWhere, coachId: -1 };
+    }
+  }
   const [assessmentResult, athletes, metrics] = await Promise.all([
-    paginatePrisma(prisma.assessment, page, { orderBy: { assessmentDate: "desc" }, include: { athlete: true, recorder: { select: { email: true } }, results: { include: { metric: true } } } }),
-    prisma.athlete.findMany({ where: { status: "active" }, select: { id: true, athleteCode: true, firstName: true, lastName: true, eventId: true, sport: { select: { sportName: true } }, event: { select: { eventName: true } }, coach: { select: { userId: true } } }, orderBy: { lastName: "asc" } }),
+    paginatePrisma(prisma.assessment, page, { where: assessmentWhere, orderBy: { assessmentDate: "desc" }, include: { athlete: true, recorder: { select: { email: true } }, results: { include: { metric: true } } } }),
+    prisma.athlete.findMany({ where: athleteWhere, select: { id: true, athleteCode: true, firstName: true, lastName: true, eventId: true, sport: { select: { sportName: true } }, event: { select: { eventName: true } }, coach: { select: { userId: true } } }, orderBy: { lastName: "asc" } }),
     prisma.performanceMetric.findMany({ where: { status: "active" }, select: { id: true, eventId: true, metricName: true, dataType: true, isRequired: true }, orderBy: { metricName: "asc" } }),
   ]);
   const assessments = assessmentResult.items.map((item) => ({ ...item, assessmentDate: item.assessmentDate.toISOString(), createdAt: item.createdAt.toISOString(), results: item.results.map((result) => ({ ...result, valueDecimal: result.valueDecimal?.toString() || null })) }));

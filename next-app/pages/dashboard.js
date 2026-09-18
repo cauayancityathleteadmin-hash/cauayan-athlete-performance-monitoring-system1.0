@@ -208,7 +208,7 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
     <AppShell session={session} isAdmin={isAdmin} active="/dashboard">
       <section className={styles.intro}><div><p className={styles.eyebrow}>Overview</p><Greeting greetingName={greetingName} /><p>One summary of every feature in the system. Click any card or chart to dig in.</p></div></section>
       <section className={styles.cards} aria-label="System totals">{cards.map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>
-      <section className={styles.cards} aria-label="Administration summary">{[["Training plans", stats.trainingPlans, "/training-plans"], ["Coach evaluations", stats.evals, "/admin/coach-performances"], ["Athletes with health flags", stats.healthIssues, "/athletes?health=flagged"], ["Open event plans", stats.plans, "/event-plans"]].map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>
+      <section className={styles.cards} aria-label="Administration summary">{[["Training plans", stats.trainingPlans, "/training-plans"], ...(isAdmin ? [["Coach evaluations", stats.evals, "/admin/coach-performances"]] : []), ["Athletes with health flags", stats.healthIssues, "/athletes?health=flagged"], ["Open event plans", stats.plans, "/event-plans"]].map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>
       {(canApprove && stats.pendingCoaches > 0) || stats.healthIssues > 0 ? (
         <section className={styles.alertList} aria-label="Alerts">
           {canApprove && stats.pendingCoaches > 0 && <Link className={`${styles.alertItem} ${styles.alertWarn}`} href="/coach-approvals"><span className={`${styles.dot} ${styles.dotWarn}`} aria-hidden="true" /><span><strong>{stats.pendingCoaches} pending coach approval{stats.pendingCoaches === 1 ? "" : "s"}</strong><small>Review new coach accounts waiting for approval.</small></span></Link>}
@@ -274,7 +274,7 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
           {histData && histData.length ? <HBars data={histData} axisLabel="Score" axisValue="Assessments" /> : <p className={styles.empty}>No training ratings in the last 90 days yet.</p>}
         </div>
         <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Coaches</p><h2>Evaluation averages</h2></div><Link href="/admin/coach-performances">Evaluations</Link></div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Coaches</p><h2>Evaluation averages</h2></div>{isAdmin ? <Link href="/admin/coach-performances">Evaluations</Link> : <span className={styles.formHint}>Your average</span>}</div>
             {evalsData && evalsData.length ? <HBars data={evalsData} axisLabel={isAdmin ? "Coach" : "Your average"} axisValue="Avg" /> : <p className={styles.empty}>No coach evaluations on file yet.</p>}
           </div>
       </section>
@@ -286,7 +286,8 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
         <FeatureCard eyebrow="Standings" title="Standings" href="/standings">{plural(achievementsCount, "achievement")} recorded and ranked on the standings board.</FeatureCard>
         <FeatureCard eyebrow="Records" title="Reports" href="/reports">Generate official records — personnel, performance summaries, and coach files.</FeatureCard>
       </section>
-      <section className={styles.gridAuto} aria-label="Administration summaries">
+      {isAdmin && (
+        <section className={styles.gridAuto} aria-label="Administration summaries">
           <FeatureCard eyebrow="People" title="Coaches" href="/admin/coaches">{plural(stats.coaches, "coach")} on file. Review records, approvals, and account access on each page.</FeatureCard>
           <FeatureCard eyebrow="People" title="Coach approvals" href="/coach-approvals">{plural(stats.pendingCoaches, "account")} waiting for approval.</FeatureCard>
           <FeatureCard eyebrow="Catalog" title="Sports &amp; discipline" href="/admin/catalog">{plural(stats.sports, "sport")} registered under the program catalog.</FeatureCard>
@@ -294,6 +295,7 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
           <FeatureCard eyebrow="Records" title="Audit trail" href="/admin/audit-logs">{plural(stats.logs, "meaningful action")} recorded in the database.</FeatureCard>
           <FeatureCard eyebrow="Maintenance" title="Database backup" href="/admin/backup">Request backups and plan off-site snapshots.</FeatureCard>
         </section>
+      )}
     </AppShell>
   </>;
 }

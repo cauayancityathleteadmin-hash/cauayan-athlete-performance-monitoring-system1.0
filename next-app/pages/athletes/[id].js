@@ -47,12 +47,13 @@ participants: {
     },
   });
 
-  if (!athlete) return { notFound: true };
+if (!athlete) return { notFound: true };
 
   let canManage = session.user.role === "admin";
   if (session.user.role === "coach") {
     const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
     canManage = !!coach && athlete.coachId === coach.id;
+    if (!canManage) return { redirect: { destination: "/athletes", permanent: false } };
   }
 
   const catalog = {

@@ -21,11 +21,23 @@ export default async function handler(req, res) {
     try {
       const coachParam = req.query.coach ? String(req.query.coach).trim() : "";
       let whereClause = undefined;
-      if (session.user.role === "coach" && !coachParam) {
+      if (session.user.role === "coach") {
         const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
         if (coach) whereClause = { coachId: coach.id };
-      }
-      if (coachParam) {
+        if (coachParam) {
+          if (/^\d+$/.test(coachParam)) {
+            return res.status(403).json({ error: "Coaches may only view their own athletes." });
+          }
+          const matchingOwn = await prisma.coach.findMany({
+            where: {
+              id: coach?.id ?? -1,
+              OR: [{ firstName: { contains: coachParam, mode: "insensitive" } }, { lastName: { contains: coachParam, mode: "insensitive" } }],
+            },
+            select: { id: true },
+          });
+          if (!matchingOwn.length) return res.status(404).json({ error: "No athletes found for that coach." });
+        }
+      } else if (coachParam) {
         if (/^\d+$/.test(coachParam)) {
           whereClause = { coachId: Number(coachParam) };
         } else {

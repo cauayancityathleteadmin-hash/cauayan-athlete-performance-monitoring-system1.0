@@ -12,9 +12,18 @@ export default async function handler(req, res) {
   if (!rate.allowed) return res.status(429).json({ error: "Too many requests. Please try again later." });
 
   if (req.method === "GET") {
-    return res.status(200).json(
-      await prisma.eventPlan.findMany({ orderBy: { startDate: "asc" }, include: { sports: { include: { sport: true } }, applications: true, participants: { where: { status: "active" } } } })
-    );
+    const isAdmin = session.user.role === "admin";
+    const plans = await prisma.eventPlan.findMany({
+      orderBy: { startDate: "asc" },
+      include: {
+        sports: { include: { sport: true } },
+        applications: isAdmin ? true : { select: { id: true, eventPlanId: true, coachId: true, status: true, sport: { select: { sportName: true } } } },
+        participants: { where: { status: "active" } },
+      },
+    });
+    if (isAdmin) return res.status(200).json(plans);
+    const visible = plans.filter((p) => p.status === "open" || p.status === "closed");
+    return res.status(200).json(visible);
   }
   if (req.method === "PUT") {
     if (!requireRole(session, "admin", res)) return;

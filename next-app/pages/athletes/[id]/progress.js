@@ -33,7 +33,7 @@ export async function getServerSideProps(context) {
 
   if (session.user.role === "coach") {
     const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
-    if (!coach) return { redirect: { destination: "/dashboard", permanent: false } };
+    if (!coach || athlete.coachId !== coach.id) return { redirect: { destination: "/athletes", permanent: false } };
   }
 
   const [trainingAssessments, performances, attendances, planLogs, achievements, healthLogs] = await Promise.all([

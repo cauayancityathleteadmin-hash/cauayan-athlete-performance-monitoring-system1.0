@@ -8,6 +8,7 @@ export async function getServerSideProps(context) {
   const session = await getSession(context);
   if (!session) return { redirect: { destination: "/login", permanent: false } };
   if (session.user.role === "admin") return { redirect: { destination: "/admin/coaches", permanent: false } };
+  if (!session.user.canApproveCoaches) return { redirect: { destination: "/dashboard", permanent: false } };
   return { props: { session } };
 }
 

@@ -281,11 +281,14 @@ export default function AppShell({
       {NAV_GROUPS.map((group) => {
         // Groups with shortcuts: Coaches, Training, System - inline expand
         if (group.shortcuts) {
-          const shortcutItems = Array.isArray(group.shortcuts) ? group.shortcuts : (shortcuts?.[group.shortcuts] || []);
+          const allShortcutItems = Array.isArray(group.shortcuts) ? group.shortcuts : (shortcuts?.[group.shortcuts] || []);
+          const shortcutItems = allShortcutItems.filter((it) => (!it.adminOnly || isAdmin) && (!it.coachApproveOnly || (canApproveCoaches && !isAdmin)));
           const q = (navSearch[group.key] || "").toLowerCase().trim();
           const filtered = q ? shortcutItems.filter((it) => it.label.toLowerCase().includes(q)) : shortcutItems;
           const isExpanded = expandedGroup === group.key;
           const groupActive = isExpanded || shortcutItems.some((it) => isActiveHref(it.href));
+
+          if (shortcutItems.length === 0 && group.key !== "training") return null;;
           
           return (
             <React.Fragment key={group.key}>
