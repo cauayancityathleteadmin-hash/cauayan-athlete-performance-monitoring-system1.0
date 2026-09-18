@@ -157,12 +157,13 @@ export default function AdminCoaches({ coaches, session }) {
           <div className={styles.panelHeader}>
             <div>
               <p className={styles.eyebrow}>Registered coaches</p>
-              <h2>{view === "list" ? "All coaches" : "All coaches by sport"}</h2>
+              <h2>All coaches</h2>
             </div>
             <div className={styles.segmented}>
               <button className={view === "sport" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("sport")}>By sport</button>
               <button className={view === "list" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("list")}>List</button>
             </div>
+            <span className={styles.formHint} style={{ alignSelf: "center" }}>{sorted.length} coach{sorted.length === 1 ? "" : "es"}</span>
           </div>
           <div className={styles.toolbar}>
             <label className={styles.searchLabel}>Search coaches<input type="text" placeholder="Name, code, sport, school, email…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>

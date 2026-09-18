@@ -75,7 +75,8 @@ export async function getServerSideProps(context) {
 export default function Athletes({ session, athletes, paginated: serverPaginated, catalog, page: serverPage, totalPages: serverTotalPages, total, sort, dir, health, allAthletes = [], ownCoachId = null }) {
   const isAdmin = session?.user?.role === "admin";
   const isCoach = session?.user?.role === "coach";
-  const [view, setView] = React.useState("sport");
+  const [view, setView] = React.useState("roster");
+  const [listMode, setListMode] = React.useState("sport");
   const router = useRouter();
   const [search, setSearch] = React.useState("");
 
@@ -179,32 +180,43 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Directory" title="Athletes" active="/athletes">
         <div className={styles.pageActions}>
           <div className={styles.segmented}>
-            <button className={view === "sport" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("sport")}>By sport</button>
-            <button className={view === "list" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("list")}>List</button>
-            {(isCoach || isAdmin) && <button className={view === "all" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("all")}>All athletes</button>}
+            <button className={view === "roster" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("roster")}>{isCoach ? "My athletes" : "All athletes"}</button>
+            {(isCoach || isAdmin) && <button className={view === "all" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("all")}>Directory</button>}
             {isCoach && <button className={view === "requests" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("requests")}>Transfer center</button>}
             {isAdmin && <button className={view === "requests" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("requests")}>Transfer requests</button>}
             {isAdmin && <button className={view === "transfer" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("transfer")}>Transfer athletes</button>}
           </div>
-          <button className={view === "add" ? `${styles.primary} ${styles.btnSm}` : styles.primary} onClick={() => setView(view === "add" ? "sport" : "add")}>{view === "add" ? "Close form" : "Add athlete"}</button>
-          <button className={view === "import" ? `${styles.secondary} ${styles.btnSm}` : styles.secondary} onClick={() => setView(view === "import" ? "sport" : "import")}>{view === "import" ? "Close import" : "Import athletes"}</button>
+          <button className={view === "add" ? `${styles.primary} ${styles.btnSm}` : styles.primary} onClick={() => setView(view === "add" ? "roster" : "add")}>{view === "add" ? "Close form" : "Add athlete"}</button>
+          <button className={view === "import" ? `${styles.secondary} ${styles.btnSm}` : styles.secondary} onClick={() => setView(view === "import" ? "roster" : "import")}>{view === "import" ? "Close import" : "Import athletes"}</button>
         </div>
 
         {view === "add" && (
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registration</p><h2>Add athlete</h2></div></div>
-            <AthleteForm catalog={catalog} isAdmin={isAdmin} onDone={() => setView("sport")} />
+            <AthleteForm catalog={catalog} isAdmin={isAdmin} onDone={() => setView("roster")} />
           </section>
         )}
 
         {view === "import" && (
-          <ImportPanel isAdmin={isAdmin} onDone={() => setView("sport")} />
+          <ImportPanel isAdmin={isAdmin} onDone={() => setView("roster")} />
         )}
 
-        {view === "list" && (
+        {view === "roster" && (
           <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registered athletes</p><h2>All athletes</h2></div></div>
-<div className={styles.toolbar}>
+            <div className={styles.panelHeader}>
+              <div>
+                <p className={styles.eyebrow}>Registered athletes</p>
+                <h2>{isCoach ? "My athletes" : "All athletes"}{listMode === "sport" ? " by sport" : ""}</h2>
+              </div>
+              <div className={styles.segmented}>
+                <button className={listMode === "sport" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setListMode("sport")}>By sport</button>
+                <button className={listMode === "list" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setListMode("list")}>List</button>
+              </div>
+              {listMode === "sport" && <span className={styles.formHint} style={{ alignSelf: "center" }}>{filteredAthletes.length} athlete{filteredAthletes.length === 1 ? "" : "s"}</span>}
+            </div>
+            {listMode === "list" ? (
+              <>
+            <div className={styles.toolbar}>
             <label className={styles.searchLabel}>Search athletes<input type="text" placeholder="Name, code, sport, event, school, coach…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
             <label>Sort athletes by
               <select value={sort} onChange={(event) => changeSort(event.target.value)}>
@@ -239,6 +251,33 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
               ))}
             </tbody></table></div>
             <Pagination page={currentPage} totalPages={clientTotalPages} query={{ sort, dir, health, search }} />
+              </>
+            ) : (
+              <>
+              {grouped.length ? grouped.map(([sportName, roster]) => (
+                <div key={sportName} style={{ marginBottom: 22 }}>
+                  <h3 className={styles.sectionTitle}>{sportName} <span className={styles.formHint}>({roster.length})</span></h3>
+                  <div className={styles.tableWrap}><table>
+                    <thead><tr><th>Code</th><th>Athlete</th><th>Event / discipline</th><th>School</th><th>Coach</th><th>Health</th><th>Status</th><th></th></tr></thead>
+                    <tbody>
+                      {roster.map((athlete) => (
+                        <tr key={athlete.id}>
+                          <td data-label="Code">{athlete.athleteCode}</td>
+                          <td data-label="Athlete" className={styles.avatarCell}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></span></td>
+                          <td data-label="Event / discipline">{athlete.event?.eventName || "No event"}</td>
+                          <td data-label="School">{athlete.school?.schoolName || "Unassigned"}</td>
+                          <td data-label="Coach">{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
+                          <td data-label="Health"><HealthBadge status={athlete.healthStatus} /></td>
+                          <td data-label="Status"><StatusBadge status={athlete.status} /></td>
+                          <td data-label="Profile"><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table></div>
+                </div>
+              )) : <p className={styles.empty}>No athletes registered yet.</p>}
+              </>
+            )}
           </section>
         )}
 
@@ -318,33 +357,6 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
           <CoachRequestsPanel athletes={athletes} uncoached={allAthletes.filter((a) => !a.coach)} coaches={catalog.coaches || []} ownCoachId={ownCoachId} onChanged={() => router.reload()} />
         )}
 
-        {view === "sport" && (
-          <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Registered athletes</p><h2>{isAdmin ? "All athletes by sport" : "My athletes by sport"}</h2></div><span className={styles.formHint} style={{ alignSelf: "center" }}>{filteredAthletes.length} athlete{filteredAthletes.length === 1 ? "" : "s"}</span></div>
-            {grouped.length ? grouped.map(([sportName, roster]) => (
-              <div key={sportName} style={{ marginBottom: 22 }}>
-                <h3 className={styles.sectionTitle}>{sportName} <span className={styles.formHint}>({roster.length})</span></h3>
-                <div className={styles.tableWrap}><table>
-                  <thead><tr><th>Code</th><th>Athlete</th><th>Event / discipline</th><th>School</th><th>Coach</th><th>Health</th><th>Status</th><th></th></tr></thead>
-                  <tbody>
-                    {roster.map((athlete) => (
-                      <tr key={athlete.id}>
-                        <td data-label="Code">{athlete.athleteCode}</td>
-                        <td data-label="Athlete" className={styles.avatarCell}><Avi name={`${athlete.firstName} ${athlete.lastName}`} url={athlete.pictureUrl} /><span><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></span></td>
-                        <td data-label="Event / discipline">{athlete.event?.eventName || "No event"}</td>
-                        <td data-label="School">{athlete.school?.schoolName || "Unassigned"}</td>
-                        <td data-label="Coach">{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
-                        <td data-label="Health"><HealthBadge status={athlete.healthStatus} /></td>
-                        <td data-label="Status"><StatusBadge status={athlete.status} /></td>
-                        <td data-label="Profile"><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table></div>
-              </div>
-            )) : <p className={styles.empty}>No athletes registered yet.</p>}
-          </section>
-        )}
       </AppShell>
     </>
   );
