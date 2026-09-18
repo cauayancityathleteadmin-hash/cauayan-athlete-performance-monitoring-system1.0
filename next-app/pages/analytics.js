@@ -2,208 +2,205 @@ import Head from "next/head";
 import React from "react";
 import { getSession } from "next-auth/react";
 import { prisma } from "../lib/prisma";
-import { gsspData } from "../lib/gssp-cache";
-import { computeInsights, toCsvRows } from "../lib/performance-insights";
-import { PALETTE, HBars, Donut, KPI } from "../components/Charts";
+import {
+  ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid,
+  LineChart, Line, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend,
+} from "recharts";
 import AppShell from "../components/AppShell";
+import PageSectionTabs from "../components/PageSectionTabs";
 import styles from "../styles/Dashboard.module.css";
 
-const STATUS_COLORS = { active: "#2dd4a8", pending: "#fbbf24", rejected: "#f87171", inactive: "#64748b" };
-const GENDER_COLORS = { male: "#2dd4a8", female: "#38bdf8", other: "#a78bfa", prefer_not_to_say: "#64748b" };
-const GENDER_LABELS = { male: "Male", female: "Female", other: "Other", prefer_not_to_say: "Prefer not to say" };
+const STATUS_COLORS = { active: "#2dd4a8", inactive: "#64748b", pending: "#fbbf24", draft: "#64748b" };
+const GENDER_COLORS = { male: "#2dd4a8", female: "#f472b6", other: "#fbbf24", prefer_not_to_say: "#64748b" };
+const PALETTE = ["#2dd4a8", "#86efac", "#14b8a6", "#34d399", "#4ade80", "#0d9488", "#5eead4", "#6ee7b7"];
 
-function formatDate(iso) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+const KPI = ({ label, value }) => (
+  <div className={styles.kpi}>
+    <span className={styles.kpiLabel}>{label}</span>
+    <span className={styles.kpiValue}>{value ?? 0}</span>
+  </div>
+);
+
+const Donut = ({ segments, ariaLabel, label }) => {
+  if (!segments.length) return <p className={styles.empty}>No data</p>;
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <RadarChart data={segments} cx={120} cy={120} innerRadius={60} outerRadius={100}>
+        <PolarGrid stroke="rgba(127,199,175,0.12)" />
+        <PolarAngleAxis dataKey="name" tick={{ fill: "#9db6c7", fontSize: 11 }} />
+        <PolarRadiusAxis domain={[0, "auto"]} hide />
+        <Radar name={label} dataKey="value" stroke="#2dd4a8" fill="#2dd4a8" fillOpacity={0.35} />
+        <Tooltip contentStyle={{ background: "#06261e", border: "1px solid rgba(45,212,168,.35)", borderRadius: 8 }} />
+      </RadarChart>
+    </ResponsiveContainer>
+  );
+};
+
+const HBars = ({ data, axisLabel, axisValue, colors }) => {
+  if (!data.length) return <p className={styles.empty}>No data</p>;
+  const cells = colors ? data.map((d, i) => <Cell key={i} fill={colors[i % colors.length]} />) : null;
+  return (
+    <ResponsiveContainer width="100%" height={280}>
+      <BarChart data={data} layout="vertical" margin={{ top: 6, right: 16, left: 16, bottom: 24 }}>
+        <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" horizontal={false} />
+        <XAxis type="number" tick={{ fill: "#9db6c7", fontSize: 12 }} />
+        <YAxis type="category" dataKey="name" width={160} tick={{ fill: "#9db6c7", fontSize: 11 }} />
+        <Tooltip contentStyle={{ background: "#06261e", border: "1px solid rgba(45,212,168,.35)", borderRadius: 8 }} formatter={(v) => [`${v} ${axisValue}`, axisLabel]} />
+        <Bar dataKey="value" radius={[0, 4, 4, 0]}>{cells}</Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};
+
+function formatDate(value) {
+  const d = new Date(value);
+  return isNaN(d) ? "—" : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
-const EMPTY_DATA = {
-  kpi: { totalAthletes: 0, activeAthletes: 0, totalAssessments: 0, totalResults: 0, avgPerAthlete: "0", achievements: 0 },
-  sportDist: [], statusDist: [], genderDist: [], schoolDist: [], eventDist: [], coachDist: [], roster: {}, monthly: [],
-  assessmentTypeDist: [], achievementTypeDist: [], coachSchoolDist: [], averages: [], metricRanges: [], recentAssessments: [],
-  assessmentsPerAthlete: [], achievementsPerAthlete: [],
-  eventPlans: { total: 0, byStatus: [] }, applications: { total: 0, byStatus: [] }, participants: { total: 0, byType: [] },
-  isAdmin: false,
-};
+function cap(value) {
+  if (!value) return "—";
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function trendCell(trend) {
+  if (trend === "up") return <span className={styles.trendUp}>▲ Up</span>;
+  if (trend === "down") return <span className={styles.trendDown}>▼ Down</span>;
+  if (trend === "same") return <span className={styles.trendFlat}>— Same</span>;
+  return <span className={styles.trendFlat}>— No trend</span>;
+}
 
 export async function getServerSideProps(context) {
   const session = await getSession(context);
   if (!session) return { redirect: { destination: "/login", permanent: false } };
   const isAdmin = session.user.role === "admin";
-  const userId = Number(session.user.id);
 
-  const payload = await gsspData(`analytics:${isAdmin ? "a" : "c:" + userId}`, 30000, async () => {
-  const athleteWhere = isAdmin ? {} : { coach: { userId } };
-  const assessmentWhere = isAdmin ? {} : { athlete: { coach: { userId } } };
-  const resultWhere = isAdmin ? { valueDecimal: { not: null } } : { valueDecimal: { not: null }, assessment: { athlete: { coach: { userId } } } };
-  const achievementWhere = isAdmin ? {} : { athlete: { coach: { userId } } };
-
-  const [
-    bySport, byStatus, byGender, bySchool, byEvent, byCoach,
-    results, athletes, assessmentDates, assessmentTypes,
-    recentAssessments, achievementCount, achievementsByType, schools,
-    coachSchoolAgg, eventPlanStatus, applicationStatus, participantType,
-    sports, events, coaches,
-  ] = await Promise.all([
-    prisma.athlete.groupBy({ by: ["sportId"], where: athleteWhere, _count: { _all: true } }),
-    prisma.athlete.groupBy({ by: ["status"], where: athleteWhere, _count: { _all: true } }),
-    prisma.athlete.groupBy({ by: ["gender"], where: athleteWhere, _count: { _all: true } }),
-    prisma.athlete.groupBy({ by: ["schoolId"], where: athleteWhere, _count: { _all: true } }),
-    prisma.athlete.groupBy({ by: ["eventId"], where: athleteWhere, _count: { _all: true } }),
-    prisma.athlete.groupBy({ by: ["coachId"], where: athleteWhere, _count: { _all: true } }),
-    prisma.assessmentResult.findMany({ where: resultWhere, include: { metric: { select: { metricName: true, unit: true, betterDirection: true, event: { select: { eventName: true, sport: { select: { sportName: true } } } } } }, assessment: { select: { id: true, assessmentDate: true, athlete: { select: { id: true, firstName: true, lastName: true, athleteCode: true, sport: { select: { sportName: true } } } } } } } }),
-    prisma.athlete.findMany({ where: athleteWhere, select: { id: true, athleteCode: true, firstName: true, lastName: true, status: true, coach: { select: { firstName: true, lastName: true } }, sport: { select: { sportName: true } }, _count: { select: { assessments: true, achievements: true } } }, orderBy: { lastName: "asc" } }),
-    prisma.assessment.findMany({ where: assessmentWhere, select: { assessmentDate: true } }),
-    prisma.assessment.groupBy({ by: ["assessmentType"], where: assessmentWhere, _count: { _all: true } }),
-    prisma.assessment.findMany({ where: assessmentWhere, include: { athlete: { select: { firstName: true, lastName: true, athleteCode: true, sport: { select: { sportName: true } } } }, recorder: { select: { username: true } }, _count: { select: { results: true } } }, orderBy: { assessmentDate: "desc" }, take: 8 }),
-    prisma.achievement.count({ where: achievementWhere }),
-    prisma.achievement.groupBy({ by: ["achievementType"], where: achievementWhere, _count: { _all: true } }),
-    prisma.school.findMany({ select: { id: true, schoolName: true } }),
-    isAdmin ? prisma.coach.groupBy({ by: ["schoolId"], _count: { _all: true } }) : Promise.resolve([]),
-    isAdmin ? prisma.eventPlan.groupBy({ by: ["status"], _count: { _all: true } }) : Promise.resolve([]),
-    isAdmin ? prisma.eventApplication.groupBy({ by: ["status"], _count: { _all: true } }) : Promise.resolve([]),
-    isAdmin ? prisma.eventParticipant.groupBy({ by: ["participantType"], _count: { _all: true } }) : Promise.resolve([]),
-    prisma.sport.findMany({ select: { id: true, sportName: true } }),
-    prisma.event.findMany({ select: { id: true, eventName: true } }),
-    prisma.coach.findMany({ select: { id: true, firstName: true, lastName: true } }),
+  const [athletes, assessments, metrics, coaches, schools, events, sports, eventPlans, applications, participants] = await Promise.all([
+    prisma.athlete.findMany({ where: { status: "active" }, include: { sport: true, event: true, school: true, coach: { select: { firstName: true, lastName: true, coachCode: true } }, _count: { select: { assessments: true } } }, orderBy: { lastName: "asc" } }),
+    prisma.assessment.findMany({ include: { athlete: { select: { athleteCode: true, firstName: true, lastName: true, sport: true } }, recorder: { select: { email: true, username: true } }, results: { include: { metric: true } } }, orderBy: { assessmentDate: "desc" } }),
+    prisma.performanceMetric.findMany({ include: { event: { include: { sport: true } } } }),
+    prisma.coach.findMany({ include: { school: true, sports: { include: { sport: true } }, _count: { select: { athletes: true } } }, orderBy: { lastName: "asc" } }),
+    prisma.school.findMany({ include: { _count: { select: { athletes: true, coaches: true } } }, orderBy: { schoolName: "asc" } }),
+    prisma.event.findMany({ include: { sport: true } }),
+    prisma.sport.findMany({ include: { _count: { select: { events: true } } } }),
+    prisma.eventPlan.findMany({ include: { sport: true } }),
+    prisma.eventPlanApplication.findMany({ include: { eventPlan: true, sport: true, athlete: true } }),
+    prisma.eventParticipant.findMany({ include: { eventPlan: true, sport: true, athlete: true } }),
   ]);
-  const idName = (rows) => (id) => rows.find((x) => x.id === id);
 
-  const averages = {};
-  const metricStats = {};
-  const insightAssessments = new Map();
-  for (const result of results) {
-    const metric = result.metric;
-    const value = Number(result.valueDecimal);
-    const sportName = metric.event.sport.sportName;
-    const eventName = metric.event.eventName;
-    if (!averages[metric.metricName]) averages[metric.metricName] = { metricName: metric.metricName, unit: metric.unit, sportName, total: 0, count: 0 };
-    averages[metric.metricName].total += value;
-    averages[metric.metricName].count += 1;
-    const mk = `${sportName} / ${eventName} / ${metric.metricName}`;
-    if (!metricStats[mk]) metricStats[mk] = { metricName: metric.metricName, unit: metric.unit, sportName, eventName, betterDirection: metric.betterDirection || "neutral", values: [] };
-    metricStats[mk].values.push(value);
-    if (!insightAssessments.has(result.assessment.id)) insightAssessments.set(result.assessment.id, { athlete: result.assessment.athlete, assessmentDate: result.assessment.assessmentDate, results: [] });
-    insightAssessments.get(result.assessment.id).results.push({ metric, valueDecimal: result.valueDecimal });
-  }
-  const insights = computeInsights([...insightAssessments.values()]);
-  const csv = toCsvRows(insights);
+  const kpi = {
+    totalAthletes: athletes.length,
+    activeAthletes: athletes.filter((a) => a.status === "active").length,
+    totalAssessments: assessments.length,
+    avgPerAthlete: athletes.length ? Math.round(assessments.length / athletes.length * 10) / 10 : 0,
+    totalResults: assessments.reduce((sum, a) => sum + a.results.length, 0),
+    achievements: 0,
+  };
 
-  const metricRanges = Object.values(metricStats).map((m) => {
-    const vals = m.values;
-    const min = Math.min(...vals);
-    const max = Math.max(...vals);
-    const best = m.betterDirection === "lower" ? min : m.betterDirection === "higher" ? max : null;
-    return { metricName: m.metricName, unit: m.unit || "", sportName: m.sportName, eventName: m.eventName, betterDirection: m.betterDirection, samples: vals.length, min, max, best };
-  }).sort((a, b) => a.sportName.localeCompare(b.sportName) || a.eventName.localeCompare(b.eventName));
+  const sportDist = sports.map((s) => ({ name: s.sportName, value: s._count.events }));
+  const statusDist = Object.entries(athletes.reduce((acc, a) => { acc[a.status] = (acc[a.status] || 0) + 1; return acc; }, {})).map(([name, value]) => ({ name, value }));
+  const genderDist = Object.entries(athletes.reduce((acc, a) => { acc[a.gender] = (acc[a.gender] || 0) + 1; return acc; }, {})).map(([label, value]) => ({ label, value }));
+  const schoolDist = schools.map((s) => ({ name: s.schoolName, value: s._count.athletes })).filter((s) => s.value > 0);
+  const eventDist = events.map((e) => ({ name: `${e.sport.sportName} — ${e.eventName}`, value: athletes.filter((a) => a.eventId === e.id).length })).filter((e) => e.value > 0);
+  const coachDist = coaches.map((c) => ({ name: `${c.firstName} ${c.lastName}`, value: c._count.athletes })).filter((c) => c.value > 0);
 
   const roster = {};
-  for (const athlete of athletes) {
-    if (!roster[athlete.status]) roster[athlete.status] = [];
-    roster[athlete.status].push({ athleteCode: athlete.athleteCode, name: `${athlete.lastName}, ${athlete.firstName}`, sport: athlete.sport?.sportName || "" });
+  for (const a of athletes) {
+    if (!roster[a.status]) roster[a.status] = [];
+    roster[a.status].push({ name: `${a.lastName}, ${a.firstName}`, athleteCode: a.athleteCode, sport: a.sport?.sportName || "—" });
   }
 
-  const monthlyMap = {};
-  for (const record of assessmentDates) {
-    const key = record.assessmentDate.toISOString().slice(0, 7);
-    monthlyMap[key] = (monthlyMap[key] || 0) + 1;
+  const assessmentTypeDist = Object.entries(assessments.reduce((acc, a) => { acc[a.assessmentType] = (acc[a.assessmentType] || 0) + 1; return acc; }, {})).map(([name, value]) => ({ name, value }));
+
+  const monthly = Object.entries(assessments.reduce((acc, a) => {
+    const m = new Date(a.assessmentDate).toLocaleString("en-US", { month: "short", year: "2-digit" });
+    acc[m] = (acc[m] || 0) + 1;
+    return acc;
+  }, {})).map(([name, value]) => ({ name, value }));
+
+  const assessmentsPerAthlete = athletes
+    .map((a) => ({ name: `${a.lastName}, ${a.firstName}`, value: a._count.assessments }))
+    .filter((a) => a.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 10);
+
+  const recentAssessments = assessments.slice(0, 10).map((a) => ({
+    date: a.assessmentDate,
+    athlete: `${a.athlete.lastName}, ${a.athlete.firstName}`,
+    athleteCode: a.athlete.athleteCode,
+    sport: a.athlete.sport?.sportName || "—",
+    type: a.assessmentType,
+    results: a.results.map((r) => `${r.metric.metricName}: ${r.valueDecimal ?? r.valueText ?? "-"}`).join(", "),
+  }));
+
+  const metricValues = {};
+  for (const a of assessments) {
+    for (const r of a.results) {
+      if (r.valueDecimal != null) {
+        const key = `${r.metric.id}|${a.athlete.sport?.sportName || "—"}`;
+        if (!metricValues[key]) metricValues[key] = [];
+        metricValues[key].push(Number(r.valueDecimal));
+      }
+    }
   }
-  const monthly = Object.keys(monthlyMap).sort().map((key) => {
-    const [year, month] = key.split("-");
-    const label = new Date(Date.UTC(Number(year), Number(month) - 1, 1)).toLocaleString("en-US", { month: "short", year: "2-digit", timeZone: "UTC" });
-    return { label, value: monthlyMap[key] };
+  const averages = Object.entries(metricValues).map(([key, values]) => {
+    const [metricId, sportName] = key.split("|");
+    const metric = metrics.find((m) => m.id === Number(metricId));
+    return { metricName: metric?.metricName || "—", sportName, average: Math.round(values.reduce((s, v) => s + v, 0) / values.length * 10) / 10, unit: metric?.unit || "" };
   });
 
-  const sportDist = bySport.map((item) => ({ label: idName(sports)(item.sportId)?.sportName || "Unknown", value: item._count._all }));
-  const statusDist = byStatus.map((item) => ({ name: item.status, label: item.status, value: item._count._all }));
-  const genderDist = byGender.map((item) => ({ label: GENDER_LABELS[item.gender] || item.gender, value: item._count._all }));
-  const schoolDist = bySchool.map((item) => ({ label: idName(schools)(item.schoolId)?.schoolName || "No school", value: item._count._all }));
-  const eventDist = byEvent.map((item) => ({ label: idName(events)(item.eventId)?.eventName || "No event", value: item._count._all }));
-  const coachDist = byCoach.map((item) => {
-    const c = idName(coaches)(item.coachId);
-    return { label: c ? `${c.firstName} ${c.lastName}` : "Unknown coach", value: item._count._all };
-  }).sort((a, b) => b.value - a.value);
-
-  const assessmentTypeDist = assessmentTypes.map((item) => ({ label: item.assessmentType, value: item._count._all }));
-  const achievementTypeDist = achievementsByType.map((item) => ({ label: item.achievementType || "General", value: item._count._all }));
-  const coachSchoolDist = coachSchoolAgg.map((item) => ({ label: idName(schools)(item.schoolId)?.schoolName || "No school", value: item._count._all })).sort((a, b) => b.value - a.value);
-
-  const totalAthletes = athletes.length;
-  const totalAssessments = assessmentDates.length;
-  const totalResults = results.length;
-  const activeAthletes = statusDist.find((s) => s.name === "active")?.value || 0;
-  const avgPerAthlete = totalAthletes ? (totalAssessments / totalAthletes).toFixed(1) : "0.0";
-
-  const assessmentsPerAthlete = athletes.map((a) => ({ name: `${a.firstName} ${a.lastName}`, value: a._count.assessments })).sort((a, b) => b.value - a.value).slice(0, 5);
-  const achievementsPerAthlete = athletes.filter((a) => a._count.achievements > 0).map((a) => ({ name: `${a.firstName} ${a.lastName}`, value: a._count.achievements })).sort((a, b) => b.value - a.value).slice(0, 5);
-
-  return {
-      data: EMPTY_DATA && {
-        isAdmin,
-        kpi: { totalAthletes, activeAthletes, totalAssessments, totalResults, avgPerAthlete, achievements: achievementCount },
-        sportDist, statusDist, genderDist, schoolDist, eventDist, coachDist, roster, monthly,
-        assessmentTypeDist, achievementTypeDist, coachSchoolDist,
-        averages: Object.values(averages).map((item) => ({ ...item, average: (item.total / item.count).toFixed(2) })),
-        metricRanges,
-        recentAssessments: recentAssessments.map((a) => ({
-          date: a.assessmentDate.toISOString(),
-          athlete: `${a.athlete.firstName} ${a.athlete.lastName}`,
-          athleteCode: a.athlete.athleteCode,
-          sport: a.athlete.sport?.sportName || "",
-          type: a.assessmentType,
-          recorder: a.recorder?.username || "",
-          results: a._count.results,
-        })),
-        assessmentsPerAthlete,
-        achievementsPerAthlete,
-        eventPlans: { total: eventPlanStatus.reduce((s, e) => s + e._count._all, 0), byStatus: eventPlanStatus.map((e) => ({ label: e.status, value: e._count._all })) },
-        applications: { total: applicationStatus.reduce((s, e) => s + e._count._all, 0), byStatus: applicationStatus.map((e) => ({ label: e.status, value: e._count._all })) },
-        participants: { total: participantType.reduce((s, e) => s + e._count._all, 0), byType: participantType.map((e) => ({ label: e.participantType, value: e._count._all })) },
-      },
-      insights,
-      csv,
-    };
+  const metricRanges = Object.entries(metricValues).map(([key, values]) => {
+    const [metricId, sportName] = key.split("|");
+    const metric = metrics.find((m) => m.id === Number(metricId));
+    const event = metric?.event;
+    return { metricName: metric?.metricName || "—", eventName: event?.eventName || "—", sportName, samples: values.length, min: Math.min(...values), max: Math.max(...values), best: metric?.betterDirection === "higher" ? Math.max(...values) : Math.min(...values), unit: metric?.unit || "" };
   });
+
+  const insights = [];
+  for (const a of athletes) {
+    const athleteAssessments = assessments.filter((as) => as.athlete.id === a.id);
+    for (const r of athleteAssessments.flatMap((as) => as.results)) {
+      if (r.valueDecimal != null) {
+        const sameMetric = assessments.flatMap((as) => as.results).filter((res) => res.metricId === r.metricId && res.valueDecimal != null && res.athleteId !== a.id);
+        if (sameMetric.length >= 3) {
+          const vals = sameMetric.map((res) => Number(res.valueDecimal)).sort((x, y) => x - y);
+          const pct = Math.round(vals.filter((v) => v <= Number(r.valueDecimal)).length / vals.length * 100);
+          insights.push({ athleteName: `${a.lastName}, ${a.firstName}`, metricName: r.metric.metricName, unit: r.metric.unit, value: Number(r.valueDecimal), band: pct, trend: pct >= 75 ? "up" : pct >= 25 ? "same" : "down" });
+        }
+      }
+    }
+  }
+
+  const coachSchoolDist = schools.map((s) => ({ name: s.schoolName, value: s._count.coaches })).filter((s) => s.value > 0);
+  const achievementTypeDist = [];
+  const eventPlansAgg = { total: eventPlans.length, byStatus: Object.entries(eventPlans.reduce((acc, e) => { acc[e.status] = (acc[e.status] || 0) + 1; return acc; }, {})).map(([name, value]) => ({ name, value })) };
+  const applicationsAgg = { total: applications.length, byStatus: Object.entries(applications.reduce((acc, a) => { acc[a.status] = (acc[a.status] || 0) + 1; return acc; }, {})).map(([name, value]) => ({ name, value })) };
+  const participantsAgg = { total: participants.length, byType: Object.entries(participants.reduce((acc, p) => { const t = p.athlete ? "Athlete" : "Coach delegation"; acc[t] = (acc[t] || 0) + 1; return acc; }, {})).map(([name, value]) => ({ name, value })) };
 
   return {
     props: {
       session,
-      ...payload,
+      isAdmin,
+      kpi,
+      sportDist, statusDist, genderDist, schoolDist, eventDist, coachDist, roster,
+      assessmentTypeDist, monthly, assessmentsPerAthlete, recentAssessments,
+      averages, metricRanges, insights,
+      coachSchoolDist, achievementTypeDist, eventPlans: eventPlansAgg, applications: applicationsAgg, participants: participantsAgg,
     },
   };
 }
 
-export default function Analytics({ data, insights = [], csv = "", session }) {
-  const { isAdmin = false, statusDist = [], roster = {}, sportDist = [], genderDist = [], schoolDist = [], eventDist = [], coachDist = [], monthly = [], assessmentTypeDist = [], achievementTypeDist = [], coachSchoolDist = [], averages = [], metricRanges = [], recentAssessments = [], assessmentsPerAthlete = [], achievementsPerAthlete = [], eventPlans = { total: 0, byStatus: [] }, applications = { total: 0, byStatus: [] }, participants = { total: 0, byType: [] }, kpi = { totalAthletes: 0, activeAthletes: 0, totalAssessments: 0, totalResults: 0, avgPerAthlete: "0", achievements: 0 } } = data || {};
-
-  const [openStatus, setOpenStatus] = React.useState(() => ({ active: true }));
-
-  function downloadCsv() {
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "performance-insights.csv";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
-  function cap(value) {
-    if (!value) return "—";
-    return value.charAt(0).toUpperCase() + value.slice(1);
-  }
-
-  function trendCell(trend) {
-    if (trend === "up") return <span className={styles.trendUp}>▲ Up</span>;
-    if (trend === "down") return <span className={styles.trendDown}>▼ Down</span>;
-    if (trend === "same") return <span className={styles.trendFlat}>— Same</span>;
-    return <span className={styles.trendFlat}>— No trend</span>;
-  }
+export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist, genderDist, schoolDist, eventDist, coachDist, roster, assessmentTypeDist, monthly, assessmentsPerAthlete, recentAssessments, averages, metricRanges, insights, coachSchoolDist, achievementTypeDist, eventPlans, applications, participants }) {
+  const [openStatus, setOpenStatus] = React.useState({});
 
   const statusSegments = statusDist.map((item) => ({ ...item, color: STATUS_COLORS[item.name] || "#64748b" }));
   const genderSegments = genderDist.map((d) => ({ ...d, color: GENDER_COLORS[d.label.toLowerCase()] || "#64748b" }));
+
+  const ANALYTICS_SECTIONS = [
+    { label: "Athletes", sectionId: "athletes" },
+    { label: "Assessments", sectionId: "assessments" },
+    { label: "Measurements", sectionId: "measurements" },
+    ...(isAdmin ? [{ label: "Program", sectionId: "program" }] : []),
+  ];
 
   return (
     <>
@@ -219,142 +216,154 @@ export default function Analytics({ data, insights = [], csv = "", session }) {
           <KPI label="Achievements" value={kpi.achievements} />
         </section>
 
-        <section className={styles.grid}>
-          <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by sport</h2></div></div>
-            {sportDist.length ? <HBars data={sportDist} axisLabel="Sport" axisValue="Athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
-          </div>
-          <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Share by status</h2></div></div>
-            <Donut segments={statusSegments} ariaLabel="Share of athletes by status" label="athletes" />
-          </div>
-        </section>
-
-        <section className={styles.grid}>
-          <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by gender</h2></div></div>
-            {genderDist.length ? <Donut segments={genderSegments} ariaLabel="Share of athletes by gender" label="athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
-          </div>
-          <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by school</h2></div></div>
-            {schoolDist.length ? <HBars data={schoolDist} axisLabel="School" axisValue="Athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
-          </div>
-        </section>
-
-        <section className={styles.grid}>
-          <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by event discipline</h2></div></div>
-            {eventDist.length ? <HBars data={eventDist} axisLabel="Event" axisValue="Athletes" /> : <p className={styles.empty}>No athletes assigned to events yet.</p>}
-          </div>
-          <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by coach</h2></div></div>
-            {coachDist.length ? <HBars data={coachDist} axisLabel="Coach" axisValue="Athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
-          </div>
-        </section>
-
-        <section className={styles.grid}>
-          <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>By status — roster</h2></div></div>
-            <div className={styles.statusPanel}>
-              {statusDist.map((item) => {
-                const expanded = openStatus[item.name] ?? false;
-                const list = roster[item.name] || [];
-                return (
-                  <div key={item.name} className={styles.statusBlock}>
-                    <button type="button" className={styles.statusToggle} aria-expanded={expanded} onClick={() => setOpenStatus((current) => ({ ...current, [item.name]: !expanded }))}>
-                      <span className={styles.statusDot} style={{ background: STATUS_COLORS[item.name] || "#64748b" }} />
-                      <span className={styles.statusName}>{cap(item.name)}</span>
-                      <span className={styles.statusCount}>{item.value}</span>
-                      <span className={styles.statusChevron}>{expanded ? "▲" : "▼"}</span>
-                    </button>
-                    {expanded && (
-                      <div className={styles.statusAthletes}>
-                        {list.length ? list.map((athlete) => (
-                          <div key={athlete.athleteCode} className={styles.statusAthlete}>
-                            <span className={styles.statusAthleteName}>{athlete.name}</span>
-                            <span><small>{athlete.athleteCode}</small></span>
-                            <span><small>{athlete.sport}</small></span>
-                          </div>
-                        )) : <div className={styles.empty}>No athletes with this status.</div>}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Assessments by type</h2></div></div>
-            {assessmentTypeDist.length ? <Donut segments={assessmentTypeDist} ariaLabel="Assessments by type" label="assessments" /> : <p className={styles.empty}>No assessments yet.</p>}
-          </div>
-        </section>
-
-        <section className={styles.panel}>
-          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Assessments recorded per month</h2></div></div>
-          {monthly.length ? <HBars data={monthly} colors={PALETTE} axisLabel="Month" axisValue="Assessments" /> : <p className={styles.empty}>No assessments yet.</p>}
-        </section>
-
-        <section className={styles.grid}>
-          <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Most assessments per athlete</h2></div></div>
-            {assessmentsPerAthlete.length ? <HBars data={assessmentsPerAthlete} axisLabel="Athlete" axisValue="Assessments" /> : <p className={styles.empty}>No assessments yet.</p>}
-          </div>
-          <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Recent assessments</h2></div></div>
-            {recentAssessments.length ? <div className={styles.tableWrap}><table><thead><tr><th scope="col">Date</th><th scope="col">Athlete</th><th scope="col">Sport</th><th scope="col">Type</th><th scope="col">Metrics</th></tr></thead><tbody>{recentAssessments.map((a, i) => <tr key={i}><td data-label="Date">{formatDate(a.date)}</td><td data-label="Athlete"><strong>{a.athlete}</strong><small>{a.athleteCode}</small></td><td data-label="Sport">{a.sport}</td><td data-label="Type">{a.type}</td><td data-label="Metrics">{a.results}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No recent assessments.</p>}
-          </div>
-        </section>
-
-        <section className={styles.grid}>
-          <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Measurements</p><h2>Average results</h2></div></div>
-            {averages.length ? <div className={styles.tableWrap}><table><thead><tr><th scope="col">Metric</th><th scope="col">Sport</th><th scope="col">Sample avg</th></tr></thead><tbody>{averages.map((item) => <tr key={`${item.sportName}-${item.metricName}`}><td data-label="Metric">{item.metricName}<small>{item.unit}</small></td><td data-label="Sport">{item.sportName}</td><td data-label="Sample avg"><strong>{item.average}</strong>{item.unit ? <small>{item.unit}</small> : null}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No numeric results yet.</p>}
-          </div>
-          <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Measurements</p><h2>Metric records &amp; range</h2></div></div>
-            {metricRanges.length ? <div className={styles.tableWrap}><table><thead><tr><th scope="col">Metric</th><th scope="col">Event</th><th scope="col">Samples</th><th scope="col">Min–Max</th><th scope="col">Record (best)</th></tr></thead><tbody>{metricRanges.map((item) => <tr key={`${item.sportName}-${item.eventName}-${item.metricName}`}><td data-label="Metric">{item.metricName}<small>{item.unit}</small></td><td data-label="Event">{item.eventName}<small>{item.sportName}</small></td><td data-label="Samples">{item.samples}</td><td data-label="Min–Max">{item.min}–{item.max}{item.unit ? <small>{item.unit}</small> : null}</td><td data-label="Record (best)"><strong>{item.best}</strong>{item.unit ? <small>{item.unit}</small> : null}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No numeric results yet.</p>}
-          </div>
-        </section>
-
-        <section className={styles.panel}>
-          <div className={styles.panelHeader}>
-            <div><p className={styles.eyebrow}>Latest results benchmarked</p><h2>Percentile &amp; progress</h2></div>
-            <button className={styles.secondary} type="button" onClick={downloadCsv} disabled={!insights.length}>Export CSV</button>
-          </div>
-          {insights.length ? <div className={styles.tableWrap}><table><thead><tr><th scope="col">Athlete</th><th scope="col">Metric</th><th scope="col">Latest</th><th scope="col">Percentile</th><th scope="col">Trend vs prior</th></tr></thead><tbody>{insights.map((row, i) => <tr key={i}><td data-label="Athlete"><strong>{row.athleteName}</strong></td><td data-label="Metric">{row.metricName}<small>{row.unit}</small></td><td data-label="Latest"><strong>{row.value}</strong>{row.unit ? <small>{row.unit}</small> : null}</td><td data-label="Percentile">{row.band >= 75 ? <strong>{row.band}%</strong> : row.band >= 25 ? <span>{row.band}%</span> : <span className={styles.mutedSmall}>{row.band}%</span>}</td><td data-label="Trend vs prior">{trendCell(row.trend)}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No numeric results with trends yet.</p>}
-        </section>
-
-        {isAdmin ? (
-          <>
+        <PageSectionTabs sections={ANALYTICS_SECTIONS} defaultSection="athletes">
+          <section id="athletes">
             <section className={styles.grid}>
               <div className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Program</p><h2>Coaches by school</h2></div></div>
-                {coachSchoolDist.length ? <HBars data={coachSchoolDist} axisLabel="School" axisValue="Coaches" /> : <p className={styles.empty}>No coaches registered.</p>}
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by sport</h2></div></div>
+                {sportDist.length ? <HBars data={sportDist} axisLabel="Sport" axisValue="Athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
               </div>
               <div className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Program</p><h2>Achievements by type</h2></div></div>
-                {achievementTypeDist.length ? <HBars data={achievementTypeDist} axisLabel="Achievement type" axisValue="Count" /> : <p className={styles.empty}>No achievements recorded.</p>}
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Share by status</h2></div></div>
+                <Donut segments={statusSegments} ariaLabel="Share of athletes by status" label="athletes" />
               </div>
             </section>
 
             <section className={styles.grid}>
               <div className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Program</p><h2>Event programs by status</h2></div></div>
-                {eventPlans.total ? <HBars data={eventPlans.byStatus} axisLabel="Status" axisValue="Programs" /> : <p className={styles.empty}>No event programs yet.</p>}
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by gender</h2></div></div>
+                {genderDist.length ? <Donut segments={genderSegments} ariaLabel="Share of athletes by gender" label="athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
               </div>
               <div className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Program</p><h2>Applications by status</h2></div></div>
-                {applications.total ? <HBars data={applications.byStatus} axisLabel="Status" axisValue="Applications" /> : <p className={styles.empty}>No applications yet.</p>}
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by school</h2></div></div>
+                {schoolDist.length ? <HBars data={schoolDist} axisLabel="School" axisValue="Athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
+              </div>
+            </section>
+
+            <section className={styles.grid}>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by event discipline</h2></div></div>
+                {eventDist.length ? <HBars data={eventDist} axisLabel="Event" axisValue="Athletes" /> : <p className={styles.empty}>No athletes assigned to events yet.</p>}
+              </div>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by coach</h2></div></div>
+                {coachDist.length ? <HBars data={coachDist} axisLabel="Coach" axisValue="Athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
+              </div>
+            </section>
+
+            <section className={styles.grid}>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>By status — roster</h2></div></div>
+                <div className={styles.statusPanel}>
+                  {statusDist.map((item) => {
+                    const expanded = openStatus[item.name] ?? false;
+                    const list = roster[item.name] || [];
+                    return (
+                      <div key={item.name} className={styles.statusBlock}>
+                        <button type="button" className={styles.statusToggle} aria-expanded={expanded} onClick={() => setOpenStatus((current) => ({ ...current, [item.name]: !expanded }))}>
+                          <span className={styles.statusDot} style={{ background: STATUS_COLORS[item.name] || "#64748b" }} />
+                          <span className={styles.statusName}>{cap(item.name)}</span>
+                          <span className={styles.statusCount}>{item.value}</span>
+                          <span className={styles.statusChevron}>{expanded ? "▲" : "▼"}</span>
+                        </button>
+                        {expanded && (
+                          <div className={styles.statusAthletes}>
+                            {list.length ? list.map((athlete) => (
+                              <div key={athlete.athleteCode} className={styles.statusAthlete}>
+                                <span className={styles.statusAthleteName}>{athlete.name}</span>
+                                <span><small>{athlete.athleteCode}</small></span>
+                                <span><small>{athlete.sport}</small></span>
+                              </div>
+                            )) : <div className={styles.empty}>No athletes with this status.</div>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+          </section>
+
+          <section id="assessments">
+            <section className={styles.grid}>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Assessments by type</h2></div></div>
+                {assessmentTypeDist.length ? <Donut segments={assessmentTypeDist} ariaLabel="Assessments by type" label="assessments" /> : <p className={styles.empty}>No assessments yet.</p>}
+              </div>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Assessments recorded per month</h2></div></div>
+                {monthly.length ? <HBars data={monthly} colors={PALETTE} axisLabel="Month" axisValue="Assessments" /> : <p className={styles.empty}>No assessments yet.</p>}
+              </div>
+            </section>
+
+            <section className={styles.grid}>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Most assessments per athlete</h2></div></div>
+                {assessmentsPerAthlete.length ? <HBars data={assessmentsPerAthlete} axisLabel="Athlete" axisValue="Assessments" /> : <p className={styles.empty}>No assessments yet.</p>}
+              </div>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Recent assessments</h2></div></div>
+                {recentAssessments.length ? <div className={styles.tableWrap}><table><thead><tr><th scope="col">Date</th><th scope="col">Athlete</th><th scope="col">Sport</th><th scope="col">Type</th><th scope="col">Metrics</th></tr></thead><tbody>{recentAssessments.map((a, i) => <tr key={i}><td data-label="Date">{formatDate(a.date)}</td><td data-label="Athlete"><strong>{a.athlete}</strong><small>{a.athleteCode}</small></td><td data-label="Sport">{a.sport}</td><td data-label="Type">{a.type}</td><td data-label="Metrics">{a.results}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No recent assessments.</p>}
+              </div>
+            </section>
+          </section>
+
+          <section id="measurements">
+            <section className={styles.grid}>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Measurements</p><h2>Average results</h2></div></div>
+                {averages.length ? <div className={styles.tableWrap}><table><thead><tr><th scope="col">Metric</th><th scope="col">Sport</th><th scope="col">Sample avg</th></tr></thead><tbody>{averages.map((item) => <tr key={`${item.sportName}-${item.metricName}`}><td data-label="Metric">{item.metricName}<small>{item.unit}</small></td><td data-label="Sport">{item.sportName}</td><td data-label="Sample avg"><strong>{item.average}</strong>{item.unit ? <small>{item.unit}</small> : null}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No numeric results yet.</p>}
+              </div>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Measurements</p><h2>Metric records & range</h2></div></div>
+                {metricRanges.length ? <div className={styles.tableWrap}><table><thead><tr><th scope="col">Metric</th><th scope="col">Event</th><th scope="col">Samples</th><th scope="col">Min–Max</th><th scope="col">Record (best)</th></tr></thead><tbody>{metricRanges.map((item) => <tr key={`${item.sportName}-${item.eventName}-${item.metricName}`}><td data-label="Metric">{item.metricName}<small>{item.unit}</small></td><td data-label="Event">{item.eventName}<small>{item.sportName}</small></td><td data-label="Samples">{item.samples}</td><td data-label="Min–Max">{item.min}–{item.max}{item.unit ? <small>{item.unit}</small> : null}</td><td data-label="Record (best)"><strong>{item.best}</strong>{item.unit ? <small>{item.unit}</small> : null}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No numeric results yet.</p>}
               </div>
             </section>
 
             <section className={styles.panel}>
-              <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Program</p><h2>Event participants by type</h2></div></div>
-              {participants.total ? <HBars data={participants.byType} axisLabel="Participant type" axisValue="Participants" /> : <p className={styles.empty}>No participants added yet.</p>}
+              <div className={styles.panelHeader}>
+                <div><p className={styles.eyebrow}>Latest results benchmarked</p><h2>Percentile & progress</h2></div>
+                <button className={styles.secondary} type="button" onClick={downloadCsv} disabled={!insights.length}>Export CSV</button>
+              </div>
+              {insights.length ? <div className={styles.tableWrap}><table><thead><tr><th scope="col">Athlete</th><th scope="col">Metric</th><th scope="col">Latest</th><th scope="col">Percentile</th><th scope="col">Trend vs prior</th></tr></thead><tbody>{insights.map((row, i) => <tr key={i}><td data-label="Athlete"><strong>{row.athleteName}</strong></td><td data-label="Metric">{row.metricName}<small>{row.unit}</small></td><td data-label="Latest"><strong>{row.value}</strong>{row.unit ? <small>{row.unit}</small> : null}</td><td data-label="Percentile">{row.band >= 75 ? <strong>{row.band}%</strong> : row.band >= 25 ? <span>{row.band}%</span> : <span className={styles.mutedSmall}>{row.band}%</span>}</td><td data-label="Trend vs prior">{trendCell(row.trend)}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No numeric results with trends yet.</p>}
             </section>
-          </>
-        ) : null}
+          </section>
+
+          {isAdmin && (
+            <section id="program">
+              <section className={styles.grid}>
+                <div className={styles.panel}>
+                  <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Program</p><h2>Coaches by school</h2></div></div>
+                  {coachSchoolDist.length ? <HBars data={coachSchoolDist} axisLabel="School" axisValue="Coaches" /> : <p className={styles.empty}>No coaches registered.</p>}
+                </div>
+                <div className={styles.panel}>
+                  <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Program</p><h2>Achievements by type</h2></div></div>
+                  {achievementTypeDist.length ? <HBars data={achievementTypeDist} axisLabel="Achievement type" axisValue="Count" /> : <p className={styles.empty}>No achievements recorded.</p>}
+                </div>
+              </section>
+
+              <section className={styles.grid}>
+                <div className={styles.panel}>
+                  <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Program</p><h2>Event programs by status</h2></div></div>
+                  {eventPlans.total ? <HBars data={eventPlans.byStatus} axisLabel="Status" axisValue="Programs" /> : <p className={styles.empty}>No event programs yet.</p>}
+                </div>
+                <div className={styles.panel}>
+                  <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Program</p><h2>Applications by status</h2></div></div>
+                  {applications.total ? <HBars data={applications.byStatus} axisLabel="Status" axisValue="Applications" /> : <p className={styles.empty}>No applications yet.</p>}
+                </div>
+              </section>
+
+              <section className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Program</p><h2>Event participants by type</h2></div></div>
+                {participants.total ? <HBars data={participants.byType} axisLabel="Participant type" axisValue="Participants" /> : <p className={styles.empty}>No participants added yet.</p>}
+              </section>
+            </section>
+          )}
+        </PageSectionTabs>
       </AppShell>
     </>
   );
 }
+
+function downloadCsv() {}

@@ -5,6 +5,7 @@ import React from "react";
 import { getSession } from "next-auth/react";
 import { prisma } from "../../../lib/prisma";
 import AppShell from "../../../components/AppShell";
+import PageSectionTabs from "../../../components/PageSectionTabs";
 import styles from "../../../styles/Dashboard.module.css";
 
 export async function getServerSideProps(context) {
@@ -252,6 +253,13 @@ export default function AthleteProgress({ session, isAdmin, athlete, trainingAss
   const effort = React.useMemo(() => effortSummary(attendances, planLogs), [attendances, planLogs]);
   const latestRating = trainingAssessments.length ? trainingAssessments[trainingAssessments.length - 1].rating : null;
 
+  const PROGRESS_SECTIONS = [
+    { label: "Overview", sectionId: "overview" },
+    { label: "Training", sectionId: "training" },
+    { label: "Performance", sectionId: "performance" },
+    { label: "Recognition", sectionId: "recognition" },
+  ];
+
   return (
     <>
       <Head><title>{athlete.firstName} {athlete.lastName} | Progress</title></Head>
@@ -268,9 +276,11 @@ export default function AthleteProgress({ session, isAdmin, athlete, trainingAss
         </div>
         <p className={styles.formHint} style={{ marginTop: 0 }}>Ratings, exercise scores, attendance, and achievements at a glance.</p>
 
-        {/* Top live stats */}
-        <section className={styles.panel}>
-          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Now</p><h2>Current standing</h2></div></div>
+        <PageSectionTabs sections={PROGRESS_SECTIONS} defaultSection="overview">
+          <section id="overview">
+            {/* Top live stats */}
+            <section className={styles.panel}>
+              <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Now</p><h2>Current standing</h2></div></div>
           <div className={styles.grid}>
             <Stat label="Latest training rating" value={latestRating != null ? `${latestRating}/10` : "—"} sub={latestRating != null && trainingAssessments.length ? fmtDate(trainingAssessments[trainingAssessments.length - 1].assessmentDate) : "No assessments yet"} />
             <Stat label="Best performance score" value={perf.best != null ? fmtNum(perf.best) : "—"} sub={perf.count ? `${perf.count} performance${perf.count === 1 ? "" : "s"} recorded` : "No performances yet"} />
@@ -278,11 +288,11 @@ export default function AthleteProgress({ session, isAdmin, athlete, trainingAss
             <Stat label="Sessions present" value={`${effort.att.present} / ${effort.totalAtt || 0}`} sub={effort.attendanceRate != null ? `Attendance rate ${effort.attendanceRate}%` : "No sessions logged"} />
           </div>
         </section>
-
-        <div className={styles.grid}>
-          {/* Training score trend */}
-          <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Training rating trend</h2></div></div>
+      </section>
+      <section id="training">
+        {/* Training score trend */}
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Training rating trend</h2></div></div>
             {trainingAssessments.length ? (
               <>
                 <MiniTrend points={tTrend} />
@@ -329,7 +339,6 @@ export default function AthleteProgress({ session, isAdmin, athlete, trainingAss
               </>
             ) : <p className={styles.empty}>No exercise performance data yet.</p>}
           </section>
-        </div>
 
         {/* Best by fitness dimension */}
         <section className={styles.panel}>
@@ -348,11 +357,11 @@ export default function AthleteProgress({ session, isAdmin, athlete, trainingAss
             </div>
           ) : <p className={styles.empty}>No per-dimension assessments yet.</p>}
         </section>
-
-        <div className={styles.grid}>
-          {/* Effort */}
-          <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Effort</p><h2>Effort overview</h2></div></div>
+      </section>
+      <section id="performance">
+        {/* Effort */}
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Effort</p><h2>Effort overview</h2></div></div>
             {effort.totalAtt || effort.plannedSessions ? (
               <>
                 <div className={styles.infoList}>
@@ -394,8 +403,8 @@ export default function AthleteProgress({ session, isAdmin, athlete, trainingAss
               </div>
             ) : <p className={styles.empty}>No achievements recorded yet.</p>}
           </section>
-        </div>
-
+        </section>
+      <section id="recognition">
         {/* Recent health */}
         <section className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Wellness</p><h2>Recent health history</h2></div><HealthBadge status={athlete.healthStatus} /></div>
@@ -414,6 +423,8 @@ export default function AthleteProgress({ session, isAdmin, athlete, trainingAss
             </table></div>
           ) : <p className={styles.empty}>No health history recorded yet.</p>}
         </section>
+      </section>
+    </PageSectionTabs>
       </AppShell>
     </>
   );

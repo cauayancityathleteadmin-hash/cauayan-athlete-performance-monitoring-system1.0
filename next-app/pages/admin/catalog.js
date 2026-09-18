@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import { getSession } from "next-auth/react";
 import { prisma } from "../../lib/prisma";
 import AppShell from "../../components/AppShell";
+import PageSectionTabs from "../../components/PageSectionTabs";
 import styles from "../../styles/Dashboard.module.css";
 
 export async function getServerSideProps(context) {
@@ -121,16 +122,26 @@ export default function Catalog({ session, sports, events, schools }) {
     setBusy(false);
   }
 
-  const statusBadge = (status) => (status === "active" ? <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span> : <span className={`${styles.badge} ${styles.badgeMuted}`}>Inactive</span>);
+const statusBadge = (status) => (status === "active" ? <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span> : <span className={`${styles.badge} ${styles.badgeMuted}`}>Inactive</span>);
+
+  const CATALOG_SECTIONS = [
+    { label: "Add new", sectionId: "add-new" },
+    { label: "Sports", sectionId: "sports" },
+    { label: "Events", sectionId: "events" },
+    { label: "Schools", sectionId: "schools" },
+  ];
 
   return (
     <>
-      <Head><title>Sports &amp; Discipline | Administration</title></Head>
+      <Head><title>Sports & Discipline | Administration</title></Head>
       <AppShell session={session} isAdmin eyebrow="Catalog" title="Sports & Discipline" active="/admin/catalog">
         <div className={styles.pageTitle}><h1>Sports & discipline</h1></div>
-        <section className={styles["grid-2"]}>
-          <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Sport</p><h2>Add sport</h2></div></div>
+
+        <PageSectionTabs sections={CATALOG_SECTIONS} defaultSection="add-new">
+          <section id="add-new">
+            <section className={styles["grid-2"]}>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Sport</p><h2>Add sport</h2></div></div>
             <form onSubmit={addSport} className={styles.formStack}>
               <label>Sport name *<input name="sportName" required maxLength="100" placeholder="e.g. Basketball" /></label>
               <label>Description<textarea name="description" maxLength="2000" rows="3" /></label>
@@ -153,7 +164,8 @@ export default function Catalog({ session, sports, events, schools }) {
             </form>
           </div>
         </section>
-
+      </section>
+      <section id="sports">
         <section className={styles.panel}>
           <div className={styles.sectionHeading}><div><h2>Sports</h2><small className={styles.small}>Active sports and their event totals</small></div><span className={styles.countBadge}>{sports.length}</span></div>
           <div className={styles.tableWrap}><table><thead><tr><th>Sport</th><th>Events</th><th>Status</th><th></th></tr></thead><tbody>{sports.map((sport) => editingSport && editingSport.id === sport.id ? (
@@ -167,8 +179,9 @@ export default function Catalog({ session, sports, events, schools }) {
     <label>Description<textarea name="description" className={styles.fieldControl} rows="2" maxLength="2000" defaultValue={sport.description || ""} /></label>
   </form></td></tr>
 ) : <tr key={sport.id}><td data-label="Sport">{sport.sportName}</td><td data-label="Events">{sport._count.events}</td><td data-label="Status">{statusBadge(sport.status)}</td><td data-label="Actions"><div style={{ display: "flex", gap: 6 }}><button className={styles.expandBtn} onClick={() => setEditingSport(sport)}>Edit</button><button className={styles.expandBtn} disabled={busy} onClick={() => deleteItem("sport", { id: sport.id, label: sport.sportName })}>Deactivate</button></div></td></tr>)}{!sports.length && <tr><td colSpan="4" className={styles.empty}>No sports yet.</td></tr>}</tbody></table></div>
-        </section>
-
+      </section>
+    </section>
+      <section id="events">
         <section className={styles.panel}>
           <div className={styles.sectionHeading}><div><h2>Events / Disciplines</h2><small className={styles.small}>Events grouped under each sport</small></div><span className={styles.countBadge}>{events.length}</span></div>
           <div className={styles.tableWrap}><table><thead><tr><th>Event</th><th>Sport</th><th>Status</th><th></th></tr></thead><tbody>{events.map((event) => editingEvent && editingEvent.id === event.id ? (
@@ -183,8 +196,9 @@ export default function Catalog({ session, sports, events, schools }) {
     <label>Description<textarea name="description" className={styles.fieldControl} rows="2" maxLength="2000" defaultValue={event.description || ""} /></label>
   </form></td></tr>
 ) : <tr key={event.id}><td data-label="Event">{event.eventName}</td><td data-label="Sport">{event.sport.sportName}</td><td data-label="Status">{statusBadge(event.status)}</td><td data-label="Actions"><div style={{ display: "flex", gap: 6 }}><button className={styles.expandBtn} onClick={() => setEditingEvent(event)}>Edit</button><button className={styles.expandBtn} disabled={busy} onClick={() => deleteItem("event", { id: event.id, label: event.eventName })}>Deactivate</button></div></td></tr>)}{!events.length && <tr><td colSpan="4" className={styles.empty}>No events yet. Add events above.</td></tr>}</tbody></table></div>
-        </section>
-
+      </section>
+    </section>
+      <section id="schools">
         <section className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Schools</p><h2>Schools</h2></div></div>
           <form onSubmit={addSchool} className={styles.formStack} style={{ marginBottom: 16 }}>
@@ -205,6 +219,8 @@ export default function Catalog({ session, sports, events, schools }) {
             </form></td></tr>
           ) : <tr key={school.id}><td data-label="School">{school.schoolName}</td><td data-label="Athletes">{school._count.athletes}</td><td data-label="Coaches">{school._count.coaches}</td><td data-label="Status">{statusBadge(school.status)}</td><td data-label="Actions"><div style={{ display: "flex", gap: 6 }}><button className={styles.expandBtn} onClick={() => setEditingSchool(school)}>Edit</button><button className={styles.expandBtn} disabled={busy} onClick={() => deleteSchool(school)}>Deactivate</button></div></td></tr>)}{!schools.length && <tr><td colSpan="5" className={styles.empty}>No schools yet. Add schools above.</td></tr>}</tbody></table></div>
         </section>
+      </section>
+    </PageSectionTabs>
       </AppShell>
     </>
   );
