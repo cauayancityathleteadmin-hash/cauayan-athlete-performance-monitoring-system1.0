@@ -106,9 +106,9 @@ const FITNESS_ORDER = ["endurance", "speed_agility", "power", "skill_technique",
 
 const PLAN_SECTIONS = [
   { label: "Overview", sectionId: "overview" },
-  { label: "Monitoring", sectionId: "monitoring" },
-  { label: "Assessments", sectionId: "assess" },
-  { label: "Athletes", sectionId: "roster" },
+  { label: "Activities", sectionId: "activities" },
+  { label: "Trends & Charts", sectionId: "trends" },
+  { label: "Distribution", sectionId: "distribution" },
 ];
 
 const normName = (s) => (s || "").trim().replace(/\s+/g, " ").toLowerCase();
@@ -250,67 +250,74 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
           </p>
         )}
 
-        <PageSectionTabs sections={PLAN_SECTIONS} defaultSection="overview">
+<PageSectionTabs sections={PLAN_SECTIONS} defaultSection="overview">
           <section id="overview">
-          <div className={styles.panelHeader}>
-            <div><p className={styles.eyebrow}>Overview</p><h2>Progress overview</h2></div>
-            <span className={styles.formHint} style={{ alignSelf: "center" }}>{plan.durationDays ? `${plan.durationDays} days` : plan.durationWeeks ? `${plan.durationWeeks} wks` : "No duration set"}</span>
-          </div>
-          <TrainingCharts plan={plan} athletes={athletes} activities={activities} logs={logs} />
-        </section>
-
-        <section className={styles.panel} id="monitoring">
-          <div className={styles.panelHeader}>
-            <div><p className={styles.eyebrow}>Monitor</p><h2>Daily training monitoring</h2></div>
-          </div>
-          {monitoringData ? (
-            <MonitoringGrid
-              data={monitoringData}
-              athletes={athletes}
-              maxWeek={monitoringData.maxWeek}
-              currentWeek={monitoringData.currentWeek}
-              onWeekChange={setCurrentWeek}
-            />
-          ) : (
-            <p className={styles.empty}>Loading daily training monitoring...</p>
-          )}
-        </section>
-
-        {!isAdmin && (
-          <section className={styles.panel} id="assess">
             <div className={styles.panelHeader}>
-              <div><p className={styles.eyebrow}>Training plan &amp; assessment</p><h2>Assess athletes</h2></div>
-              {showBulkAssess && <button className={styles.secondary} onClick={() => setShowBulkAssess(false)}>Close assessment</button>}
+              <div><p className={styles.eyebrow}>Overview</p><h2>Progress overview</h2></div>
+              <span className={styles.formHint} style={{ alignSelf: "center" }}>{plan.durationDays ? `${plan.durationDays} days` : plan.durationWeeks ? `${plan.durationWeeks} wks` : "No duration set"}</span>
             </div>
-            {showBulkAssess ? (
-              <>
-                <p className={styles.formHint} style={{ marginTop: 0 }}>Rate everyone on the plan in one pass. Cells start marked done at their target for the selected date &mdash; switch exceptions to part/missed, add results, or use the Everyone buttons. Ratings auto-fill as cells are completed; adjust any athlete&apos;s rating to override. Save once with an optional 1&ndash;10 rating per athlete. Existing records for that date are preserved until you save.</p>
-                <AssessStudio plan={lateOverride ? { ...plan, allowLateAssessment: true } : plan} planId={plan.id} athletes={athletes} activities={activities} logs={logs} onDone={refresh} />
-              </>
+            <TrainingCharts plan={plan} athletes={athletes} activities={activities} logs={logs} />
+          </section>
+
+          <section id="activities">
+            <div className={styles.panelHeader}>
+              <div><p className={styles.eyebrow}>Activities</p><h2>Daily training monitoring</h2></div>
+            </div>
+            {monitoringData ? (
+              <MonitoringGrid
+                data={monitoringData}
+                athletes={athletes}
+                maxWeek={monitoringData.maxWeek}
+                currentWeek={monitoringData.currentWeek}
+                onWeekChange={setCurrentWeek}
+              />
             ) : (
+              <p className={styles.empty}>Loading daily training monitoring...</p>
+            )}
+{!isAdmin && (
               <>
-                <p className={styles.formHint} style={{ marginTop: 0 }}>One pass over everyone on the plan: cells start marked done at their target &mdash; mark exceptions as partial or missed, and add a rating. Existing records for the selected date are kept until you save.</p>
-                <button className={styles.primary} onClick={() => setShowBulkAssess(true)}>Assess athletes</button>
+                <div className={styles.panelHeader} style={{ marginTop: "var(--space-5)" }}>
+                  <div><p className={styles.eyebrow}>Assessment</p><h2>Assess athletes</h2></div>
+                  {showBulkAssess && <button className={styles.secondary} onClick={() => setShowBulkAssess(false)}>Close assessment</button>}
+                </div>
+                {showBulkAssess ? (
+                  <>
+                    <p className={styles.formHint} style={{ marginTop: 0 }}>Rate everyone on the plan in one pass. Cells start marked done at their target for the selected date &mdash; switch exceptions to part/missed, add results, or use the Everyone buttons. Ratings auto-fill as cells are completed; adjust any athlete&apos;s rating to override. Save once with an optional 1&ndash;10 rating per athlete. Existing records for that date are preserved until you save.</p>
+                    <AssessStudio plan={lateOverride ? { ...plan, allowLateAssessment: true } : plan} planId={plan.id} athletes={athletes} activities={activities} logs={logs} onDone={refresh} />
+                  </>
+                ) : (
+                  <>
+                    <p className={styles.formHint} style={{ marginTop: 0 }}>One pass over everyone on the plan: cells start marked done at their target &mdash; mark exceptions as partial or missed, and add a rating. Existing records for the selected date are kept until you save.</p>
+                    <button className={styles.primary} onClick={() => setShowBulkAssess(true)}>Assess athletes</button>
+                  </>
+                )}
               </>
             )}
           </section>
-        )}
 
-        <section className={styles.panel} id="roster">
-          <div className={styles.panelHeader}>
-            <div><p className={styles.eyebrow}>Athletes</p><h2>Athletes</h2></div>
-            <span className={styles.formHint} style={{ alignSelf: "center" }}>{athletes.length} athlete{athletes.length === 1 ? "" : "s"}</span>
-          </div>
-          <p className={styles.formHint} style={{ marginTop: 0 }}>
-            {isAdmin ? "Each row is an athlete under this training. See progress to view their full history." : "Each row is an athlete on your training. See progress to view their full activity history and manage their activities."}
-          </p>
-          {loading ? <p className={styles.empty}>Loading plan details...</p> : error ? <p className={styles.empty}>{error}</p> : athletes.length === 0 ? (
-            <p className={styles.empty}>No athletes on this plan.</p>
-          ) : (
-            <AthleteRosterTable plan={plan} athletes={athletes} activities={activities} logs={logs} isAdmin={isAdmin} />
-          )}
-</section>
-      </PageSectionTabs>
+          <section id="trends">
+            <div className={styles.panelHeader}>
+              <div><p className={styles.eyebrow}>Trends & Charts</p><h2>Progress trends</h2></div>
+            </div>
+            <p className={styles.formHint}>Trend charts for completion rates, ratings, and activity progress over time.</p>
+            <TrainingCharts plan={plan} athletes={athletes} activities={activities} logs={logs} />
+          </section>
+
+          <section id="distribution">
+            <div className={styles.panelHeader}>
+              <div><p className={styles.eyebrow}>Distribution</p><h2>Athletes</h2></div>
+              <span className={styles.formHint} style={{ alignSelf: "center" }}>{athletes.length} athlete{athletes.length === 1 ? "" : "s"}</span>
+            </div>
+            <p className={styles.formHint} style={{ marginTop: 0 }}>
+              {isAdmin ? "Each row is an athlete under this training. See progress to view their full history." : "Each row is an athlete on your training. See progress to view their full activity history and manage their activities."}
+            </p>
+            {loading ? <p className={styles.empty}>Loading plan details...</p> : error ? <p className={styles.empty}>{error}</p> : athletes.length === 0 ? (
+              <p className={styles.empty}>No athletes on this plan.</p>
+            ) : (
+              <AthleteRosterTable plan={plan} athletes={athletes} activities={activities} logs={logs} isAdmin={isAdmin} />
+            )}
+          </section>
+        </PageSectionTabs>
       </AppShell>
     </>
   );

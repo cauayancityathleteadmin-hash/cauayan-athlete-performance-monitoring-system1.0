@@ -329,7 +329,6 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
           <div className={styles.pageActions}>
             <span className={styles.eyebrow}>{athlete.athleteCode} {athlete.sport?.sportName ? `· ${athlete.sport.sportName}` : ""}</span>
           </div>
-          {!isAdmin && <button className={styles.secondary} onClick={() => setManageOpen((c) => !c)}>{manageOpen ? "Close activity manager" : "Manage activities"}</button>}
           <button className={styles.secondary} onClick={() => router.push(`/training-plans/${plan.id}`)}>← Back to plan</button>
         </div>
 
@@ -360,8 +359,11 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
         {error && <p role="status" className={styles.empty}>{error}</p>}
 
         {activities.length > 0 && (
-          <section className={styles.panel} id="activities">
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Activities</p><h2>Activities & progress</h2></div></div>
+          <section className={styles.panel} id="activities" style={{ position: "relative" }}>
+            <div className={styles.panelHeader} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div><p className={styles.eyebrow}>Activities</p><h2>Activities & progress</h2></div>
+              {!isAdmin && <button className={styles.secondary} onClick={() => setManageOpen((c) => !c)}>{manageOpen ? "Close activity manager" : "Manage activities"}</button>}
+            </div>
           {activities.length === 0 ? <p className={styles.empty}>No activities on this plan for this athlete.</p> : (
             <div className={styles.tableWrap}>
               <table>

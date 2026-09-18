@@ -9,10 +9,11 @@ import {
 import AppShell from "../components/AppShell";
 import PageSectionTabs from "../components/PageSectionTabs";
 import styles from "../styles/Dashboard.module.css";
+import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_COLORS } from "../lib/chart-config";
 
 const STATUS_COLORS = { active: "#2dd4a8", inactive: "#64748b", pending: "#fbbf24", draft: "#64748b" };
 const GENDER_COLORS = { male: "#2dd4a8", female: "#f472b6", other: "#fbbf24", prefer_not_to_say: "#64748b" };
-const PALETTE = ["#2dd4a8", "#86efac", "#14b8a6", "#34d399", "#4ade80", "#0d9488", "#5eead4", "#6ee7b7"];
+const PALETTE = CHART_COLORS.palette;
 
 const KPI = ({ label, value }) => (
   <div className={styles.kpi}>
@@ -24,13 +25,13 @@ const KPI = ({ label, value }) => (
 const Donut = ({ segments, ariaLabel, label }) => {
   if (!segments.length) return <p className={styles.empty}>No data</p>;
   return (
-    <ResponsiveContainer width="100%" height={280}>
+    <ResponsiveContainer width="100%" height={CHART_HEIGHTS.pie}>
       <RadarChart data={segments} cx={120} cy={120} innerRadius={60} outerRadius={100}>
-        <PolarGrid stroke="rgba(127,199,175,0.12)" />
-        <PolarAngleAxis dataKey="name" tick={{ fill: "#9db6c7", fontSize: 11 }} />
+        <PolarGrid {...CHART_GRID.polar} />
+        <PolarAngleAxis dataKey="name" tick={CHART_AXIS.polarAngle} />
         <PolarRadiusAxis domain={[0, "auto"]} hide />
-        <Radar name={label} dataKey="value" stroke="#2dd4a8" fill="#2dd4a8" fillOpacity={0.35} />
-        <Tooltip contentStyle={{ background: "#06261e", border: "1px solid rgba(45,212,168,.35)", borderRadius: 8 }} />
+        <Radar name={label} dataKey="value" stroke={CHART_COLORS.primary} fill={CHART_COLORS.primary} fillOpacity={0.35} />
+        <Tooltip {...CHART_TOOLTIP} />
       </RadarChart>
     </ResponsiveContainer>
   );
@@ -40,12 +41,12 @@ const HBars = ({ data, axisLabel, axisValue, colors }) => {
   if (!data.length) return <p className={styles.empty}>No data</p>;
   const cells = colors ? data.map((d, i) => <Cell key={i} fill={colors[i % colors.length]} />) : null;
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <BarChart data={data} layout="vertical" margin={{ top: 6, right: 16, left: 16, bottom: 24 }}>
-        <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" horizontal={false} />
-        <XAxis type="number" tick={{ fill: "#9db6c7", fontSize: 12 }} />
-        <YAxis type="category" dataKey="name" width={160} tick={{ fill: "#9db6c7", fontSize: 11 }} />
-        <Tooltip contentStyle={{ background: "#06261e", border: "1px solid rgba(45,212,168,.35)", borderRadius: 8 }} formatter={(v) => [`${v} ${axisValue}`, axisLabel]} />
+    <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barHorizontal}>
+      <BarChart data={data} layout="vertical" margin={CHART_MARGINS.barHorizontal}>
+        <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
+        <XAxis type="number" tick={CHART_AXIS.x} />
+        <YAxis type="category" dataKey="name" width={160} tick={{ ...CHART_AXIS.y, fontSize: 11 }} />
+        <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v} ${axisValue}`, axisLabel]} />
         <Bar dataKey="value" radius={[0, 4, 4, 0]}>{cells}</Bar>
       </BarChart>
     </ResponsiveContainer>

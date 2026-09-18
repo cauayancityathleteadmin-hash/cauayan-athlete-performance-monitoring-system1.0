@@ -8,7 +8,9 @@ import {
 import { prisma } from "../lib/prisma";
 import { gsspData } from "../lib/gssp-cache";
 import AppShell from "../components/AppShell";
+import PageSectionTabs from "../components/PageSectionTabs";
 import styles from "../styles/Dashboard.module.css";
+import { CHART_TOOLTIP } from "../lib/chart-config";
 
 export async function getServerSideProps(context) {
   const session = await getSession(context);
@@ -790,8 +792,6 @@ function PerformanceSummary({ athlete }) {
   const medals = (athlete.achievements || []).filter((a) => a.medal);
   const tone = ratingTone(latestRating);
 
-  const chartTooltip = { contentStyle: { background: "#06261e", border: "1px solid rgba(45,212,168,.35)", borderRadius: 8, fontSize: 12 }, labelStyle: { color: "#e7f7f1", fontWeight: 700 }, itemStyle: { color: "#9db6c7" } };
-
   return (
     <section className={styles.panel} style={{ marginBottom: 24, pageBreakInside: "avoid" }}>
       <div className={styles.panelHeader}>
@@ -841,7 +841,7 @@ function PerformanceSummary({ athlete }) {
                 <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
                 <XAxis dataKey="when" tick={{ fill: "#9db6c7", fontSize: 11 }} />
                 <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} tick={{ fill: "#9db6c7", fontSize: 11 }} />
-                <Tooltip {...chartTooltip} formatter={(v) => [`${v}/10`, "Rating"]} />
+                <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}/10`, "Rating"]} />
                 <Line type="monotone" dataKey="rating" stroke="#2dd4a8" strokeWidth={2} dot={{ fill: "#2dd4a8", r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
@@ -857,7 +857,7 @@ function PerformanceSummary({ athlete }) {
                 <PolarAngleAxis dataKey="fitness" tick={{ fill: "#9db6c7", fontSize: 10 }} />
                 <PolarRadiusAxis domain={[0, 10]} tick={{ fill: "#9db6c7", fontSize: 9 }} tickCount={5} />
                 <Radar name="Score" dataKey="value" stroke="#2dd4a8" fill="#2dd4a8" fillOpacity={0.35} />
-                <Tooltip {...chartTooltip} formatter={(v) => [`${v}/10`, "Score"]} />
+                <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}/10`, "Score"]} />
               </RadarChart>
             </ResponsiveContainer>
           ) : <p className={styles.empty}>No training assessments for a fitness breakdown yet.</p>}
@@ -872,7 +872,7 @@ function PerformanceSummary({ athlete }) {
               <BarChart data={completionStack} layout="vertical" margin={{ top: 6, right: 12, left: 16, bottom: 0 }}>
                 <XAxis type="number" hide />
                 <YAxis type="category" dataKey="name" hide />
-                <Tooltip {...chartTooltip} formatter={(v, name) => [`${v}`, name]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
+                <Tooltip {...CHART_TOOLTIP} formatter={(v, name) => [`${v}`, name]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
                 <Bar dataKey="done" stackId="a" fill="#2dd4a8" name="Done" />
                 <Bar dataKey="partial" stackId="a" fill="#facc15" name="Partial" />
                 <Bar dataKey="missed" stackId="a" fill="#f87171" name="Missed" />
@@ -994,15 +994,21 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
     );
   }
 
-  const colSpan = type === "athlete" ? 9 : 7;
+const REPORTS_SECTIONS = [
+    { label: "Selection", sectionId: "selection" },
+    { label: "Table", sectionId: "table" },
+    { label: "Reports", sectionId: "reports" },
+  ];
 
   return (
     <>
       <Head><title>Official Reports | Cauayan Athlete Performance</title></Head>
-      <AppShell session={session} isAdmin={isAdmin} eyebrow="Official &amp; performance records" title="Official Reports" active="/reports">
-        <section className={styles.intro}><div><p className={styles.eyebrow}>Generate</p><h2>Official personnel records</h2><p>Select one or more records to produce a complete official personnel record covering registration, physical and health profile, performance records, training, attendance, achievements, and event participation. {isAdmin ? "Generate reports for any athlete or coach." : "You can generate reports for the athletes assigned to you."}</p></div></section>
+      <AppShell session={session} isAdmin={isAdmin} eyebrow="Official & performance records" title="Official Reports" active="/reports">
+        <PageSectionTabs sections={REPORTS_SECTIONS} defaultSection="selection">
+          <section id="selection">
+            <section className={styles.intro}><div><p className={styles.eyebrow}>Generate</p><h2>Official personnel records</h2><p>Select one or more records to produce a complete official personnel record covering registration, physical and health profile, performance records, training, attendance, achievements, and event participation. {isAdmin ? "Generate reports for any athlete or coach." : "You can generate reports for the athletes assigned to you."}</p></div></section>
 
-        <section className={styles.panel}>
+            <section className={styles.panel}>
           {isAdmin && (
             <div className={styles.segmented} style={{ marginBottom: "var(--space-5)" }}>
               <button className={type === "athlete" ? styles.active : ""} aria-pressed={type === "athlete"} onClick={() => switchType("athlete")}>Athlete report</button>
@@ -1017,12 +1023,14 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
             {type === "athlete" && <label>From date<input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>}
             {type === "athlete" && <label>To date<input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>}
             {count > 0 && <p className={styles.selectionSummary}>{count > 1 ? `${count} selected` : "1 selected"}<button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setSelected([])}>Clear</button></p>}
-            <div className={styles.stackedActions}>
+<div className={styles.stackedActions}>
               <button className={styles.primary} disabled={!count} onClick={() => scrollRef.current?.scrollIntoView({ behavior: "smooth" })}>Show {count ? `${count} report${count > 1 ? "s" : ""}` : "reports"}</button>
               <button className={styles.secondary} disabled={!count} onClick={() => window.print()}>Print</button>
             </div>
           </div>
-
+        </section>
+        </section>
+        <section id="table">
           {list.length ? (
             <div className={styles.reportTableScroll}>
               <table>
@@ -1085,19 +1093,21 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
             </div>
           ) : <p className={styles.empty}>No {type === "athlete" ? "athletes" : "coaches"} found.</p>}
         </section>
-
-        <div ref={scrollRef} />
-        <div id="report-workspace">
-          {type === "athlete"
-            ? filtered.map((athlete) => (
-              <React.Fragment key={athlete.id}>
-                <PerformanceSummary athlete={athlete} />
-                <AthleteReportCard athlete={athlete} session={session} from={from} to={to} prefix={prefix} />
-              </React.Fragment>
-            ))
-            : filtered.map((coach) => <CoachReportCard key={coach.id} coach={coach} session={session} prefix={prefix} />)}
-        </div>
-        {filtered.length > 0 && <div className={styles.stackedActions}><button className={styles.secondary} onClick={() => window.print()}>Print all reports</button></div>}
+        <section id="reports">
+          <div ref={scrollRef} />
+          <div id="report-workspace">
+            {type === "athlete"
+              ? filtered.map((athlete) => (
+                  <React.Fragment key={athlete.id}>
+                    <PerformanceSummary athlete={athlete} />
+                    <AthleteReportCard athlete={athlete} session={session} from={from} to={to} prefix={prefix} />
+                  </React.Fragment>
+                ))
+              : filtered.map((coach) => <CoachReportCard key={coach.id} coach={coach} session={session} prefix={prefix} />)}
+          </div>
+          {filtered.length > 0 && <div className={styles.stackedActions}><button className={styles.secondary} onClick={() => window.print()}>Print all reports</button></div>}
+        </section>
+      </PageSectionTabs>
       </AppShell>
     </>
   );
