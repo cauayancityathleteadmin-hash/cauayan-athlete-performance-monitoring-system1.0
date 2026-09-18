@@ -8,6 +8,7 @@ import {
 } from "recharts";
 import { prisma } from "../../../lib/prisma";
 import { buildMonitoringGrid } from "../../../lib/plan-monitoring";
+import SectionShortcutNav from "../../../components/SectionShortcutNav";
 import { METRIC_LABELS, resultUnitFor, targetValueFor } from "../../../lib/activity-score";
 import AppShell from "../../../components/AppShell";
 import styles from "../../../styles/Dashboard.module.css";
@@ -102,6 +103,13 @@ const FITNESS_META = {
 };
 
 const FITNESS_ORDER = ["endurance", "speed_agility", "power", "skill_technique", "mobility", "strength", "recovery"];
+
+const PLAN_SECTIONS = [
+  { label: "Overview", sectionId: "overview" },
+  { label: "Monitoring", sectionId: "monitoring" },
+  { label: "Assessments", sectionId: "assess" },
+  { label: "Athletes", sectionId: "roster" },
+];
 
 const normName = (s) => (s || "").trim().replace(/\s+/g, " ").toLowerCase();
 const dayOf = (activity) => (activity.dayIndex == null ? 1 : activity.dayIndex);
@@ -241,6 +249,8 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
             {message.text}
           </p>
         )}
+
+        <SectionShortcutNav sections={PLAN_SECTIONS} />
 
         <section className={styles.panel} id="overview">
           <div className={styles.panelHeader}>

@@ -31,3 +31,12 @@ These are standing, always-on rules for this project. Follow them on every chang
 - Never remove or break the core purpose (athlete/assessment/event-plan monitoring, coach registration + admin approval).
 - Always keep the best working version backed up for rollback.
 
+## In-page shortcut nav (standing convention)
+- Qualifying checklist for adding `components/SectionShortcutNav.js` — apply to every current page that grows long AND every new feature built from now on:
+  1. The page has 3+ distinct stacked sections.
+  2. It requires meaningful scrolling to reach later sections.
+  3. The sections belong to one page/feature (not separate routes).
+- If a page doesn't meet the checklist, it does NOT get the nav. Flat/list pages (e.g. Training List, Athletes list) normally never qualify.
+- The nav lives inside the page component only — never in shared layout/shell code, never in the sidebar, never rendered after navigating away.
+- Sections must have stable `id` anchors; the nav stays generic (a list of `{ label, sectionId }`), never hardcoded per page.
+

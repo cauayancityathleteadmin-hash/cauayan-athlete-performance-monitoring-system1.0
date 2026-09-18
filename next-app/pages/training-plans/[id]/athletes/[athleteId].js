@@ -7,6 +7,7 @@ import { METRIC_LABELS, resultFieldFor, resultUnitFor, targetValueFor } from "..
 import { prisma } from "../../../../lib/prisma";
 import AppShell from "../../../../components/AppShell";
 import { AthleteActivitiesBlock } from "../../../../components/AthleteActivityManager";
+import SectionShortcutNav from "../../../../components/SectionShortcutNav";
 import styles from "../../../../styles/Dashboard.module.css";
 
 const FITNESS_META = {
@@ -15,6 +16,13 @@ const FITNESS_META = {
 };
 
 const CHART_PALETTE = ["#2dd4a8", "#86efac", "#14b8a6", "#34d399", "#4ade80", "#0d9488", "#5eead4", "#6ee7b7"];
+
+const ATHLETE_SECTIONS = [
+  { label: "Overview", sectionId: "overview" },
+  { label: "Activities", sectionId: "activities" },
+  { label: "Trends & charts", sectionId: "trends" },
+  { label: "Distribution", sectionId: "distribution" },
+];
 const chartTooltip = {
   contentStyle: { background: "#06261e", border: "1px solid rgba(45,212,168,.35)", borderRadius: 8, fontSize: 12 },
   labelStyle: { color: "#e7f7f1", fontWeight: 700 },
@@ -325,6 +333,8 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
           <button className={styles.secondary} onClick={() => router.push(`/training-plans/${plan.id}`)}>← Back to plan</button>
         </div>
 
+        <SectionShortcutNav sections={ATHLETE_SECTIONS} />
+
         {manageOpen && !isAdmin && (
           <section className={styles.panel} style={{ marginBottom: 20 }}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Activity manager</p><h2>Manage {athlete.firstName}&apos;s activities</h2></div></div>
@@ -341,7 +351,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
           </section>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16, marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16, marginBottom: 20 }} id="overview">
           <div className={styles.detailPanel}><h4>Planned activities</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{summary.total}</div></div>
           <div className={styles.detailPanel}><h4>Completion</h4><div style={{ fontSize: 26, fontWeight: 800, color: percentColor(summary.completionPercent) }}>{summary.completionPercent}%</div><small style={{ color: "var(--muted)" }}>{summary.completed} done · {summary.partial} partial</small></div>
           <div className={styles.detailPanel}><h4>Missed</h4><div style={{ fontSize: 26, fontWeight: 800, color: summary.missed > 0 ? "#f87171" : "var(--muted)" }}>{summary.missed}</div></div>
@@ -351,7 +361,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
         {error && <p role="status" className={styles.empty}>{error}</p>}
 
         {activities.length > 0 && (
-          <section className={styles.panel}>
+          <section className={styles.panel} id="activities">
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Activities</p><h2>Activities & progress</h2></div></div>
           {activities.length === 0 ? <p className={styles.empty}>No activities on this plan for this athlete.</p> : (
             <div className={styles.tableWrap}>
@@ -438,7 +448,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
         )}
 
         {activities.length > 0 && (
-          <section className={styles.panel}>
+          <section className={styles.panel} id="trends">
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Trends</p><h2>Progress over time</h2></div></div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 16, alignItems: "stretch" }}>
               <div className={styles.detailPanel}>
@@ -528,7 +538,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
         )}
 
         {fitnessDist.length > 1 && (
-          <section className={styles.panel}>
+          <section className={styles.panel} id="distribution">
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Distribution</p><h2>Activities by fitness dimension</h2></div></div>
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={fitnessDist} layout="vertical" margin={{ top: 6, right: 16, left: 16, bottom: 24 }}>
