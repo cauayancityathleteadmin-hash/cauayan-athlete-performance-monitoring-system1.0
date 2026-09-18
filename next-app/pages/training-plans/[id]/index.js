@@ -4,7 +4,7 @@ import React from "react";
 import { getSession } from "next-auth/react";
 import {
   ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid,
-  LineChart, Line, PieChart, Pie, Legend, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  LineChart, Line, PieChart, Pie, Legend,
 } from "recharts";
 import { prisma } from "../../../lib/prisma";
 import { buildMonitoringGrid } from "../../../lib/plan-monitoring";
@@ -1161,8 +1161,6 @@ const chartTooltip = {
 };
 
 function TrainingCharts({ plan, athletes, activities, logs }) {
-  const [focusAthleteId, setFocusAthleteId] = React.useState(athletes[0]?.id ?? null);
-
   const perAthlete = React.useMemo(() => {
     return athletes.map((a) => {
       const acts = activities.filter((act) => act.athleteId === a.id);
@@ -1219,29 +1217,12 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
     return weeks;
   }, [activities, logs, plan.durationDays, plan.durationWeeks]);
 
-  const focus = perAthlete.find((r) => r.id === focusAthleteId) || perAthlete[0];
-
-  const radarData = React.useMemo(() => {
-    if (!focus) return [];
-    const byFitness = new Map();
-    for (const act of focus.byActivity) {
-      if (!byFitness.has(act.fitness)) byFitness.set(act.fitness, []);
-      byFitness.get(act.fitness).push(act.status);
-    }
-    return [...byFitness.entries()].map(([f, statuses]) => {
-      const done = statuses.filter((s) => s === "done").length;
-      const partial = statuses.filter((s) => s === "partial").length;
-      return { fitness: FITNESS_META[f] || f, value: Math.round(((done + partial) / statuses.length) * 100) };
-    });
-  }, [focus]);
-
   return (
     <div>
       <style jsx>{`
         .statGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 20px; }
         .chartGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; align-items: stretch; }
         .panelBox { margin: 0 !important; min-width: 0; }
-        .drillHead { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 6px; }
         @media (max-width: 560px) { .statGrid, .chartGrid { grid-template-columns: 1fr; } }
       `}</style>
 
@@ -1299,50 +1280,6 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
             </ResponsiveContainer>
           ) : <p className={styles.empty}>No planned activities yet.</p>}
         </div>
-      </div>
-
-      <div className={`${styles.detailPanel} panelBox`}>
-        <div className="drillHead">
-          <h4 style={{ margin: 0 }}>Per-athlete drill-down</h4>
-          <label style={{ minWidth: 220 }}>Athlete
-            <select value={focusAthleteId || ""} onChange={(e) => setFocusAthleteId(Number(e.target.value))} className={styles.fieldControl}>
-              {perAthlete.map((r) => <option key={r.id} value={r.id}>{r.name} ({r.code})</option>)}
-            </select>
-          </label>
-        </div>
-        {focus && focus.total > 0 ? (
-          <div className="chartGrid">
-            <div className={`${styles.detailPanel} panelBox`}>
-              <h4>Fitness balance <small style={{ color: "var(--muted)", fontWeight: 400 }}>{focus.name}</small></h4>
-              {radarData.length ? (
-                <ResponsiveContainer width="100%" height={280}>
-                  <RadarChart data={radarData}>
-                    <PolarGrid stroke="rgba(127,199,175,0.2)" />
-                    <PolarAngleAxis dataKey="fitness" tick={{ fill: "#9db6c7", fontSize: 12 }} />
-                    <PolarRadiusAxis domain={[0, 100]} tick={{ fill: "#9db6c7", fontSize: 10 }} tickCount={5} />
-                    <Radar name="Completion" dataKey="value" stroke="#2dd4a8" fill="#2dd4a8" fillOpacity={0.35} />
-                    <Tooltip {...chartTooltip} formatter={(v) => [`${v}%`, "Completion"]} />
-                  </RadarChart>
-                </ResponsiveContainer>
-              ) : <p className={styles.empty}>No fitness data for this athlete yet.</p>}
-            </div>
-            <div className={`${styles.detailPanel} panelBox`}>
-              <h4>Activity completion <small style={{ color: "var(--muted)", fontWeight: 400 }}>{focus.name}</small></h4>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={focus.byActivity} layout="vertical" margin={{ top: 6, right: 16, left: 16, bottom: 24 }}>
-                  <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" domain={[0, 100]} ticks={[0,20,40,60,80,100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
-                  <YAxis type="category" dataKey="name" width={170} tick={{ fill: "#9db6c7", fontSize: 12 }} />
-                  <Tooltip {...chartTooltip} formatter={(v) => [`${v}%`, "Completion"]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
-                  <Bar dataKey="percent" radius={[0, 4, 4, 0]}>{focus.byActivity.map((act) => <Cell key={act.id} fill={percentColor(act.percent)} />)}</Bar>
-                </BarChart>
-              </ResponsiveContainer>
-              {focus.byActivity.length > 10 && <small style={{ color: "var(--muted)" }}>Showing all {focus.byActivity.length} activities.</small>}
-            </div>
-          </div>
-        ) : (
-          <p className={styles.empty}>{focus ? `${focus.name} has no planned activities yet.` : "No athletes on this plan."}</p>
-        )}
       </div>
     </div>
   );

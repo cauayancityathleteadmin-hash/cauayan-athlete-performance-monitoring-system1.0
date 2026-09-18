@@ -2,7 +2,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import React from "react";
 import { getSession } from "next-auth/react";
-import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, ReferenceLine } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, ReferenceLine, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend } from "recharts";
 import { METRIC_LABELS, resultFieldFor, resultUnitFor, targetValueFor } from "../../../../lib/activity-score";
 import { prisma } from "../../../../lib/prisma";
 import AppShell from "../../../../components/AppShell";
@@ -31,6 +31,14 @@ function percentColor(p) {
   if (p >= 80) return "#2dd4a8";
   if (p >= 50) return "#fbbf24";
   return "#f87171";
+}
+
+function trendBucketFor(activity, granularity) {
+  const week = activity.weekNumber == null ? 1 : Number(activity.weekNumber);
+  const day = activity.dayIndex == null ? 1 : Number(activity.dayIndex);
+  if (granularity === "day") { const n = (week - 1) * 7 + day; return { n, label: `D${n}`, long: `Day ${n}` }; }
+  if (granularity === "month") { const n = Math.ceil(week / 4); return { n, label: `M${n}`, long: `Month ${n}` }; }
+  return { n: week, label: `W${week}`, long: `Week ${week}` };
 }
 
 function logResultText(log) {
@@ -172,6 +180,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
   const [error, setError] = React.useState("");
   const [expandedActivityId, setExpandedActivityId] = React.useState(null);
   const [metricActivityId, setMetricActivityId] = React.useState(null);
+  const [trendGranularity, setTrendGranularity] = React.useState("week");
 
   React.useEffect(() => {
     let cancelled = false;
@@ -248,24 +257,37 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
     return [...map.entries()].map(([k, count], i) => ({ name: FITNESS_META[k] || k, count, color: CHART_PALETTE[i % CHART_PALETTE.length] }));
   }, [activities]);
 
-  const weeklyTrend = React.useMemo(() => {
-    const maxWeek = activities.reduce((m, a) => Math.max(m, a.weekNumber == null ? 1 : Number(a.weekNumber)), 0);
-    const byWeek = new Map();
+  const completionTrend = React.useMemo(() => {
+    const map = new Map();
     for (const a of activities) {
-      const w = a.weekNumber == null ? 1 : Number(a.weekNumber);
-      if (!byWeek.has(w)) byWeek.set(w, { total: 0, done: 0, partial: 0 });
-      const row = byWeek.get(w);
+      const b = trendBucketFor(a, trendGranularity);
+      if (!map.has(b.label)) map.set(b.label, { label: b.label, long: b.long, n: b.n, total: 0, done: 0, partial: 0 });
+      const row = map.get(b.label);
       row.total += 1;
       const s = a.latestLog?.status;
       if (s === "done") row.done += 1;
       else if (s === "partial") row.partial += 1;
     }
-    const arr = [];
-    for (let w = 1; w <= maxWeek; w++) {
-      const row = byWeek.get(w) || { total: 0, done: 0, partial: 0 };
-      arr.push({ week: w, percent: row.total ? Math.round(((row.done + row.partial) / row.total) * 100) : 0, total: row.total });
+    return [...map.values()].sort((x, y) => x.n - y.n).map((r) => ({ ...r, percent: r.total ? Math.round(((r.done + r.partial) / r.total) * 100) : 0 }));
+  }, [activities, trendGranularity]);
+
+  const radarData = React.useMemo(() => {
+    const byFitness = new Map();
+    for (const a of activities) {
+      if (!byFitness.has(a.fitnessType)) byFitness.set(a.fitnessType, []);
+      byFitness.get(a.fitnessType).push(a.latestLog?.status || "open");
     }
-    return arr;
+    return [...byFitness.entries()].map(([f, statuses]) => {
+      const done = statuses.filter((s) => s === "done").length;
+      const partial = statuses.filter((s) => s === "partial").length;
+      return { fitness: FITNESS_META[f] || f, value: Math.round(((done + partial) / statuses.length) * 100) };
+    });
+  }, [activities]);
+
+  const activityCompletion = React.useMemo(() => {
+    return [...activities]
+      .map((a) => ({ id: a.id, name: a.activityName, percent: a.completion?.percent ?? 0, hasLog: !!a.latestLog }))
+      .sort((x, y) => y.percent - x.percent);
   }, [activities]);
 
   const measurableActivities = React.useMemo(() => activities.filter((a) => a.metricType && a.metricType !== "none"), [activities]);
@@ -420,14 +442,23 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Trends</p><h2>Progress over time</h2></div></div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 16, alignItems: "stretch" }}>
               <div className={styles.detailPanel}>
-                <h4>Completion trend <small style={{ color: "var(--muted)", fontWeight: 400 }}>(done + partial ÷ planned, per week)</small></h4>
-                {weeklyTrend.some((w) => w.total > 0) ? (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <h4 style={{ margin: 0 }}>Completion trend <small style={{ color: "var(--muted)", fontWeight: 400 }}>(done + partial ÷ planned)</small></h4>
+                  <label style={{ fontSize: 12 }}>Granularity
+                    <select className={styles.fieldControl} value={trendGranularity} onChange={(e) => setTrendGranularity(e.target.value)}>
+                      <option value="day">Daily</option>
+                      <option value="week">Weekly</option>
+                      <option value="month">Monthly</option>
+                    </select>
+                  </label>
+                </div>
+                {completionTrend.some((w) => w.total > 0) ? (
                   <ResponsiveContainer width="100%" height={240}>
-                    <LineChart data={weeklyTrend} margin={{ top: 6, right: 12, left: 16, bottom: 24 }}>
+                    <LineChart data={completionTrend} margin={{ top: 6, right: 12, left: 16, bottom: 24 }}>
                       <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
-                      <XAxis dataKey="week" tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `W${v}`} />
+                      <XAxis dataKey="label" tick={{ fill: "#9db6c7", fontSize: 12 }} />
                       <YAxis domain={[0, 100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
-                      <Tooltip {...chartTooltip} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l) => `Week ${l}`} cursor={{ stroke: "rgba(45,212,168,0.4)" }} />
+                      <Tooltip {...chartTooltip} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l, p) => p?.[0]?.payload?.long || l} cursor={{ stroke: "rgba(45,212,168,0.4)" }} />
                       <Line type="monotone" dataKey="percent" name="Completion" stroke="#2dd4a8" strokeWidth={2} dot={{ fill: "#2dd4a8", r: 3 }} activeDot={{ r: 5 }} />
                     </LineChart>
                   </ResponsiveContainer>
@@ -461,6 +492,36 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
                     </LineChart>
                   </ResponsiveContainer>
                 )}
+              </div>
+
+              <div className={styles.detailPanel}>
+                <h4>Fitness balance <small style={{ color: "var(--muted)", fontWeight: 400 }}>(completion by fitness dimension)</small></h4>
+                {radarData.length > 1 ? (
+                  <ResponsiveContainer width="100%" height={240}>
+                    <RadarChart data={radarData}>
+                      <PolarGrid stroke="rgba(127,199,175,0.2)" />
+                      <PolarAngleAxis dataKey="fitness" tick={{ fill: "#9db6c7", fontSize: 12 }} />
+                      <PolarRadiusAxis domain={[0, 100]} tick={{ fill: "#9db6c7", fontSize: 10 }} tickCount={5} />
+                      <Radar name="Completion" dataKey="value" stroke="#2dd4a8" fill="#2dd4a8" fillOpacity={0.35} />
+                      <Tooltip {...chartTooltip} formatter={(v) => [`${v}%`, "Completion"]} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                ) : <p className={styles.empty}>Add activities in more than one fitness dimension to see the balance.</p>}
+              </div>
+
+              <div className={styles.detailPanel}>
+                <h4>Activity completion <small style={{ color: "var(--muted)", fontWeight: 400 }}>(per activity)</small></h4>
+                {activityCompletion.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={activityCompletion.length > 8 ? Math.max(240, activityCompletion.length * 28) : 240}>
+                    <BarChart data={activityCompletion} layout="vertical" margin={{ top: 6, right: 24, left: 16, bottom: 24 }}>
+                      <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
+                      <YAxis type="category" dataKey="name" width={170} tick={{ fill: "#9db6c7", fontSize: 11 }} />
+                      <Tooltip {...chartTooltip} formatter={(v) => [`${v}%`, "Completion"]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
+                      <Bar dataKey="percent" radius={[0, 4, 4, 0]}>{activityCompletion.map((act) => <Cell key={act.id} fill={act.hasLog ? percentColor(act.percent) : "#64748b"} />)}</Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : <p className={styles.empty}>No activities yet.</p>}
               </div>
             </div>
           </section>
