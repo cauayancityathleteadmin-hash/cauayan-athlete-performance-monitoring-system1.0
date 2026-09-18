@@ -448,6 +448,9 @@
   padding: var(--space-6) var(--space-6) var(--space-8);
   overflow-x: auto;
   overflow-y: auto;
+  background: rgba(4, 31, 24, 0.5);
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(45, 212, 168, 0.1);
 }
 
 /* Consistent breathing room between stacked panels/sections */
@@ -1129,15 +1132,13 @@
 
 .pageTabs.sticky {
   position: sticky;
-  top: 72px;
+  top: 0;
   z-index: var(--z-sticky);
   background: var(--bg);
-  padding-top: var(--space-3);
-  padding-bottom: var(--space-3);
+  padding: var(--space-3) var(--space-7);
   border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   margin: calc(var(--space-5) * -1) calc(var(--space-7) * -1) var(--space-5);
-  padding-left: var(--space-7);
-  padding-right: var(--space-7);
 }
 
 .pageTab {
@@ -1157,7 +1158,7 @@
 .pageTab:hover {
   border-color: var(--accent);
   color: var(--accent);
-  background: rgba(45, 212, 168, 0.08);
+  background: rgba(45, 212, 168, 0.12);
 }
 
 .pageTab.active,
@@ -2492,7 +2493,7 @@
   margin: var(--space-3) var(--space-4) var(--space-4);
   border: 1px solid rgba(45, 212, 168, 0.35);
   border-radius: var(--radius-xl);
-  background: rgba(6, 38, 30, 0.6);
+  background: rgba(6, 38, 30, 0.85);
 }
 
 .detailPanel h4 {

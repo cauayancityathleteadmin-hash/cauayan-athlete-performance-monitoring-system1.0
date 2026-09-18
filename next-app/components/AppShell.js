@@ -141,11 +141,11 @@ const ICONS = {
 
 const NAV_GROUPS = [
   { key: "home", label: "Dashboard", links: [{ href: "/dashboard", label: "Dashboard", icon: "grid" }] },
-  { key: "athletes", label: "Athletes", links: [{ href: "/athletes", label: "Athletes", icon: "user" }] },
   {
-    key: "coaches",
-    label: "Coaches",
+    key: "people",
+    label: "Athletes & Coaches",
     links: [
+      { href: "/athletes", label: "Athletes", icon: "user" },
       { href: "/admin/coaches", label: "Coaches", icon: "users", adminOnly: true },
       { href: "/admin/coach-performances", label: "Evaluations", icon: "star", adminOnly: true },
       { href: "/coach-approvals", label: "Approvals", icon: "badgeCheck", coachApproveOnly: true },
@@ -166,13 +166,13 @@ const NAV_GROUPS = [
   { key: "metrics", label: "Metrics", links: [{ href: "/admin/metrics", label: "Metrics", icon: "gauge", adminOnly: true }] },
   {
     key: "system",
-    label: "System",
+    label: "System & Account",
     links: [
+      { href: "/account", label: "My account", icon: "userCircle" },
       { href: "/admin/audit-logs", label: "Audit logs", icon: "list", adminOnly: true },
       { href: "/admin/backup", label: "Backup", icon: "database", adminOnly: true },
     ],
   },
-  { key: "account", label: "Account", links: [{ href: "/account", label: "My account", icon: "userCircle" }] },
 ];
 
 export default function AppShell({
