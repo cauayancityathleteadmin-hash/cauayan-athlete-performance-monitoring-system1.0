@@ -230,7 +230,7 @@ export default function AppShell({
       if (raw) stored.push(...JSON.parse(raw));
     } catch (e) {}
     const grp = NAV_GROUPS.find((g) =>
-      g.links.some((l) => isActiveHref(l.href)) ||
+      ((g.links || []).some((l) => isActiveHref(l.href))) ||
       (g.key === "training" && currentPath.startsWith("/training-plans"))
     );
     if (grp) {
@@ -279,15 +279,13 @@ export default function AppShell({
   const nav = (
     <nav className={styles.sidebar} aria-label="Primary navigation">
       {NAV_GROUPS.map((group) => {
-        const links = group.links.filter((link) => (!link.adminOnly || isAdmin) && (!link.coachApproveOnly || (canApproveCoaches && !isAdmin)));
-        const isExpanded = expandedGroup === group.key;
-        const groupActive = links.some((link) => isActiveHref(link.href)) || (group.shortcuts && isExpanded);
-
         // Groups with shortcuts: Coaches, Training, System - inline expand
         if (group.shortcuts) {
           const shortcutItems = Array.isArray(group.shortcuts) ? group.shortcuts : (shortcuts?.[group.shortcuts] || []);
           const q = (navSearch[group.key] || "").toLowerCase().trim();
           const filtered = q ? shortcutItems.filter((it) => it.label.toLowerCase().includes(q)) : shortcutItems;
+          const isExpanded = expandedGroup === group.key;
+          const groupActive = isExpanded || shortcutItems.some((it) => isActiveHref(it.href));
           
           return (
             <React.Fragment key={group.key}>
@@ -330,6 +328,7 @@ export default function AppShell({
         }
 
         // Flat groups: Home, Athletes, Analytics, Events, Reports, Account
+        const links = group.links.filter((link) => (!link.adminOnly || isAdmin) && (!link.coachApproveOnly || (canApproveCoaches && !isAdmin)));
         if (!links.length) return null;
         return (
           <React.Fragment key={group.key}>
