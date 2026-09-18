@@ -225,7 +225,7 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
 
         {submitted ? (
           <div style={{ width: "100%", textAlign: "center" }}>
-            <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block", margin: "0 auto 18px" }}>
+            <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block", margin: "0 auto var(--space-5)" }}>
               <circle cx="12" cy="12" r="10"></circle>
               <path d="M8 12.5l2.6 2.6L16 9.5"></path>
             </svg>
@@ -233,7 +233,7 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
             <p style={{ color: "var(--muted)", fontSize: "15px", margin: "0 0 18px" }}>
               Thank you, {applicantName}. Your coach application is now under review.
             </p>
-            <div style={{ margin: "0 0 18px", padding: "14px 16px", border: "1px dashed var(--accent)", borderRadius: "10px", background: "rgba(45,212,168,.08)", fontSize: "15px" }}>
+            <div style={{ margin: "0 0 var(--space-5)", padding: "var(--space-4)", border: "1px dashed var(--accent)", borderRadius: "var(--radius-lg)", background: "rgba(45,212,168,.08)", fontSize: "15px" }}>
               Your coach code:{" "}
               <strong style={{ color: "var(--accent)", letterSpacing: ".5px" }}>{applicantCoachCode}</strong>
               <span style={{ display: "block", marginTop: "4px", color: "var(--muted)", fontSize: "13px" }}>Keep this handy — you can also sign in with your email.</span>
@@ -252,7 +252,7 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
                 </div>
               ))}
             </div>
-            <Link href="/login" style={{ display: "inline-block", marginTop: "22px", background: "var(--accent)", color: "#041f18", padding: "12px 28px", borderRadius: "8px", fontWeight: 700, textDecoration: "none", fontSize: "15px", width: "100%" }}>
+            <Link href="/login" className="primary" style={{ display: "block", textAlign: "center" }}>
               Go to sign in
             </Link>
           </div>
@@ -260,9 +260,9 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
           <div style={{ width: "100%" }}>
             <section
               style={{
-                padding: "20px",
+                padding: "var(--space-5)",
                 border: "1px solid var(--border)",
-                borderRadius: "10px",
+                borderRadius: "var(--radius-lg)",
                 background: "rgba(6, 38, 30, .5)",
               }}
             >
@@ -290,24 +290,20 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
               </dl>
             </section>
             {captchaEnabled && (
-              <div style={{ marginTop: "18px" }}>
+              <div style={{ marginTop: "var(--space-5)" }}>
                 <div ref={captchaRef} className="cf-turnstile" />
               </div>
             )}
-            <div style={{ display: "flex", gap: "12px", marginTop: "18px", flexWrap: "wrap" }}>
-              <button type="button" onClick={edit} disabled={busy} style={{
-                flex: "1 1 auto",
-                background: "rgba(45,212,168,.16)",
-                color: "var(--accent)",
-                border: "1px solid var(--border)",
-              }}>
+            <div style={{ display: "flex", gap: "12px", marginTop: "var(--space-5)", flexWrap: "wrap" }}>
+              <button type="button" onClick={edit} disabled={busy} className={`${styles.secondary} ${styles.btnSm}`} style={{ flex: "1 1 auto" }}>
                 Edit information
               </button>
               <button
                 type="button"
                 onClick={submit}
                 disabled={busy}
-                style={{ flex: "1 1 auto", background: "var(--accent)", color: "#041f18" }}
+                className={`${styles.primary} ${styles.btnSm}`}
+                style={{ flex: "1 1 auto" }}
               >
                 {busy ? "Submitting..." : "Confirm & submit registration"}
               </button>
@@ -317,9 +313,9 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
                 role="status"
                 style={{
                   color: message.startsWith("Registration") ? "var(--accent)" : "var(--danger)",
-                  marginTop: "12px",
-                  padding: "10px",
-                  borderRadius: "6px",
+                  marginTop: "var(--space-3)",
+                  padding: "var(--space-2)",
+                  borderRadius: "var(--radius-sm)",
                   background: message.startsWith("Registration") ? "rgba(45,212,168,.16)" : "rgba(248,113,113,.16)",
                   border: message.startsWith("Registration") ? "1px solid var(--accent)" : "1px solid var(--danger)",
                 }}
@@ -457,14 +453,14 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
               </fieldset>
               {errors.pictureUrl && <span style={{ color: "var(--danger)", fontSize: "12px", marginTop: "4px", display: "block" }}>{errors.pictureUrl}</span>}
             </div>
-            <button type="submit" disabled={busy} className="span-2" style={{ marginTop: "10px" }}>
+            <button type="submit" disabled={busy} className={`${styles.primary} span-2`} style={{ marginTop: "var(--space-3)" }}>
               Review registration
             </button>
           </form>
         )}
 
         {!reviewing && !submitted && (
-          <p className="auth-register" style={{ margin: "22px 0 0" }}><Link href="/login">Back to sign in</Link></p>
+          <p className="auth-register" style={{ margin: "var(--space-6) 0 0" }}><Link href="/login">Back to sign in</Link></p>
         )}
       </main>
     </>

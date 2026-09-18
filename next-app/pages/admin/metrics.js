@@ -56,6 +56,7 @@ export default function Metrics({ session, events, metrics }) {
     <>
       <Head><title>Performance Metrics | Administration</title></Head>
       <AppShell session={session} isAdmin eyebrow="Measurements" title="Performance Metrics" active="/admin/metrics">
+        <div className={styles.pageTitle}><h1>Performance metrics</h1></div>
         <section className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Configuration</p><h2>Add performance metric</h2></div></div>
           <form onSubmit={addMetric} className={styles.formGrid}>
@@ -67,7 +68,7 @@ export default function Metrics({ session, events, metrics }) {
             <label>Decimal places<input name="decimalPlaces" type="number" min="0" max="6" defaultValue="0" /></label>
             <label>Minimum value<input name="minimumValue" type="number" step="any" /></label>
             <label>Maximum value<input name="maximumValue" type="number" step="any" /></label>
-            <label className={styles.fullField} style={{ flexDirection: "row", alignItems: "center", gap: 10, color: "var(--muted)", fontSize: 14 }}><input name="isRequired" type="checkbox" style={{ width: 18, height: 18, accentColor: "var(--accent)" }} />Required metric (must be completed on every assessment)</label>
+            <label className={styles.fullField} style={{ flexDirection: "row", alignItems: "center", gap: "var(--space-3)", color: "var(--muted)", fontSize: 14 }}><input name="isRequired" type="checkbox" style={{ width: 16, height: 16, accentColor: "var(--accent)" }} />Required metric (must be completed on every assessment)</label>
             <div className={styles.formActions}><button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Add metric"}</button></div>
             {message.text && <p role="status" className={`${styles.fullField} ${message.kind === "success" ? styles.formSuccess : styles.formError}`}>{message.text}</p>}
           </form>

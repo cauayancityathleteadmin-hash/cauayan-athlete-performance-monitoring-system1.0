@@ -153,6 +153,7 @@ export default function AdminCoaches({ coaches, session }) {
         <title>Manage Coaches | Cauayan Athlete Performance</title>
       </Head>
       <AppShell session={session} isAdmin eyebrow="Administration" title="Coaches" active="/admin/coaches">
+        <div className={styles.pageTitle}><h1>Coaches</h1></div>
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
             <div>
@@ -254,7 +255,7 @@ export default function AdminCoaches({ coaches, session }) {
                     <thead>
                       <tr>
                         <th>Coach</th>
-                        <th>ID</th>
+<th>Coach code</th>
                         <th>School</th>
                         <th>Sports</th>
                         <th>Status</th>
@@ -291,7 +292,7 @@ export default function AdminCoaches({ coaches, session }) {
                               )}
                               {coach.user.status === "rejected" && (
                                 <>
-                                  <button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`}>Reapprove</button>
+<button onClick={() => reviewCoach(coach.id, "approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`}>Approve</button>
                                   <button onClick={() => reviewCoach(coach.id, "delete")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Delete</button>
                                 </>
                               )}

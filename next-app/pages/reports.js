@@ -1004,7 +1004,7 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
 
         <section className={styles.panel}>
           {isAdmin && (
-            <div className={styles.segmented} style={{ marginBottom: 18 }}>
+            <div className={styles.segmented} style={{ marginBottom: "var(--space-5)" }}>
               <button className={type === "athlete" ? styles.active : ""} aria-pressed={type === "athlete"} onClick={() => switchType("athlete")}>Athlete report</button>
               <button className={type === "coach" ? styles.active : ""} aria-pressed={type === "coach"} onClick={() => switchType("coach")}>Coach report</button>
             </div>
@@ -1012,7 +1012,7 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
 
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Report selection</p><h2>{type === "athlete" ? "Athletes" : "Coaches"}</h2></div></div>
 
-          <div className={styles.toolbar} style={{ marginTop: 16 }}>
+          <div className={styles.toolbar} style={{ marginTop: "var(--space-4)" }}>
             <label>Search {type === "athlete" ? "athletes" : "coaches"}<input type="text" placeholder={type === "athlete" ? "Name, code, sport, event, coach, school…" : "Name, code, email, sport, school…"} value={type === "athlete" ? search : cSearch} onChange={(event) => (type === "athlete" ? setSearch(event.target.value) : setCSearch(event.target.value))} /></label>
             {type === "athlete" && <label>From date<input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>}
             {type === "athlete" && <label>To date<input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>}

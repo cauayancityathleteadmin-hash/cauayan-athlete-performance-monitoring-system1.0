@@ -68,9 +68,9 @@ export default function ResetPassword() {
         <p
           role="status"
           style={{
-            marginTop: "18px",
-            padding: "12px",
-            borderRadius: "8px",
+            marginTop: "var(--space-5)",
+            padding: "var(--space-3)",
+            borderRadius: "var(--radius-lg)",
             background: "rgba(45,212,168,.16)",
             border: "1px solid var(--accent)",
             color: "var(--accent)",
@@ -79,7 +79,7 @@ export default function ResetPassword() {
           {message} <Link href="/login">Sign in now</Link>
         </p>
       ) : (
-        <form onSubmit={submit} noValidate style={{ width: "100%" }}>
+        <form onSubmit={submit} noValidate className="formStack">
           <div style={{ marginBottom: "16px" }}>
             <PasswordInput
               name="password"
@@ -105,7 +105,7 @@ export default function ResetPassword() {
             autoComplete="new-password"
             placeholder="Re-enter the password"
           />
-          <button disabled={busy || !token} style={{ marginTop: "14px" }}>
+          <button className="primary" disabled={busy || !token}>
             {busy ? "Resetting..." : "Reset password"}
           </button>
           {message && <p role="alert" style={{ color: isError ? "var(--danger)" : "var(--accent)" }}>{message}</p>}

@@ -49,9 +49,9 @@ export default function ForgotPassword() {
         <p
           role="status"
           style={{
-            marginTop: "18px",
-            padding: "12px",
-            borderRadius: "8px",
+            marginTop: "var(--space-5)",
+            padding: "var(--space-3)",
+            borderRadius: "var(--radius-lg)",
             background: "rgba(45,212,168,.16)",
             border: "1px solid var(--accent)",
             color: "var(--accent)",
@@ -72,7 +72,7 @@ export default function ForgotPassword() {
             maxLength="191"
             autoComplete="email"
           />
-          <button disabled={busy}>{busy ? "Sending..." : "Send reset link"}</button>
+          <button className="primary" disabled={busy}>{busy ? "Sending..." : "Send reset link"}</button>
           {message && <p role="alert" style={{ color: "var(--danger)" }}>{message}</p>}
         </form>
       )}

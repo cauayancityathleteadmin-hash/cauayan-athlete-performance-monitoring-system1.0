@@ -403,7 +403,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage })
             {athlete.statusHistory?.length ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {athlete.statusHistory.map((s) => (
-                  <div key={s.id} className={styles.detailPanel} style={{ padding: 10 }}>
+                  <div key={s.id} className={styles.detailPanel}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
                       <strong style={{ fontSize: 13, textTransform: "capitalize" }}>{String(s.newStatus).replace("_", " ")}</strong>
                       <small style={{ color: "var(--muted)", fontSize: 12 }}>{fmtDate(s.changedAt)}</small>
@@ -422,7 +422,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage })
             {athlete.achievements?.length ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {athlete.achievements.map((a) => (
-                  <div key={a.id} className={styles.detailPanel} style={{ padding: 10 }}>
+                  <div key={a.id} className={styles.detailPanel}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
                       <strong style={{ fontSize: 13 }}>{a.achievementTitle}</strong>
                       <small style={{ color: "var(--muted)", fontSize: 12 }}>{fmtDate(a.achievementDate)}</small>
@@ -495,7 +495,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage })
               {athlete.trainingPlans?.length ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {athlete.trainingPlans.map((tpl) => (
-                    <div key={tpl.id} className={styles.detailPanel} style={{ padding: 10 }}>
+                    <div key={tpl.id} className={styles.detailPanel}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
                         <strong style={{ fontSize: 13 }}>{tpl.plan?.planName || "—"}</strong>
                         <small style={{ color: "var(--muted)", fontSize: 12, textTransform: "capitalize" }}>{tpl.plan?.frequency || "—"}</small>
@@ -512,7 +512,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage })
               {athlete.trainingAssessments?.length ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {athlete.trainingAssessments.map((a) => (
-                    <div key={a.id} className={styles.detailPanel} style={{ padding: 10 }}>
+                    <div key={a.id} className={styles.detailPanel}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
                         <strong style={{ fontSize: 13 }}>{fmtDate(a.assessmentDate)}</strong>
                         <span className={`${styles.badge} ${a.rating >= 8 ? styles.badgeActive : styles.badgePending}`}>{a.rating}/10</span>

@@ -222,7 +222,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
       <Head><title>{plan.planName} | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Training" title={plan.planName} active="/training-plans">
         <div className={styles.pageActions}>
-          <nav className={styles.eyebrow} style={{ lineHeight: 1.5 }}>Training <span style={{ opacity: 0.6 }}>/</span> Trainings <span style={{ opacity: 0.6 }}>/</span> <strong>{plan.planName}</strong></nav>
+          <nav className={styles.eyebrow} style={{ lineHeight: 1.5 }}>Training <span style={{ opacity: 0.6 }}>/</span> Training plans <span style={{ opacity: 0.6 }}>/</span> <strong>{plan.planName}</strong></nav>
           <button className={styles.secondary} onClick={() => router.push("/training-plans")}>Back to plans</button>
         </div>
 
@@ -299,7 +299,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
 
         <section className={styles.panel} id="roster">
           <div className={styles.panelHeader}>
-            <div><p className={styles.eyebrow}>Athletes on this training</p><h2>Roster</h2></div>
+            <div><p className={styles.eyebrow}>Athletes</p><h2>Roster</h2></div>
             <span className={styles.formHint} style={{ alignSelf: "center" }}>{athletes.length} athlete{athletes.length === 1 ? "" : "s"}</span>
           </div>
           <p className={styles.formHint} style={{ marginTop: 0 }}>
@@ -800,11 +800,11 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
           </select>
         </label>
         <button className={styles.primary} disabled={busy || isCurrentViewLocked} onClick={save}>{busy ? "Saving..." : isCurrentViewLocked ? "Week locked" : "Save assessment"}</button>
-        <button className={styles.secondary} onClick={() => setReviewColumn('all')}>📷 View all evidence by activity</button>
+        <button className={styles.secondary} onClick={() => setReviewColumn('all')}>View evidence by activity</button>
         {toast && (
           <span role="status" style={{ color: toast.kind === "error" ? "var(--danger)" : toast.kind === "info" ? "var(--muted)" : "var(--accent)", fontSize: 12, lineHeight: 1.4 }}>
             {toast.text}
-            {toast.undo && <button className={styles.secondary} style={{ marginLeft: 8, padding: "3px 8px", fontSize: 11 }} onClick={undo} disabled={busy}>Undo</button>}
+            {toast.undo && <button className={`${styles.secondary} ${styles.btnSm}`} style={{ marginLeft: 8 }} onClick={undo} disabled={busy}>Undo</button>}
           </span>
         )}
       </div>
@@ -826,8 +826,8 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 12 }}>
         <span style={{ fontSize: 12, color: "var(--muted)" }}>Everything shown, everyone:</span>
         <button type="button" className={styles.secondary} disabled={isCurrentViewLocked} onClick={() => presetAll("full")}>All done</button>
-        <button type="button" className={styles.secondary} disabled={isCurrentViewLocked} onClick={() => presetAll("light")}>Everyone half</button>
-        <button type="button" className={styles.secondary} disabled={isCurrentViewLocked} onClick={() => presetAll("rest")}>Rest day (missed)</button>
+        <button type="button" className={styles.secondary} disabled={isCurrentViewLocked} onClick={() => presetAll("light")}>Mark half-day</button>
+        <button type="button" className={styles.secondary} disabled={isCurrentViewLocked} onClick={() => presetAll("rest")}>Mark as rest day</button>
       </div>
 
       <p className={styles.formHint} style={{ marginTop: 0, marginBottom: 12 }}>Cells start marked done at their target for the selected date. Tap a cell&apos;s button to flip its status (D → P → M → open), type an amount and the status picks itself, or use the Everyone buttons to fill the whole view at once. Ratings auto-fill as cells are completed — adjust any athlete&apos;s rating to override. Activities without a set week are shown under Week 1.</p>
@@ -951,7 +951,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                             </select>
                           </label>
                           {suggestRating(athlete.id) != null && (
-                            <button className={styles.secondary} disabled={isCurrentViewLocked} style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => setRating(athlete.id, { rating: suggestRating(athlete.id) })}>Use suggestion ({suggestRating(athlete.id)})</button>
+                            <button className={`${styles.secondary} ${styles.btnSm}`} disabled={isCurrentViewLocked} onClick={() => setRating(athlete.id, { rating: suggestRating(athlete.id) })}>Use suggestion ({suggestRating(athlete.id)})</button>
                           )}
                           <input className={styles.fieldControl} disabled={isCurrentViewLocked} style={{ flex: "1 1 200px", minWidth: 160 }} value={ratings[athlete.id]?.comments || ""} onChange={(e) => setRating(athlete.id, { comments: e.target.value })} placeholder="Summary comment (optional)" />
                           <small style={{ color: "var(--muted)" }}>10 = exceeded · 7–8 = solid · 5–6 = partial · 1–4 = needs work</small>
@@ -1242,9 +1242,9 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
         <div className={`${styles.detailPanel} panelBox`}><h4>Duration</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{plan.durationDays ? `${plan.durationDays}d` : plan.durationWeeks ? `${plan.durationWeeks}w` : "—"}</div><small style={{ color: "var(--muted)" }}>Plan length</small></div>
       </div>
 
-      <div className="chartGrid" style={{ marginBottom: 16 }}>
+      <div className="chartGrid" style={{ marginBottom: "var(--space-5)" }}>
         <div className={`${styles.detailPanel} panelBox`}>
-          <h4>Completion rate by athlete <small style={{ color: "var(--muted)", fontWeight: 400 }}>(green ≥ 80%, yellow ≥ 50%, red &lt; 50%)</small></h4>
+          <h4>Completion by athlete <small style={{ color: "var(--muted)", fontWeight: 400 }}>(green ≥ 80%, yellow ≥ 50%, red &lt; 50%)</small></h4>
           {perAthlete.length && perAthlete.some((r) => r.total > 0) ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={barData} margin={{ top: 6, right: 10, left: 16, bottom: 24 }}>
@@ -1260,7 +1260,7 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
         </div>
       </div>
 
-      <div className="chartGrid" style={{ marginBottom: 16 }}>
+      <div className="chartGrid" style={{ marginBottom: "var(--space-5)" }}>
         <div className={`${styles.detailPanel} panelBox`}>
           <h4>Activities by fitness dimension</h4>
           {fitnessDist.length ? (
@@ -1277,7 +1277,7 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
         </div>
 
         <div className={`${styles.detailPanel} panelBox`}>
-          <h4>Weekly completion trend <small style={{ color: "var(--muted)", fontWeight: 400 }}>(done + partial ÷ planned)</small></h4>
+          <h4>Weekly completion trend</h4>
           {weekly.some((w) => w.total > 0) ? (
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={weekly} margin={{ top: 6, right: 12, left: 16, bottom: 24 }}>

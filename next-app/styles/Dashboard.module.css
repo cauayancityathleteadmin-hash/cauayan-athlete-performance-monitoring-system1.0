@@ -774,7 +774,7 @@
   justify-content: space-between;
   align-items: flex-end;
   gap: 24px;
-  margin-bottom: 28px;
+  margin-bottom: var(--space-6);
   flex-wrap: wrap;
 }
 
@@ -796,8 +796,8 @@
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-  margin-bottom: 28px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
 }
 
 .card {
@@ -852,7 +852,7 @@
 .grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 22px;
+  gap: var(--space-5);
 }
 
 @media (min-width: 900px) {
@@ -1289,10 +1289,6 @@
     font-size: 13px;
     padding: 6px 8px;
   }
-
-  .panel {
-    padding: 20px;
-  }
 }
 
 /* ===== Mobile (phone) layout =====
@@ -1442,10 +1438,6 @@
     font-size: 13px;
     padding: 6px 8px;
   }
-
-  .panel {
-    padding: 16px;
-  }
 }
 .pageTitle {
   display: flex;
@@ -1458,7 +1450,7 @@
 
 .pageTitle h1 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: clamp(24px, 3.5vw, 32px);
 }
 
 .pageTitle .actions {
@@ -1959,15 +1951,15 @@
 .kpiRow {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px;
-  margin-bottom: 22px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 
 .kpi {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 16px 18px;
+  padding: var(--space-4);
   background: rgba(6, 38, 30, 0.5);
   border: 1px solid #1a5c4a;
   border-radius: 12px;

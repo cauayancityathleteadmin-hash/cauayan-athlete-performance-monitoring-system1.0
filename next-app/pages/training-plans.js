@@ -178,7 +178,7 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
   return (
     <>
       <Head><title>Training | Cauayan Athlete Performance</title></Head>
-      <AppShell session={session} isAdmin={isAdmin} eyebrow="Training" title="Trainings" active="/training-plans">
+      <AppShell session={session} isAdmin={isAdmin} eyebrow="Training" title="Training plans" active="/training-plans">
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Coaching</p><h2>Training plans</h2></div>
@@ -188,7 +188,7 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
           </div>
           <p className={styles.formHint} style={{ marginTop: 0 }}>Coaches build a plan for their athletes over a day, week, or month. Coaches and the admin can then record assessments against it to track progress.</p>
 
-          <div className={styles.toolbar} style={{ marginBottom: 16 }}>
+          <div className={styles.toolbar}>
             <label className={styles.searchLabel}>Search plans<input type="text" placeholder="Name, coach, sport…" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} /></label>
             <label>Status
               <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
@@ -208,13 +208,13 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
           </div>
 
           {showPlanForm && (
-            <div style={{ marginBottom: 22 }}>
+            <div style={{ marginBottom: "var(--space-5)" }}>
               <CreatePlanForm isAdmin={isAdmin} sports={sports} coaches={coaches} athletes={athletes} templates={templates} onCreated={() => { setShowPlanForm(false); refresh(); router.push("/training-plans"); }} onCancel={() => setShowPlanForm(false)} />
             </div>
           )}
 
           {editingPlan && (
-            <div style={{ marginBottom: 22 }}>
+            <div style={{ marginBottom: "var(--space-5)" }}>
               <EditPlanForm isAdmin={isAdmin} plan={editingPlan} sports={sports} coaches={coaches} athletes={athletes} onSaved={() => { setEditingPlan(null); refresh(); }} onCancel={() => setEditingPlan(null)} />
             </div>
           )}
@@ -225,7 +225,7 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
             <p className={styles.empty}>No plans match your filters.</p>
           ) : (
             <div className={styles.tableWrap}><table>
-              <thead><tr><th>Plan</th><th>Frequency</th><th>Sport</th><th>Coach</th><th>Period</th><th>Athletes</th><th>Progress</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>Plan</th><th>Frequency</th><th>Sport</th><th>Coach</th><th>Period</th><th>Athletes</th><th>Progress</th><th>Rating</th><th>Status</th><th></th></tr></thead>
               <tbody>
                 {filteredPlans.map((p) => {
                   const prog = progressMap[p.id];
@@ -242,16 +242,16 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
                         <div className={styles.progressCell}>
                           <strong>{prog.percent}%</strong>
                           <small>{prog.completed} / {prog.total} done</small>
-                          {prog.avgRating != null && <span className={`${styles.badge} ${styles.badgeActive}`} style={{ marginTop: 4 }}>★ {prog.avgRating}</span>}
                         </div>
                       ) : "—"}
                     </td>
+                    <td data-label="Rating">{prog && prog.avgRating != null ? <span className={`${styles.badge} ${styles.badgeActive}`}>★ {prog.avgRating}</span> : "—"}</td>
                     <td data-label="Status"><span className={`${styles.badge} ${styles[STATUS_META[p.status]?.cls || "badgeMuted"]}`}>{STATUS_META[p.status]?.label || p.status}</span></td>
                     <td data-label="Actions">
                       <div className={styles.actionCell}>
                         <Link className={styles.expandBtn} href={`/training-plans/${p.id}`}>Manage</Link>
-                        {!isAdmin && <button className={styles.secondary} onClick={() => setEditingPlan(p)} style={{ padding: "4px 8px", fontSize: "12px" }}>Edit</button>}
-                        {!isAdmin && <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => deletePlan(p.id)} style={{ padding: "4px 8px", fontSize: "12px" }}>Delete</button>}
+                        {!isAdmin && <button className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setEditingPlan(p)}>Edit</button>}
+                        {!isAdmin && <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => deletePlan(p.id)}>Delete</button>}
                       </div>
                     </td>
                   </tr>
@@ -373,7 +373,7 @@ function CreatePlanForm({ isAdmin, sports, coaches, athletes, templates, onCreat
         <label>Start date *<input name="startDate" type="date" required value={startDate} onChange={(e) => onStartChange(e.target.value)} /></label>
         <label>End date (optional)<input name="endDate" type="date" value={endDate} onChange={(e) => handleEndChange(e.target.value)} />{suggestedEnd ? <small className={styles.formHint}>Suggested: {suggestedEnd}</small> : null}</label>
         {isAdmin && <label>Status<select name="status" defaultValue="active"><option value="active">Active</option><option value="completed">Completed</option></select></label>}
-        {isAdmin && <label style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="checkbox" name="isTemplate" /> <span>Save as template (admin only)</span></label>}
+        {isAdmin && <label style={{ display: "flex", alignItems: "center", gap: 8 }}><input type="checkbox" name="isTemplate" /> <span>Template plan (admin only)</span></label>}
         <label className={styles.fullField}>Description<textarea name="description" rows="2" maxLength="2000" placeholder="Goals and focus of the plan" /></label>
 
         <div className={styles.fullField} style={{ borderTop: "1px solid rgba(26, 92, 74, .5)", paddingTop: 16 }}>

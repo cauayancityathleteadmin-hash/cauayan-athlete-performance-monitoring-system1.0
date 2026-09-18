@@ -258,7 +258,7 @@ export default function AthleteProgress({ session, isAdmin, athlete, trainingAss
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Monitoring" title="Athlete progress" active="/athletes">
         <div className={styles.pageTitle}>
           <div>
-            <p className={styles.eyebrow}>Live progress · {athlete.sport?.sportName || "—"} · Coach {athlete.coach ? `${athlete.coach.firstName} ${athlete.coach.lastName}` : "—"}</p>
+            <p className={styles.eyebrow}>Progress · {athlete.sport?.sportName || "—"}</p>
             <h1>{athlete.firstName} {athlete.middleName ? `${athlete.middleName} ` : ""}{athlete.lastName}</h1>
           </div>
           <div className={styles.actions}>
@@ -266,7 +266,7 @@ export default function AthleteProgress({ session, isAdmin, athlete, trainingAss
             <Link className={styles.secondary} href={`/athletes/${athlete.id}`}>Full profile</Link>
           </div>
         </div>
-        <p className={styles.formHint} style={{ marginTop: 0 }}>This view combines training scores, physical performance, effort, and achievements — and updates the moment new data is saved.</p>
+        <p className={styles.formHint} style={{ marginTop: 0 }}>Ratings, exercise scores, attendance, and achievements at a glance.</p>
 
         {/* Top live stats */}
         <section className={styles.panel}>
@@ -274,7 +274,7 @@ export default function AthleteProgress({ session, isAdmin, athlete, trainingAss
           <div className={styles.grid}>
             <Stat label="Latest training rating" value={latestRating != null ? `${latestRating}/10` : "—"} sub={latestRating != null && trainingAssessments.length ? fmtDate(trainingAssessments[trainingAssessments.length - 1].assessmentDate) : "No assessments yet"} />
             <Stat label="Best performance score" value={perf.best != null ? fmtNum(perf.best) : "—"} sub={perf.count ? `${perf.count} performance${perf.count === 1 ? "" : "s"} recorded` : "No performances yet"} />
-            <Stat label="Avg performance score" value={perf.avg != null ? fmtNum(perf.avg) : "—"} sub="Across all recorded exercises" />
+            <Stat label="Average performance score" value={perf.avg != null ? fmtNum(perf.avg) : "—"} sub="Across all recorded exercises" />
             <Stat label="Sessions present" value={`${effort.att.present} / ${effort.totalAtt || 0}`} sub={effort.attendanceRate != null ? `Attendance rate ${effort.attendanceRate}%` : "No sessions logged"} />
           </div>
         </section>
@@ -282,11 +282,11 @@ export default function AthleteProgress({ session, isAdmin, athlete, trainingAss
         <div className={styles.grid}>
           {/* Training score trend */}
           <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Assessment score trend</h2></div></div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Training rating trend</h2></div></div>
             {trainingAssessments.length ? (
               <>
                 <MiniTrend points={tTrend} />
-                <div className={styles.tableWrap} style={{ marginTop: 16 }}>
+                <div className={styles.tableWrap} style={{ marginTop: "var(--space-4)" }}>
                   <table>
                     <thead><tr><th>Date</th><th>Rating</th><th>Fitness</th><th>Plan</th></tr></thead>
                     <tbody>
@@ -311,7 +311,7 @@ export default function AthleteProgress({ session, isAdmin, athlete, trainingAss
             {perf.trend.length ? (
               <>
                 <MiniTrend points={perf.trend} />
-                <div className={styles.tableWrap} style={{ marginTop: 16 }}>
+                <div className={styles.tableWrap} style={{ marginTop: "var(--space-4)" }}>
                   <table>
                     <thead><tr><th>Date</th><th>Exercise</th><th>Score</th><th>RPE</th></tr></thead>
                     <tbody>
@@ -333,7 +333,7 @@ export default function AthleteProgress({ session, isAdmin, athlete, trainingAss
 
         {/* Best by fitness dimension */}
         <section className={styles.panel}>
-          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Strengths</p><h2>Per-fitness training summary</h2></div></div>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Strengths</p><h2>Strengths by area</h2></div></div>
           {dims.length ? (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
               {dims.map((d) => (
@@ -352,7 +352,7 @@ export default function AthleteProgress({ session, isAdmin, athlete, trainingAss
         <div className={styles.grid}>
           {/* Effort */}
           <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Effort</p><h2>Attendance &amp; activity completion</h2></div></div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Effort</p><h2>Effort overview</h2></div></div>
             {effort.totalAtt || effort.plannedSessions ? (
               <>
                 <div className={styles.infoList}>
@@ -375,7 +375,7 @@ export default function AthleteProgress({ session, isAdmin, athlete, trainingAss
             {achievements.length ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {achievements.map((a) => (
-                  <div key={a.id} className={styles.detailPanel} style={{ padding: 10 }}>
+                  <div key={a.id} className={styles.detailPanel}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
                       <strong style={{ fontSize: 13 }}>{a.achievementTitle}</strong>
                       <small style={{ color: "var(--muted)", fontSize: 12 }}>{fmtDate(a.achievementDate)}</small>

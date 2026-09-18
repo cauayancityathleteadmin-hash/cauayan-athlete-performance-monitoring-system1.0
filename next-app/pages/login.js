@@ -22,9 +22,9 @@ export default function Login() {
       const result = await signIn("credentials", { identifier, password, redirect: false });
       if (!result || result.error) {
         if (result?.error === "PENDING_APPROVAL") {
-          setError("Your application is still under review. You'll receive an email or SMS once an admin or authorized coach approves your account.");
+          setError("Approval still pending.");
         } else {
-          setError("Login failed. Check your credentials or try again later.");
+          setError("Login failed. Try again.");
         }
       } else if (result.ok) {
         const cb = typeof router.query.callbackUrl === "string" ? router.query.callbackUrl : "";
@@ -34,10 +34,10 @@ export default function Login() {
           router.push("/dashboard");
         }
       } else {
-        setError("Login failed. Check your credentials or try again later.");
+        setError("Login failed. Try again.");
       }
     } catch (err) {
-      setError("Unable to sign in. Please try again later.");
+      setError("Unable to sign in.");
     }
     setBusy(false);
   }
@@ -47,10 +47,10 @@ export default function Login() {
       <Head><title>Sign in | Cauayan Athlete Performance</title></Head>
       <img src="/sports_logo.png" alt="Cauayan City Sports" className="logo" />
       <p className="auth-kicker">Cauayan City</p>
-      <h1>Athlete Performance System</h1>
+      <h1>Sign in</h1>
       <p className="auth-subtitle">Secure monitoring platform</p>
       <form onSubmit={submit} noValidate>
-        <label htmlFor="identifier">Username, email, coach code, or ID</label>
+        <label htmlFor="identifier">Username or email</label>
         <input
           id="identifier"
           name="identifier"
@@ -114,7 +114,7 @@ export default function Login() {
         {error && <p role="alert">{error}</p>}
       </form>
       <p className="auth-register"><Link href="/coach-register">Register as a coach</Link></p>
-      <p className="auth-register" style={{ marginTop: "8px" }}><Link href="/forgot-password">Forgot password?</Link></p>
+      <p className="auth-register"><Link href="/forgot-password">Forgot password?</Link></p>
     </main>
   );
 }

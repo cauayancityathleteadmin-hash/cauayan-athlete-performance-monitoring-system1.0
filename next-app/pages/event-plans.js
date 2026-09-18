@@ -68,7 +68,7 @@ export default function EventPlans({ plans, session, page, totalPages, sports, a
           </div>
 
           {isAdmin && createPanel && (
-            <div className={styles.panel} style={{ marginBottom: 22, marginTop: 0 }}>
+            <div className={styles.panel} style={{ marginBottom: "var(--space-5)", marginTop: 0 }}>
               <CreatePlan sports={sports} />
             </div>
           )}
@@ -127,7 +127,7 @@ export default function EventPlans({ plans, session, page, totalPages, sports, a
                                   <div><dt>Program flow</dt><dd>{plan.programFlow || "—"}</dd></div>
                                 </dl>
                               </div>
-                              <div style={{ borderTop: "1px solid rgba(26, 92, 74, .5)", paddingTop: "22px" }}>
+                              <div style={{ borderTop: "1px solid rgba(26, 92, 74, .5)", paddingTop: "var(--space-5)" }}>
                                 <h4>Participation</h4>
                                 <EventPlanActions plan={plan} session={session} athletes={athletes} coachId={coachId} sports={sports} />
                               </div>
@@ -219,7 +219,7 @@ function ParticipantRoster({ participants, myCoachId, onRemove, busyRemove }) {
   const isCoachView = Boolean(myCoachId);
   const sectionLabel = isCoachView ? "Other coaches" : "Coaches";
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
       {isCoachView && (
         <div>
           <p className={styles.eyebrow} style={{ marginBottom: 8 }}>My athletes ({myAthletes.length})</p>
@@ -336,7 +336,7 @@ function EventPlanActions({ plan, session, athletes, coachId, sports }) {
     const isApproved = Boolean(myApp && myApp.status === "approved");
     const available = athletes || [];
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
         {plan.status === "closed" ? (
           <small style={{ color: "var(--muted)", fontSize: 13 }}>This event plan has been closed. Participation is no longer open.</small>
         ) : isApproved ? (
@@ -364,7 +364,7 @@ function EventPlanActions({ plan, session, athletes, coachId, sports }) {
           </div>
         )}
         {available.length > 0 && pickerOpen && (
-          <div style={{ border: "1px solid var(--border)", borderRadius: "10px", padding: "18px", background: "rgba(6, 38, 30, 0.5)", display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div className={styles.detailPanel} style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
             <div>
               <p className={styles.eyebrow} style={{ marginBottom: 4 }}>Select athletes to add</p>
               <p className={styles.formHint} style={{ margin: 0 }}>Only active athletes assigned to you are listed. Already-added athletes are marked and cannot be selected again.</p>
@@ -400,9 +400,9 @@ function EventPlanActions({ plan, session, athletes, coachId, sports }) {
 
 const pending = plan.applications.filter((application) => application.status === "pending");
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
       <div className={styles.actionRow}>
-        <button type="button" className={styles.secondary} disabled={busy} onClick={() => setEditOpen(!editOpen)}>{editOpen ? "Close editor" : "Edit plan"}</button>
+        <button type="button" className={`${styles.secondary} ${styles.btnSm}`} disabled={busy} onClick={() => setEditOpen(!editOpen)}>{editOpen ? "Close editor" : "Edit plan"}</button>
         <button type="button" className={`${styles.danger} ${styles.btnSm}`} disabled={busy || plan.status === "cancelled"} onClick={cancelPlan}>{plan.status === "cancelled" ? "Cancelled" : "Cancel plan"}</button>
         {message && <small role="status">{message}</small>}
       </div>
@@ -499,7 +499,7 @@ function EditPlan({ plan, sports }) {
     setBusy(false);
   }
   return (
-    <div style={{ border: "1px solid var(--border)", borderRadius: "10px", padding: "18px", background: "rgba(6, 38, 30, 0.4)", display: "flex", flexDirection: "column", gap: "12px" }}>
+    <div className={styles.detailPanel} style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
       <p className={styles.eyebrow}>Edit event plan</p>
       <form onSubmit={submit} className={styles.formGrid}>
         <label>Event name *<input name="eventName" className={styles.fieldControl} required maxLength="191" defaultValue={plan.eventName} /></label>

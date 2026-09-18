@@ -42,6 +42,7 @@ export default function Assessments({ assessments, catalog, session, page, total
         <title>Assessments | Cauayan Athlete Performance</title>
       </Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Performance records" title="Assessments" active="/assessments">
+          <div className={styles.pageTitle}><h1>Assessments</h1></div>
           <section className={styles.panel}>
             <div className={styles.panelHeader}>
               <div>

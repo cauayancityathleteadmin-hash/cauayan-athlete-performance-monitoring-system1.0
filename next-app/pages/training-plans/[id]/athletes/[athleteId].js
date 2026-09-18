@@ -320,12 +320,12 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
       <Head><title>{athlete.firstName} {athlete.lastName} — {plan.planName} | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Training" title={`${athlete.firstName} ${athlete.lastName}`} active="/training-plans">
         <nav className={styles.eyebrow} style={{ lineHeight: 1.5, marginBottom: 12 }}>
-          Training <span style={{ opacity: 0.6 }}>/</span> Trainings <span style={{ opacity: 0.6 }}>/</span>
+          Training <span style={{ opacity: 0.6 }}>/</span> Training plans <span style={{ opacity: 0.6 }}>/</span>
           <span style={{ cursor: "pointer", opacity: 0.85 }} onClick={() => router.push(`/training-plans/${plan.id}`)}>{plan.planName}</span>
           <span style={{ opacity: 0.6 }}>/</span> Athletes <span style={{ opacity: 0.6 }}>/</span> <strong>{athlete.firstName} {athlete.lastName}</strong>
         </nav>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", marginBottom: 16 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", marginBottom: "var(--space-5)" }}>
           <div className={styles.pageActions}>
             <span className={styles.eyebrow}>{athlete.athleteCode} {athlete.sport?.sportName ? `· ${athlete.sport.sportName}` : ""}</span>
           </div>
@@ -336,7 +336,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
         <SectionShortcutNav sections={ATHLETE_SECTIONS} />
 
         {manageOpen && !isAdmin && (
-          <section className={styles.panel} style={{ marginBottom: 20 }}>
+          <section className={styles.panel} style={{ marginBottom: "var(--space-5)" }}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Activity manager</p><h2>Manage {athlete.firstName}&apos;s activities</h2></div></div>
             {manageMsg && <p role="status" className={styles.empty} style={{ margin: "0 16px 12px", color: "var(--danger)" }}>{manageMsg}</p>}
             <AthleteActivitiesBlock
@@ -351,7 +351,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
           </section>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16, marginBottom: 20 }} id="overview">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16, marginBottom: "var(--space-5)" }} id="overview">
           <div className={styles.detailPanel}><h4>Planned activities</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{summary.total}</div></div>
           <div className={styles.detailPanel}><h4>Completion</h4><div style={{ fontSize: 26, fontWeight: 800, color: percentColor(summary.completionPercent) }}>{summary.completionPercent}%</div><small style={{ color: "var(--muted)" }}>{summary.completed} done · {summary.partial} partial</small></div>
           <div className={styles.detailPanel}><h4>Missed</h4><div style={{ fontSize: 26, fontWeight: 800, color: summary.missed > 0 ? "#f87171" : "var(--muted)" }}>{summary.missed}</div></div>
@@ -453,8 +453,8 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 16, alignItems: "stretch" }}>
               <div className={styles.detailPanel}>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  <h4 style={{ margin: 0 }}>Completion trend <small style={{ color: "var(--muted)", fontWeight: 400 }}>(done + partial ÷ planned)</small></h4>
-                  <label style={{ fontSize: 12 }}>Granularity
+                  <h4 style={{ margin: 0 }}>Completion trend</h4>
+                  <label>Granularity
                     <select className={styles.fieldControl} value={trendGranularity} onChange={(e) => setTrendGranularity(e.target.value)}>
                       <option value="day">Daily</option>
                       <option value="week">Weekly</option>

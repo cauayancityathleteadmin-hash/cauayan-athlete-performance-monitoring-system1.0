@@ -90,7 +90,7 @@ export default function Account({ user, sports, session }) {
   const profileName = isCoach ? [view.firstName, view.middleName, view.lastName].filter(Boolean).join(" ") : user.name || user.email;
 
   function formatBirthdate(value) {
-    if (!value) return "ΓÇö";
+    if (!value) return "—";
     const date = new Date(value.includes("T") ? value : `${value}T00:00:00Z`);
     return isNaN(date) ? value : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
   }
@@ -313,11 +313,12 @@ export default function Account({ user, sports, session }) {
         <title>My Account | Cauayan Athlete Performance</title>
       </Head>
       <AppShell session={session} isAdmin={session?.user?.role === "admin"} eyebrow="Cauayan City" title="My Account" active="/account">
+        <div className={styles.pageTitle}><h1>My account</h1></div>
         <div className={styles.profileHeader}>
-          <span className={styles.avatar} style={{ borderRadius: 10 }}>{pictureUrl ? <img src={pictureUrl} alt="ID photo" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 10 }} /> : initials}</span>
+          <span className={styles.avatar} style={{ borderRadius: "var(--radius-lg)" }}>{pictureUrl ? <img src={pictureUrl} alt="ID photo" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "var(--radius-lg)" }} /> : initials}</span>
           <div className={styles.profileMeta}>
             <h2>{profileName}</h2>
-            <small>{user.email} ┬╖ {user.role}</small>
+            <small>{user.email} · {user.role}</small>
           </div>
         </div>
 
@@ -346,14 +347,14 @@ export default function Account({ user, sports, session }) {
                   <>
                     <div><dt>Coach code</dt><dd>{coach.coachCode}</dd></div>
                     <div><dt>Birthdate</dt><dd>{formatBirthdate(view.birthdate)}</dd></div>
-                    <div><dt>Contact number</dt><dd>{view.contactNumber || "ΓÇö"}</dd></div>
-                    <div><dt>School</dt><dd>{view.school || "ΓÇö"}</dd></div>
-                    <div><dt>Sports coached</dt><dd>{view.sportIds.length ? view.sportIds.map((id) => sports.find((s) => s.id === id)?.sportName).filter(Boolean).join(", ") || "ΓÇö" : "ΓÇö"}</dd></div>
+                    <div><dt>Contact number</dt><dd>{view.contactNumber || "—"}</dd></div>
+                    <div><dt>School</dt><dd>{view.school || "—"}</dd></div>
+                    <div><dt>Sports coached</dt><dd>{view.sportIds.length ? view.sportIds.map((id) => sports.find((s) => s.id === id)?.sportName).filter(Boolean).join(", ") || "—" : "—"}</dd></div>
                   </>
                 )}
               </dl>
             ) : (
-              <form onSubmit={submitProfile} className={styles.formGrid} style={{ marginTop: 16 }}>
+              <form onSubmit={submitProfile} className={styles.formGrid} style={{ marginTop: "var(--space-4)" }}>
                 <label>First name<input name="firstName" className={styles.fieldControl} required maxLength="100" defaultValue={view.firstName} /></label>
                 <label>Middle name<input name="middleName" className={styles.fieldControl} maxLength="100" defaultValue={view.middleName} /></label>
                 <label>Last name<input name="lastName" className={styles.fieldControl} required maxLength="100" defaultValue={view.lastName} /></label>
@@ -363,7 +364,7 @@ export default function Account({ user, sports, session }) {
                     <label>Birthdate<input name="birthdate" className={styles.fieldControl} type="date" required defaultValue={view.birthdate} /></label>
                     <label>Contact number<input name="contactNumber" className={styles.fieldControl} type="tel" maxLength="30" defaultValue={view.contactNumber} placeholder="e.g. 0917 000 0000" /></label>
                     <label>School<input name="school" className={styles.fieldControl} defaultValue={view.school} required maxLength="191" placeholder="Enter your school name" /></label>
-                    <fieldset className={styles.fullField} style={{ border: "1px solid var(--border)", padding: "14px", borderRadius: "6px" }}>
+                    <fieldset className={styles.fullField} style={{ border: "1px solid var(--border)", padding: "var(--space-4)", borderRadius: "var(--radius-sm)" }}>
                       <legend style={{ color: "var(--muted)", fontSize: "13px", fontWeight: 700, marginBottom: "8px" }}>Sports coached</legend>
                       <div className={styles.checkboxList}>{sports.map((sport) => (
                         <label key={sport.id}><input type="checkbox" name="sportIds" value={sport.id} defaultChecked={view.sportIds.includes(sport.id)} /><span>{sport.sportName}</span></label>

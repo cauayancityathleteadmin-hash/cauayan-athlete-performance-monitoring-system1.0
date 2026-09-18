@@ -209,12 +209,13 @@ export default function Analytics({ data, insights = [], csv = "", session }) {
     <>
       <Head><title>Analytics | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Evidence at a glance" title="Analytics" active="/analytics">
+        <div className={styles.pageTitle}><h1>Analytics</h1></div>
         <section className={styles.kpiRow}>
           <KPI label="Total athletes" value={kpi.totalAthletes} />
           <KPI label="Active athletes" value={kpi.activeAthletes} />
           <KPI label="Total assessments" value={kpi.totalAssessments} />
-          <KPI label="Avg assessments / athlete" value={kpi.avgPerAthlete} />
-          <KPI label="Numeric results" value={kpi.totalResults} />
+          <KPI label="Assessments per athlete" value={kpi.avgPerAthlete} />
+          <KPI label="Results recorded" value={kpi.totalResults} />
           <KPI label="Achievements" value={kpi.achievements} />
         </section>
 

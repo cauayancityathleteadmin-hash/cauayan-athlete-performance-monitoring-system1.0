@@ -135,6 +135,7 @@ export default function CoachApprovals({ session }) {
     <>
       <Head><title>Coach Approvals | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Coach registrations" title="Coach Approvals" active="/coach-approvals">
+        <div className={styles.pageTitle}><h1>Coach approvals</h1></div>
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Review</p><h2>Pending coach applications</h2></div>
@@ -147,7 +148,7 @@ export default function CoachApprovals({ session }) {
           )}
 
           {activationRequired ? (
-            <div style={{ border: "1px solid rgba(45,212,168,.5)", borderRadius: 10, padding: "14px 16px", background: "rgba(6,38,30,.5)", marginBottom: 16 }}>
+            <div style={{ border: "1px solid rgba(45,212,168,.5)", borderRadius: "var(--radius-lg)", padding: "var(--space-4)", background: "rgba(6,38,30,.5)", marginBottom: "var(--space-4)" }}>
               <p className={styles.eyebrow}>Activation required</p>
               <h3 style={{ margin: "0 0 6px" }}>Your coach approval power is ready but not yet active</h3>
               <p className={styles.formHint} style={{ marginTop: 0 }}>The administrator granted you the ability to approve coach applications. Enter the 6-digit activation code that was emailed and sent by SMS to finish activating it. Codes expire after 24 hours.</p>
@@ -162,10 +163,10 @@ export default function CoachApprovals({ session }) {
                   placeholder="6-digit code"
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); activate(); } }}
-                  style={{ width: 150, letterSpacing: 4, textAlign: "center", fontSize: 18 }}
+                  style={{ width: 150, letterSpacing: 4, textAlign: "center", fontSize: 16 }}
                 />
                 <button className={styles.primary} disabled={activating || busy} onClick={activate}>{activating ? "Activating..." : "Activate"}</button>
-                <button className={styles.secondary} disabled={activating || busy} onClick={resendCode}>{busy ? "Sending..." : "Resend code"}</button>
+                <button className={`${styles.secondary} ${styles.btnSm}`} disabled={activating || busy} onClick={resendCode}>{busy ? "Sending..." : "Resend code"}</button>
               </div>
             </div>
           ) : null}

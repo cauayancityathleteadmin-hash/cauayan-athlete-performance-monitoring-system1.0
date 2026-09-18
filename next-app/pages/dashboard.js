@@ -176,8 +176,8 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
   useEffect(() => {
     if (session?.user?.mustChangePassword) router.replace("/change-password");
   }, [session, router]);
-  if (!session) return <main className={styles.loading}><p>Loading secure account...</p></main>;
-  if (session.user.mustChangePassword) return <main className={styles.loading}><p>Redirecting to secure password change...</p></main>;
+  if (!session) return <main className={styles.loading}><p>Loading...</p></main>;
+  if (session.user.mustChangePassword) return <main className={styles.loading}><p>Redirecting...</p></main>;
   const isAdmin = session.user.role === "admin";
   const canApprove = isAdmin || Boolean(session?.user?.canApproveCoaches);
   const cards = isAdmin
@@ -191,7 +191,7 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
         ["My athletes", stats.athletes, "/athletes"],
         ["My sports", stats.mySports, "/athletes"],
         ["My assessments", stats.assessments, "/assessments"],
-        ["My approved plans", stats.myApprovedPlans, "/event-plans"],
+        ["My approved applications", stats.myApprovedPlans, "/event-plans"],
       ];
   const hasCompletion = (completion || []).some((w) => w.done > 0 || w.partial > 0 || w.missed > 0);
   const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -206,6 +206,7 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
   return <>
     <Head><title>Dashboard | Cauayan Athlete Performance</title><meta name="description" content="Athlete performance monitoring dashboard" /></Head>
     <AppShell session={session} isAdmin={isAdmin} active="/dashboard">
+      <div className={styles.pageTitle}><h1>Dashboard</h1></div>
       <section className={styles.intro}><div><p className={styles.eyebrow}>Overview</p><Greeting greetingName={greetingName} /><p>One summary of every feature in the system. Click any card or chart to dig in.</p></div></section>
       <section className={styles.cards} aria-label="System totals">{cards.map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>
       <section className={styles.cards} aria-label="Administration summary">{[["Training plans", stats.trainingPlans, "/training-plans"], ...(isAdmin ? [["Coach evaluations", stats.evals, "/admin/coach-performances"]] : []), ["Athletes with health flags", stats.healthIssues, "/athletes?health=flagged"], ["Open event plans", stats.plans, "/event-plans"]].map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>
@@ -229,7 +230,7 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
         </section>
       )}
       <section className={styles.panel}>
-        <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Activity</p><h2>Training activity completion</h2></div><Link href="/training-plans">Training</Link></div>
+        <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Activity</p><h2>Activity completion</h2></div><Link href="/training-plans">Training</Link></div>
         <p className={styles.formHint} style={{ marginTop: 0 }}>Last 8 weeks, from real activity logs.</p>
         {hasCompletion ? (
           <ResponsiveContainer width="100%" height={220}>
@@ -249,7 +250,7 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
       <section className={styles.grid}>
         <div className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Ratings</p><h2>Training ratings</h2></div><Link href="/assessments">Assessments</Link></div>
-          <p className={styles.formHint} style={{ marginTop: 0 }}>1–10 score per assessment.</p>
+          <p className={styles.formHint} style={{ marginTop: 0 }}>1–10 rating per assessment.</p>
           {(ratingSeries || []).length >= 2 ? (
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={ratingSeries || []} margin={{ top: 6, right: 12, left: 16, bottom: 0 }}>
@@ -270,11 +271,11 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
       <section className={styles.grid}>
         <div className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training &amp; assessment</p><h2>Rating distribution</h2></div><Link href="/training-plans">Training</Link></div>
-          <p className={styles.formHint} style={{ marginTop: 0 }}>Last 90 days — how often each 1–10 score was given.</p>
-          {histData && histData.length ? <HBars data={histData} axisLabel="Score" axisValue="Assessments" /> : <p className={styles.empty}>No training ratings in the last 90 days yet.</p>}
+          <p className={styles.formHint} style={{ marginTop: 0 }}>Last 90 days — how often each 1–10 rating was given.</p>
+          {histData && histData.length ? <HBars data={histData} axisLabel="Rating" axisValue="Assessments" /> : <p className={styles.empty}>No training ratings in the last 90 days yet.</p>}
         </div>
         <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Coaches</p><h2>Evaluation averages</h2></div>{isAdmin ? <Link href="/admin/coach-performances">Evaluations</Link> : <span className={styles.formHint}>Your average</span>}</div>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Coaches</p><h2>Coach averages</h2></div>{isAdmin ? <Link href="/admin/coach-performances">Evaluations</Link> : <span className={styles.formHint}>Your average</span>}</div>
             {evalsData && evalsData.length ? <HBars data={evalsData} axisLabel={isAdmin ? "Coach" : "Your average"} axisValue="Avg" /> : <p className={styles.empty}>No coach evaluations on file yet.</p>}
           </div>
       </section>
@@ -282,7 +283,7 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
         <FeatureCard eyebrow="People" title="Athletes" href="/athletes">{plural(stats.athletes, "athlete")} registered{healthNote ? `, ${healthNote}` : ""}.</FeatureCard>
         <FeatureCard eyebrow="Training &amp; assessment" title="Training" href="/training-plans">{plural(stats.trainingPlans, "training plan")} in the system. Track activities, assess athletes, and review the monitoring grid.</FeatureCard>
         <FeatureCard eyebrow="Assessments" title="Physical assessments" href="/assessments">{plural(stats.assessments, "assessment")} recorded across the program.</FeatureCard>
-        <FeatureCard eyebrow="Events &amp; program" title="Event programs" href="/event-plans">{plural(stats.plans, "open program")}{stats.myApprovedPlans > 0 && !isAdmin ? `, ${plural(stats.myApprovedPlans, "approved application")}` : ""}. Apply, add participants, and track competition slots.</FeatureCard>
+        <FeatureCard eyebrow="Events &amp; program" title="Event plans" href="/event-plans">{plural(stats.plans, "open plan")}{stats.myApprovedPlans > 0 && !isAdmin ? `, ${plural(stats.myApprovedPlans, "approved application")}` : ""}. Apply, add participants, and track competition slots.</FeatureCard>
         <FeatureCard eyebrow="Standings" title="Standings" href="/standings">{plural(achievementsCount, "achievement")} recorded and ranked on the standings board.</FeatureCard>
         <FeatureCard eyebrow="Records" title="Reports" href="/reports">Generate official records — personnel, performance summaries, and coach files.</FeatureCard>
       </section>

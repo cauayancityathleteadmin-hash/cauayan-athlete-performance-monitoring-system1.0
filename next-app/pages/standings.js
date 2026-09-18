@@ -96,6 +96,7 @@ export default function Standings({ session, isAdmin, standings, sports, coachSc
     <>
       <Head><title>Standings | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Recognition" title="Standings" active="/standings">
+        <div className={styles.pageTitle}><h1>Standings</h1></div>
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>{coachScoped ? "My athletes" : "All athletes"}</p><h2>Medal &amp; points leaderboard</h2></div>

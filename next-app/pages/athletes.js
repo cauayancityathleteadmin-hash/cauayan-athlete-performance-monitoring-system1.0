@@ -178,11 +178,12 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
     <>
       <Head><title>Athletes | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Directory" title="Athletes" active="/athletes">
+        <div className={styles.pageTitle}><h1>Athletes</h1></div>
         <div className={styles.pageActions}>
           <div className={styles.segmented}>
             <button className={view === "roster" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("roster")}>{isCoach ? "My athletes" : "All athletes"}</button>
-            {(isCoach || isAdmin) && <button className={view === "all" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("all")}>Directory</button>}
-            {isCoach && <button className={view === "requests" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("requests")}>Transfer center</button>}
+            {isCoach && <button className={view === "all" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("all")}>Directory</button>}
+            {isCoach && <button className={view === "requests" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("requests")}>Transfers</button>}
             {isAdmin && <button className={view === "requests" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("requests")}>Transfer requests</button>}
             {isAdmin && <button className={view === "transfer" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => setView("transfer")}>Transfer athletes</button>}
           </div>
@@ -255,7 +256,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
             ) : (
               <>
               {grouped.length ? grouped.map(([sportName, roster]) => (
-                <div key={sportName} style={{ marginBottom: 22 }}>
+                <div key={sportName} style={{ marginBottom: "var(--space-5)" }}>
                   <h3 className={styles.sectionTitle}>{sportName} <span className={styles.formHint}>({roster.length})</span></h3>
                   <div className={styles.tableWrap}><table>
                     <thead><tr><th>Code</th><th>Athlete</th><th>Event / discipline</th><th>School</th><th>Coach</th><th>Health</th><th>Status</th><th></th></tr></thead>
@@ -283,8 +284,8 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
 
         {view === "all" && (
           <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Full directory</p><h2>All athletes by coach</h2></div><span className={styles.formHint} style={{ alignSelf: "center" }}>{filteredAll.length} athlete{filteredAll.length === 1 ? "" : "s"}</span></div>
-            <p className={styles.formHint} style={{ marginTop: 0 }}>Browse every registered athlete, including athletes with no coach assigned. This is a read-only directory — type a coach name to see only that coach&apos;s athletes.</p>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Directory</p><h2>All athletes by coach</h2></div><span className={styles.formHint} style={{ alignSelf: "center" }}>{filteredAll.length} athlete{filteredAll.length === 1 ? "" : "s"}</span></div>
+            <p className={styles.formHint} style={{ marginTop: 0 }}>Every registered athlete, including those without a coach.</p>
             <div className={styles.toolbar}>
               <CoachFilter coaches={catalog.coaches || []} value={coachFilter} onChange={setCoachFilter} />
               <label className={styles.searchLabel}>Search athletes<input type="text" placeholder="Name, code, sport, event, school, coach…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
@@ -320,7 +321,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
                 </tbody>
               </table></div>
             ) : groupedByCoach.length ? groupedByCoach.map(([coachName, roster]) => (
-              <div key={coachName} style={{ marginBottom: 22 }}>
+              <div key={coachName} style={{ marginBottom: "var(--space-5)" }}>
                 <h3 className={styles.sectionTitle}>{coachName} <span className={styles.formHint}>({roster.length})</span></h3>
                 {roster.length ? (
                   <div className={styles.tableWrap}><table>

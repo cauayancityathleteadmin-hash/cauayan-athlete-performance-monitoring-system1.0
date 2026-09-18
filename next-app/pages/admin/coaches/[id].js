@@ -126,7 +126,7 @@ export default function CoachProfile({ session, coach }) {
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Information</p><h2>Overview</h2></div></div>
           <div className={styles.grid}>
             <div className={styles.detailPanel}>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 18, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-5)", flexWrap: "wrap" }}>
                 <ProfilePhoto url={coach.pictureUrl} firstName={coach.firstName} lastName={coach.lastName} size={120} radius={10} />
                 <div style={{ flex: 1, minWidth: 200 }}>
                   <h4>Personal</h4>
@@ -179,7 +179,7 @@ export default function CoachProfile({ session, coach }) {
                 </>
               )}
               {status === "rejected" && (
-                <button onClick={() => reviewCoach("approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`}>Reapprove coach</button>
+                <button onClick={() => reviewCoach("approved")} disabled={busy} className={`${styles.primary} ${styles.btnSm}`}>Approve coach</button>
               )}
               {status === "active" && (
                 <button onClick={() => reviewCoach("deactivate")} disabled={busy} className={`${styles.danger} ${styles.btnSm}`}>Deactivate coach</button>
@@ -202,7 +202,7 @@ export default function CoachProfile({ session, coach }) {
                 {coach.athletes.map((athlete) => (
                   <tr key={athlete.id}>
                     <td data-label="Code">{athlete.athleteCode}</td>
-                    <td data-label="Athlete" style={{ display: "flex", alignItems: "center", gap: 10 }}><CoachAvi coach={athlete} /><span><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></span></td>
+                    <td data-label="Athlete" style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}><CoachAvi coach={athlete} /><span><Link href={`/athletes/${athlete.id}`} style={{ fontWeight: 700 }}>{athlete.firstName} {athlete.middleName || ""} {athlete.lastName}</Link><small>{athlete.gender}</small></span></td>
                     <td data-label="Sport">{athlete.sport?.sportName || "—"}</td>
                     <td data-label="Event / discipline">{athlete.event?.eventName || "—"}</td>
                     <td data-label="Health"><HealthBadge status={athlete.healthStatus} /></td>

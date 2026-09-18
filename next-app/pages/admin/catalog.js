@@ -127,6 +127,7 @@ export default function Catalog({ session, sports, events, schools }) {
     <>
       <Head><title>Sports &amp; Discipline | Administration</title></Head>
       <AppShell session={session} isAdmin eyebrow="Catalog" title="Sports & Discipline" active="/admin/catalog">
+        <div className={styles.pageTitle}><h1>Sports & discipline</h1></div>
         <section className={styles["grid-2"]}>
           <div className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Sport</p><h2>Add sport</h2></div></div>
@@ -157,7 +158,7 @@ export default function Catalog({ session, sports, events, schools }) {
           <div className={styles.sectionHeading}><div><h2>Sports</h2><small className={styles.small}>Active sports and their event totals</small></div><span className={styles.countBadge}>{sports.length}</span></div>
           <div className={styles.tableWrap}><table><thead><tr><th>Sport</th><th>Events</th><th>Status</th><th></th></tr></thead><tbody>{sports.map((sport) => editingSport && editingSport.id === sport.id ? (
   <tr key={sport.id}><td colSpan="4"><form onSubmit={saveSport} className={styles.formStack}>
-    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+    <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", alignItems: "flex-end" }}>
       <label style={{ flex: "1 1 160px" }}>Name *<input name="sportName" className={styles.fieldControl} required maxLength="100" defaultValue={sport.sportName} /></label>
       <label style={{ flex: "1 1 120px" }}>Status<select name="status" className={styles.fieldControl} defaultValue={sport.status}><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
       <button className={styles.primary} disabled={busy}>Save sport</button>
@@ -172,7 +173,7 @@ export default function Catalog({ session, sports, events, schools }) {
           <div className={styles.sectionHeading}><div><h2>Events / Disciplines</h2><small className={styles.small}>Events grouped under each sport</small></div><span className={styles.countBadge}>{events.length}</span></div>
           <div className={styles.tableWrap}><table><thead><tr><th>Event</th><th>Sport</th><th>Status</th><th></th></tr></thead><tbody>{events.map((event) => editingEvent && editingEvent.id === event.id ? (
   <tr key={event.id}><td colSpan="4"><form onSubmit={saveEvent} className={styles.formStack}>
-    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+    <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", alignItems: "flex-end" }}>
       <label style={{ flex: "1 1 160px" }}>Name *<input name="eventName" className={styles.fieldControl} required maxLength="150" defaultValue={event.eventName} /></label>
       <label style={{ flex: "1 1 140px" }}>Sport<select name="sportId" className={styles.fieldControl} defaultValue={event.sportId}>{sports.map((s) => <option value={s.id} key={s.id}>{s.sportName}</option>)}</select></label>
       <label style={{ flex: "1 1 120px" }}>Status<select name="status" className={styles.fieldControl} defaultValue={event.status}><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
@@ -187,7 +188,7 @@ export default function Catalog({ session, sports, events, schools }) {
         <section className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Schools</p><h2>Schools</h2></div></div>
           <form onSubmit={addSchool} className={styles.formStack} style={{ marginBottom: 16 }}>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+            <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", alignItems: "flex-end" }}>
               <label style={{ flex: "1 1 220px", minWidth: 0 }}>School name *<input name="schoolName" className={styles.fieldControl} required maxLength="191" placeholder="e.g. Cauayan National High School" /></label>
               <button className={styles.primary} disabled={busy}>{busy ? "Adding..." : "Add school"}</button>
             </div>
@@ -195,7 +196,7 @@ export default function Catalog({ session, sports, events, schools }) {
           </form>
           <div className={styles.tableWrap}><table><thead><tr><th>School</th><th>Athletes</th><th>Coaches</th><th>Status</th><th></th></tr></thead><tbody>{schools.map((school) => editingSchool && editingSchool.id === school.id ? (
             <tr key={school.id}><td colSpan="5"><form onSubmit={saveSchool} className={styles.formStack}>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+              <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", alignItems: "flex-end" }}>
                 <label style={{ flex: "1 1 200px" }}>Name *<input name="schoolName" className={styles.fieldControl} required maxLength="191" defaultValue={school.schoolName} /></label>
                 <label style={{ flex: "1 1 130px" }}>Status<select name="status" className={styles.fieldControl} defaultValue={school.status}><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
                 <button className={styles.primary} disabled={busy}>Save school</button>
