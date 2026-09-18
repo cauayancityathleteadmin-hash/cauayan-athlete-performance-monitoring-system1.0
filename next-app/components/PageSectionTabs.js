@@ -2,69 +2,87 @@ import React from "react";
 import { useRouter } from "next/router";
 import styles from "../styles/Dashboard.module.css";
 
-export default function PageSectionTabs({ sections, children, defaultSection }) {
+export default function PageSectionTabs({ sections }) {
   const router = useRouter();
   const [activeId, setActiveId] = React.useState(() => {
     if (typeof window !== "undefined") {
       const hash = window.location.hash.replace("#", "");
       if (hash && sections.some((s) => s.sectionId === hash)) return hash;
     }
-    return defaultSection || sections[0]?.sectionId || "";
+    return sections[0]?.sectionId || "";
   });
-  const initialized = React.useRef(false);
+  const [initialized, setInitialized] = React.useState(false);
+  const observerRef = React.useRef(null);
+
+  const scrollToSection = (sectionId) => {
+    const el = document.getElementById(sectionId);
+    if (el) {
+      const topbarHeight = 72;
+      const targetPosition = el.getBoundingClientRect().top + window.pageYOffset - topbarHeight - 8;
+      window.scrollTo({ top: targetPosition, behavior: "smooth" });
+      setActiveId(sectionId);
+      router.replace(`#${sectionId}`, undefined, { shallow: true });
+    }
+  };
 
   React.useEffect(() => {
     const hash = router.asPath.includes("#") ? router.asPath.split("#")[1] : "";
     if (hash && sections.some((s) => s.sectionId === hash)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveId(hash);
+      setTimeout(() => {
+        const el = document.getElementById(hash);
+        if (el) {
+          const topbarHeight = 72;
+          const targetPosition = el.getBoundingClientRect().top + window.pageYOffset - topbarHeight - 8;
+          window.scrollTo({ top: targetPosition, behavior: "smooth" });
+        }
+      }, 50);
     }
-    initialized.current = true;
+    setInitialized(true);
   }, [router.asPath, sections]);
 
   React.useEffect(() => {
-    if (!initialized.current) return;
-    const newHash = `#${activeId}`;
-    if (router.asPath !== newHash) {
-      router.replace(newHash, undefined, { shallow: true });
-    }
-  }, [activeId, router]);
+    if (!initialized) return;
 
-  const activeSection = sections.find((s) => s.sectionId === activeId) || sections[0];
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting);
+        if (!visible.length) return;
+        const top = visible.find((e) => e.boundingClientRect.top >= 0) || visible[0];
+        setActiveId(top.target.id);
+      },
+      {
+        rootMargin: "-80px 0px -70% 0px",
+        threshold: 0,
+      }
+    );
+
+    const els = sections.map((s) => document.getElementById(s.sectionId)).filter(Boolean);
+    els.forEach((el) => observer.observe(el));
+    observerRef.current = observer;
+
+    return () => observer.disconnect();
+  }, [sections, initialized]);
 
   return (
-    <>
-      <div className={`${styles.pageTabs} ${styles.sticky}`} role="tablist" aria-label="Page sections">
-        {sections.map((section) => (
-          <button
-            key={section.sectionId}
-            role="tab"
-            aria-selected={section.sectionId === activeId}
-            aria-controls={`panel-${section.sectionId}`}
-            id={`tab-${section.sectionId}`}
-            className={`${styles.pageTab} ${section.sectionId === activeId ? styles.active : ""}`}
-            onClick={() => setActiveId(section.sectionId)}
-          >
-            {section.label}
-          </button>
-        ))}
-      </div>
-
-      <div className={styles.tabPanels}>
-        {React.Children.map(children, (child) => {
-          if (!React.isValidElement(child)) return child;
-          const sectionId = child.props.id || child.props.sectionId;
-          if (!sectionId) return child;
-          const isActive = sectionId === activeId;
-          return React.cloneElement(child, {
-            hidden: !isActive,
-            "aria-labelledby": `tab-${sectionId}`,
-            role: "tabpanel",
-            id: `panel-${sectionId}`,
-            style: { ...child.props.style, display: isActive ? "" : "none" },
-          });
-        })}
-      </div>
-    </>
+    <nav
+      className={`${styles.pageTabs} ${styles.sticky}`}
+      role="navigation"
+      aria-label="Page sections"
+    >
+      {sections.map((section) => (
+        <button
+          key={section.sectionId}
+          role="button"
+          aria-current={section.sectionId === activeId ? "location" : undefined}
+          id={`tab-${section.sectionId}`}
+          className={`${styles.pageTab} ${section.sectionId === activeId ? styles.active : ""}`}
+          onClick={() => scrollToSection(section.sectionId)}
+        >
+          {section.label}
+        </button>
+      ))}
+    </nav>
   );
 }

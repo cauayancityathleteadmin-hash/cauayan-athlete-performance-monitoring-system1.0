@@ -10,7 +10,7 @@ import { gsspData } from "../lib/gssp-cache";
 import AppShell from "../components/AppShell";
 import PageSectionTabs from "../components/PageSectionTabs";
 import styles from "../styles/Dashboard.module.css";
-import { CHART_TOOLTIP } from "../lib/chart-config";
+import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_COLORS } from "../lib/chart-config";
 
 export async function getServerSideProps(context) {
   const session = await getSession(context);
@@ -836,13 +836,13 @@ function PerformanceSummary({ athlete }) {
         <div className={styles.detailPanel}>
           <h4>Rating trend over time</h4>
           {trendData.length >= 2 ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={trendData} margin={{ top: 6, right: 12, left: 16, bottom: 0 }}>
-                <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
-                <XAxis dataKey="when" tick={{ fill: "#9db6c7", fontSize: 11 }} />
-                <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} tick={{ fill: "#9db6c7", fontSize: 11 }} />
+            <ResponsiveContainer width="100%" height={CHART_HEIGHTS.line}>
+              <LineChart data={trendData} margin={CHART_MARGINS.line}>
+                <CartesianGrid {...CHART_GRID.cartesian} />
+                <XAxis dataKey="when" tick={CHART_AXIS.x} />
+                <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} tick={CHART_AXIS.y} />
                 <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}/10`, "Rating"]} />
-                <Line type="monotone" dataKey="rating" stroke="#2dd4a8" strokeWidth={2} dot={{ fill: "#2dd4a8", r: 3 }} />
+                <Line type="monotone" dataKey="rating" stroke={CHART_COLORS.primary} strokeWidth={2} dot={{ fill: CHART_COLORS.primary, r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
           ) : <p className={styles.empty}>Not enough assessments to plot a trend yet.</p>}
@@ -851,12 +851,12 @@ function PerformanceSummary({ athlete }) {
         <div className={styles.detailPanel}>
           <h4>Fitness balance <small style={{ color: "var(--muted)", fontWeight: 400 }}>(latest scores)</small></h4>
           {radarData.length ? (
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={CHART_HEIGHTS.radar}>
               <RadarChart data={radarData}>
-                <PolarGrid stroke="rgba(127,199,175,0.2)" />
-                <PolarAngleAxis dataKey="fitness" tick={{ fill: "#9db6c7", fontSize: 10 }} />
-                <PolarRadiusAxis domain={[0, 10]} tick={{ fill: "#9db6c7", fontSize: 9 }} tickCount={5} />
-                <Radar name="Score" dataKey="value" stroke="#2dd4a8" fill="#2dd4a8" fillOpacity={0.35} />
+                <PolarGrid {...CHART_GRID.polar} />
+                <PolarAngleAxis dataKey="fitness" tick={CHART_AXIS.polarAngle} />
+                <PolarRadiusAxis domain={[0, 10]} tick={CHART_AXIS.polarRadius} tickCount={5} />
+                <Radar name="Score" dataKey="value" stroke={CHART_COLORS.primary} fill={CHART_COLORS.primary} fillOpacity={0.35} />
                 <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}/10`, "Score"]} />
               </RadarChart>
             </ResponsiveContainer>
@@ -868,15 +868,15 @@ function PerformanceSummary({ athlete }) {
         <div className={styles.detailPanel}>
           <h4>Plan activity completion</h4>
           {completion.planned > 0 ? (
-            <ResponsiveContainer width="100%" height={90}>
-              <BarChart data={completionStack} layout="vertical" margin={{ top: 6, right: 12, left: 16, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height={CHART_HEIGHTS.small}>
+              <BarChart data={completionStack} layout="vertical" margin={CHART_MARGINS.barVertical}>
                 <XAxis type="number" hide />
                 <YAxis type="category" dataKey="name" hide />
                 <Tooltip {...CHART_TOOLTIP} formatter={(v, name) => [`${v}`, name]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
-                <Bar dataKey="done" stackId="a" fill="#2dd4a8" name="Done" />
-                <Bar dataKey="partial" stackId="a" fill="#facc15" name="Partial" />
-                <Bar dataKey="missed" stackId="a" fill="#f87171" name="Missed" />
-                <Bar dataKey="open" stackId="a" fill="#334155" name="Open" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="done" stackId="a" fill={CHART_COLORS.primary} name="Done" />
+                <Bar dataKey="partial" stackId="a" fill={CHART_COLORS.warning} name="Partial" />
+                <Bar dataKey="missed" stackId="a" fill={CHART_COLORS.danger} name="Missed" />
+                <Bar dataKey="open" stackId="a" fill={CHART_COLORS.muted} name="Open" radius={[0, 4, 4, 0]} />
                 <Legend iconType="circle" wrapperStyle={{ color: "#9db6c7", fontSize: 11 }} />
               </BarChart>
             </ResponsiveContainer>

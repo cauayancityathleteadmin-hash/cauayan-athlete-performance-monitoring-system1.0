@@ -9,6 +9,7 @@ import AppShell from "../../../../components/AppShell";
 import { AthleteActivitiesBlock } from "../../../../components/AthleteActivityManager";
 import PageSectionTabs from "../../../../components/PageSectionTabs";
 import styles from "../../../../styles/Dashboard.module.css";
+import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_COLORS } from "../../../../lib/chart-config";
 
 const FITNESS_META = {
   endurance: "Endurance", strength: "Strength", power: "Power",
@@ -23,11 +24,7 @@ const ATHLETE_SECTIONS = [
   { label: "Trends & charts", sectionId: "trends" },
   { label: "Distribution", sectionId: "distribution" },
 ];
-const chartTooltip = {
-  contentStyle: { background: "#06261e", border: "1px solid rgba(45,212,168,.35)", borderRadius: 8, fontSize: 12 },
-  labelStyle: { color: "#e7f7f1", fontWeight: 700 },
-  itemStyle: { color: "#9db6c7" },
-};
+const chartTooltip = CHART_TOOLTIP;
 
 function fmtDate(value) {
   const d = new Date(value);
@@ -464,13 +461,13 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
                   </label>
                 </div>
                 {completionTrend.some((w) => w.total > 0) ? (
-                  <ResponsiveContainer width="100%" height={240}>
-                    <LineChart data={completionTrend} margin={{ top: 6, right: 12, left: 16, bottom: 24 }}>
-                      <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
-                      <XAxis dataKey="label" tick={{ fill: "#9db6c7", fontSize: 12 }} />
-                      <YAxis domain={[0, 100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
-                      <Tooltip {...chartTooltip} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l, p) => p?.[0]?.payload?.long || l} cursor={{ stroke: "rgba(45,212,168,0.4)" }} />
-                      <Line type="monotone" dataKey="percent" name="Completion" stroke="#2dd4a8" strokeWidth={2} dot={{ fill: "#2dd4a8", r: 3 }} activeDot={{ r: 5 }} />
+                  <ResponsiveContainer width="100%" height={CHART_HEIGHTS.line}>
+                    <LineChart data={completionTrend} margin={CHART_MARGINS.line}>
+                      <CartesianGrid {...CHART_GRID.cartesian} />
+                      <XAxis dataKey="label" tick={CHART_AXIS.x} />
+                      <YAxis domain={[0, 100]} tick={CHART_AXIS.y} tickFormatter={(v) => `${v}%`} />
+                      <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l, p) => p?.[0]?.payload?.long || l} cursor={{ stroke: "rgba(45,212,168,0.4)" }} />
+                      <Line type="monotone" dataKey="percent" name="Completion" stroke={CHART_COLORS.primary} strokeWidth={2} dot={{ fill: CHART_COLORS.primary, r: 3 }} activeDot={{ r: 5 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 ) : <p className={styles.empty}>No logged sessions yet.</p>}
@@ -492,14 +489,14 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
                 ) : metricSeries.length === 0 ? (
                   <p className={styles.empty}>No logged results yet for this activity.</p>
                 ) : (
-                  <ResponsiveContainer width="100%" height={240}>
-                    <LineChart data={metricSeries} margin={{ top: 6, right: 12, left: 16, bottom: 24 }}>
-                      <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
-                      <XAxis dataKey="label" tick={{ fill: "#9db6c7", fontSize: 11 }} />
-                      <YAxis tick={{ fill: "#9db6c7", fontSize: 12 }} />
-                      <Tooltip {...chartTooltip} formatter={(v) => [`${v}${metricUnit ? ` ${metricUnit}` : ""}`, "Result"]} />
-                      {metricTarget != null && <ReferenceLine y={metricTarget} stroke="#fbbf24" strokeDasharray="4 4" label={{ value: `Target ${metricTarget}${metricUnit ? ` ${metricUnit}` : ""}`, fill: "#fbbf24", fontSize: 11, position: "insideTopRight" }} />}
-                      <Line type="monotone" dataKey="value" name="Result" stroke="#2dd4a8" strokeWidth={2} dot={{ fill: "#2dd4a8", r: 3 }} activeDot={{ r: 5 }} />
+                  <ResponsiveContainer width="100%" height={CHART_HEIGHTS.line}>
+                    <LineChart data={metricSeries} margin={CHART_MARGINS.line}>
+                      <CartesianGrid {...CHART_GRID.cartesian} />
+                      <XAxis dataKey="label" tick={CHART_AXIS.x} />
+                      <YAxis tick={CHART_AXIS.y} />
+                      <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}${metricUnit ? ` ${metricUnit}` : ""}`, "Result"]} />
+                      {metricTarget != null && <ReferenceLine y={metricTarget} stroke={CHART_COLORS.warning} strokeDasharray="4 4" label={{ value: `Target ${metricTarget}${metricUnit ? ` ${metricUnit}` : ""}`, fill: CHART_COLORS.warning, fontSize: 11, position: "insideTopRight" }} />}
+                      <Line type="monotone" dataKey="value" name="Result" stroke={CHART_COLORS.primary} strokeWidth={2} dot={{ fill: CHART_COLORS.primary, r: 3 }} activeDot={{ r: 5 }} />
                     </LineChart>
                   </ResponsiveContainer>
                 )}
@@ -508,13 +505,13 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
               <div className={styles.detailPanel}>
                 <h4>Fitness balance <small style={{ color: "var(--muted)", fontWeight: 400 }}>(completion by fitness dimension)</small></h4>
                 {radarData.length > 1 ? (
-                  <ResponsiveContainer width="100%" height={240}>
+                  <ResponsiveContainer width="100%" height={CHART_HEIGHTS.radar}>
                     <RadarChart data={radarData}>
-                      <PolarGrid stroke="rgba(127,199,175,0.2)" />
-                      <PolarAngleAxis dataKey="fitness" tick={{ fill: "#9db6c7", fontSize: 12 }} />
-                      <PolarRadiusAxis domain={[0, 100]} tick={{ fill: "#9db6c7", fontSize: 10 }} tickCount={5} />
-                      <Radar name="Completion" dataKey="value" stroke="#2dd4a8" fill="#2dd4a8" fillOpacity={0.35} />
-                      <Tooltip {...chartTooltip} formatter={(v) => [`${v}%`, "Completion"]} />
+                      <PolarGrid {...CHART_GRID.polar} />
+                      <PolarAngleAxis dataKey="fitness" tick={CHART_AXIS.polarAngle} />
+                      <PolarRadiusAxis domain={[0, 100]} tick={CHART_AXIS.polarRadius} tickCount={5} />
+                      <Radar name="Completion" dataKey="value" stroke={CHART_COLORS.primary} fill={CHART_COLORS.primary} fillOpacity={0.35} />
+                      <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}%`, "Completion"]} />
                     </RadarChart>
                   </ResponsiveContainer>
                 ) : <p className={styles.empty}>Add activities in more than one fitness dimension to see the balance.</p>}
@@ -523,13 +520,13 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
               <div className={styles.detailPanel}>
                 <h4>Activity completion <small style={{ color: "var(--muted)", fontWeight: 400 }}>(per activity)</small></h4>
                 {activityCompletion.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={activityCompletion.length > 8 ? Math.max(240, activityCompletion.length * 28) : 240}>
-                    <BarChart data={activityCompletion} layout="vertical" margin={{ top: 6, right: 24, left: 16, bottom: 24 }}>
-                      <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" horizontal={false} />
-                      <XAxis type="number" domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
-                      <YAxis type="category" dataKey="name" width={170} tick={{ fill: "#9db6c7", fontSize: 11 }} />
-                      <Tooltip {...chartTooltip} formatter={(v) => [`${v}%`, "Completion"]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
-                      <Bar dataKey="percent" radius={[0, 4, 4, 0]}>{activityCompletion.map((act) => <Cell key={act.id} fill={act.hasLog ? percentColor(act.percent) : "#64748b"} />)}</Bar>
+                  <ResponsiveContainer width="100%" height={activityCompletion.length > 8 ? Math.max(CHART_HEIGHTS.barVertical, activityCompletion.length * 28) : CHART_HEIGHTS.barVertical}>
+                    <BarChart data={activityCompletion} layout="vertical" margin={CHART_MARGINS.barVertical}>
+                      <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
+                      <XAxis type="number" domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tick={CHART_AXIS.x} tickFormatter={(v) => `${v}%`} />
+                      <YAxis type="category" dataKey="name" width={170} tick={CHART_AXIS.y} />
+                      <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}%`, "Completion"]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
+                      <Bar dataKey="percent" radius={[0, 4, 4, 0]}>{activityCompletion.map((act) => <Cell key={act.id} fill={act.hasLog ? percentColor(act.percent) : CHART_COLORS.muted} />)}</Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 ) : <p className={styles.empty}>No activities yet.</p>}

@@ -12,6 +12,7 @@ import PageSectionTabs from "../../../components/PageSectionTabs";
 import { METRIC_LABELS, resultUnitFor, targetValueFor } from "../../../lib/activity-score";
 import AppShell from "../../../components/AppShell";
 import styles from "../../../styles/Dashboard.module.css";
+import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_COLORS } from "../../../lib/chart-config";
 
 export async function getServerSideProps(context) {
   const session = await getSession(context);
@@ -106,9 +107,8 @@ const FITNESS_ORDER = ["endurance", "speed_agility", "power", "skill_technique",
 
 const PLAN_SECTIONS = [
   { label: "Overview", sectionId: "overview" },
-  { label: "Activities", sectionId: "activities" },
   { label: "Trends & Charts", sectionId: "trends" },
-  { label: "Distribution", sectionId: "distribution" },
+  { label: "Athletes", sectionId: "roster" },
 ];
 
 const normName = (s) => (s || "").trim().replace(/\s+/g, " ").toLowerCase();
@@ -257,26 +257,75 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
               <span className={styles.formHint} style={{ alignSelf: "center" }}>{plan.durationDays ? `${plan.durationDays} days` : plan.durationWeeks ? `${plan.durationWeeks} wks` : "No duration set"}</span>
             </div>
             <TrainingCharts plan={plan} athletes={athletes} activities={activities} logs={logs} />
-          </section>
-
-          <section id="activities">
-            <div className={styles.panelHeader}>
-              <div><p className={styles.eyebrow}>Activities</p><h2>Daily training monitoring</h2></div>
+            
+            <div className="chartGrid" style={{ marginBottom: "var(--space-5)" }}>
+              <div className={`${styles.detailPanel} panelBox`}>
+                <h4>Completion by athlete <small style={{ color: "var(--muted)", fontWeight: 400 }}>(green ≥ 80%, yellow ≥ 50%, red &lt; 50%)</small></h4>
+                {perAthlete.length && perAthlete.some((r) => r.total > 0) ? (
+                  <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barHorizontal}>
+                    <BarChart data={barData} margin={CHART_MARGINS.barHorizontal}>
+                      <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
+                      <XAxis dataKey="name" tick={CHART_AXIS.x} />
+                      <YAxis domain={[0, 100]} ticks={[0,20,40,60,80,100]} tick={CHART_AXIS.y} tickFormatter={(v) => `${v}%`} />
+                      <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l, p) => p?.[0]?.payload?.full || l} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
+                      <Bar dataKey="percent" radius={[4, 4, 0, 0]}>{barData.map((d) => <Cell key={d.full} fill={percentColor(d.percent)} />)}</Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : <p className={styles.empty}>No planned activities yet.</p>}
+                {perAthlete.length > 20 && <small style={{ color: "var(--muted)" }}>Showing first 20 of {perAthlete.length} athletes.</small>}
+              </div>
             </div>
-            {monitoringData ? (
-              <MonitoringGrid
-                data={monitoringData}
-                athletes={athletes}
-                maxWeek={monitoringData.maxWeek}
-                currentWeek={monitoringData.currentWeek}
-                onWeekChange={setCurrentWeek}
-              />
-            ) : (
-              <p className={styles.empty}>Loading daily training monitoring...</p>
+
+            <div className="chartGrid" style={{ marginBottom: "var(--space-5)" }}>
+              <div className={`${styles.detailPanel} panelBox`}>
+                <h4>Activities by fitness dimension</h4>
+                {fitnessDist.length ? (
+                  <ResponsiveContainer width="100%" height={CHART_HEIGHTS.pie}>
+                    <PieChart>
+                      <Pie data={fitnessDist} dataKey="count" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={95} paddingAngle={2}>
+                        {fitnessDist.map((s) => <Cell key={s.key} fill={s.color} />)}
+                      </Pie>
+                      <Tooltip {...CHART_TOOLTIP} formatter={(v, name) => [`${v} activities`, name]} />
+                      <Legend iconType="circle" wrapperStyle={{ color: "#9db6c7", fontSize: 12 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : <p className={styles.empty}>No activities on this plan yet.</p>}
+              </div>
+
+              <div className={`${styles.detailPanel} panelBox`}>
+                <h4>Weekly completion trend</h4>
+                {weekly.some((w) => w.total > 0) ? (
+                  <ResponsiveContainer width="100%" height={CHART_HEIGHTS.line}>
+                    <LineChart data={weekly} margin={CHART_MARGINS.line}>
+                      <CartesianGrid {...CHART_GRID.cartesian} />
+                      <XAxis dataKey="week" tick={CHART_AXIS.x} tickFormatter={(v) => `W${v}`} />
+                      <YAxis domain={[0, 100]} ticks={[0,20,40,60,80,100]} tick={CHART_AXIS.y} tickFormatter={(v) => `${v}%`} />
+                      <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l) => `Week ${l}`} cursor={{ stroke: "rgba(45,212,168,0.4)" }} />
+                      <Line type="monotone" dataKey="percent" name="Completion" stroke={CHART_COLORS.primary} strokeWidth={2} dot={{ fill: CHART_COLORS.primary, r: 3 }} activeDot={{ r: 5 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : <p className={styles.empty}>No planned activities yet.</p>}
+              </div>
+            </div>
+
+            {monitoringData && (
+              <section className={styles.panel} style={{ marginTop: "var(--space-5)" }}>
+                <div className={styles.panelHeader}>
+                  <div><p className={styles.eyebrow}>Monitor</p><h2>Daily training monitoring</h2></div>
+                </div>
+                <MonitoringGrid
+                  data={monitoringData}
+                  athletes={athletes}
+                  maxWeek={monitoringData.maxWeek}
+                  currentWeek={monitoringData.currentWeek}
+                  onWeekChange={setCurrentWeek}
+                />
+              </section>
             )}
-{!isAdmin && (
-              <>
-                <div className={styles.panelHeader} style={{ marginTop: "var(--space-5)" }}>
+
+            {!isAdmin && (
+              <section className={styles.panel} style={{ marginTop: "var(--space-5)" }}>
+                <div className={styles.panelHeader}>
                   <div><p className={styles.eyebrow}>Assessment</p><h2>Assess athletes</h2></div>
                   {showBulkAssess && <button className={styles.secondary} onClick={() => setShowBulkAssess(false)}>Close assessment</button>}
                 </div>
@@ -287,11 +336,11 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
                   </>
                 ) : (
                   <>
-                    <p className={styles.formHint} style={{ marginTop: 0 }}>One pass over everyone on the plan: cells start marked done at their target &mdash; mark exceptions as partial or missed, and add a rating. Existing records for the selected date are kept until you save.</p>
+                    <p className={styles.formHint} style={{ marginTop: 0 }}>One pass over everyone on the plan: cells start marked done at their target &mdash; switch exceptions to part/missed, add results, or use the Everyone buttons. Ratings auto-fill as cells are completed; adjust any athlete&apos;s rating to override. Save once with an optional 1&ndash;10 rating per athlete. Existing records for the selected date are kept until you save.</p>
                     <button className={styles.primary} onClick={() => setShowBulkAssess(true)}>Assess athletes</button>
                   </>
                 )}
-              </>
+              </section>
             )}
           </section>
 
@@ -303,9 +352,9 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
             <TrainingCharts plan={plan} athletes={athletes} activities={activities} logs={logs} />
           </section>
 
-          <section id="distribution">
+          <section id="roster">
             <div className={styles.panelHeader}>
-              <div><p className={styles.eyebrow}>Distribution</p><h2>Athletes</h2></div>
+              <div><p className={styles.eyebrow}>Athletes</p><h2>Athletes</h2></div>
               <span className={styles.formHint} style={{ alignSelf: "center" }}>{athletes.length} athlete{athletes.length === 1 ? "" : "s"}</span>
             </div>
             <p className={styles.formHint} style={{ marginTop: 0 }}>
@@ -1253,12 +1302,12 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
         <div className={`${styles.detailPanel} panelBox`}>
           <h4>Completion by athlete <small style={{ color: "var(--muted)", fontWeight: 400 }}>(green ≥ 80%, yellow ≥ 50%, red &lt; 50%)</small></h4>
           {perAthlete.length && perAthlete.some((r) => r.total > 0) ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={barData} margin={{ top: 6, right: 10, left: 16, bottom: 24 }}>
-                <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" tick={{ fill: "#9db6c7", fontSize: 12 }} />
-                <YAxis domain={[0, 100]} ticks={[0,20,40,60,80,100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
-                <Tooltip {...chartTooltip} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l, p) => p?.[0]?.payload?.full || l} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
+            <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barHorizontal}>
+              <BarChart data={barData} margin={CHART_MARGINS.barHorizontal}>
+                <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
+                <XAxis dataKey="name" tick={CHART_AXIS.x} />
+                <YAxis domain={[0, 100]} ticks={[0,20,40,60,80,100]} tick={CHART_AXIS.y} tickFormatter={(v) => `${v}%`} />
+                <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l, p) => p?.[0]?.payload?.full || l} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
                 <Bar dataKey="percent" radius={[4, 4, 0, 0]}>{barData.map((d) => <Cell key={d.full} fill={percentColor(d.percent)} />)}</Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -1271,12 +1320,12 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
         <div className={`${styles.detailPanel} panelBox`}>
           <h4>Activities by fitness dimension</h4>
           {fitnessDist.length ? (
-            <ResponsiveContainer width="100%" height={280}>
+            <ResponsiveContainer width="100%" height={CHART_HEIGHTS.pie}>
               <PieChart>
                 <Pie data={fitnessDist} dataKey="count" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={95} paddingAngle={2}>
                   {fitnessDist.map((s) => <Cell key={s.key} fill={s.color} />)}
                 </Pie>
-                <Tooltip {...chartTooltip} formatter={(v, name) => [`${v} activities`, name]} />
+                <Tooltip {...CHART_TOOLTIP} formatter={(v, name) => [`${v} activities`, name]} />
                 <Legend iconType="circle" wrapperStyle={{ color: "#9db6c7", fontSize: 12 }} />
               </PieChart>
             </ResponsiveContainer>
@@ -1286,13 +1335,13 @@ function TrainingCharts({ plan, athletes, activities, logs }) {
         <div className={`${styles.detailPanel} panelBox`}>
           <h4>Weekly completion trend</h4>
           {weekly.some((w) => w.total > 0) ? (
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={weekly} margin={{ top: 6, right: 12, left: 16, bottom: 24 }}>
-                <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
-                <XAxis dataKey="week" tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `W${v}`} />
-                <YAxis domain={[0, 100]} ticks={[0,20,40,60,80,100]} tick={{ fill: "#9db6c7", fontSize: 12 }} tickFormatter={(v) => `${v}%`} />
-                <Tooltip {...chartTooltip} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l) => `Week ${l}`} cursor={{ stroke: "rgba(45,212,168,0.4)" }} />
-                <Line type="monotone" dataKey="percent" name="Completion" stroke="#2dd4a8" strokeWidth={2} dot={{ fill: "#2dd4a8", r: 3 }} activeDot={{ r: 5 }} />
+            <ResponsiveContainer width="100%" height={CHART_HEIGHTS.line}>
+              <LineChart data={weekly} margin={CHART_MARGINS.line}>
+                <CartesianGrid {...CHART_GRID.cartesian} />
+                <XAxis dataKey="week" tick={CHART_AXIS.x} tickFormatter={(v) => `W${v}`} />
+                <YAxis domain={[0, 100]} ticks={[0,20,40,60,80,100]} tick={CHART_AXIS.y} tickFormatter={(v) => `${v}%`} />
+                <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l) => `Week ${l}`} cursor={{ stroke: "rgba(45,212,168,0.4)" }} />
+                <Line type="monotone" dataKey="percent" name="Completion" stroke={CHART_COLORS.primary} strokeWidth={2} dot={{ fill: CHART_COLORS.primary, r: 3 }} activeDot={{ r: 5 }} />
               </LineChart>
             </ResponsiveContainer>
           ) : <p className={styles.empty}>No planned activities yet.</p>}
