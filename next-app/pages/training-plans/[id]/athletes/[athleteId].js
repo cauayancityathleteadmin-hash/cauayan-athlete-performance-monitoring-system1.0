@@ -24,7 +24,6 @@ const ATHLETE_SECTIONS = [
   { label: "Trends & charts", sectionId: "trends" },
   { label: "Distribution", sectionId: "distribution" },
 ];
-const chartTooltip = CHART_TOOLTIP;
 
 function fmtDate(value) {
   const d = new Date(value);
@@ -538,12 +537,12 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
         {fitnessDist.length > 1 && (
           <section className={styles.panel} id="distribution">
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Distribution</p><h2>Activities by fitness dimension</h2></div></div>
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={fitnessDist} layout="vertical" margin={{ top: 6, right: 16, left: 16, bottom: 24 }}>
-                <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" tick={{ fill: "#9db6c7", fontSize: 12 }} />
-                <YAxis type="category" dataKey="name" width={140} tick={{ fill: "#9db6c7", fontSize: 12 }} />
-                <Tooltip {...chartTooltip} formatter={(v) => [`${v} activities`, "Count"]} />
+            <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barVertical}>
+              <BarChart data={fitnessDist} layout="vertical" margin={CHART_MARGINS.barVertical}>
+                <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
+                <XAxis type="number" tick={CHART_AXIS.x} />
+                <YAxis type="category" dataKey="name" width={140} tick={CHART_AXIS.y} />
+                <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v} activities`, "Count"]} />
                 <Bar dataKey="count" radius={[0, 4, 4, 0]}>{fitnessDist.map((d) => <Cell key={d.name} fill={d.color} />)}</Bar>
               </BarChart>
             </ResponsiveContainer>

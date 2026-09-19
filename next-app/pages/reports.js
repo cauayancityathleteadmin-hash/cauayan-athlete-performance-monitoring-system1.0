@@ -877,7 +877,7 @@ function PerformanceSummary({ athlete }) {
                 <Bar dataKey="partial" stackId="a" fill={CHART_COLORS.warning} name="Partial" />
                 <Bar dataKey="missed" stackId="a" fill={CHART_COLORS.danger} name="Missed" />
                 <Bar dataKey="open" stackId="a" fill={CHART_COLORS.muted} name="Open" radius={[0, 4, 4, 0]} />
-                <Legend iconType="circle" wrapperStyle={{ color: "#9db6c7", fontSize: 11 }} />
+                <Legend iconType="circle" wrapperStyle={{ color: "#9db6c7", fontSize: 12 }} />
               </BarChart>
             </ResponsiveContainer>
           ) : <p className={styles.empty}>No planned activities yet.</p>}

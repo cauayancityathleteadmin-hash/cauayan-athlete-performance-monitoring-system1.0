@@ -9,6 +9,7 @@ import {
 } from "recharts";
 import { prisma } from "../lib/prisma";
 import { Donut, HBars } from "../components/Charts";
+import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_COLORS } from "../lib/chart-config";
 import styles from "../styles/Dashboard.module.css";
 import AppShell from "../components/AppShell";
 
@@ -145,7 +146,6 @@ export async function getServerSideProps(context) {
   };
 }
 
-const chartTooltip = { contentStyle: { background: "#06261e", border: "1px solid rgba(45,212,168,.35)", borderRadius: 8, fontSize: 12 }, labelStyle: { color: "#e7f7f1", fontWeight: 700 }, itemStyle: { color: "#9db6c7" } };
 const weekLabel = (iso) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 const dateLabel = (iso) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
@@ -233,16 +233,16 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
         <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Completion</h2></div><Link href="/training-plans">Training</Link></div>
         <p className={styles.formHint} style={{ marginTop: 0 }}>Last 8 weeks, from real activity logs.</p>
         {hasCompletion ? (
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={completion || []} margin={{ top: 6, right: 12, left: 16, bottom: 0 }}>
-              <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
-              <XAxis dataKey="when" tickFormatter={weekLabel} tick={{ fill: "#9db6c7", fontSize: 11 }} />
-              <YAxis allowDecimals={false} tick={{ fill: "#9db6c7", fontSize: 11 }} />
-              <Tooltip {...chartTooltip} labelFormatter={weekLabel} formatter={(v, name) => [`${v}`, name]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
-              <Legend iconType="circle" wrapperStyle={{ color: "#9db6c7", fontSize: 11 }} />
-              <Bar dataKey="done" stackId="a" fill="#2dd4a8" name="Done" />
-              <Bar dataKey="partial" stackId="a" fill="#facc15" name="Partial" />
-              <Bar dataKey="missed" stackId="a" fill="#f87171" name="Missed" radius={[0, 4, 4, 0]} />
+          <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barVertical}>
+            <BarChart data={completion || []} margin={CHART_MARGINS.barVertical}>
+              <CartesianGrid {...CHART_GRID.cartesian} />
+              <XAxis dataKey="when" tickFormatter={weekLabel} tick={CHART_AXIS.x} />
+              <YAxis allowDecimals={false} tick={CHART_AXIS.y} />
+              <Tooltip {...CHART_TOOLTIP} labelFormatter={weekLabel} formatter={(v, name) => [`${v}`, name]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
+              <Legend iconType="circle" wrapperStyle={{ color: "#9db6c7", fontSize: 12 }} />
+              <Bar dataKey="done" stackId="a" fill={CHART_COLORS.primary} name="Done" />
+              <Bar dataKey="partial" stackId="a" fill={CHART_COLORS.warning} name="Partial" />
+              <Bar dataKey="missed" stackId="a" fill={CHART_COLORS.danger} name="Missed" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : <p className={styles.empty}>No training activity recorded yet. Coaches will log assessments from each training plan.</p>}
@@ -252,13 +252,13 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Ratings</p><h2>Ratings</h2></div><Link href="/assessments">Assessments</Link></div>
           <p className={styles.formHint} style={{ marginTop: 0 }}>1–10 rating per assessment.</p>
           {(ratingSeries || []).length >= 2 ? (
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={ratingSeries || []} margin={{ top: 6, right: 12, left: 16, bottom: 0 }}>
-                <CartesianGrid stroke="rgba(127,199,175,0.12)" strokeDasharray="3 3" />
-                <XAxis dataKey="when" tickFormatter={dateLabel} tick={{ fill: "#9db6c7", fontSize: 11 }} />
-                <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} tick={{ fill: "#9db6c7", fontSize: 11 }} />
-                <Tooltip {...chartTooltip} labelFormatter={dateLabel} formatter={(v) => [`${v}/10`, "Rating"]} />
-                <Line type="monotone" dataKey="rating" stroke="#2dd4a8" strokeWidth={2} dot={{ fill: "#2dd4a8", r: 3 }} />
+            <ResponsiveContainer width="100%" height={CHART_HEIGHTS.line}>
+              <LineChart data={ratingSeries || []} margin={CHART_MARGINS.line}>
+                <CartesianGrid {...CHART_GRID.cartesian} />
+                <XAxis dataKey="when" tickFormatter={dateLabel} tick={CHART_AXIS.x} />
+                <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} tick={CHART_AXIS.y} />
+                <Tooltip {...CHART_TOOLTIP} labelFormatter={dateLabel} formatter={(v) => [`${v}/10`, "Rating"]} />
+                <Line type="monotone" dataKey="rating" stroke={CHART_COLORS.primary} strokeWidth={2} dot={{ fill: CHART_COLORS.primary, r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
           ) : <p className={styles.empty}>{ratingSeries.length ? "Add one more assessment to see the rating trend." : "No training assessments recorded yet."}</p>}

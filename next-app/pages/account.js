@@ -29,6 +29,8 @@ export async function getServerSideProps(context) {
         ...user.coach,
         birthdate: iso(user.coach.birthdate),
         dateRegistered: iso(user.coach.dateRegistered),
+        approvalCodeExpiresAt: iso(user.coach.approvalCodeExpiresAt),
+        approvalActivatedAt: iso(user.coach.approvalActivatedAt),
         createdAt: iso(user.coach.createdAt),
         updatedAt: iso(user.coach.updatedAt),
         sports: user.coach.sports.map((cs) => ({ ...cs, sport: JSON.parse(JSON.stringify(cs.sport)) })),

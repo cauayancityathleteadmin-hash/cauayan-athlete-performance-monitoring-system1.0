@@ -113,7 +113,7 @@ export default function EventPlans({ plans, session, page, totalPages, sports, a
                       {openId === plan.id && (
                         <tr>
                           <td colSpan="6" style={{ padding: 0, background: "transparent" }}>
-                            <div className={styles.detailPanel} style={{ display: "flex", flexDirection: "column", gap: "26px" }}>
+                            <div className={styles.detailPanel} style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
                               <div>
                                 <h4>Event details</h4>
                                 <dl className={styles.infoList}>
@@ -159,7 +159,7 @@ function participantName(p) {
 function ParticipationToggle({ open, count, children, label }) {
   const [isOpen, setIsOpen] = React.useState(open);
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
       <button type="button" className={styles.expandBtn} onClick={() => setIsOpen((current) => !current)} style={{ alignSelf: "flex-start" }}>
         {isOpen ? "Hide " : "View "}{label} ({count}) {isOpen ? "▲" : "▼"}
       </button>
@@ -186,8 +186,8 @@ function AthleteList({ items, empty, onRemove, busyRemove }) {
 function CoachRow({ coach, athletesOfCoach, open, onToggle }) {
   const hasAthletes = athletesOfCoach.length > 0;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", padding: "12px 14px", border: "1px solid var(--border)", borderRadius: "10px", background: "rgba(10, 50, 40, 0.7)" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexWrap: "wrap", padding: "var(--space-3) var(--space-4)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", background: "rgba(10, 50, 40, 0.7)" }}>
         <div style={{ flex: "1 1 200px", minWidth: 0 }}>
           <strong style={{ fontSize: 14 }}>{coach.firstName} {coach.lastName}</strong>
           <small style={{ display: "block", color: "var(--muted)", fontSize: 12 }}>{coach.coachCode}{coach.school ? ` · ${coach.school.schoolName}` : ""}</small>
@@ -228,9 +228,9 @@ function ParticipantRoster({ participants, myCoachId, onRemove, busyRemove }) {
         </div>
       )}
       <div>
-        <p className={styles.eyebrow} style={{ marginBottom: 8 }}>{sectionLabel} ({otherCoachIds.length})</p>
+        <p className={styles.eyebrow} style={{ marginBottom: "var(--space-2)" }}>{sectionLabel} ({otherCoachIds.length})</p>
         {otherCoachIds.length ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
             {otherCoachIds.map((cid) => <CoachGroup key={cid} coachId={cid} participants={participants} />)}
           </div>
         ) : <div className={styles.detailEmpty}>{isCoachView ? "No other coaches participating yet." : "No participating coaches yet."}</div>}
@@ -410,9 +410,9 @@ const pending = plan.applications.filter((application) => application.status ===
       {editOpen && <EditPlan plan={plan} sports={sports} />}
       <ParticipationToggle label="pending coaches" count={pending.length} open={pending.length > 0}>
         {pending.length ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
             {pending.map((application) => (
-              <div key={application.id} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "10px 12px", border: "1px solid var(--border)", borderRadius: "8px", background: "rgba(6, 38, 30, 0.4)" }}>
+              <div key={application.id} style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexWrap: "wrap", padding: "var(--space-3) var(--space-4)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", background: "rgba(6, 38, 30, 0.4)" }}>
                 <div style={{ flex: "1 1 180px", minWidth: 0 }}>
                   <strong style={{ fontSize: 14 }}>{application.coach.firstName} {application.coach.lastName}</strong>
                   <small style={{ display: "block", color: "var(--muted)", fontSize: 12 }}>{application.coach.coachCode || "—"}</small>

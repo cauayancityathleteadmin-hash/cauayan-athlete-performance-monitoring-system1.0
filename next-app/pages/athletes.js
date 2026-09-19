@@ -872,7 +872,7 @@ function CoachRequestsPanel({ athletes, uncoached = [], coaches, ownCoachId, onC
           <button className={tab === "claim" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => selectTab("claim")}>Request uncoached athletes</button>
         </div>
 
-        <h3 className={styles.sectionTitle} style={{ margin: "18px 0 10px" }}>{tab === "transfer" ? "My athletes" : "Uncoached athletes"} <span className={styles.formHint}>({list.length} available)</span></h3>
+        <h3 className={styles.sectionTitle} style={{ margin: "var(--space-4) 0 var(--space-2)" }}>{tab === "transfer" ? "My athletes" : "Uncoached athletes"} <span className={styles.formHint}>({list.length} available)</span></h3>
         <AthletePickList
           key={tab}
           athletes={list}

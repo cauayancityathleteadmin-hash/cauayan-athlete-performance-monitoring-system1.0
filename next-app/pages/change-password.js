@@ -68,7 +68,7 @@ export default function ChangePassword({ session }) {
     <>
       <Head><title>Change password | Cauayan Athlete Performance</title></Head>
       <AppShell session={current} isAdmin={isAdmin} eyebrow="Cauayan City" title="Change password" active="/change-password">
-        <section className={styles.panel} style={{ maxWidth: "480px", margin: "0 auto" }}>
+        <section className={styles.panel} style={{ maxWidth: "var(--auth-card-width)", margin: "0 auto" }}>
         <div className={styles.panelHeader}>
           <div><p className={styles.eyebrow}>Security</p><h2>Change your password</h2></div>
         </div>

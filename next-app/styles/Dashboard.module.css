@@ -453,6 +453,12 @@
   border: 1px solid rgba(45, 212, 168, 0.1);
 }
 
+@media (max-width: 700px) {
+  .content {
+    padding: var(--space-4);
+  }
+}
+
 /* Consistent breathing room between stacked panels/sections */
 .content > section + section,
 .content > section + div,
@@ -870,6 +876,12 @@
   padding: var(--space-7);
   border-radius: var(--radius-xl);
   scroll-margin-top: calc(var(--topbar-h, 60px) + 16px);
+}
+
+@media (max-width: 700px) {
+  .panel {
+    padding: var(--space-4);
+  }
 }
 
 .panelHeader {
@@ -2326,14 +2338,14 @@
 .formStack {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-3);
   max-width: 560px;
 }
 
 .formStack label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-1);
   color: var(--muted);
   font-size: 13px;
   font-weight: 600;
@@ -2345,9 +2357,9 @@
   border: 1px solid var(--border);
   background: #06261e;
   color: var(--foreground);
-  padding: 11px 13px;
+  padding: var(--space-2) var(--space-3);
   font: inherit;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 .formStack textarea {
@@ -2357,17 +2369,17 @@
 .stackedActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--space-2);
   align-items: center;
 }
 
 /* ===== Report sheet (official printable report) ===== */
 .reportSheet {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: rgba(6, 38, 30, 0.55);
-  padding: 18px;
-  margin: 14px 0;
+  padding: var(--space-4);
+  margin: var(--space-3) 0;
   page-break-inside: avoid;
 }
 
