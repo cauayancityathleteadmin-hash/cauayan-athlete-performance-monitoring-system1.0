@@ -7,6 +7,7 @@ import {
 } from "recharts";
 import AppShell from "../components/AppShell";
 import PageSectionTabs from "../components/PageSectionTabs";
+import { prisma } from "../lib/prisma";
 import styles from "../styles/Dashboard.module.css";
 import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_COLORS } from "../lib/chart-config";
 
@@ -73,12 +74,6 @@ export async function getServerSideProps(context) {
   const session = await getSession(context);
   if (!session) return { redirect: { destination: "/login", permanent: false } };
   const isAdmin = session.user.role === "admin";
-
-  const { prisma } = await import("../lib/prisma");
-  if (!prisma) {
-    console.error("Prisma client is undefined");
-    return { props: { session, isAdmin, error: "Database connection unavailable" } };
-  }
 
   const [athletes, assessments, metrics, coaches, schools, events, sports, eventPlans, applications, participants] = await Promise.all([
     prisma.athlete.findMany({ where: { status: "active" }, include: { sport: true, event: true, school: true, coach: { select: { firstName: true, lastName: true, coachCode: true } }, _count: { select: { assessments: true } } }, orderBy: { lastName: "asc" } }),
