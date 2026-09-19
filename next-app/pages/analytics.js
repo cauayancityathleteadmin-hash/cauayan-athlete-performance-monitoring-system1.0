@@ -83,8 +83,8 @@ export async function getServerSideProps(context) {
     prisma.school.findMany({ include: { _count: { select: { athletes: true, coaches: true } } }, orderBy: { schoolName: "asc" } }),
     prisma.event.findMany({ include: { sport: true } }),
     prisma.sport.findMany({ include: { _count: { select: { events: true } } } }),
-    prisma.eventPlan.findMany({ include: { sport: true } }),
-    prisma.eventPlanApplication.findMany({ include: { eventPlan: true, sport: true, athlete: true } }),
+    prisma.eventPlan.findMany(),
+    prisma.eventApplication.findMany(),
     prisma.eventParticipant.findMany({ include: { eventPlan: true, sport: true, athlete: true } }),
   ]);
 
@@ -125,7 +125,7 @@ export async function getServerSideProps(context) {
     .slice(0, 10);
 
   const recentAssessments = assessments.slice(0, 10).map((a) => ({
-    date: a.assessmentDate,
+    date: a.assessmentDate instanceof Date ? a.assessmentDate.toISOString() : a.assessmentDate,
     athlete: `${a.athlete.lastName}, ${a.athlete.firstName}`,
     athleteCode: a.athlete.athleteCode,
     sport: a.athlete.sport?.sportName || "—",
