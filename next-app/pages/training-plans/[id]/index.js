@@ -263,7 +263,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
       if (!acts.length) { weeks.push({ week: w, percent: 0, total: 0 }); continue; }
       let done = 0, partial = 0;
       for (const act of acts) {
-        const latest = logs.filter((l) => l.activityId === l.activityId).sort((x, y) => new Date(y.performedAt) - new Date(x.performedAt))[0];
+        const latest = logs.filter((l) => l.activityId === act.id).sort((x, y) => new Date(y.performedAt) - new Date(x.performedAt))[0];
         if (!latest) continue;
         if (latest.status === "done") done++;
         else if (latest.status === "partial") partial++;

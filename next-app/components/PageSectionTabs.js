@@ -2,7 +2,7 @@ import React from "react";
 import { useRouter } from "next/router";
 import styles from "../styles/Dashboard.module.css";
 
-export default function PageSectionTabs({ sections }) {
+export default function PageSectionTabs({ sections, children }) {
   const router = useRouter();
   const [activeId, setActiveId] = React.useState(() => {
     if (typeof window !== "undefined") {
@@ -66,23 +66,26 @@ export default function PageSectionTabs({ sections }) {
   }, [sections, initialized]);
 
   return (
-    <nav
-      className={`${styles.pageTabs} ${styles.sticky}`}
-      role="navigation"
-      aria-label="Page sections"
-    >
-      {sections.map((section) => (
-        <button
-          key={section.sectionId}
-          role="button"
-          aria-current={section.sectionId === activeId ? "location" : undefined}
-          id={`tab-${section.sectionId}`}
-          className={`${styles.pageTab} ${section.sectionId === activeId ? styles.active : ""}`}
-          onClick={() => scrollToSection(section.sectionId)}
-        >
-          {section.label}
-        </button>
-      ))}
-    </nav>
+    <>
+      <nav
+        className={`${styles.pageTabs} ${styles.sticky}`}
+        role="navigation"
+        aria-label="Page sections"
+      >
+        {sections.map((section) => (
+          <button
+            key={section.sectionId}
+            role="button"
+            aria-current={section.sectionId === activeId ? "location" : undefined}
+            id={`tab-${section.sectionId}`}
+            className={`${styles.pageTab} ${section.sectionId === activeId ? styles.active : ""}`}
+            onClick={() => scrollToSection(section.sectionId)}
+          >
+            {section.label}
+          </button>
+        ))}
+      </nav>
+      {children}
+    </>
   );
 }

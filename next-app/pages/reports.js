@@ -1087,7 +1087,7 @@ const REPORTS_SECTIONS = [
                       )}
                     </tr>
                   ))}
-                  {!visible.length && <tr><td colSpan={colSpan} className={styles.empty}>No records match your search.</td></tr>}
+                  {!visible.length && <tr><td colSpan={type === "athlete" ? 9 : 7} className={styles.empty}>No records match your search.</td></tr>}
                 </tbody>
               </table>
             </div>
