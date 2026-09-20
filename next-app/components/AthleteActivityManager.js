@@ -155,13 +155,13 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
   }
 
   return (
-    <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "14px 16px", background: "rgba(6,38,30,.35)" }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
+    <div style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-xl)", padding: "var(--space-3) var(--space-4)", background: "rgba(6,38,30,.35)" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", alignItems: "center", justifyContent: "space-between" }}>
         <div>
           <strong>{athlete.lastName}, {athlete.firstName}</strong>
           {athlete.athleteCode ? <small style={{ color: "var(--muted)", display: "block" }}>{athlete.athleteCode}</small> : null}
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", alignItems: "center" }}>
           <button className={styles.secondary} onClick={() => setShowActivities((c) => !c)}>{showActivities ? "Hide activities" : "Show activities"}</button>
           {!readOnly && <button className={styles.secondary} onClick={() => setAdding((c) => !c)}>{adding ? "Close add" : "Add activities"}</button>}
         </div>
@@ -325,14 +325,14 @@ export function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
   }
 
   return (
-    <div style={{ borderTop: "1px solid rgba(26,92,74,.5)", marginTop: 12, paddingTop: 12 }}>
+    <div style={{ borderTop: "1px solid rgba(26,92,74,.5)", marginTop: "var(--space-3)", paddingTop: "var(--space-3)" }}>
       <form onSubmit={submit} className={styles.formGrid}>
         {rows.map((r) => {
           const allowedUnits = UNITS_BY_FITNESS[r.fitness] || [];
           const fRules = targetFieldRules(r.fitness);
           return (
-            <div key={r.id} className={styles.fullField} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div key={r.id} className={styles.fullField} style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "var(--space-4)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-2)" }}>
                 <strong style={{ fontSize: 13 }}>Activity {rows.indexOf(r) + 1}</strong>
                 {rows.length > 1 && <button type="button" className={`${styles.danger} ${styles.btnSm}`} onClick={() => removeRow(r.id)}>Remove</button>}
               </div>

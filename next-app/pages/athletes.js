@@ -866,7 +866,7 @@ function CoachRequestsPanel({ athletes, uncoached = [], coaches, ownCoachId, onC
       </div>
       <p className={styles.formHint} style={{ marginTop: 0 }}>Move several athletes at once with a checklist. Requests stay pending until the target coach (transfers) or the administrator (claims) accepts.</p>
 
-      <div style={{ margin: "0 0 24px" }}>
+      <div style={{ margin: "0 0 var(--space-6)" }}>
         <div className={styles.segmented}>
           <button className={tab === "transfer" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => selectTab("transfer")}>Send athletes to a coach</button>
           <button className={tab === "claim" ? `${styles.primary} ${styles.btnSm}` : styles.secondary} onClick={() => selectTab("claim")}>Request uncoached athletes</button>
@@ -884,14 +884,14 @@ function CoachRequestsPanel({ athletes, uncoached = [], coaches, ownCoachId, onC
           )}
           emptyText={tab === "transfer" ? "You have no athletes to transfer." : "There are no uncoached athletes right now."}
         />
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: "var(--space-4)" }}>
           {tab === "transfer" ? (
             <CoachPicker coaches={targets} value={targetCoachId} onChange={setTargetCoachId} />
           ) : (
             <p className={styles.formHint}>Selected athletes will join your roster once an administrator approves.</p>
           )}
         </div>
-        <div className={styles.formActions} style={{ marginTop: 16 }}>
+        <div className={styles.formActions} style={{ marginTop: "var(--space-4)" }}>
           <button className={styles.primary} disabled={busy || !selected.size || (tab === "transfer" && !targetCoachId)} onClick={sendBatch}>
             {busy ? "Sending..." : tab === "transfer" ? `Send ${selected.size || ""} athlete${selected.size === 1 ? "" : "s"} to ${targetName || "coach"}` : `Request ${selected.size || ""} athlete${selected.size === 1 ? "" : "s"} for my roster`}
           </button>
@@ -900,8 +900,8 @@ function CoachRequestsPanel({ athletes, uncoached = [], coaches, ownCoachId, onC
 
       <h3 className={styles.sectionTitle}>Incoming requests <span className={styles.formHint}>({received.length})</span></h3>
       {loading ? <p className={styles.formHint}>Loading requests…</p> : error ? <p className={`${styles.formError} ${styles.fullField}`}>{error}</p> : received.length === 0 ? <p className={styles.empty}>You have no incoming transfer requests.</p> : incomingGroups.map((group) => (
-        <div key={group.key} style={{ margin: "0 0 22px" }}>
-          <div className={styles.actionCell} style={{ justifyContent: "space-between", marginBottom: 8 }}>
+        <div key={group.key} style={{ margin: "0 0 var(--space-6)" }}>
+          <div className={styles.actionCell} style={{ justifyContent: "space-between", marginBottom: "var(--space-2)" }}>
             <h4 className={styles.sectionTitle} style={{ margin: 0 }}>{group.coach ? `${group.coach.firstName} ${group.coach.lastName}` : "Administrator"} <span className={styles.formHint}>({group.rows.length})</span></h4>
             <div className={styles.actionCell}>
               <button className={`${styles.primary} ${styles.btnSm}`} disabled={busy} onClick={() => decideMany(group.rows.map((t) => t.id), "approved")}>Accept all</button>
@@ -1045,8 +1045,8 @@ function AdminClaimsPanel({ onChanged }) {
 
       <h3 className={styles.sectionTitle}>Pending claims <span className={styles.formHint}>({claims.length})</span></h3>
       {loading ? <p className={styles.formHint}>Loading requests…</p> : error ? <p className={`${styles.formError} ${styles.fullField}`}>{error}</p> : claims.length === 0 ? <p className={styles.empty}>No pending uncoached-athlete requests.</p> : groups.map((group) => (
-        <div key={group.key} style={{ margin: "0 0 22px" }}>
-          <div className={styles.actionCell} style={{ justifyContent: "space-between", marginBottom: 8 }}>
+        <div key={group.key} style={{ margin: "0 0 var(--space-6)" }}>
+          <div className={styles.actionCell} style={{ justifyContent: "space-between", marginBottom: "var(--space-2)" }}>
             <h4 className={styles.sectionTitle} style={{ margin: 0 }}>{group.coach ? `${group.coach.firstName} ${group.coach.lastName}` : "Unknown coach"} <span className={styles.formHint}>({group.rows.length})</span></h4>
             <div className={styles.actionCell}>
               <button className={`${styles.primary} ${styles.btnSm}`} disabled={busy} onClick={() => decideMany(group.rows.map((claim) => claim.id), "approved")}>Approve all</button>

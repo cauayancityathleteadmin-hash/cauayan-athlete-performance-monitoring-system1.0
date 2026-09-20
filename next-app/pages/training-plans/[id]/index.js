@@ -303,7 +303,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
         </section>
 
 {message && (
-          <p role="status" style={{ margin: "0 0 16px", padding: "12px 14px", borderRadius: "8px", border: `1px solid ${message.kind === "error" ? "var(--danger)" : "var(--accent)"}`, background: `rgba(${message.kind === "error" ? "248,113,113" : "45,212,168"}, .14)`, color: message.kind === "error" ? "var(--danger)" : "var(--foreground)" }}>
+          <p role="status" style={{ margin: "0 0 var(--space-4)", padding: "var(--space-3) var(--space-4)", borderRadius: "var(--radius-lg)", border: `1px solid ${message.kind === "error" ? "var(--danger)" : "var(--accent)"}`, background: `rgba(${message.kind === "error" ? "248,113,113" : "45,212,168"}, .14)`, color: message.kind === "error" ? "var(--danger)" : "var(--foreground)" }}>
             {message.text}
           </p>
         )}
@@ -868,13 +868,13 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
         {toast && (
           <span role="status" style={{ color: toast.kind === "error" ? "var(--danger)" : toast.kind === "info" ? "var(--muted)" : "var(--accent)", fontSize: 12, lineHeight: 1.4 }}>
             {toast.text}
-            {toast.undo && <button className={`${styles.secondary} ${styles.btnSm}`} style={{ marginLeft: 8 }} onClick={undo} disabled={busy}>Undo</button>}
+            {toast.undo && <button className={`${styles.secondary} ${styles.btnSm}`} style={{ marginLeft: "var(--space-2)" }} onClick={undo} disabled={busy}>Undo</button>}
           </span>
         )}
       </div>
 
       {isCurrentViewLocked && (
-        <div style={{ marginTop: 8, padding: "10px 12px", background: "rgba(248,113,113,.15)", border: "1px solid rgba(248,113,113,.4)", borderRadius: 8, color: "#f87171", fontSize: 12 }}>
+        <div className={styles.dangerBox} style={{ marginTop: "var(--space-2)", marginBottom: 0, color: "var(--danger)", fontSize: 12 }}>
           {mixingLocked ? (
             <>
               <strong>Mix-week assessment is locked.</strong> Assessments can only be entered during the current week (Week {currentWeek}). Admin override only.
@@ -887,19 +887,19 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
         </div>
       )}
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 12 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", alignItems: "center", marginBottom: "var(--space-3)" }}>
         <span style={{ fontSize: 12, color: "var(--muted)" }}>Everything shown, everyone:</span>
         <button type="button" className={styles.secondary} disabled={isCurrentViewLocked} onClick={() => presetAll("full")}>All done</button>
         <button type="button" className={styles.secondary} disabled={isCurrentViewLocked} onClick={() => presetAll("light")}>Mark half-day</button>
         <button type="button" className={styles.secondary} disabled={isCurrentViewLocked} onClick={() => presetAll("rest")}>Mark as rest day</button>
       </div>
 
-      <p className={styles.formHint} style={{ marginTop: 0, marginBottom: 12 }}>Cells start marked done at their target for the selected date. Tap a cell&apos;s button to flip its status (D → P → M → open), type an amount and the status picks itself, or use the Everyone buttons to fill the whole view at once. Ratings auto-fill as cells are completed — adjust any athlete&apos;s rating to override. Activities without a set week are shown under Week 1.</p>
+      <p className={styles.formHint} style={{ marginTop: 0, marginBottom: "var(--space-3)" }}>Cells start marked done at their target for the selected date. Tap a cell&apos;s button to flip its status (D → P → M → open), type an amount and the status picks itself, or use the Everyone buttons to fill the whole view at once. Ratings auto-fill as cells are completed — adjust any athlete&apos;s rating to override. Activities without a set week are shown under Week 1.</p>
 
       {confirm && (
-        <div style={{ border: "1px solid rgba(45,212,168,.5)", borderRadius: 10, padding: "12px 14px", background: "rgba(6,38,30,.5)", marginBottom: 12 }}>
-          Save {confirm.athletes} athlete{confirm.athletes === 1 ? "" : "s"}: <strong style={{ color: "var(--accent)" }}>{confirm.done} done</strong>, <strong style={{ color: "#ffc107" }}>{confirm.partial} partial</strong>, <strong style={{ color: "#f87171" }}>{confirm.missed} missed</strong>{confirm.rated ? `, ${confirm.rated} rating${confirm.rated === 1 ? "" : "s"}` : ""} for {date}?
-          <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 10 }}>
+        <div className={styles.alertBox} style={{ marginBottom: "var(--space-3)" }}>
+          Save {confirm.athletes} athlete{confirm.athletes === 1 ? "" : "s"}: <strong style={{ color: "var(--accent)" }}>{confirm.done} done</strong>, <strong style={{ color: "var(--warning)" }}>{confirm.partial} partial</strong>, <strong style={{ color: "var(--danger)" }}>{confirm.missed} missed</strong>{confirm.rated ? `, ${confirm.rated} rating${confirm.rated === 1 ? "" : "s"}` : ""} for {date}?
+          <div style={{ marginTop: "var(--space-2)", display: "flex", flexWrap: "wrap", gap: "var(--space-3)" }}>
             {[...new Set(Object.keys(cells).map((k) => k.split(":")[0]))].map((aid) => {
               const at = athletes.find((x) => String(x.id) === aid);
               const ev = evFor(Number(aid));
@@ -907,13 +907,13 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
               return (
                 <span key={aid} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12 }}>
                   {at.lastName}, {at.firstName}
-                  {ev && ev.url ? <strong style={{ color: "var(--accent)" }}>✓ evidence</strong> : <strong style={{ color: "#f87171" }}>⚠ no evidence</strong>}
+                  {ev && ev.url ? <strong style={{ color: "var(--accent)" }}>✓ evidence</strong> : <strong style={{ color: "var(--danger)" }}>⚠ no evidence</strong>}
                 </span>
               );
             })}
           </div>
-          <p style={{ margin: "8px 0 0", fontSize: 11, color: "var(--muted)" }}>Tip: upload at least one training photo per athlete before saving, so the agency can confirm the session actually happened.</p>
-          <div style={{ marginTop: 8, display: "flex", gap: 8 }}><button className={styles.primary} onClick={save} disabled={busy}>Confirm save</button><button className={styles.secondary} onClick={() => setConfirm(null)} disabled={busy}>Back</button></div>
+          <p style={{ margin: "var(--space-2) 0 0", fontSize: 11, color: "var(--muted)" }}>Tip: upload at least one training photo per athlete before saving, so the agency can confirm the session actually happened.</p>
+          <div style={{ marginTop: "var(--space-2)", display: "flex", gap: "var(--space-2)" }}><button className={styles.primary} onClick={save} disabled={busy}>Confirm save</button><button className={styles.secondary} onClick={() => setConfirm(null)} disabled={busy}>Back</button></div>
         </div>
       )}
 
@@ -1007,7 +1007,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                     <tr>
                       <td className="fix"><strong style={{ fontSize: 11 }}>Rating &amp; comment</strong></td>
                       <td colSpan={columns.length} style={{ padding: 0 }}>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, padding: "10px 12px", alignItems: "center" }}>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", padding: "var(--space-3) var(--space-4)", alignItems: "center" }}>
                           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>Rating
                             <select className={styles.fieldControl} disabled={isCurrentViewLocked} value={ratings[athlete.id]?.rating || ""} onChange={(e) => setRating(athlete.id, { rating: e.target.value ? Number(e.target.value) : null })}>
                               <option value="">No rating</option>
@@ -1087,12 +1087,12 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
   return (
     <div className="lightbox" onClick={() => setShowLightbox(null)}>
       <div className="lightboxCard" onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-2)" }}>
           <strong style={{ color: "var(--accent)" }}>Training evidence</strong>
           <button className="miniBtn" onClick={() => setShowLightbox(null)}>Close</button>
         </div>
         <img src={showLightbox.url} alt="Training evidence" style={{ width: "100%", maxHeight: 480, objectFit: "contain", borderRadius: 8, background: "#03150f" }} />
-        <div style={{ marginTop: 8, fontSize: 12, lineHeight: 1.6 }}>
+        <div style={{ marginTop: "var(--space-2)", fontSize: 12, lineHeight: 1.6 }}>
           <strong>{athlete ? `${athlete.lastName}, ${athlete.firstName}` : `Athlete #${showLightbox.athleteId}`}</strong>
           {athlete && <small style={{ color: "var(--muted)", marginLeft: 6 }}>{athlete.athleteCode}</small>}
           <div style={{ color: "var(--muted)" }}>
@@ -1101,7 +1101,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
             {showLightbox.uploader?.username ? ` · Recorded by ${showLightbox.uploader.username}` : ""}
           </div>
         </div>
-        <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+        <div style={{ marginTop: "var(--space-3)", display: "flex", gap: "var(--space-2)" }}>
           <button className="miniBtn" style={{ borderColor: "rgba(248,113,113,.5)", color: "#f87171" }} onClick={() => deleteEvidenceRow(showLightbox)}>Remove photo</button>
         </div>
       </div>
@@ -1134,7 +1134,7 @@ function MonitoringGrid({ data, athletes, maxWeek, currentWeek, onWeekChange }) 
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-4)", flexWrap: "wrap" }}>
         <div className={styles.fullField} style={{ minWidth: 160 }}>
           <label>Week<select value={currentWeek} onChange={(e) => onWeekChange(parseInt(e.target.value))} className={styles.fieldControl}>
             {[...Array(maxWeek)].map((_, i) => <option key={i + 1} value={i + 1}>Week {i + 1}</option>)}

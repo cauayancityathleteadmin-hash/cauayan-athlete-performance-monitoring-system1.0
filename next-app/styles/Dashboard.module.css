@@ -453,12 +453,6 @@
   border: 1px solid rgba(45, 212, 168, 0.1);
 }
 
-@media (max-width: 700px) {
-  .content {
-    padding: var(--space-4);
-  }
-}
-
 /* Consistent breathing room between stacked panels/sections */
 .content > section + section,
 .content > section + div,
@@ -516,7 +510,7 @@
   .menuToggle { display: inline-flex; align-items: center; gap: 0.35rem; }
   .userName { display: none; }
   .sidebar { display: none; }
-  .content { padding: 0.9rem; }
+  .content { padding: var(--space-4); }
   .mobileNav { display: block; border-bottom: 1px solid var(--border); }
   .mobileNav .sidebar {
     display: block;
@@ -812,12 +806,12 @@
 .card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 24px;
+  gap: var(--space-3);
+  padding: var(--space-5);
   background: rgba(10, 50, 40, .93);
-  border: 1px solid #1a5c4a;
+  border: 1px solid var(--border);
   color: inherit;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   text-decoration: none;
   transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
@@ -849,9 +843,9 @@
 .actionRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--space-3);
   align-items: center;
-  margin-top: 16px;
+  margin-top: var(--space-4);
 }
 
 .actionRow button {
@@ -899,9 +893,16 @@
   }
 }
 
+/* ===== Container standard (single source of truth) =====
+   Default box recipe for `.panel`, `.card`, `.metricField`, `.detailPanel`:
+   border 1px var(--border); radius var(--radius-xl); bg rgba(10,50,40,.93).
+   Panel padding: var(--space-7) desktop / var(--space-4) @<=700px (one rule).
+   Gap between stacked sections: var(--space-6); nested detail panels: var(--space-5).
+   Small boxes / kpi / stat cards: padding var(--space-4), gap var(--space-3).
+   Every value derives from the --space and --radius tokens; never hardcode px. */
 .panel {
   background: rgba(10, 50, 40, .93);
-  border: 1px solid #1a5c4a;
+  border: 1px solid var(--border);
   padding: var(--space-7);
   border-radius: var(--radius-xl);
   scroll-margin-top: calc(var(--topbar-h, 60px) + 16px);
@@ -1332,18 +1333,18 @@
 .metricsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 16px;
-  margin: 16px 0;
+  gap: var(--space-4);
+  margin: var(--space-4) 0;
 }
 
 .metricField {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  gap: var(--space-3);
+  padding: var(--space-4);
   background: rgba(10, 50, 40, .93);
-  border: 1px solid #1a5c4a;
-  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
 }
 
 .metricField label {
@@ -1426,24 +1427,15 @@
    column meaning is not lost. Tables without labels fall back to horizontal
    scrolling so they never break. */
 @media (max-width: 700px) {
-  .content {
-    padding: 0.75rem;
-  }
-
-  .panel {
-    padding: 16px;
-    border-radius: 14px;
-  }
-
   .panelHeader {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
+    gap: var(--space-3);
   }
 
   .formGrid {
     grid-template-columns: 1fr;
-    gap: 14px;
+    gap: var(--space-3);
   }
 
   .toolbar,
@@ -1986,24 +1978,24 @@
 .athleteCards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .athleteCard {
-  border: 1px solid #1a5c4a;
-  border-radius: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
   background: rgba(6, 38, 30, 0.5);
-  padding: 18px;
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .cardHead {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .cardHead strong {
@@ -2103,6 +2095,20 @@
   color: var(--foreground);
   font-size: 13px;
   font-weight: 600;
+}
+
+.kpi .kpiLabel {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.kpi .kpiValue {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--foreground);
 }
 
 .kpi small {

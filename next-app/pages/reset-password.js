@@ -80,7 +80,7 @@ export default function ResetPassword() {
         </p>
       ) : (
         <form onSubmit={submit} noValidate className="formStack">
-          <div style={{ marginBottom: "16px" }}>
+          <div style={{ marginBottom: "var(--space-4)" }}>
             <PasswordInput
               name="password"
               label="New password"

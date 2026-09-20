@@ -112,12 +112,12 @@ function CoachProgressPanel({ coaches, evals }) {
         const trendText = coachEvals.length < 2 ? "Need 2+ evaluations to show a trend" : delta > 0.1 ? `Improving (+${round(delta)})` : delta < -0.1 ? `Declining (${round(delta)})` : "Holding steady";
         const trendColor = delta > 0.1 ? "var(--success)" : delta < -0.1 ? "var(--danger)" : "var(--muted)";
         return (
-          <div key={coach.id} className={styles.detailPanel} style={{ marginBottom: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10, alignItems: "baseline" }}>
+          <div key={coach.id} className={styles.detailPanel} style={{ marginBottom: "var(--space-4)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "var(--space-3)", alignItems: "baseline" }}>
               <strong style={{ fontSize: 15 }}>{coach.firstName} {coach.lastName} <small style={{ color: "var(--muted)" }}>({coach.coachCode})</small></strong>
               <small><span style={{ color: ratingColor(avgOverall), fontWeight: 700 }}>{round(avgOverall)}/10</span> avg · {coachEvals.length} evaluation{coachEvals.length === 1 ? "" : "s"} · <span style={{ color: trendColor, fontWeight: 700 }}>{trendText}</span></small>
             </div>
-            <div style={{ marginTop: 12 }}>
+            <div style={{ marginTop: "var(--space-3)" }}>
               <CoachTrend points={points} />
             </div>
             <div style={{ marginTop: 12 }}>
@@ -165,7 +165,7 @@ export default function CoachPerformances({ session, coaches }) {
           {coaches.length === 0 && <p className={styles.empty}>No active coaches to evaluate.</p>}
 
           {createOpen && coaches.length > 0 && (
-            <div className={styles.panel} style={{ marginBottom: 22, marginTop: 0 }}>
+            <div className={styles.panel} style={{ marginBottom: "var(--space-5)", marginTop: 0 }}>
               <CreatePerformance coaches={coaches} onCreated={(ev) => { setEvals((current) => [ev, ...current]); setCreateOpen(false); }} />
             </div>
           )}

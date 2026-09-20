@@ -367,7 +367,7 @@ export default function Account({ user, sports, session }) {
                     <label>Contact number<input name="contactNumber" className={styles.fieldControl} type="tel" maxLength="30" defaultValue={view.contactNumber} placeholder="e.g. 0917 000 0000" /></label>
                     <label>School<input name="school" className={styles.fieldControl} defaultValue={view.school} required maxLength="191" placeholder="Enter your school name" /></label>
                     <fieldset className={styles.fullField} style={{ border: "1px solid var(--border)", padding: "var(--space-4)", borderRadius: "var(--radius-sm)" }}>
-                      <legend style={{ color: "var(--muted)", fontSize: "13px", fontWeight: 700, marginBottom: "8px" }}>Sports coached</legend>
+                      <legend style={{ color: "var(--muted)", fontSize: "13px", fontWeight: 700, marginBottom: "var(--space-2)" }}>Sports coached</legend>
                       <div className={styles.checkboxList}>{sports.map((sport) => (
                         <label key={sport.id}><input type="checkbox" name="sportIds" value={sport.id} defaultChecked={view.sportIds.includes(sport.id)} /><span>{sport.sportName}</span></label>
                       ))}</div>
@@ -408,7 +408,7 @@ export default function Account({ user, sports, session }) {
               <label><input type="checkbox" checked={notifyEmail} onChange={(e) => setNotifyEmail(e.target.checked)} /> Receive email notifications</label>
               <div className={styles.stackedActions}><button className={styles.primary} disabled={notifBusy}>{notifBusy && notifMsg.text === "" ? "Saving..." : "Save notification settings"}</button></div>
             </form>
-            <div className={styles.stackedActions} style={{ marginTop: 8 }}>
+            <div className={styles.stackedActions} style={{ marginTop: "var(--space-2)" }}>
               <button type="button" className={styles.secondary} disabled={notifBusy} onClick={() => sendTest("sms")}>{notifBusy && notifMsg.text === "" ? "Sending..." : "Send test SMS"}</button>
               <button type="button" className={styles.secondary} disabled={notifBusy} onClick={() => sendTest("email")}>{notifBusy && notifMsg.text === "" ? "Sending..." : "Send test email"}</button>
             </div>
@@ -423,7 +423,7 @@ export default function Account({ user, sports, session }) {
             <div className={styles.formStack}>
               <button className={styles.primary} disabled={Boolean(dataBusy)} onClick={downloadMyData}>{dataBusy === "download" ? "Preparing your data..." : "Download my data backup"}</button>
             </div>
-            <form onSubmit={restoreMyData} className={styles.formStack} style={{ marginTop: 16 }}>
+            <form onSubmit={restoreMyData} className={styles.formStack} style={{ marginTop: "var(--space-4)" }}>
               <label>Restore from your own data backup (.json)<input type="file" name="file" accept=".json,application/json" /></label>
               <label>Type <strong>RESTORE</strong> to confirm<input type="text" value={restoreConfirm} onChange={(e) => setRestoreConfirm(e.target.value)} /></label>
               <div className={styles.stackedActions}><button className={styles.secondary} disabled={restoreConfirm !== "RESTORE" || Boolean(dataBusy)}>{dataBusy === "restore" ? "Restoring..." : "Restore my data"}</button></div>

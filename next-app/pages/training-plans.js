@@ -208,13 +208,13 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
           </div>
 
           {showPlanForm && (
-            <div style={{ marginBottom: "var(--space-5)" }}>
+            <div style={{ marginBottom: "var(--space-6)" }}>
               <CreatePlanForm isAdmin={isAdmin} sports={sports} coaches={coaches} athletes={athletes} templates={templates} onCreated={() => { setShowPlanForm(false); refresh(); router.push("/training-plans"); }} onCancel={() => setShowPlanForm(false)} />
             </div>
           )}
 
           {editingPlan && (
-            <div style={{ marginBottom: "var(--space-5)" }}>
+            <div style={{ marginBottom: "var(--space-6)" }}>
               <EditPlanForm isAdmin={isAdmin} plan={editingPlan} sports={sports} coaches={coaches} athletes={athletes} onSaved={() => { setEditingPlan(null); refresh(); }} onCancel={() => setEditingPlan(null)} />
             </div>
           )}

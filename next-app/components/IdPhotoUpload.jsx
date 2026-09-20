@@ -262,13 +262,13 @@ export default function IdPhotoUpload({ value, onChange, required = false, label
       </div>
 
       {cameraOpen && (
-        <div style={{ marginTop: "12px", border: "1px solid var(--border)", borderRadius: "10px", padding: "14px", background: "rgba(6,38,30,.35)", maxWidth: 420 }}>
-          <p style={{ margin: "0 0 10px", color: "var(--muted)", fontSize: "13px" }}>Line up your face in the square, then take the photo. Your photo is saved as a 2x2 ID picture.</p>
+        <div style={{ marginTop: "var(--space-3)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "var(--space-4)", background: "rgba(6,38,30,.35)", maxWidth: "var(--auth-card-width)" }}>
+          <p style={{ margin: "0 0 var(--space-3)", color: "var(--muted)", fontSize: "13px" }}>Line up your face in the square, then take the photo. Your photo is saved as a 2x2 ID picture.</p>
           <div style={{ position: "relative", width: "100%", maxWidth: 320, borderRadius: "8px", overflow: "hidden" }}>
             <video ref={videoRef} playsInline muted autoPlay style={{ width: "100%", display: "block", background: "#000" }} />
             <div style={{ position: "absolute", inset: 0, pointerEvents: "none", boxShadow: "inset 0 0 0 3px rgba(45,212,168,.8)", borderRadius: "8px", margin: "8%" }} />
           </div>
-          <div style={{ display: "flex", gap: "10px", marginTop: "12px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-3)", flexWrap: "wrap" }}>
             <button type="button" onClick={capturePhoto} disabled={busy} style={{ padding: "10px 16px", border: "none", borderRadius: "6px", background: "var(--accent)", color: "#041f18", fontWeight: 700, cursor: "pointer", fontSize: "14px" }}>
               {busy ? "Uploading..." : "Capture photo"}
             </button>

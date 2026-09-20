@@ -205,7 +205,7 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
 
   function reviewRow(label, value) {
     return (
-      <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", padding: "12px 0", borderBottom: "1px solid var(--border)", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-4)", padding: "var(--space-3) 0", borderBottom: "1px solid var(--border)", flexWrap: "wrap" }}>
         <dt style={{ color: "var(--muted)", fontSize: "14px", fontWeight: 600, flex: "0 0 40%" }}>{label}</dt>
         <dd style={{ margin: 0, textAlign: "right", fontSize: "15px", fontWeight: 600, wordBreak: "break-word", flex: "1 1 auto" }}>{value || <span style={{ color: "var(--muted)", fontWeight: 400 }}>—</span>}</dd>
       </div>
@@ -277,7 +277,7 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
                 {reviewRow("School", formData.school)}
                 {reviewRow("Contact number", formData.contactNumber)}
                 {reviewRow("Sports coached", selectedSports.join(", "))}
-                <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", padding: "12px 0", borderBottom: "1px solid var(--border)", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-4)", padding: "var(--space-3) 0", borderBottom: "1px solid var(--border)", flexWrap: "wrap" }}>
                   <dt style={{ color: "var(--muted)", fontSize: "14px", fontWeight: 600, flex: "0 0 40%" }}>2x2 ID picture</dt>
                   <dd style={{ margin: 0, flex: "1 1 auto" }}>
                     {formData.pictureUrl ? (

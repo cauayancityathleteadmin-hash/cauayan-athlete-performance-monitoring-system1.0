@@ -51,6 +51,7 @@ Only ONE value per use case; all values come from the token scale (`--space-1..8
 - Stat-card row gap: `var(--space-4)` (16px). Content grid items: `var(--space-5)` (24px).
 - Auth cards: one width `var(--auth-card-width)` (420px), padding `var(--space-6)`.
 - Settings/AppShell forms: `.formStack` (max-width 560px); never cap panels with inline `maxWidth`.
+- Container standard (single source of truth, duplicated as a comment in Dashboard.module.css above `.panel`): default box recipe = `border:1px solid var(--border)`, radius `var(--radius-xl)`, bg `rgba(10,50,40,.93)`; panel padding `var(--space-7)`/`var(--space-4)` mobile; small boxes/kpi/stat cards padding `var(--space-4)` gap `var(--space-3)`; chips/badges/micro-gaps keep their compact sizes; all inline container styles must use tokens, never raw px (10/14/18/22…).
 - Page title: `.pageTitle h1` `clamp(24px,3.5vw,32px)` — LARGER than panel h2 `clamp(22px,3vw,28px)`. Every top-level page has a real in-content `<h1>` page title; sidebar span alone doesn't count.
 - Buttons: `.primary/.secondary` (12px/24px padding); row/table controls `.btnSm`; panel-header action = 13px text link or `.btnSm`. Never hand-roll `padding: 3-4px 8px` inline.
 - Copy/terms: "Rating" = 1–10 coach/training rating; "Score" = assessment performance scores; "Completion" = done/partial % of planned activities. "Training plans", "Event plans", "Assessments". Verbs: "Approve" (never "Reapprove"), "Delete" (never "Remove"), no redundant suffixes (drop "coach" on a coach page). Labels ≤ 3 words where possible.

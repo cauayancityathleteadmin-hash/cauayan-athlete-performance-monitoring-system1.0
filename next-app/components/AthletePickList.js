@@ -47,7 +47,7 @@ export default function AthletePickList({
         </label>
         <span className={styles.formHint} style={{ alignSelf: "center" }}>{selected.size} selected</span>
       </div>
-      <div className={styles.tableWrap} style={{ marginTop: 12 }}>
+      <div className={styles.tableWrap} style={{ marginTop: "var(--space-3)" }}>
         <table>
           <thead>
             <tr>

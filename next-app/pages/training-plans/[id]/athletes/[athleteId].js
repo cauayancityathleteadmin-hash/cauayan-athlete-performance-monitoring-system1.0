@@ -98,15 +98,15 @@ function ActivityCommentThread({ planId, activityId, athleteId, isAdmin, athlete
   }
 
   return (
-    <div style={{ borderTop: "1px solid rgba(26,92,74,.5)", marginTop: 10, paddingTop: 10 }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 8 }}>
+    <div style={{ borderTop: "1px solid rgba(26,92,74,.5)", marginTop: "var(--space-3)", paddingTop: "var(--space-3)" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", alignItems: "center", marginBottom: "var(--space-2)" }}>
         <span style={{ fontSize: 12, color: "var(--muted)" }}>Notes on this activity for {athleteName}</span>
       </div>
       {comments === null ? <p className={styles.empty} style={{ margin: 0 }}>Loading comments...</p> : comments.length === 0 ? <p className={styles.empty} style={{ margin: 0 }}>No comments yet.</p> : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", marginBottom: "var(--space-2)" }}>
           {comments.map((c) => (
-            <div key={c.id} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", background: "rgba(6,38,30,.4)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+            <div key={c.id} style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "var(--space-3) var(--space-4)", background: "rgba(6,38,30,.4)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-1)" }}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                   <strong style={{ fontSize: 13 }}>{commentAuthorName(c.author)}</strong>
                   <span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)", fontSize: 9 }}>{c.athlete?.firstName} {c.athlete?.lastName}</span>
@@ -121,7 +121,7 @@ function ActivityCommentThread({ planId, activityId, athleteId, isAdmin, athlete
       {isAdmin && (
         <form onSubmit={post} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <textarea className={styles.fieldControl} rows="2" maxLength="2000" placeholder={`Note for ${athleteName}...`} value={draft} onChange={(e) => setDraft(e.target.value)} />
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: "var(--space-3)", alignItems: "center" }}>
             <button className={styles.primary} disabled={busy || !draft.trim()}>{busy ? "Posting..." : "Post comment"}</button>
             {msg && <small style={{ color: "var(--danger)" }}>{msg}</small>}
           </div>
@@ -312,7 +312,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
           <span style={{ opacity: 0.6 }}>/</span> Athletes <span style={{ opacity: 0.6 }}>/</span> <strong>{athlete.firstName} {athlete.lastName}</strong>
         </nav>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", marginBottom: "var(--space-5)" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", alignItems: "center", marginBottom: "var(--space-5)" }}>
           <div className={styles.pageActions}>
             <span className={styles.eyebrow}>{athlete.athleteCode} {athlete.sport?.sportName ? `· ${athlete.sport.sportName}` : ""}</span>
           </div>
@@ -440,7 +440,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Trends</p><h2>Progress over time</h2></div></div>
             <div className={styles.chartGrid}>
               <div className={styles.detailPanel}>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-2)" }}>
                   <h4 style={{ margin: 0 }}>Completion trend</h4>
                   <label>Granularity
                     <select className={styles.fieldControl} value={trendGranularity} onChange={(e) => setTrendGranularity(e.target.value)}>
@@ -464,7 +464,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
               </div>
 
               <div className={styles.detailPanel}>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-2)" }}>
                   <h4 style={{ margin: 0 }}>Metric trend</h4>
                   {measurableActivities.length > 1 && (
                     <label style={{ minWidth: 200, fontSize: 12 }}>Activity
