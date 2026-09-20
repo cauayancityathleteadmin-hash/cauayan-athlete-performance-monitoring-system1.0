@@ -50,7 +50,7 @@ export default function ProgressRoster({ session, isAdmin }) {
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Completion</p><h2>Completion by athlete</h2></div></div>
             {chartData.length ? (
-              <ResponsiveContainer width="100%" height={chartData.length > 8 ? Math.max(CHART_HEIGHTS.barVertical, chartData.length * 28) : CHART_HEIGHTS.barHorizontal}>
+              <ResponsiveContainer width="100%" height={chartData.length > 8 ? Math.max(CHART_HEIGHTS.barHorizontal, chartData.length * 28) : CHART_HEIGHTS.barHorizontal}>
                 <BarChart data={chartData} layout="vertical" margin={CHART_MARGINS.barHorizontal}>
                   <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
                   <XAxis type="number" domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tick={CHART_AXIS.x} tickFormatter={(v) => `${v}%`} />

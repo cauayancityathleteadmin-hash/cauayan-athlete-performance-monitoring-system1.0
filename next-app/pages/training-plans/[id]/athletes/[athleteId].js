@@ -519,8 +519,8 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
               <div className={styles.detailPanel}>
                 <h4>Activity completion <small style={{ color: "var(--muted)", fontWeight: 400 }}>(per activity)</small></h4>
                 {activityCompletion.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={activityCompletion.length > 8 ? Math.max(CHART_HEIGHTS.barVertical, activityCompletion.length * 28) : CHART_HEIGHTS.barVertical}>
-                    <BarChart data={activityCompletion} layout="vertical" margin={CHART_MARGINS.barVertical}>
+                  <ResponsiveContainer width="100%" height={activityCompletion.length > 8 ? Math.max(CHART_HEIGHTS.barHorizontal, activityCompletion.length * 28) : CHART_HEIGHTS.barHorizontal}>
+                    <BarChart data={activityCompletion} layout="vertical" margin={CHART_MARGINS.barHorizontal}>
                       <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
                       <XAxis type="number" domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tick={CHART_AXIS.x} tickFormatter={(v) => `${v}%`} />
                       <YAxis type="category" dataKey="name" width={170} tick={CHART_AXIS.y} />
@@ -537,8 +537,8 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
         {fitnessDist.length > 1 && (
           <section className={styles.panel} id="distribution">
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Distribution</p><h2>Activities by fitness dimension</h2></div></div>
-            <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barVertical}>
-              <BarChart data={fitnessDist} layout="vertical" margin={CHART_MARGINS.barVertical}>
+            <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barHorizontal}>
+              <BarChart data={fitnessDist} layout="vertical" margin={CHART_MARGINS.barHorizontal}>
                 <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
                 <XAxis type="number" tick={CHART_AXIS.x} />
                 <YAxis type="category" dataKey="name" width={140} tick={CHART_AXIS.y} />

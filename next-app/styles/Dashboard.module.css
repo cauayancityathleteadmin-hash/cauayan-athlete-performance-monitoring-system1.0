@@ -858,6 +858,35 @@
   font: inherit;
 }
 
+.statRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  align-items: flex-end;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.stat strong {
+  font-size: clamp(28px, 4vw, 36px);
+  line-height: 1.1;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.statRow .statDanger {
+  color: var(--danger);
+}
+
+.stat small {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
 .grid {
   display: grid;
   grid-template-columns: 1fr;

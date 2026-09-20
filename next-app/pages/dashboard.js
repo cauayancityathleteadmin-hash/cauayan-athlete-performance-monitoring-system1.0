@@ -3,23 +3,9 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { useRouter } from "next/router";
 import { getSession, useSession } from "next-auth/react";
-import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
-  LineChart, Line,
-} from "recharts";
 import { prisma } from "../lib/prisma";
-import { Donut, HBars } from "../components/Charts";
-import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_COLORS } from "../lib/chart-config";
 import styles from "../styles/Dashboard.module.css";
 import AppShell from "../components/AppShell";
-
-const HEALTH_META = {
-  healthy: { label: "Healthy", color: "#2dd4a8" },
-  sick: { label: "Sick", color: "#f87171" },
-  injured: { label: "Injured", color: "#f59e0b" },
-  recovering: { label: "Recovering", color: "#38bdf8" },
-  inactive: { label: "Inactive", color: "#64748b" },
-};
 
 export async function getServerSideProps(context) {
   const session = await getSession(context);
@@ -34,7 +20,6 @@ export async function getServerSideProps(context) {
   };
   const todayWeek = weekStart(now);
   const firstBucket = new Date(todayWeek.getTime() - 7 * 7 * 86400000);
-  const ratingSince = new Date(now.getTime() - 90 * 86400000);
 
   const isAdmin = session.user.role === "admin";
   const canApprove = isAdmin || Boolean(session?.user?.canApproveCoaches);
@@ -54,7 +39,7 @@ export async function getServerSideProps(context) {
   const fromToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const nextWeek = new Date(fromToday.getTime() + 7 * 86400000);
 
-  const [athletes, coaches, sports, assessments, plans, logs, evals, healthIssues, trainingPlans, activityLogs, trainingAssessments, mySports, myApprovedPlans, pendingCoaches, upcomingSessions, coachEvals, healthByStatus, recentRatings, achievementsCount] = await Promise.all([
+  const [athletes, coaches, sports, assessments, plans, logs, evals, healthIssues, trainingPlans, activityLogs, trainingAssessments, mySports, myApprovedPlans, pendingCoaches, upcomingSessions, coachEvals, healthByStatus, achievementsCount] = await Promise.all([
     coachScope ? prisma.athlete.count({ where: coachScope }) : prisma.athlete.count(),
     prisma.coach.count(), prisma.sport.count(),
     coachScope ? prisma.assessment.count({ where: { athlete: coachScope } }) : prisma.assessment.count(),
@@ -87,7 +72,6 @@ export async function getServerSideProps(context) {
         ? prisma.coachPerformance.findMany({ where: { coachId: coachScope.coachId }, select: { coach: { select: { id: true, firstName: true, lastName: true } }, overallScore: true } })
         : Promise.resolve([]),
     coachScope ? prisma.athlete.groupBy({ by: ["healthStatus"], where: coachScope, _count: { _all: true } }) : prisma.athlete.groupBy({ by: ["healthStatus"], _count: { _all: true } }),
-    coachScope ? prisma.trainingAssessment.findMany({ where: { athlete: coachScope, assessmentDate: { gte: ratingSince } }, select: { rating: true } }) : prisma.trainingAssessment.findMany({ where: { assessmentDate: { gte: ratingSince } }, select: { rating: true } }),
     coachScope ? prisma.achievement.count({ where: { athlete: coachScope } }) : prisma.achievement.count(),
   ]);
 
@@ -110,14 +94,6 @@ export async function getServerSideProps(context) {
   }));
 
   const healthDist = healthByStatus.map((h) => ({ name: h.healthStatus, value: h._count._all }));
-  const ratingHistogram = (() => {
-    const counts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    for (const r of recentRatings) {
-      const n = Number(r.rating);
-      if (Number.isInteger(n) && n >= 1 && n <= 10) counts[n - 1] += 1;
-    }
-    return counts.map((value, i) => ({ rating: i + 1, value }));
-  })();
   const coachEvalAverages = (() => {
     const map = new Map();
     for (const e of coachEvals) {
@@ -138,16 +114,12 @@ export async function getServerSideProps(context) {
       completion: JSON.parse(JSON.stringify(buckets)),
       ratingSeries: JSON.parse(JSON.stringify(ratingSeries)),
       healthDist: JSON.parse(JSON.stringify(healthDist)),
-      ratingHistogram: JSON.parse(JSON.stringify(ratingHistogram)),
       coachEvalAverages: JSON.parse(JSON.stringify(coachEvalAverages)),
       achievementsCount,
       upcomingSessions: upcomingSessions.map((item) => ({ ...item, sessionDate: item.sessionDate.toISOString() })),
     },
   };
 }
-
-const weekLabel = (iso) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-const dateLabel = (iso) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 function Greeting({ greetingName }) {
   const h = new Date().getHours();
@@ -170,7 +142,7 @@ function FeatureCard({ eyebrow, title, href, children }) {
   );
 }
 
-export default function Dashboard({ stats, completion = [], ratingSeries = [], upcomingSessions = [], healthDist = [], ratingHistogram = [], coachEvalAverages = [], achievementsCount, greetingName }) {
+export default function Dashboard({ stats, completion = [], ratingSeries = [], upcomingSessions = [], healthDist = [], coachEvalAverages = [], achievementsCount, greetingName }) {
   const router = useRouter();
   const { data: session } = useSession();
   useEffect(() => {
@@ -193,21 +165,24 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
         ["My assessments", stats.assessments, "/assessments"],
         ["My approved applications", stats.myApprovedPlans, "/event-plans"],
       ];
-  const hasCompletion = (completion || []).some((w) => w.done > 0 || w.partial > 0 || w.missed > 0);
   const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
   const healthNote = stats.healthIssues > 0 ? `${stats.healthIssues} athlete${stats.healthIssues === 1 ? "" : "s"} flagged for health` : "";
-  const healthSegments = (healthDist || []).map((d) => ({
-    label: HEALTH_META[d.name]?.label || d.name,
-    value: d.value,
-    color: HEALTH_META[d.name]?.color || "#64748b",
-  }));
-  const histData = (ratingHistogram || []).filter((d) => d.value > 0).map((d) => ({ label: String(d.rating), value: d.value }));
   const evalsData = (coachEvalAverages || []).map((c) => ({ label: c.name, value: c.avg }));
+
+  // Simple summary stats for quick glance (no charts on Dashboard)
+  const totalActivities = (completion || []).reduce((sum, w) => sum + (w.done || 0) + (w.partial || 0) + (w.missed || 0), 0);
+  const totalDone = (completion || []).reduce((sum, w) => sum + (w.done || 0), 0);
+  const completionRate = totalActivities ? Math.round((totalDone / totalActivities) * 100) : 0;
+  const avgRating = ratingSeries.length ? (ratingSeries.reduce((sum, r) => sum + r.rating, 0) / ratingSeries.length).toFixed(1) : "—";
+  const healthHealthy = healthDist.find((h) => h.name === "healthy")?.value || 0;
+  const healthFlagged = (healthDist || []).filter((h) => ["sick", "injured", "recovering", "inactive"].includes(h.name)).reduce((sum, h) => sum + h.value, 0);
+  const coachAvgScore = evalsData.length ? (evalsData.reduce((sum, e) => sum + e.value, 0) / evalsData.length).toFixed(1) : "—";
+
   return <>
     <Head><title>Dashboard | Cauayan Athlete Performance</title><meta name="description" content="Athlete performance monitoring dashboard" /></Head>
     <AppShell session={session} isAdmin={isAdmin} active="/dashboard">
       <div className={styles.pageTitle}><h1>Dashboard</h1></div>
-      <section className={styles.intro}><div><p className={styles.eyebrow}>Overview</p><Greeting greetingName={greetingName} /><p>One summary of every feature in the system. Click any card or chart to dig in.</p></div></section>
+      <section className={styles.intro}><div><p className={styles.eyebrow}>Overview</p><Greeting greetingName={greetingName} /><p>One summary of every feature in the system. Click any card to dig in.</p></div></section>
       <section className={styles.cards} aria-label="System totals">{cards.map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>
       <section className={styles.cards} aria-label="Administration summary">{[["Training plans", stats.trainingPlans, "/training-plans"], ...(isAdmin ? [["Coach evaluations", stats.evals, "/admin/coach-performances"]] : []), ["Athletes with health flags", stats.healthIssues, "/athletes?health=flagged"], ["Open event plans", stats.plans, "/event-plans"]].map(([label, value, href]) => <Link className={styles.card} href={href} key={label}><span>{label}</span><strong>{value}</strong><small>View details</small></Link>)}</section>
       {(canApprove && stats.pendingCoaches > 0) || stats.healthIssues > 0 ? (
@@ -229,55 +204,42 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
           })}
         </section>
       )}
-      <section className={styles.panel}>
-        <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Completion</h2></div><Link href="/training-plans">Training</Link></div>
-        <p className={styles.formHint} style={{ marginTop: 0 }}>Last 8 weeks, from real activity logs.</p>
-        {hasCompletion ? (
-          <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barVertical}>
-            <BarChart data={completion || []} margin={CHART_MARGINS.barVertical}>
-              <CartesianGrid {...CHART_GRID.cartesian} />
-              <XAxis dataKey="when" tickFormatter={weekLabel} tick={CHART_AXIS.x} />
-              <YAxis allowDecimals={false} tick={CHART_AXIS.y} />
-              <Tooltip {...CHART_TOOLTIP} labelFormatter={weekLabel} formatter={(v, name) => [`${v}`, name]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
-              <Legend iconType="circle" wrapperStyle={{ color: "#9db6c7", fontSize: 12 }} />
-              <Bar dataKey="done" stackId="a" fill={CHART_COLORS.primary} name="Done" />
-              <Bar dataKey="partial" stackId="a" fill={CHART_COLORS.warning} name="Partial" />
-              <Bar dataKey="missed" stackId="a" fill={CHART_COLORS.danger} name="Missed" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : <p className={styles.empty}>No training activity recorded yet. Coaches will log assessments from each training plan.</p>}
-      </section>
       <section className={styles.grid}>
         <div className={styles.panel}>
-          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Ratings</p><h2>Ratings</h2></div><Link href="/assessments">Assessments</Link></div>
-          <p className={styles.formHint} style={{ marginTop: 0 }}>1–10 rating per assessment.</p>
-          {(ratingSeries || []).length >= 2 ? (
-            <ResponsiveContainer width="100%" height={CHART_HEIGHTS.line}>
-              <LineChart data={ratingSeries || []} margin={CHART_MARGINS.line}>
-                <CartesianGrid {...CHART_GRID.cartesian} />
-                <XAxis dataKey="when" tickFormatter={dateLabel} tick={CHART_AXIS.x} />
-                <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} tick={CHART_AXIS.y} />
-                <Tooltip {...CHART_TOOLTIP} labelFormatter={dateLabel} formatter={(v) => [`${v}/10`, "Rating"]} />
-                <Line type="monotone" dataKey="rating" stroke={CHART_COLORS.primary} strokeWidth={2} dot={{ fill: CHART_COLORS.primary, r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : <p className={styles.empty}>{ratingSeries.length ? "Add one more assessment to see the rating trend." : "No training assessments recorded yet."}</p>}
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Activity completion</h2></div><Link href="/training-plans">Training</Link></div>
+          <p className={styles.formHint} style={{ marginTop: 0 }}>Last 8 weeks.</p>
+          <div className={styles.statRow}>
+            <div className={styles.stat}><strong>{completionRate}%</strong><small>Completion rate</small></div>
+            <div className={styles.stat}><strong>{totalActivities}</strong><small>Activities logged</small></div>
+            <div className={styles.stat}><strong>{totalDone}</strong><small>Done</small></div>
+          </div>
         </div>
+        <div className={styles.panel}>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Ratings</h2></div><Link href="/assessments">Assessments</Link></div>
+          <p className={styles.formHint} style={{ marginTop: 0 }}>Latest 1–10 ratings.</p>
+          <div className={styles.statRow}>
+            <div className={styles.stat}><strong>{avgRating}</strong><small>Average rating</small></div>
+            <div className={styles.stat}><strong>{ratingSeries.length}</strong><small>Assessments</small></div>
+          </div>
+        </div>
+      </section>
+      <section className={styles.grid}>
         <div className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Health</p><h2>Status</h2></div><Link href="/athletes?health=flagged">Health flags</Link></div>
-          {healthSegments && healthSegments.length ? <Donut segments={healthSegments} ariaLabel="Share of athletes by health status" label="athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
-        </div>
-      </section>
-      <section className={styles.grid}>
-        <div className={styles.panel}>
-          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training &amp; assessment</p><h2>Rating distribution</h2></div><Link href="/training-plans">Training</Link></div>
-          <p className={styles.formHint} style={{ marginTop: 0 }}>Last 90 days — how often each 1–10 rating was given.</p>
-          {histData && histData.length ? <HBars data={histData} axisLabel="Rating" axisValue="Assessments" /> : <p className={styles.empty}>No training ratings in the last 90 days yet.</p>}
-        </div>
-        <div className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Coaches</p><h2>Averages</h2></div>{isAdmin ? <Link href="/admin/coach-performances">Evaluations</Link> : <span className={styles.formHint}>Your average</span>}</div>
-            {evalsData && evalsData.length ? <HBars data={evalsData} axisLabel={isAdmin ? "Coach" : "Your average"} axisValue="Avg" /> : <p className={styles.empty}>No coach evaluations on file yet.</p>}
+          <p className={styles.formHint} style={{ marginTop: 0 }}>Current roster.</p>
+          <div className={styles.statRow}>
+            <div className={styles.stat}><strong>{healthHealthy}</strong><small>Healthy</small></div>
+            <div className={styles.stat}><strong className={styles.statDanger}>{healthFlagged}</strong><small>Flagged</small></div>
           </div>
+        </div>
+        <div className={styles.panel}>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Coaching</p><h2>Coach average</h2></div>{isAdmin ? <Link href="/admin/coach-performances">Evaluations</Link> : <span className={styles.formHint}>Your average</span>}</div>
+          <p className={styles.formHint} style={{ marginTop: 0 }}>Performance score.</p>
+          <div className={styles.statRow}>
+            <div className={styles.stat}><strong>{coachAvgScore}</strong><small>Average score</small></div>
+            <div className={styles.stat}><strong>{evalsData.length}</strong><small>Coaches</small></div>
+          </div>
+        </div>
       </section>
       <section className={styles.gridAuto} aria-label="Feature summaries">
         <FeatureCard eyebrow="People" title="Athletes" href="/athletes">{plural(stats.athletes, "athlete")} registered{healthNote ? `, ${healthNote}` : ""}.</FeatureCard>

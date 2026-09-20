@@ -13,6 +13,7 @@ import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CH
 
 const STATUS_COLORS = { active: "#2dd4a8", inactive: "#64748b", pending: "#fbbf24", draft: "#64748b" };
 const GENDER_COLORS = { male: "#2dd4a8", female: "#f472b6", other: "#fbbf24", prefer_not_to_say: "#64748b" };
+const HEALTH_COLORS = { healthy: "#2dd4a8", sick: "#fbbf24", injured: "#f87171", recovering: "#fb923c", inactive: "#64748b" };
 const PALETTE = CHART_COLORS.palette;
 
 const KPI = ({ label, value }) => (
@@ -22,8 +23,8 @@ const KPI = ({ label, value }) => (
   </div>
 );
 
-const Donut = ({ segments, ariaLabel, label }) => {
-  if (!segments.length) return <p className={styles.empty}>No data</p>;
+const Donut = ({ segments, ariaLabel, label, emptyMessage }) => {
+  if (!segments.length) return <p className={styles.empty}>{emptyMessage || "No data yet"}</p>;
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHTS.pie}>
       <RadarChart data={segments} cx={120} cy={120} innerRadius={60} outerRadius={100}>
@@ -37,8 +38,8 @@ const Donut = ({ segments, ariaLabel, label }) => {
   );
 };
 
-const HBars = ({ data, axisLabel, axisValue, colors }) => {
-  if (!data.length) return <p className={styles.empty}>No data</p>;
+const HBars = ({ data, axisLabel, axisValue, colors, emptyMessage }) => {
+  if (!data.length) return <p className={styles.empty}>{emptyMessage || "No data yet"}</p>;
   const cells = colors ? data.map((d, i) => <Cell key={i} fill={colors[i % colors.length]} />) : null;
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barHorizontal}>
@@ -49,6 +50,38 @@ const HBars = ({ data, axisLabel, axisValue, colors }) => {
         <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v} ${axisValue}`, axisLabel]} />
         <Bar dataKey="value" radius={[0, 4, 4, 0]}>{cells}</Bar>
       </BarChart>
+    </ResponsiveContainer>
+  );
+};
+
+const VStacked = ({ data, categories, colors, emptyMessage }) => {
+  if (!data.length) return <p className={styles.empty}>{emptyMessage || "No data yet"}</p>;
+  return (
+    <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barVertical}>
+      <BarChart data={data} margin={CHART_MARGINS.barVertical}>
+        <CartesianGrid {...CHART_GRID.cartesian} />
+        <XAxis dataKey="name" tick={CHART_AXIS.x} interval={0} />
+        <YAxis tick={CHART_AXIS.y} allowDecimals={false} />
+        <Tooltip {...CHART_TOOLTIP} />
+        {categories.map((c, i) => (
+          <Bar key={c} dataKey={c} stackId="a" fill={colors[i % colors.length]} radius={i === categories.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+        ))}
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};
+
+const TrendLine = ({ data, dataKey, name, emptyMessage }) => {
+  if (!data.length) return <p className={styles.empty}>{emptyMessage || "No data yet"}</p>;
+  return (
+    <ResponsiveContainer width="100%" height={CHART_HEIGHTS.line}>
+      <LineChart data={data} margin={CHART_MARGINS.line}>
+        <CartesianGrid {...CHART_GRID.cartesian} />
+        <XAxis dataKey="name" tick={CHART_AXIS.x} interval="preserveStartEnd" minTickGap={36} />
+        <YAxis domain={[0, 10]} tick={CHART_AXIS.y} allowDecimals={false} />
+        <Tooltip {...CHART_TOOLTIP} />
+        <Line type="monotone" dataKey={dataKey} name={name} stroke={CHART_COLORS.primary} strokeWidth={2} dot={false} />
+      </LineChart>
     </ResponsiveContainer>
   );
 };
@@ -75,7 +108,17 @@ export async function getServerSideProps(context) {
   if (!session) return { redirect: { destination: "/login", permanent: false } };
   const isAdmin = session.user.role === "admin";
 
-  const [athletes, assessments, metrics, coaches, schools, events, sports, eventPlans, applications, participants] = await Promise.all([
+  const now = new Date();
+  const weekStart = (d) => {
+    const x = new Date(d);
+    x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+    x.setHours(0, 0, 0, 0);
+    return x;
+  };
+  const firstBucket = new Date(weekStart(now).getTime() - 7 * 7 * 86400000);
+  const ninetyDayStart = new Date(now.getTime() - 90 * 86400000);
+
+  const [athletes, assessments, metrics, coaches, schools, events, sports, eventPlans, applications, participants, activityLogs, trainingAssessments, healthByStatus] = await Promise.all([
     prisma.athlete.findMany({ where: { status: "active" }, include: { sport: true, event: true, school: true, coach: { select: { firstName: true, lastName: true, coachCode: true } }, _count: { select: { assessments: true } } }, orderBy: { lastName: "asc" } }),
     prisma.assessment.findMany({ include: { athlete: { select: { athleteCode: true, firstName: true, lastName: true, sport: true } }, recorder: { select: { email: true, username: true } }, results: { include: { metric: true } } }, orderBy: { assessmentDate: "desc" } }),
     prisma.performanceMetric.findMany({ include: { event: { include: { sport: true } } } }),
@@ -86,6 +129,9 @@ export async function getServerSideProps(context) {
     prisma.eventPlan.findMany(),
     prisma.eventApplication.findMany(),
     prisma.eventParticipant.findMany({ include: { eventPlan: true, sport: true, athlete: true } }),
+    prisma.planActivityLog.findMany({ where: { performedAt: { gte: firstBucket }, status: { in: ["done", "partial", "missed"] } }, select: { status: true, performedAt: true } }),
+    prisma.trainingAssessment.findMany({ where: { assessmentDate: { gte: ninetyDayStart } }, select: { rating: true, assessmentDate: true }, orderBy: { assessmentDate: "desc" } }),
+    prisma.athlete.groupBy({ by: ["healthStatus"], _count: { _all: true } }),
   ]);
 
   const kpi = {
@@ -177,6 +223,25 @@ export async function getServerSideProps(context) {
   const applicationsAgg = { total: applications.length, byStatus: Object.entries(applications.reduce((acc, a) => { acc[a.status] = (acc[a.status] || 0) + 1; return acc; }, {})).map(([name, value]) => ({ name, value })) };
   const participantsAgg = { total: participants.length, byType: Object.entries(participants.reduce((acc, p) => { const t = p.athlete ? "Athlete" : "Coach delegation"; acc[t] = (acc[t] || 0) + 1; return acc; }, {})).map(([name, value]) => ({ name, value })) };
 
+  const completionBuckets = [];
+  for (let i = 0; i < 8; i += 1) {
+    const b = new Date(firstBucket.getTime() + i * 7 * 86400000);
+    completionBuckets.push({ name: b.toLocaleDateString("en-US", { month: "short", day: "2-digit" }), done: 0, partial: 0, missed: 0 });
+  }
+  for (const log of activityLogs) {
+    const ws = weekStart(log.performedAt);
+    let idx = Math.round((ws.getTime() - firstBucket.getTime()) / 86400000 / 7);
+    if (idx < 0) idx = 0;
+    if (idx > 7) idx = 7;
+    completionBuckets[idx][log.status] += 1;
+  }
+
+  const ratingTrend = trainingAssessments.slice().reverse().map((r) => ({ name: new Date(r.assessmentDate).toLocaleDateString("en-US", { month: "short", day: "2-digit" }), rating: r.rating }));
+  const ratingDist = [];
+  for (let score = 1; score <= 10; score += 1) ratingDist.push({ name: String(score), value: trainingAssessments.filter((r) => r.rating === score).length });
+
+  const healthStatusDist = healthByStatus.map((h) => ({ name: h.healthStatus, value: h._count._all }));
+
   return {
     props: {
       session,
@@ -186,20 +251,24 @@ export async function getServerSideProps(context) {
       assessmentTypeDist, monthly, assessmentsPerAthlete, recentAssessments,
       averages, metricRanges, insights,
       coachSchoolDist, achievementTypeDist, eventPlans: eventPlansAgg, applications: applicationsAgg, participants: participantsAgg,
+      completionBuckets, ratingTrend, ratingDist, healthStatusDist,
     },
   };
 }
 
-export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist, genderDist, schoolDist, eventDist, coachDist, roster, assessmentTypeDist, monthly, assessmentsPerAthlete, recentAssessments, averages, metricRanges, insights, coachSchoolDist, achievementTypeDist, eventPlans, applications, participants }) {
+export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist, genderDist, schoolDist, eventDist, coachDist, roster, assessmentTypeDist, monthly, assessmentsPerAthlete, recentAssessments, averages, metricRanges, insights, coachSchoolDist, achievementTypeDist, eventPlans, applications, participants, completionBuckets, ratingTrend, ratingDist, healthStatusDist }) {
   const [openStatus, setOpenStatus] = React.useState({});
 
   const statusSegments = statusDist.map((item) => ({ ...item, color: STATUS_COLORS[item.name] || "#64748b" }));
   const genderSegments = genderDist.map((d) => ({ ...d, color: GENDER_COLORS[d.label.toLowerCase()] || "#64748b" }));
+  const healthSegments = healthStatusDist.map((item) => ({ ...item, color: HEALTH_COLORS[item.name] || "#64748b" }));
+  const healthFlags = healthStatusDist.filter((h) => ["sick", "injured", "recovering", "inactive"].includes(h.name)).map((h) => ({ name: cap(h.name), value: h.value }));
 
   const ANALYTICS_SECTIONS = [
     { label: "Athletes", sectionId: "athletes" },
     { label: "Assessments", sectionId: "assessments" },
     { label: "Measurements", sectionId: "measurements" },
+    { label: "Training", sectionId: "training" },
     ...(isAdmin ? [{ label: "Program", sectionId: "program" }] : []),
   ];
 
@@ -284,6 +353,17 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
                 </div>
               </div>
             </section>
+
+          <section className={styles.grid}>
+            <div className={styles.panel}>
+              <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Share by health status</h2></div></div>
+              <Donut segments={healthSegments} ariaLabel="Share of athletes by health status" label="athletes" emptyMessage="No athletes yet." />
+            </div>
+            <div className={styles.panel}>
+              <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Health flags</h2></div></div>
+              {healthFlags.length ? <HBars data={healthFlags} colors={[CHART_COLORS.warning, CHART_COLORS.danger, CHART_COLORS.accent, CHART_COLORS.muted]} axisLabel="Status" axisValue="Athletes" /> : <p className={styles.empty}>No athletes flagged.</p>}
+            </div>
+          </section>
           </section>
 
           <section id="assessments">
@@ -361,6 +441,35 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
               </section>
             </section>
           )}
+
+          <section id="training">
+            <section className={styles.grid}>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Activity completion — last 8 weeks</h2></div></div>
+                <VStacked data={completionBuckets} categories={["done", "partial", "missed"]} colors={[CHART_COLORS.primary, CHART_COLORS.warning, CHART_COLORS.danger]} emptyMessage="No activity logged yet." />
+              </div>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Ratings over time</h2></div></div>
+                <TrendLine data={ratingTrend} dataKey="rating" name="Rating" emptyMessage="No training ratings yet." />
+              </div>
+            </section>
+
+            <section className={styles.grid}>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Rating distribution — 90 days</h2></div></div>
+                <VStacked data={ratingDist} categories={["value"]} colors={[CHART_COLORS.primary]} emptyMessage="No training ratings yet." />
+              </div>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Completion snapshot</h2></div></div>
+                <p className={styles.formHint}>Done, partial and missed activity totals across the last 8 weeks.</p>
+                <div className={styles.statRow}>
+                  <div className={styles.stat}><strong>{completionBuckets.reduce((s, w) => s + w.done, 0)}</strong><small>Done</small></div>
+                  <div className={styles.stat}><strong>{completionBuckets.reduce((s, w) => s + w.partial, 0)}</strong><small>Partial</small></div>
+                  <div className={styles.stat}><strong className={styles.statDanger}>{completionBuckets.reduce((s, w) => s + w.missed, 0)}</strong><small>Missed</small></div>
+                </div>
+              </div>
+            </section>
+          </section>
         </PageSectionTabs>
       </AppShell>
     </>
