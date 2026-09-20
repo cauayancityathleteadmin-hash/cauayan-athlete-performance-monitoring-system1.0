@@ -3,13 +3,13 @@ import React from "react";
 import { getSession } from "next-auth/react";
 import {
   ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid,
-  LineChart, Line, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend,
+  LineChart, Line, PieChart, Pie, Legend,
 } from "recharts";
 import AppShell from "../components/AppShell";
 import PageSectionTabs from "../components/PageSectionTabs";
 import { prisma } from "../lib/prisma";
 import styles from "../styles/Dashboard.module.css";
-import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_COLORS } from "../lib/chart-config";
+import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, CHART_LEGEND, CHART_COLORS, shortAxisLabel } from "../lib/chart-config";
 
 const STATUS_COLORS = { active: "#2dd4a8", inactive: "#64748b", pending: "#fbbf24", draft: "#64748b" };
 const GENDER_COLORS = { male: "#2dd4a8", female: "#f472b6", other: "#fbbf24", prefer_not_to_say: "#64748b" };
@@ -23,17 +23,17 @@ const KPI = ({ label, value }) => (
   </div>
 );
 
-const Donut = ({ segments, ariaLabel, label, emptyMessage }) => {
+const Donut = ({ segments, emptyMessage }) => {
   if (!segments.length) return <p className={styles.empty}>{emptyMessage || "No data yet"}</p>;
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHTS.pie}>
-      <RadarChart data={segments} cx={120} cy={120} innerRadius={60} outerRadius={100}>
-        <PolarGrid {...CHART_GRID.polar} />
-        <PolarAngleAxis dataKey="name" tick={CHART_AXIS.polarAngle} />
-        <PolarRadiusAxis domain={[0, "auto"]} hide />
-        <Radar name={label} dataKey="value" stroke={CHART_COLORS.primary} fill={CHART_COLORS.primary} fillOpacity={0.35} />
+      <PieChart>
+        <Pie data={segments} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={95} paddingAngle={2}>
+          {segments.map((s, i) => <Cell key={i} fill={s.color || CHART_COLORS.palette[i % CHART_COLORS.palette.length]} />)}
+        </Pie>
         <Tooltip {...CHART_TOOLTIP} />
-      </RadarChart>
+        <Legend {...CHART_LEGEND} />
+      </PieChart>
     </ResponsiveContainer>
   );
 };
@@ -46,7 +46,7 @@ const HBars = ({ data, axisLabel, axisValue, colors, emptyMessage }) => {
       <BarChart data={data} layout="vertical" margin={CHART_MARGINS.barHorizontal}>
         <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
         <XAxis type="number" tick={CHART_AXIS.x} />
-        <YAxis type="category" dataKey="name" width={160} tick={{ ...CHART_AXIS.y, fontSize: 11 }} />
+        <YAxis type="category" dataKey="name" width={CHART_AXES.barCategory} tick={CHART_AXIS.y} tickFormatter={(v) => shortAxisLabel(v)} />
         <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v} ${axisValue}`, axisLabel]} />
         <Bar dataKey="value" radius={[0, 4, 4, 0]}>{cells}</Bar>
       </BarChart>
@@ -66,6 +66,7 @@ const VStacked = ({ data, categories, colors, emptyMessage }) => {
         {categories.map((c, i) => (
           <Bar key={c} dataKey={c} stackId="a" fill={colors[i % colors.length]} radius={i === categories.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
         ))}
+        <Legend {...CHART_LEGEND} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -295,14 +296,14 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
               </div>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Share by status</h2></div></div>
-                <Donut segments={statusSegments} ariaLabel="Share of athletes by status" label="athletes" />
+                <Donut segments={statusSegments} />
               </div>
             </section>
 
             <section className={styles.grid}>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by gender</h2></div></div>
-                {genderDist.length ? <Donut segments={genderSegments} ariaLabel="Share of athletes by gender" label="athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
+                {genderDist.length ? <Donut segments={genderSegments} /> : <p className={styles.empty}>No athletes yet.</p>}
               </div>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by school</h2></div></div>

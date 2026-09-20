@@ -4,15 +4,8 @@ import React from "react";
 import { getSession } from "next-auth/react";
 import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import AppShell from "../../components/AppShell";
-import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS } from "../../lib/chart-config";
+import { CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, CHART_COLORS, barChartHeight, completionColor } from "../../lib/chart-config";
 import styles from "../../styles/Dashboard.module.css";
-
-function percentColor(p) {
-  if (p == null) return "#64748b";
-  if (p >= 80) return "#2dd4a8";
-  if (p >= 50) return "#fbbf24";
-  return "#f87171";
-}
 
 export async function getServerSideProps(context) {
   const session = await getSession(context);
@@ -50,13 +43,13 @@ export default function ProgressRoster({ session, isAdmin }) {
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Completion</p><h2>Completion by athlete</h2></div></div>
             {chartData.length ? (
-              <ResponsiveContainer width="100%" height={chartData.length > 8 ? Math.max(CHART_HEIGHTS.barHorizontal, chartData.length * 28) : CHART_HEIGHTS.barHorizontal}>
+              <ResponsiveContainer width="100%" height={barChartHeight(chartData.length)}>
                 <BarChart data={chartData} layout="vertical" margin={CHART_MARGINS.barHorizontal}>
                   <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
                   <XAxis type="number" domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tick={CHART_AXIS.x} tickFormatter={(v) => `${v}%`} />
-                  <YAxis type="category" dataKey="name" width={180} tick={CHART_AXIS.y} />
+                  <YAxis type="category" dataKey="name" width={CHART_AXES.barCategory} tick={CHART_AXIS.y} />
                   <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l, p) => p?.[0]?.payload?.full || l} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
-                  <Bar dataKey="percent" radius={[0, 4, 4, 0]}>{chartData.map((d) => <Cell key={d.full} fill={percentColor(d.percent)} />)}</Bar>
+                  <Bar dataKey="percent" radius={[0, 4, 4, 0]}>{chartData.map((d) => <Cell key={d.full} fill={completionColor(d.percent)} />)}</Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : <p className={styles.empty}>Nothing to chart yet.</p>}
@@ -92,7 +85,7 @@ export default function ProgressRoster({ session, isAdmin }) {
                       <td data-label="Done" style={{ textAlign: "center" }}><strong style={{ color: "var(--accent)" }}>{r.completed}</strong></td>
                       <td data-label="Partial" style={{ textAlign: "center" }}><span style={{ color: "#ffc107" }}>{r.partial}</span></td>
                       <td data-label="Missed" style={{ textAlign: "center" }}><span style={{ color: r.missed > 0 ? "#f87171" : "var(--muted)" }}>{r.missed}</span></td>
-                      <td data-label="Completion" style={{ textAlign: "center" }}><strong style={{ color: percentColor(r.completionPercent) }}>{r.completionPercent}%</strong></td>
+                      <td data-label="Completion" style={{ textAlign: "center" }}><strong style={{ color: completionColor(r.completionPercent) }}>{r.completionPercent}%</strong></td>
                       <td data-label="Rating" style={{ textAlign: "center" }}>{r.rating != null ? r.rating : "—"}</td>
                       <td><button className={styles.secondary} onClick={() => router.push(`/training-plans/${r.planId}/athletes/${r.athleteId}`)}>View</button></td>
                     </tr>

@@ -6,6 +6,7 @@ import { getSession } from "next-auth/react";
 import { prisma } from "../../../lib/prisma";
 import AppShell from "../../../components/AppShell";
 import PageSectionTabs from "../../../components/PageSectionTabs";
+import { CHART_COLORS, CHART_GRID } from "../../../lib/chart-config";
 import styles from "../../../styles/Dashboard.module.css";
 
 export async function getServerSideProps(context) {
@@ -206,22 +207,22 @@ function MiniTrend({ points }) {
     <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: "auto", display: "block" }} role="img" aria-label="Progress trend chart">
       <defs>
         <linearGradient id="ptrend" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(45, 212, 168, 0.35)" />
-          <stop offset="100%" stopColor="rgba(45, 212, 168, 0.02)" />
+          <stop offset="0%" stopColor={CHART_COLORS.primary} stopOpacity={0.35} />
+          <stop offset="100%" stopColor={CHART_COLORS.primary} stopOpacity={0.02} />
         </linearGradient>
       </defs>
       {[0.1, 0.5, 0.9].map((fy) => (
-        <line key={fy} x1={padL} x2={w - padR} y1={padT + plotH * fy} y2={padT + plotH * fy} stroke="rgba(127, 199, 175, 0.12)" strokeWidth="1" />
+        <line key={fy} x1={padL} x2={w - padR} y1={padT + plotH * fy} y2={padT + plotH * fy} stroke={CHART_GRID.cartesian.stroke} strokeWidth="1" />
       ))}
       <path d={area} fill="url(#ptrend)" />
-      <path d={path} fill="none" stroke="#2dd4a8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={path} fill="none" stroke={CHART_COLORS.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       {coords.map((c, i) => {
         const n = coords.length;
         const showLabel = n <= 8 || i === 0 || i === n - 1 || i % Math.ceil(n / 8) === 0;
         return (
           <g key={i}>
-            <circle cx={c.x} cy={c.y} r="3" fill="#041f18" stroke="#2dd4a8" strokeWidth="2" />
-            {showLabel && <text x={c.x} y={h - 7} textAnchor="middle" fontSize="8" fill="var(--muted)">{c.p.when}</text>}
+            <circle cx={c.x} cy={c.y} r="3" fill="#041f18" stroke={CHART_COLORS.primary} strokeWidth="2" />
+            {showLabel && <text x={c.x} y={h - 7} textAnchor="middle" fontSize="9" fill="var(--muted)">{c.p.when}</text>}
           </g>
         );
       })}

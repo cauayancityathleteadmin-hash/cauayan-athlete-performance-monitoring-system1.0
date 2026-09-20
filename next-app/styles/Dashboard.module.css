@@ -2567,6 +2567,38 @@
   border-radius: var(--radius-lg);
 }
 
+/* ===== Chart layout (shared by every chart grid/panel) ===== */
+.panelBox {
+  margin: 0 !important;
+  min-width: 0;
+}
+
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.chartGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: var(--space-5);
+  align-items: stretch;
+  margin-bottom: var(--space-5);
+}
+
+.chartGrid:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 560px) {
+  .statGrid,
+  .chartGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .detailAthleteName {
   display: flex;
   flex-direction: column;

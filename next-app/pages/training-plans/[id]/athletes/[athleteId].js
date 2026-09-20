@@ -2,21 +2,19 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import React from "react";
 import { getSession } from "next-auth/react";
-import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, ReferenceLine, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, ReferenceLine, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
 import { METRIC_LABELS, resultFieldFor, resultUnitFor, targetValueFor } from "../../../../lib/activity-score";
 import { prisma } from "../../../../lib/prisma";
 import AppShell from "../../../../components/AppShell";
 import { AthleteActivitiesBlock } from "../../../../components/AthleteActivityManager";
 import PageSectionTabs from "../../../../components/PageSectionTabs";
 import styles from "../../../../styles/Dashboard.module.css";
-import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_COLORS } from "../../../../lib/chart-config";
+import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, CHART_COLORS, barChartHeight, completionColor, shortAxisLabel } from "../../../../lib/chart-config";
 
 const FITNESS_META = {
   endurance: "Endurance", strength: "Strength", power: "Power",
   speed_agility: "Speed / Agility", skill_technique: "Skill / Technique", mobility: "Mobility", recovery: "Recovery",
 };
-
-const CHART_PALETTE = ["#2dd4a8", "#86efac", "#14b8a6", "#34d399", "#4ade80", "#0d9488", "#5eead4", "#6ee7b7"];
 
 const ATHLETE_SECTIONS = [
   { label: "Overview", sectionId: "overview" },
@@ -28,13 +26,6 @@ const ATHLETE_SECTIONS = [
 function fmtDate(value) {
   const d = new Date(value);
   return isNaN(d) ? "—" : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-}
-
-function percentColor(p) {
-  if (p == null) return "#64748b";
-  if (p >= 80) return "#2dd4a8";
-  if (p >= 50) return "#fbbf24";
-  return "#f87171";
 }
 
 function trendBucketFor(activity, granularity) {
@@ -258,7 +249,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
   const fitnessDist = React.useMemo(() => {
     const map = new Map();
     for (const a of activities) map.set(a.fitnessType, (map.get(a.fitnessType) || 0) + 1);
-    return [...map.entries()].map(([k, count], i) => ({ name: FITNESS_META[k] || k, count, color: CHART_PALETTE[i % CHART_PALETTE.length] }));
+    return [...map.entries()].map(([k, count], i) => ({ name: FITNESS_META[k] || k, count, color: CHART_COLORS.palette[i % CHART_COLORS.palette.length] }));
   }, [activities]);
 
   const completionTrend = React.useMemo(() => {
@@ -345,9 +336,9 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
           </section>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16, marginBottom: "var(--space-5)" }} id="overview">
+        <div className={styles.statGrid} id="overview">
           <div className={styles.detailPanel}><h4>Planned activities</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{summary.total}</div></div>
-          <div className={styles.detailPanel}><h4>Completion</h4><div style={{ fontSize: 26, fontWeight: 800, color: percentColor(summary.completionPercent) }}>{summary.completionPercent}%</div><small style={{ color: "var(--muted)" }}>{summary.completed} done · {summary.partial} partial</small></div>
+          <div className={styles.detailPanel}><h4>Completion</h4><div style={{ fontSize: 26, fontWeight: 800, color: completionColor(summary.completionPercent) }}>{summary.completionPercent}%</div><small style={{ color: "var(--muted)" }}>{summary.completed} done · {summary.partial} partial</small></div>
           <div className={styles.detailPanel}><h4>Missed</h4><div style={{ fontSize: 26, fontWeight: 800, color: summary.missed > 0 ? "#f87171" : "var(--muted)" }}>{summary.missed}</div></div>
           <div className={styles.detailPanel}><h4>Coach rating</h4><div style={{ fontSize: 26, fontWeight: 800, color: summary.rating != null ? (summary.rating >= 7 ? "var(--accent)" : summary.rating >= 5 ? "#fbbf24" : "#f87171") : "var(--muted)" }}>{summary.rating != null ? `${summary.rating}/10` : "—"}</div>{summary.rating != null && summary.ratingDate ? <small style={{ color: "var(--muted)" }}>{fmtDate(summary.ratingDate)}</small> : <small style={{ color: "var(--muted)" }}>No assessment yet</small>}</div>
         </div>
@@ -387,7 +378,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
                           <td data-label="Fitness"><span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)", fontSize: 11 }}>{FITNESS_META[a.fitnessType] || a.fitnessType}</span></td>
                           <td data-label="Target">{(() => { if (a.metricType === "time" && a.targetTimeSec != null) return `${a.targetTimeSec} sec`; if (a.targetQuantity != null) return `${a.targetQuantity}${a.targetUnit ? ` ${a.targetUnit}` : ""}`; if (a.targetDistance != null) return `${a.targetDistance} m`; return "—"; })()}</td>
                           <td data-label="Status">{meta}{log?.performedAt ? <small> · {fmtDate(log.performedAt)}</small> : null}</td>
-                          <td data-label="Completion" style={{ textAlign: "center" }}>{a.completion ? <strong style={{ color: percentColor(a.completion.percent) }}>{a.completion.percent}%</strong> : "—"}</td>
+                          <td data-label="Completion" style={{ textAlign: "center" }}>{a.completion ? <strong style={{ color: completionColor(a.completion.percent) }}>{a.completion.percent}%</strong> : "—"}</td>
                           <td data-label="Attempts">{log?.attempts != null ? log.attempts : "—"}</td>
                           <td style={{ textAlign: "right", width: 40 }}>
                             <span style={{ fontSize: 14, color: "var(--muted)" }}>{isExpanded ? "▲" : "▼"}</span>
@@ -447,7 +438,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
         {activities.length > 0 && (
           <section className={styles.panel} id="trends">
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Trends</p><h2>Progress over time</h2></div></div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 16, alignItems: "stretch" }}>
+            <div className={styles.chartGrid}>
               <div className={styles.detailPanel}>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                   <h4 style={{ margin: 0 }}>Completion trend</h4>
@@ -519,13 +510,13 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
               <div className={styles.detailPanel}>
                 <h4>Activity completion <small style={{ color: "var(--muted)", fontWeight: 400 }}>(per activity)</small></h4>
                 {activityCompletion.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={activityCompletion.length > 8 ? Math.max(CHART_HEIGHTS.barHorizontal, activityCompletion.length * 28) : CHART_HEIGHTS.barHorizontal}>
+                  <ResponsiveContainer width="100%" height={barChartHeight(activityCompletion.length)}>
                     <BarChart data={activityCompletion} layout="vertical" margin={CHART_MARGINS.barHorizontal}>
                       <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
                       <XAxis type="number" domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tick={CHART_AXIS.x} tickFormatter={(v) => `${v}%`} />
-                      <YAxis type="category" dataKey="name" width={170} tick={CHART_AXIS.y} />
+                      <YAxis type="category" dataKey="name" width={CHART_AXES.barCategory} tick={CHART_AXIS.y} tickFormatter={(v) => shortAxisLabel(v)} />
                       <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}%`, "Completion"]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
-                      <Bar dataKey="percent" radius={[0, 4, 4, 0]}>{activityCompletion.map((act) => <Cell key={act.id} fill={act.hasLog ? percentColor(act.percent) : CHART_COLORS.muted} />)}</Bar>
+                      <Bar dataKey="percent" radius={[0, 4, 4, 0]}>{activityCompletion.map((act) => <Cell key={act.id} fill={act.hasLog ? completionColor(act.percent) : CHART_COLORS.muted} />)}</Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 ) : <p className={styles.empty}>No activities yet.</p>}
@@ -534,18 +525,20 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
           </section>
         )}
 
-        {fitnessDist.length > 1 && (
+{activities.length > 0 && (
           <section className={styles.panel} id="distribution">
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Distribution</p><h2>Activities by fitness dimension</h2></div></div>
-            <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barHorizontal}>
-              <BarChart data={fitnessDist} layout="vertical" margin={CHART_MARGINS.barHorizontal}>
-                <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
-                <XAxis type="number" tick={CHART_AXIS.x} />
-                <YAxis type="category" dataKey="name" width={140} tick={CHART_AXIS.y} />
-                <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v} activities`, "Count"]} />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]}>{fitnessDist.map((d) => <Cell key={d.name} fill={d.color} />)}</Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            {fitnessDist.length > 1 ? (
+              <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barHorizontal}>
+                <BarChart data={fitnessDist} layout="vertical" margin={CHART_MARGINS.barHorizontal}>
+                  <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
+                  <XAxis type="number" tick={CHART_AXIS.x} />
+                  <YAxis type="category" dataKey="name" width={CHART_AXES.barCategory} tick={CHART_AXIS.y} tickFormatter={(v) => shortAxisLabel(v)} />
+                  <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v} activities`, "Count"]} />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]}>{fitnessDist.map((d) => <Cell key={d.name} fill={d.color} />)}</Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <p className={styles.empty}>Add activities in more than one fitness dimension to see the distribution.</p>}
           </section>
         )}
       </PageSectionTabs>

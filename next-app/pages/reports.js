@@ -10,7 +10,7 @@ import { gsspData } from "../lib/gssp-cache";
 import AppShell from "../components/AppShell";
 import PageSectionTabs from "../components/PageSectionTabs";
 import styles from "../styles/Dashboard.module.css";
-import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_COLORS } from "../lib/chart-config";
+import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_LEGEND, CHART_COLORS } from "../lib/chart-config";
 
 export async function getServerSideProps(context) {
   const session = await getSession(context);
@@ -793,7 +793,7 @@ function PerformanceSummary({ athlete }) {
   const tone = ratingTone(latestRating);
 
   return (
-    <section className={styles.panel} style={{ marginBottom: 24, pageBreakInside: "avoid" }}>
+    <section className={styles.panel} style={{ marginBottom: "var(--space-5)", pageBreakInside: "avoid" }}>
       <div className={styles.panelHeader}>
         <div><p className={styles.eyebrow}>1-page summary</p><h2>Performance Summary — {athlete.lastName}, {athlete.firstName}</h2></div>
         <span className={`${styles.badge} ${athlete.healthStatus === "healthy" ? styles.badgeActive : ["injured", "sick"].includes(athlete.healthStatus) ? styles.badgeRejected : styles.badgePending}`}>{String(athlete.healthStatus || "—").replace("_", " ")}</span>
@@ -868,8 +868,8 @@ function PerformanceSummary({ athlete }) {
         <div className={styles.detailPanel}>
           <h4>Plan activity completion</h4>
           {completion.planned > 0 ? (
-            <ResponsiveContainer width="100%" height={CHART_HEIGHTS.small}>
-              <BarChart data={completionStack} layout="vertical" margin={CHART_MARGINS.barVertical}>
+            <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barStacked}>
+              <BarChart data={completionStack} layout="vertical" margin={CHART_MARGINS.barHorizontal}>
                 <XAxis type="number" hide />
                 <YAxis type="category" dataKey="name" hide />
                 <Tooltip {...CHART_TOOLTIP} formatter={(v, name) => [`${v}`, name]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
@@ -877,7 +877,7 @@ function PerformanceSummary({ athlete }) {
                 <Bar dataKey="partial" stackId="a" fill={CHART_COLORS.warning} name="Partial" />
                 <Bar dataKey="missed" stackId="a" fill={CHART_COLORS.danger} name="Missed" />
                 <Bar dataKey="open" stackId="a" fill={CHART_COLORS.muted} name="Open" radius={[0, 4, 4, 0]} />
-                <Legend iconType="circle" wrapperStyle={{ color: "#9db6c7", fontSize: 12 }} />
+                <Legend {...CHART_LEGEND} />
               </BarChart>
             </ResponsiveContainer>
           ) : <p className={styles.empty}>No planned activities yet.</p>}

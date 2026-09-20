@@ -12,7 +12,7 @@ import PageSectionTabs from "../../../components/PageSectionTabs";
 import { METRIC_LABELS, resultUnitFor, targetValueFor } from "../../../lib/activity-score";
 import AppShell from "../../../components/AppShell";
 import styles from "../../../styles/Dashboard.module.css";
-import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_COLORS } from "../../../lib/chart-config";
+import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, CHART_LEGEND, CHART_COLORS, barChartHeight, completionColor } from "../../../lib/chart-config";
 
 export async function getServerSideProps(context) {
   const session = await getSession(context);
@@ -252,7 +252,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
     const top = arr.slice(0, 5);
     const rest = arr.slice(5);
     if (rest.length) top.push({ key: "other", name: "Other", count: rest.reduce((s, r) => s + r.count, 0) });
-    return top.map((d, i) => ({ ...d, color: CHART_PALETTE[i % CHART_PALETTE.length] }));
+    return top.map((d, i) => ({ ...d, color: CHART_COLORS.palette[i % CHART_COLORS.palette.length] }));
   }, [activities]);
 
   const weekly = React.useMemo(() => {
@@ -315,56 +315,6 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
               <span className={styles.formHint} style={{ alignSelf: "center" }}>{plan.durationDays ? `${plan.durationDays} days` : plan.durationWeeks ? `${plan.durationWeeks} wks` : "No duration set"}</span>
             </div>
             <TrainingCharts plan={plan} athletes={athletes} activities={activities} logs={logs} perAthlete={perAthlete} barData={barData} fitnessDist={fitnessDist} weekly={weekly} overallCompletion={overallCompletion} />
-            
-            <div className="chartGrid" style={{ marginBottom: "var(--space-5)" }}>
-              <div className={`${styles.detailPanel} panelBox`}>
-                <h4>Completion by athlete <small style={{ color: "var(--muted)", fontWeight: 400 }}>(green ≥ 80%, yellow ≥ 50%, red &lt; 50%)</small></h4>
-                {perAthlete.length && perAthlete.some((r) => r.total > 0) ? (
-                  <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barHorizontal}>
-                    <BarChart data={barData} margin={CHART_MARGINS.barHorizontal}>
-                      <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
-                      <XAxis dataKey="name" tick={CHART_AXIS.x} />
-                      <YAxis domain={[0, 100]} ticks={[0,20,40,60,80,100]} tick={CHART_AXIS.y} tickFormatter={(v) => `${v}%`} />
-                      <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l, p) => p?.[0]?.payload?.full || l} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
-                      <Bar dataKey="percent" radius={[4, 4, 0, 0]}>{barData.map((d) => <Cell key={d.full} fill={percentColor(d.percent)} />)}</Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : <p className={styles.empty}>No planned activities yet.</p>}
-                {perAthlete.length > 20 && <small style={{ color: "var(--muted)" }}>Showing first 20 of {perAthlete.length} athletes.</small>}
-              </div>
-            </div>
-
-            <div className="chartGrid" style={{ marginBottom: "var(--space-5)" }}>
-              <div className={`${styles.detailPanel} panelBox`}>
-                <h4>Activities by fitness dimension</h4>
-                {fitnessDist.length ? (
-                  <ResponsiveContainer width="100%" height={CHART_HEIGHTS.pie}>
-                    <PieChart>
-                      <Pie data={fitnessDist} dataKey="count" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={95} paddingAngle={2}>
-                        {fitnessDist.map((s) => <Cell key={s.key} fill={s.color} />)}
-                      </Pie>
-                      <Tooltip {...CHART_TOOLTIP} formatter={(v, name) => [`${v} activities`, name]} />
-                      <Legend iconType="circle" wrapperStyle={{ color: "#9db6c7", fontSize: 12 }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : <p className={styles.empty}>No activities on this plan yet.</p>}
-              </div>
-
-              <div className={`${styles.detailPanel} panelBox`}>
-                <h4>Weekly completion trend</h4>
-                {weekly.some((w) => w.total > 0) ? (
-                  <ResponsiveContainer width="100%" height={CHART_HEIGHTS.line}>
-                    <LineChart data={weekly} margin={CHART_MARGINS.line}>
-                      <CartesianGrid {...CHART_GRID.cartesian} />
-                      <XAxis dataKey="week" tick={CHART_AXIS.x} tickFormatter={(v) => `W${v}`} />
-                      <YAxis domain={[0, 100]} ticks={[0,20,40,60,80,100]} tick={CHART_AXIS.y} tickFormatter={(v) => `${v}%`} />
-                      <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l) => `Week ${l}`} cursor={{ stroke: "rgba(45,212,168,0.4)" }} />
-                      <Line type="monotone" dataKey="percent" name="Completion" stroke={CHART_COLORS.primary} strokeWidth={2} dot={{ fill: CHART_COLORS.primary, r: 3 }} activeDot={{ r: 5 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : <p className={styles.empty}>No planned activities yet.</p>}
-              </div>
-            </div>
 
             {monitoringData && (
               <section className={styles.panel} style={{ marginTop: "var(--space-5)" }}>
@@ -1236,7 +1186,7 @@ function MonitoringGrid({ data, athletes, maxWeek, currentWeek, onWeekChange }) 
                                   <div key={a.id} title={`${a.activityName}${p ? ` · ${p.percent}% complete` : a.log ? ` · ${a.log.status}` : " · not started"}`} style={{ display: "flex", alignItems: "center", gap: 6, maxWidth: 170 }}>
                                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: "1 1 auto", textAlign: "left" }}>{a.activityName}</span>
                                     {p ? (
-                                      <strong style={{ color: percentColor(p.percent), flex: "0 0 auto" }}>{p.percent}%</strong>
+                                      <strong style={{ color: completionColor(p.percent), flex: "0 0 auto" }}>{p.percent}%</strong>
                                     ) : a.log ? (
                                       <span style={{ flex: "0 0 auto", fontSize: 9, textTransform: "uppercase", letterSpacing: 0.4, opacity: 0.8 }}>{a.log.status}</span>
                                     ) : (
@@ -1269,48 +1219,26 @@ function MonitoringGrid({ data, athletes, maxWeek, currentWeek, onWeekChange }) 
   );
 }
 
-const CHART_PALETTE = ["#2dd4a8", "#86efac", "#14b8a6", "#34d399", "#4ade80", "#0d9488", "#5eead4", "#6ee7b7"];
-
-function percentColor(p) {
-  if (p == null) return "#64748b";
-  if (p >= 80) return "#2dd4a8";
-  if (p >= 50) return "#fbbf24";
-  return "#f87171";
-}
-
-const chartTooltip = {
-  contentStyle: { background: "#06261e", border: "1px solid rgba(45,212,168,.35)", borderRadius: 8, fontSize: 12 },
-  labelStyle: { color: "#e7f7f1", fontWeight: 700 },
-  itemStyle: { color: "#9db6c7" },
-};
-
 function TrainingCharts({ plan, athletes, activities, logs, perAthlete, barData, fitnessDist, weekly, overallCompletion }) {
   return (
     <div>
-      <style jsx>{`
-        .statGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 20px; }
-        .chartGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; align-items: stretch; }
-        .panelBox { margin: 0 !important; min-width: 0; }
-        @media (max-width: 560px) { .statGrid, .chartGrid { grid-template-columns: 1fr; } }
-      `}</style>
-
-      <div className="statGrid">
-        <div className={`${styles.detailPanel} panelBox`}><h4>Athletes on plan</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{athletes.length}</div><small style={{ color: "var(--muted)" }}>{totalActivitiesLabel(activities)}</small></div>
-        <div className={`${styles.detailPanel} panelBox`}><h4>Overall completion</h4><div style={{ fontSize: 26, fontWeight: 800, color: percentColor(overallCompletion) }}>{overallCompletion}%</div><small style={{ color: "var(--muted)" }}>Across planned activities</small></div>
-        <div className={`${styles.detailPanel} panelBox`}><h4>Duration</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{plan.durationDays ? `${plan.durationDays}d` : plan.durationWeeks ? `${plan.durationWeeks}w` : "—"}</div><small style={{ color: "var(--muted)" }}>Plan length</small></div>
+      <div className={styles.statGrid}>
+        <div className={`${styles.detailPanel} ${styles.panelBox}`}><h4>Athletes on plan</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{athletes.length}</div><small style={{ color: "var(--muted)" }}>{totalActivitiesLabel(activities)}</small></div>
+        <div className={`${styles.detailPanel} ${styles.panelBox}`}><h4>Overall completion</h4><div style={{ fontSize: 26, fontWeight: 800, color: completionColor(overallCompletion) }}>{overallCompletion}%</div><small style={{ color: "var(--muted)" }}>Across planned activities</small></div>
+        <div className={`${styles.detailPanel} ${styles.panelBox}`}><h4>Duration</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{plan.durationDays ? `${plan.durationDays}d` : plan.durationWeeks ? `${plan.durationWeeks}w` : "—"}</div><small style={{ color: "var(--muted)" }}>Plan length</small></div>
       </div>
 
-      <div className="chartGrid" style={{ marginBottom: "var(--space-5)" }}>
-        <div className={`${styles.detailPanel} panelBox`}>
+      <div className={styles.chartGrid}>
+        <div className={`${styles.detailPanel} ${styles.panelBox}`}>
           <h4>Completion by athlete <small style={{ color: "var(--muted)", fontWeight: 400 }}>(green ≥ 80%, yellow ≥ 50%, red &lt; 50%)</small></h4>
           {perAthlete.length && perAthlete.some((r) => r.total > 0) ? (
-            <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barHorizontal}>
-              <BarChart data={barData} margin={CHART_MARGINS.barHorizontal}>
+            <ResponsiveContainer width="100%" height={barChartHeight(barData.length)}>
+              <BarChart data={barData} layout="vertical" margin={CHART_MARGINS.barHorizontal}>
                 <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
-                <XAxis dataKey="name" tick={CHART_AXIS.x} />
-                <YAxis domain={[0, 100]} ticks={[0,20,40,60,80,100]} tick={CHART_AXIS.y} tickFormatter={(v) => `${v}%`} />
+                <XAxis type="number" domain={[0, 100]} ticks={[0,20,40,60,80,100]} tick={CHART_AXIS.x} tickFormatter={(v) => `${v}%`} />
+                <YAxis type="category" dataKey="name" width={CHART_AXES.barCategory} tick={CHART_AXIS.y} />
                 <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l, p) => p?.[0]?.payload?.full || l} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
-                <Bar dataKey="percent" radius={[4, 4, 0, 0]}>{barData.map((d) => <Cell key={d.full} fill={percentColor(d.percent)} />)}</Bar>
+                <Bar dataKey="percent" name="Completion" radius={[0, 4, 4, 0]}>{barData.map((d) => <Cell key={d.full} fill={completionColor(d.percent)} />)}</Bar>
               </BarChart>
             </ResponsiveContainer>
           ) : <p className={styles.empty}>No planned activities yet.</p>}
@@ -1318,8 +1246,8 @@ function TrainingCharts({ plan, athletes, activities, logs, perAthlete, barData,
         </div>
       </div>
 
-      <div className="chartGrid" style={{ marginBottom: "var(--space-5)" }}>
-        <div className={`${styles.detailPanel} panelBox`}>
+      <div className={styles.chartGrid}>
+        <div className={`${styles.detailPanel} ${styles.panelBox}`}>
           <h4>Activities by fitness dimension</h4>
           {fitnessDist.length ? (
             <ResponsiveContainer width="100%" height={CHART_HEIGHTS.pie}>
@@ -1328,13 +1256,13 @@ function TrainingCharts({ plan, athletes, activities, logs, perAthlete, barData,
                   {fitnessDist.map((s) => <Cell key={s.key} fill={s.color} />)}
                 </Pie>
                 <Tooltip {...CHART_TOOLTIP} formatter={(v, name) => [`${v} activities`, name]} />
-                <Legend iconType="circle" wrapperStyle={{ color: "#9db6c7", fontSize: 12 }} />
+                <Legend {...CHART_LEGEND} />
               </PieChart>
             </ResponsiveContainer>
           ) : <p className={styles.empty}>No activities on this plan yet.</p>}
         </div>
 
-        <div className={`${styles.detailPanel} panelBox`}>
+        <div className={`${styles.detailPanel} ${styles.panelBox}`}>
           <h4>Weekly completion trend</h4>
           {weekly.some((w) => w.total > 0) ? (
             <ResponsiveContainer width="100%" height={CHART_HEIGHTS.line}>
@@ -1423,7 +1351,7 @@ function AthleteRosterRow({ plan, row, isAdmin }) {
         <td data-label="Completion">
           {row.total === 0 ? <span className={styles.formHint} style={{ color: "var(--muted)" }}>No activities planned</span> : (
             <div>
-              <strong style={{ color: percentColor(row.percent), fontSize: 16 }}>{row.percent}%</strong>
+              <strong style={{ color: completionColor(row.percent), fontSize: 16 }}>{row.percent}%</strong>
               <small style={{ color: "var(--muted)", marginLeft: 6 }}>{row.done} done · {row.partial} partial · {row.missed} missed</small>
             </div>
           )}
