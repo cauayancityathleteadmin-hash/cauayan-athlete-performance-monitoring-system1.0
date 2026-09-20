@@ -30,14 +30,14 @@ export async function getServerSideProps(context) {
 }
 
 const STATUS_META = {
-  draft: { label: "Draft", color: "#d6b26e", background: "rgba(214, 178, 110, .14)" },
+  draft: { label: "Draft", color: "var(--warning-dark)", background: "rgba(214, 178, 110, .14)" },
   open: { label: "Open", color: "var(--accent)", background: "rgba(45, 212, 168, .16)" },
-  closed: { label: "Closed", color: "#9db6c7", background: "rgba(157, 182, 199, .14)" },
-  cancelled: { label: "Cancelled", color: "#f87171", background: "rgba(248, 113, 113, .14)" },
+  closed: { label: "Closed", color: "var(--muted)", background: "rgba(134, 238, 172, .14)" },
+  cancelled: { label: "Cancelled", color: "var(--danger)", background: "rgba(248, 113, 113, .14)" },
 };
 
 function StatusChip({ status }) {
-  const meta = STATUS_META[status] || { label: status, color: "#9db6c7", background: "rgba(157, 182, 199, .14)" };
+  const meta = STATUS_META[status] || { label: status, color: "var(--muted)", background: "rgba(134, 238, 172, .14)" };
   return <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase", background: meta.background, color: meta.color, whiteSpace: "nowrap" }}>{meta.label}</span>;
 }
 

@@ -754,9 +754,9 @@ function shortDate(iso) {
 }
 
 function ratingTone(r) {
-  if (r == null) return { color: "#64748b" };
+  if (r == null) return { color: CHART_COLORS.muted };
   if (r >= 8) return { color: "var(--accent)" };
-  if (r >= 6) return { color: "#facc15" };
+  if (r >= 6) return { color: CHART_COLORS.warning };
   return { color: "var(--danger)" };
 }
 
@@ -814,7 +814,7 @@ function PerformanceSummary({ athlete }) {
         </div>
         <div className={styles.detailPanel}>
           <h4>Plan completion rate</h4>
-          <div style={{ fontSize: 30, fontWeight: 800, color: completion.percent == null ? "var(--muted)" : completion.percent >= 80 ? "var(--accent)" : completion.percent >= 50 ? "#facc15" : "var(--danger)" }}>
+          <div style={{ fontSize: 30, fontWeight: 800, color: completion.percent == null ? "var(--muted)" : completion.percent >= 80 ? "var(--accent)" : completion.percent >= 50 ? "var(--warning)" : "var(--danger)" }}>
             {completion.percent != null ? `${completion.percent}%` : "—"}
           </div>
           <small style={{ color: "var(--muted)" }}>{completion.planned} planned activit{completion.planned === 1 ? "y" : "ies"}</small>

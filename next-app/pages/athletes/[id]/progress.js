@@ -222,7 +222,7 @@ function MiniTrend({ points }) {
         return (
           <g key={i}>
             <circle cx={c.x} cy={c.y} r="3" fill="#041f18" stroke={CHART_COLORS.primary} strokeWidth="2" />
-            {showLabel && <text x={c.x} y={h - 7} textAnchor="middle" fontSize="9" fill="var(--muted)">{c.p.when}</text>}
+            {showLabel && <text x={c.x} y={h - 7} textAnchor="middle" fontSize="9" fill={CHART_COLORS.text}>{c.p.when}</text>}
           </g>
         );
       })}
@@ -241,8 +241,8 @@ function Stat({ label, value, sub }) {
 }
 
 function RatingChip({ rating }) {
-  const tone = rating >= 8 ? "rgba(45,212,168,.16)" : rating >= 6 ? "rgba(250,204,21,.16)" : "rgba(248,113,113,.16)";
-  const color = rating >= 8 ? "var(--accent)" : rating >= 6 ? "#facc15" : "var(--danger)";
+  const tone = rating >= 8 ? "rgba(45,212,168,.16)" : rating >= 6 ? "rgba(251,191,36,.16)" : "rgba(248,113,113,.16)";
+  const color = rating >= 8 ? "var(--accent)" : rating >= 6 ? "var(--warning)" : "var(--danger)";
   return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 12, fontSize: 12, fontWeight: 700, background: tone, color }}>{rating}<small style={{ fontSize: 9, opacity: .7 }}>/10</small></span>;
 }
 

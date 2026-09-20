@@ -160,13 +160,13 @@ function LineChart({ points }) {
         return (
           <g key={i}>
             <circle cx={c.x} cy={c.y} r="3.2" fill="#041f18" stroke={CHART_COLORS.primary} strokeWidth="2" />
-            {showLabel && <text x={c.x} y={h - 8} textAnchor="middle" fontSize="9" fill="var(--muted)">{c.p.when}</text>}
+            {showLabel && <text x={c.x} y={h - 8} textAnchor="middle" fontSize="9" fill={CHART_COLORS.text}>{c.p.when}</text>}
           </g>
         );
       })}
-      {labelVals.map((v, i) => {
+{labelVals.map((v, i) => {
         const y = padT + (i * (plotH / 2));
-        return <text key={i} x={w - padR} y={y + 3} textAnchor="end" fontSize="9" fill="var(--muted)">{v}</text>;
+        return <text key={i} x={w - padR} y={y + 3} textAnchor="end" fontSize="9" fill={CHART_COLORS.text}>{v}</text>;
       })}
     </svg>
   );

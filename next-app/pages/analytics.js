@@ -11,9 +11,9 @@ import { prisma } from "../lib/prisma";
 import styles from "../styles/Dashboard.module.css";
 import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, CHART_LEGEND, CHART_COLORS, shortAxisLabel } from "../lib/chart-config";
 
-const STATUS_COLORS = { active: "#2dd4a8", inactive: "#64748b", pending: "#fbbf24", draft: "#64748b" };
-const GENDER_COLORS = { male: "#2dd4a8", female: "#f472b6", other: "#fbbf24", prefer_not_to_say: "#64748b" };
-const HEALTH_COLORS = { healthy: "#2dd4a8", sick: "#fbbf24", injured: "#f87171", recovering: "#fb923c", inactive: "#64748b" };
+const STATUS_COLORS = { active: CHART_COLORS.primary, inactive: CHART_COLORS.muted, pending: CHART_COLORS.warning, draft: CHART_COLORS.muted };
+const GENDER_COLORS = { male: CHART_COLORS.primary, female: "#f472b6", other: CHART_COLORS.warning, prefer_not_to_say: CHART_COLORS.muted };
+const HEALTH_COLORS = { healthy: CHART_COLORS.primary, sick: CHART_COLORS.warning, injured: CHART_COLORS.danger, recovering: "#d6b26e", inactive: CHART_COLORS.muted };
 const PALETTE = CHART_COLORS.palette;
 
 const KPI = ({ label, value }) => (
@@ -260,9 +260,9 @@ export async function getServerSideProps(context) {
 export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist, genderDist, schoolDist, eventDist, coachDist, roster, assessmentTypeDist, monthly, assessmentsPerAthlete, recentAssessments, averages, metricRanges, insights, coachSchoolDist, achievementTypeDist, eventPlans, applications, participants, completionBuckets, ratingTrend, ratingDist, healthStatusDist }) {
   const [openStatus, setOpenStatus] = React.useState({});
 
-  const statusSegments = statusDist.map((item) => ({ ...item, color: STATUS_COLORS[item.name] || "#64748b" }));
-  const genderSegments = genderDist.map((d) => ({ ...d, color: GENDER_COLORS[d.label.toLowerCase()] || "#64748b" }));
-  const healthSegments = healthStatusDist.map((item) => ({ ...item, color: HEALTH_COLORS[item.name] || "#64748b" }));
+  const statusSegments = statusDist.map((item) => ({ ...item, color: STATUS_COLORS[item.name] || CHART_COLORS.muted }));
+  const genderSegments = genderDist.map((d) => ({ ...d, color: GENDER_COLORS[d.label.toLowerCase()] || CHART_COLORS.muted }));
+  const healthSegments = healthStatusDist.map((item) => ({ ...item, color: HEALTH_COLORS[item.name] || CHART_COLORS.muted }));
   const healthFlags = healthStatusDist.filter((h) => ["sick", "injured", "recovering", "inactive"].includes(h.name)).map((h) => ({ name: cap(h.name), value: h.value }));
 
   const ANALYTICS_SECTIONS = [
@@ -332,7 +332,7 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
                     return (
                       <div key={item.name} className={styles.statusBlock}>
                         <button type="button" className={styles.statusToggle} aria-expanded={expanded} onClick={() => setOpenStatus((current) => ({ ...current, [item.name]: !expanded }))}>
-                          <span className={styles.statusDot} style={{ background: STATUS_COLORS[item.name] || "#64748b" }} />
+                          <span className={styles.statusDot} style={{ background: STATUS_COLORS[item.name] || CHART_COLORS.muted }} />
                           <span className={styles.statusName}>{cap(item.name)}</span>
                           <span className={styles.statusCount}>{item.value}</span>
                           <span className={styles.statusChevron}>{expanded ? "▲" : "▼"}</span>

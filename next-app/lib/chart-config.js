@@ -50,8 +50,8 @@ export const CHART_TOOLTIP = {
     borderRadius: 8,
     fontSize: 12,
   },
-  labelStyle: { color: "#e7f7f1", fontWeight: 700 },
-  itemStyle: { color: "#9db6c7" },
+  labelStyle: { color: "#f0fdf4", fontWeight: 700 },
+  itemStyle: { color: "#86efac" },
 };
 
 export const CHART_GRID = {
@@ -64,11 +64,14 @@ export const CHART_GRID = {
   },
 };
 
+/* Tick/label fills use the theme's muted green (#86efac = var(--muted)); on the dark
+   panels it reads as secondary text, exactly like the rest of the UI. */
+
 export const CHART_AXIS = {
-  x: { tick: { fill: "#9db6c7", fontSize: 12 } },
-  y: { tick: { fill: "#9db6c7", fontSize: 12 } },
-  polarAngle: { tick: { fill: "#9db6c7", fontSize: 11 } },
-  polarRadius: { tick: { fill: "#9db6c7", fontSize: 10 } },
+  x: { tick: { fill: "#86efac", fontSize: 12 } },
+  y: { tick: { fill: "#86efac", fontSize: 12 } },
+  polarAngle: { tick: { fill: "#86efac", fontSize: 11 } },
+  polarRadius: { tick: { fill: "#86efac", fontSize: 10 } },
 };
 
 export const CHART_AXES = {
@@ -78,17 +81,19 @@ export const CHART_AXES = {
 export const CHART_LEGEND = {
   iconType: "circle",
   verticalAlign: "bottom",
-  wrapperStyle: { color: "#9db6c7", fontSize: 12 },
+  wrapperStyle: { color: "#86efac", fontSize: 12 },
+  formatter: (value) => String(value == null ? "" : value).charAt(0).toUpperCase() + String(value == null ? "" : value).slice(1),
 };
 
 export const CHART_COLORS = {
-  primary: "#2dd4a8",
-  secondary: "#86efac",
-  accent: "#14b8a6",
-  warning: "#fbbf24",
-  danger: "#f87171",
-  muted: "#64748b",
-  palette: ["#2dd4a8", "#86efac", "#14b8a6", "#34d399", "#4ade80", "#0d9488", "#5eead4", "#6ee7b7"],
+  primary: "#2dd4a8", // --accent (main system color)
+  secondary: "#86efac", // --muted
+  accent: "#5eead4", // --accent-hover
+  warning: "#fbbf24", // --warning
+  danger: "#f87171", // --danger
+  text: "#86efac", // --muted (chart label/tick/legend text)
+  muted: "#428763", // theme-derived neutral: var(--muted) at 45% over var(--panel) #0a3228
+  palette: ["#2dd4a8", "#86efac", "#5eead4", "#34d399", "#4ade80", "#0d9488", "#5eead4", "#6ee7b7"],
 };
 
 /* Height for horizontal bars with many rows: grows past the base height

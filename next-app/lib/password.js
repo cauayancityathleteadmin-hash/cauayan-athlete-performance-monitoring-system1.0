@@ -48,9 +48,9 @@ export function checkPasswordStrength(password) {
 export function getPasswordStrengthColor(score) {
   switch (score) {
     case 4: return "var(--accent)";
-    case 3: return "#84cc16";
-    case 2: return "#fbbf24";
-    case 1: return "#fb923c";
+    case 3: return "var(--success)";
+    case 2: return "var(--warning)";
+    case 1: return "var(--warning-dark)";
     default: return "var(--danger)";
   }
 }

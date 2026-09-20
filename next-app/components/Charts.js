@@ -1,6 +1,6 @@
 import styles from "../styles/Dashboard.module.css";
 
-export const PALETTE = ["#2dd4a8", "#86efac", "#14b8a6", "#34d399", "#4ade80", "#0d9488", "#5eead4", "#6ee7b7", "#a7f3d0", "#059669"];
+export const PALETTE = ["#2dd4a8", "#86efac", "#5eead4", "#34d399", "#4ade80", "#0d9488", "#5eead4", "#6ee7b7", "#a7f3d0", "#059669"];
 
 export function HBars({ data, colors = PALETTE, axisLabel = "", axisValue = "" }) {
   const list = data || [];

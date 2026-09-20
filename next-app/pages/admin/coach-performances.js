@@ -75,7 +75,7 @@ function CoachTrend({ points }) {
         return (
           <g key={i}>
             <circle cx={c.x} cy={c.y} r="3" fill="#041f18" stroke={CHART_COLORS.primary} strokeWidth="2" />
-            {showLabel && <text x={c.x} y={h - 7} textAnchor="middle" fontSize="9" fill="var(--muted)">{c.p.when}</text>}
+            {showLabel && <text x={c.x} y={h - 7} textAnchor="middle" fontSize="9" fill={CHART_COLORS.text}>{c.p.when}</text>}
           </g>
         );
       })}

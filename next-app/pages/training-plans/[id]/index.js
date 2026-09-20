@@ -829,7 +829,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
         .dotBtn { width: 36px; height: 32px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255,255,255,.04); color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; transition: .12s; flex: 0 0 auto; }
         .dotBtn:hover { border-color: rgba(45,212,168,.6); color: var(--foreground); }
         .dotBtn.on { background: rgba(45,212,168,.2); color: var(--accent); border-color: rgba(45,212,168,.5); }
-        .dotBtn.part { background: rgba(255,193,7,.18); color: #ffc107; border-color: rgba(255,193,7,.45); }
+        .dotBtn.part { background: rgba(251,191,36,.18); color: #fbbf24; border-color: rgba(251,191,36,.45); }
         .dotBtn.miss { background: rgba(248,113,113,.16); color: #f87171; border-color: rgba(248,113,113,.45); }
         .dotBtn.touchedD { outline: 1px solid rgba(45,212,168,.4); }
         .qtyIn { width: 72px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255,255,255,.04); color: var(--foreground); font-size: 13px; }
@@ -1064,8 +1064,8 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                     {entries.map((en) => (
                       <span key={en.ds} className="revChip">
                         <span style={{ fontWeight: 600 }}>{fmtDate(en.ds + "T00:00:00Z")}</span>
-                        <span style={{ color: en.status === "done" ? "var(--accent)" : en.status === "partial" ? "#ffc107" : en.status === "missed" ? "#f87171" : "var(--muted)", textTransform: "capitalize" }}>{en.status || "—"}</span>
-                        {en.pending && <small style={{ color: "#ffc107" }}>to be saved</small>}
+                        <span style={{ color: en.status === "done" ? "var(--accent)" : en.status === "partial" ? "var(--warning)" : en.status === "missed" ? "#f87171" : "var(--muted)", textTransform: "capitalize" }}>{en.status || "—"}</span>
+                        {en.pending && <small style={{ color: "var(--warning)" }}>to be saved</small>}
                         {en.photo && en.photo.url ? (
                           <img src={en.photo.url} alt="Evidence" className="revThumb" onClick={() => setShowLightbox(en.photo)} />
                         ) : <span style={{ color: "var(--muted)" }}>no photo</span>}
@@ -1211,7 +1211,7 @@ function MonitoringGrid({ data, athletes, maxWeek, currentWeek, onWeekChange }) 
       <style jsx>{`
         .day-badge { display: inline-block; min-width: 48px; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; }
         .day-done { background: rgba(45,212,168,.2); color: var(--accent); border: 1px solid rgba(45,212,168,.4); }
-        .day-partial { background: rgba(255,193,7,.2); color: #ffc107; border: 1px solid rgba(255,193,7,.4); }
+        .day-partial { background: rgba(251,191,36,.2); color: #fbbf24; border: 1px solid rgba(251,191,36,.4); }
         .day-pending { background: rgba(26,92,74,.1); color: var(--muted); border: 1px solid rgba(26,92,74,.2); }
         .day-none { background: transparent; color: var(--muted); border: 1px dashed var(--border); }
       `}</style>

@@ -83,8 +83,8 @@ export default function ProgressRoster({ session, isAdmin }) {
                       <td data-label="Plan">{r.planName}</td>
                       <td data-label="Planned" style={{ textAlign: "center" }}>{r.total}</td>
                       <td data-label="Done" style={{ textAlign: "center" }}><strong style={{ color: "var(--accent)" }}>{r.completed}</strong></td>
-                      <td data-label="Partial" style={{ textAlign: "center" }}><span style={{ color: "#ffc107" }}>{r.partial}</span></td>
-                      <td data-label="Missed" style={{ textAlign: "center" }}><span style={{ color: r.missed > 0 ? "#f87171" : "var(--muted)" }}>{r.missed}</span></td>
+                      <td data-label="Partial" style={{ textAlign: "center" }}><span style={{ color: "var(--warning)" }}>{r.partial}</span></td>
+                      <td data-label="Missed" style={{ textAlign: "center" }}><span style={{ color: r.missed > 0 ? "var(--danger)" : "var(--muted)" }}>{r.missed}</span></td>
                       <td data-label="Completion" style={{ textAlign: "center" }}><strong style={{ color: completionColor(r.completionPercent) }}>{r.completionPercent}%</strong></td>
                       <td data-label="Rating" style={{ textAlign: "center" }}>{r.rating != null ? r.rating : "—"}</td>
                       <td><button className={styles.secondary} onClick={() => router.push(`/training-plans/${r.planId}/athletes/${r.athleteId}`)}>View</button></td>

@@ -693,8 +693,8 @@
   color: var(--success);
 }
 .badgeMuted {
-  background: rgba(148, 163, 184, .16);
-  color: #94a3b8;
+  background: rgba(134, 238, 172, .16);
+  color: var(--muted);
 }
 
 .progressCell {
@@ -723,7 +723,7 @@
 
 .pagination span {
   font-size: 13px;
-  color: #94a3b8;
+  color: var(--muted);
 }
 
 .pagination a {
@@ -2119,7 +2119,7 @@
 .hbars {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-4);
 }
 
 .hbarsAxis {
@@ -2153,7 +2153,7 @@
 }
 
 .hbarLabel small {
-  color: #86efac;
+  color: var(--muted);
   font-size: 12px;
 }
 
@@ -2176,7 +2176,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
+  gap: var(--space-4);
 }
 
 .donutSvgWrap {
@@ -2798,7 +2798,7 @@
 .badge-success { background: rgba(52, 211, 153, .18); color: var(--success); }
 .badge-warning { background: rgba(251, 191, 36, .18); color: var(--warning); }
 .badge-danger { background: rgba(248, 113, 113, .18); color: var(--danger); }
-.badge-muted { background: rgba(148, 163, 184, .16); color: #94a3b8; }
+.badge-muted { background: rgba(134, 238, 172, .16); color: var(--muted); }
 .badge-accent { background: rgba(45, 212, 168, .16); color: var(--accent); }
 
 /* Grid utilities */
