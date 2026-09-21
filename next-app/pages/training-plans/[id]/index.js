@@ -69,6 +69,17 @@ export async function getServerSideProps(context) {
   });
   const monitoring = buildMonitoringGrid({ activities: monitoringActivities, planAthletes, week: 1 });
 
+  // Latest training-assessment rating per athlete on this plan (for the roster)
+  const ratingRows = await prisma.trainingAssessment.findMany({
+    where: { planId: id },
+    orderBy: { assessmentDate: "desc" },
+    select: { athleteId: true, rating: true },
+  });
+  const latestRatings = {};
+  for (const r of ratingRows) {
+    if (latestRatings[r.athleteId] == null) latestRatings[r.athleteId] = r.rating;
+  }
+
   return {
     props: {
       session,
@@ -89,6 +100,7 @@ export async function getServerSideProps(context) {
           ...monitoring,
         })
       ),
+      latestRatings: JSON.parse(JSON.stringify(latestRatings)),
     },
   };
 }
@@ -153,7 +165,7 @@ function blobToBase64(blob) {
   });
 }
 
-export default function PlanDetail({ session, isAdmin, plan, athletes, initialActivities = [], initialLogs = [], initialMonitoringData = null }) {
+export default function PlanDetail({ session, isAdmin, plan, athletes, initialActivities = [], initialLogs = [], initialMonitoringData = null, latestRatings = {} }) {
   const router = useRouter();
   const [activities, setActivities] = React.useState(initialActivities);
   const [logs, setLogs] = React.useState(initialLogs);
@@ -371,7 +383,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
             {loading ? <p className={styles.empty}>Loading plan details...</p> : error ? <p className={styles.empty}>{error}</p> : athletes.length === 0 ? (
               <p className={styles.empty}>No athletes on this plan.</p>
             ) : (
-              <AthleteRosterTable plan={plan} athletes={athletes} activities={activities} logs={logs} isAdmin={isAdmin} />
+              <AthleteRosterTable plan={plan} athletes={athletes} activities={activities} logs={logs} isAdmin={isAdmin} latestRatings={latestRatings} />
             )}
           </section>
         </PageSectionTabs>
@@ -1293,7 +1305,7 @@ const HEALTH_BADGE = {
   inactive: { cls: "badgeMuted", label: "Inactive" },
 };
 
-function AthleteRosterTable({ plan, athletes, activities, logs, isAdmin }) {
+function AthleteRosterTable({ plan, athletes, activities, logs, isAdmin, latestRatings = {} }) {
   const rows = athletes.map((a) => {
     const acts = activities.filter((act) => act.athleteId === a.id);
     let done = 0, partial = 0, missed = 0, open = 0;
@@ -1310,7 +1322,7 @@ function AthleteRosterTable({ plan, athletes, activities, logs, isAdmin }) {
     const percent = total ? Math.round(((done + partial) / total) * 100) : 0;
     const myLogs = logs.filter((l) => l.athleteId === a.id);
     const lastSession = myLogs.length ? [...myLogs].sort((x, y) => new Date(y.performedAt) - new Date(x.performedAt))[0].performedAt : null;
-    return { ...a, total, done, partial, missed, open, percent, lastSession };
+    return { ...a, total, done, partial, missed, open, percent, lastSession, rating: latestRatings[a.id] ?? null };
   });
 
   return (
@@ -1322,6 +1334,7 @@ function AthleteRosterTable({ plan, athletes, activities, logs, isAdmin }) {
             <th>Sport</th>
             <th>Health</th>
             <th>Completion</th>
+            <th>Rating</th>
             <th>Last session</th>
             <th style={{ textAlign: "right" }}></th>
           </tr>
@@ -1356,6 +1369,9 @@ function AthleteRosterRow({ plan, row, isAdmin }) {
             </div>
           )}
         </td>
+        <td data-label="Rating">{row.rating != null ? (
+          <span className={`${styles.badge} ${row.rating >= 7 ? styles.badgeActive : row.rating >= 5 ? styles.badgePending : styles.badgeRejected}`} style={{ fontSize: 11 }}>★ {row.rating}/10</span>
+        ) : "—"}</td>
         <td data-label="Last session">{row.lastSession ? fmtDate(row.lastSession) : "—"}</td>
         <td style={{ textAlign: "right" }}>
           <button className={styles.secondary} onClick={() => router.push(`/training-plans/${plan.id}/athletes/${row.id}`)}>See progress →</button>

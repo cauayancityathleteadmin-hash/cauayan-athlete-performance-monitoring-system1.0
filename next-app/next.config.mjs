@@ -5,6 +5,12 @@ const nextConfig = {
   env: {
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || "",
   },
+  async redirects() {
+    return [
+      // Progress was merged into Training (see training-plans). Old bookmarks land on the Training List, which now hosts the roster overview.
+      { source: "/progress", destination: "/training-plans", permanent: false },
+    ];
+  },
   async headers() {
     return [
       {

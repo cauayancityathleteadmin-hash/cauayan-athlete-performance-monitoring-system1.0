@@ -131,12 +131,6 @@ const ICONS = {
       <path d="M5.5 19a7.5 7.5 0 0 1 13 0" />
     </svg>
   ),
-  trendingUp: (
-    <svg {...iconProps}>
-      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-      <polyline points="16 7 22 7 22 13" />
-    </svg>
-  ),
 };
 
 const NAV_GROUPS = [
@@ -157,7 +151,6 @@ const NAV_GROUPS = [
     label: "Training",
     links: [
       { href: "/training-plans", label: "Plans", icon: "clipboardCheck" },
-      { href: "/progress", label: "Progress", icon: "trendingUp" },
     ],
   },
   { key: "analytics", label: "Analytics", links: [{ href: "/analytics", label: "Analytics", icon: "barChart" }, { href: "/standings", label: "Standings", icon: "trophy" }] },
