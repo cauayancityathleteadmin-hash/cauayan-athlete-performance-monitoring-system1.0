@@ -54,7 +54,7 @@ No code change in Phase 1 — decision only. This document is the final record.
   rejects `planType`). Wrong pick → create a new plan.
 - Duplicate (`action=duplicate`) carries the source template's plan type.
 
-Status: pending.
+Status: done (commit 54f1d9b).
 
 ## Phase 3 — Metrics per plan type + target reference
 
@@ -79,7 +79,7 @@ Implemented helpers (all in `lib/training-metrics.js`):
   `distance/load/reps/sets/quantity → "higher"`; `betterDirectionFor(metric)`
   defaults to `"higher"` for anything unlisted.
 
-Status: pending deployment verification.
+Status: done (commit f1a3ab9).
 
 ## Phase 4 — Plan-type metrics + targets in activity creation
 
@@ -107,7 +107,7 @@ Implemented:
   shown as a small badge under the latest status: `Meets target` (accent) /
   `Below target` (warning). Hidden when there is no target or no recorded value.
 
-Status: pending deployment verification.
+Status: done (commit f3bb3c3).
 
 ## Phase 5 — Add Activities form layout & input formatting
 
@@ -125,7 +125,7 @@ Implemented (`components/AthleteActivityManager.js`, add + edit forms):
 - Layout-only change: save payloads and names are untouched, so the Phase 4 API
   enforcement (plan-type filter + required target) is unaffected.
 
-Status: pending deployment verification.
+Status: done (commit 8083486).
 
 ## Phase 6 — Training Detail tabs
 
@@ -134,18 +134,37 @@ Training Detail already has tabs via `PageSectionTabs.js`
 matches labels to actual content, and verifies deep-links + sticky + both plan
 types + mobile.
 
-Status: pending.
+Status: done (commit 8fb31a0).
 
 ## Phase 7 — Training List separated by plan type
 
-Segmented control **All / Normal / Pre-Conditioning** on the Training list
-(default **All**), reflected in the URL query so it survives refresh. Combines
-with existing search/status/sport filters. Subtle type badge on each row.
+The single mixed list is replaced by two clearly separate, visible containers on
+the same page — **Normal Trainings (N)** and **Pre-Conditioning Trainings (N)** —
+each with its own header and live count and its own plan table (identical card
+style, spacing and system container recipe). Both containers are visible at the
+same time; they are NOT hidden behind a toggle. The shared search/status/sport
+toolbar filters both containers simultaneously. A subtle per-row type badge
+(Normal / Pre-Conditioning) keeps rows scannable. Legacy plans without a plan
+type default to Normal. A container with no matches shows a clean empty state.
 
-Status: pending.
+Status: done (commit 8fb31a0, deploy 6571347832).
 
 ## Phase 8 — Full regression
 
 Create both types, add activities through the fixed form, verify metrics +
-layout per type, legacy plans work as Normal, tabs work for both, list toggle
-combines with filters, charts/scoring/rosters intact, mobile + console clean.
+layout per type, legacy plans work as Normal, tabs work for both, the two list
+containers combine with filters, charts/scoring/rosters intact, mobile + console
+clean.
+
+Status: done (all phases deployed, live health 200).
+
+---
+
+## Final Advisories (for future work)
+
+- **Mirror `README.md` stale text** — The `deployed_site` mirror's README contains outdated setup instructions; update if the mirror is used for onboarding.
+- **Middleware → Proxy codemod** — The `ƒ Proxy (Middleware)` build output indicates Next.js 13+ middleware is being treated as a proxy; verify edge runtime compatibility if moving to stricter middleware patterns.
+- **`/reports` 135 kB page data** — The reports page ships a large payload; consider server-side streaming or pagination for the official printable reports.
+- **`docs/PLAN-NOTES.md` mojibake** — Encoding corruption present; re-save as UTF-8 if this doc is authoritative.
+- **Dead legacy classes** — `alertItem`, `dangerBox`, `alertBox` margin rules remain in CSS but are unused; safe to remove in a cleanup pass.
+- **`alertItem` / `dangerBox` / `alertBox` margins** — Left as-is per token-purism exemptions; document if intentional.
