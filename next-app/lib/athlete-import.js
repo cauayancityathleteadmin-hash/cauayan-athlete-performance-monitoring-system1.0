@@ -1,26 +1,10 @@
 import zlib from "zlib";
+import { ATHLETE_IMPORT_HEADERS, athleteImportHeaders } from "./athlete-import-headers";
 
-export const ATHLETE_IMPORT_HEADERS = [
-  "first_name",
-  "middle_name",
-  "last_name",
-  "suffix",
-  "birthdate",
-  "gender",
-  "contact_number",
-  "email",
-  "address",
-  "school_name",
-  "sport_name",
-  "coach_identifier",
-];
-
-export function athleteImportHeaders(isAdmin) {
-  return isAdmin ? ATHLETE_IMPORT_HEADERS : ATHLETE_IMPORT_HEADERS.slice(0, -1);
-}
+export { ATHLETE_IMPORT_HEADERS, athleteImportHeaders };
 
 function normalizeHeaders(headers) {
-  return ATHLETE_IMPORT_HEADERS.map((h) => h.toLowerCase().replace(/\s+/g, "_"));
+  return (Array.isArray(headers) ? headers : []).map((h) => String(h).trim().toLowerCase().replace(/\s+/g, "_"));
 }
 
 function unescapeXml(value) {

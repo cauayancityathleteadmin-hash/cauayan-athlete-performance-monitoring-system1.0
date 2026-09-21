@@ -10,6 +10,7 @@ import IdPhotoUpload from "../components/IdPhotoUpload";
 import ProfilePhoto from "../components/ProfilePhoto";
 import AppShell from "../components/AppShell";
 import styles from "../styles/Dashboard.module.css";
+import { athleteImportHeaders, athleteImportExampleRow } from "../lib/athlete-import-headers";
 
 const SORT_KEYS = {
   name: "Athlete name",
@@ -453,15 +454,11 @@ function ImportPanel({ isAdmin, onDone }) {
   const [message, setMessage] = React.useState({ kind: "", text: "" });
   const [busy, setBusy] = React.useState(false);
 
-  const headers = isAdmin
-    ? ["first_name", "middle_name", "last_name", "suffix", "birthdate", "gender", "contact_number", "email", "address", "school_name", "sport_name", "coach_identifier"]
-    : ["first_name", "middle_name", "last_name", "suffix", "birthdate", "gender", "contact_number", "email", "address", "school_name", "sport_name"];
+  const headers = athleteImportHeaders(isAdmin);
 
   function downloadTemplate() {
     const headerRow = headers.join(",");
-    const example = isAdmin
-      ? "Juan,Dela,Cruz,Jr.,2010-05-20,male,09171234567,juan.cruz@example.com,City Proper,Burgos National High School,Basketball,COA-TEST01"
-      : "Juan,Dela,Cruz,Jr.,2010-05-20,male,09171234567,juan.cruz@example.com,City Proper,Burgos National High School,Basketball";
+    const example = athleteImportExampleRow(isAdmin);
     const blob = new Blob([headerRow + "\n" + example + "\n"], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

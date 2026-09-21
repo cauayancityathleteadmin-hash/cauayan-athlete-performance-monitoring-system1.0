@@ -3,13 +3,13 @@ import React from "react";
 import { getSession } from "next-auth/react";
 import {
   ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid,
-  LineChart, Line, PieChart, Pie, Legend,
+  LineChart, Line, PieChart, Pie, Legend, Label,
 } from "recharts";
 import AppShell from "../components/AppShell";
 import PageSectionTabs from "../components/PageSectionTabs";
 import { prisma } from "../lib/prisma";
 import styles from "../styles/Dashboard.module.css";
-import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, CHART_LEGEND, CHART_COLORS, shortAxisLabel } from "../lib/chart-config";
+import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, CHART_LEGEND, CHART_COLORS, shortAxisLabel, barChartHeight } from "../lib/chart-config";
 
 const STATUS_COLORS = { active: CHART_COLORS.primary, inactive: CHART_COLORS.muted, pending: CHART_COLORS.warning, draft: CHART_COLORS.muted };
 const GENDER_COLORS = { male: CHART_COLORS.primary, female: CHART_COLORS.palette[2], other: CHART_COLORS.warning, prefer_not_to_say: CHART_COLORS.muted };
@@ -23,7 +23,7 @@ const KPI = ({ label, value }) => (
   </div>
 );
 
-const Donut = ({ segments, emptyMessage }) => {
+const Donut = ({ segments, emptyMessage, label }) => {
   if (!segments.length) return <p className={styles.empty}>{emptyMessage || "No data yet"}</p>;
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHTS.pie}>
@@ -31,7 +31,7 @@ const Donut = ({ segments, emptyMessage }) => {
         <Pie data={segments} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={95} paddingAngle={2}>
           {segments.map((s, i) => <Cell key={i} fill={s.color || CHART_COLORS.palette[i % CHART_COLORS.palette.length]} />)}
         </Pie>
-        <Tooltip {...CHART_TOOLTIP} />
+        <Tooltip {...CHART_TOOLTIP} formatter={(value, name) => [`${value}${label ? ` ${label}` : ""}`, name]} />
         <Legend {...CHART_LEGEND} />
       </PieChart>
     </ResponsiveContainer>
@@ -42,10 +42,12 @@ const HBars = ({ data, axisLabel, axisValue, colors, emptyMessage }) => {
   if (!data.length) return <p className={styles.empty}>{emptyMessage || "No data yet"}</p>;
   const cells = colors ? data.map((d, i) => <Cell key={i} fill={colors[i % colors.length]} />) : null;
   return (
-    <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barHorizontal}>
+    <ResponsiveContainer width="100%" height={barChartHeight(data.length)}>
       <BarChart data={data} layout="vertical" margin={CHART_MARGINS.barHorizontal}>
         <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
-        <XAxis type="number" tick={CHART_AXIS.x} />
+        <XAxis type="number" tick={CHART_AXIS.x}>
+          <Label value={axisValue} position="insideBottom" dy={22} style={{ fill: CHART_AXIS.x.tick.fill, fontSize: 12 }} />
+        </XAxis>
         <YAxis type="category" dataKey="name" width={CHART_AXES.barCategory} tick={CHART_AXIS.y} tickFormatter={(v) => shortAxisLabel(v)} />
         <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v} ${axisValue}`, axisLabel]} />
         <Bar dataKey="value" radius={[0, 4, 4, 0]}>{cells}</Bar>
@@ -54,14 +56,18 @@ const HBars = ({ data, axisLabel, axisValue, colors, emptyMessage }) => {
   );
 };
 
-const VStacked = ({ data, categories, colors, emptyMessage }) => {
+const VStacked = ({ data, categories, colors, emptyMessage, xLabel, yLabel }) => {
   if (!data.length) return <p className={styles.empty}>{emptyMessage || "No data yet"}</p>;
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barVertical}>
       <BarChart data={data} margin={CHART_MARGINS.barVertical}>
         <CartesianGrid {...CHART_GRID.cartesian} />
-        <XAxis dataKey="name" tick={CHART_AXIS.x} interval={0} />
-        <YAxis tick={CHART_AXIS.y} allowDecimals={false} />
+        <XAxis dataKey="name" tick={CHART_AXIS.x} interval={0}>
+          {xLabel ? <Label value={xLabel} position="insideBottom" dy={22} style={{ fill: CHART_AXIS.x.tick.fill, fontSize: 12 }} /> : null}
+        </XAxis>
+        <YAxis tick={CHART_AXIS.y} allowDecimals={false}>
+          {yLabel ? <Label value={yLabel} angle={-90} position="insideLeft" offset={8} style={{ fill: CHART_AXIS.y.tick.fill, fontSize: 12 }} /> : null}
+        </YAxis>
         <Tooltip {...CHART_TOOLTIP} />
         {categories.map((c, i) => (
           <Bar key={c} dataKey={c} stackId="a" fill={colors[i % colors.length]} radius={i === categories.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
@@ -72,15 +78,19 @@ const VStacked = ({ data, categories, colors, emptyMessage }) => {
   );
 };
 
-const TrendLine = ({ data, dataKey, name, emptyMessage }) => {
+const TrendLine = ({ data, dataKey, name, emptyMessage, xLabel }) => {
   if (!data.length) return <p className={styles.empty}>{emptyMessage || "No data yet"}</p>;
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHTS.line}>
       <LineChart data={data} margin={CHART_MARGINS.line}>
         <CartesianGrid {...CHART_GRID.cartesian} />
-        <XAxis dataKey="name" tick={CHART_AXIS.x} interval="preserveStartEnd" minTickGap={36} />
-        <YAxis domain={[0, 10]} tick={CHART_AXIS.y} allowDecimals={false} />
-        <Tooltip {...CHART_TOOLTIP} />
+        <XAxis dataKey="name" tick={CHART_AXIS.x} interval="preserveStartEnd" minTickGap={36}>
+          {xLabel ? <Label value={xLabel} position="insideBottom" dy={22} style={{ fill: CHART_AXIS.x.tick.fill, fontSize: 12 }} /> : null}
+        </XAxis>
+        <YAxis domain={[0, 10]} tick={CHART_AXIS.y} allowDecimals={false} tickFormatter={(v) => `${v}/10`}>
+          <Label value="Rating (1–10)" angle={-90} position="insideLeft" offset={8} style={{ fill: CHART_AXIS.y.tick.fill, fontSize: 12 }} />
+        </YAxis>
+        <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}/10`, name]} />
         <Line type="monotone" dataKey={dataKey} name={name} stroke={CHART_COLORS.primary} strokeWidth={2} dot={false} />
       </LineChart>
     </ResponsiveContainer>
@@ -239,7 +249,7 @@ export async function getServerSideProps(context) {
 
   const ratingTrend = trainingAssessments.slice().reverse().map((r) => ({ name: new Date(r.assessmentDate).toLocaleDateString("en-US", { month: "short", day: "2-digit" }), rating: r.rating }));
   const ratingDist = [];
-  for (let score = 1; score <= 10; score += 1) ratingDist.push({ name: String(score), value: trainingAssessments.filter((r) => r.rating === score).length });
+  for (let score = 1; score <= 10; score += 1) ratingDist.push({ name: String(score), athletes: trainingAssessments.filter((r) => r.rating === score).length });
 
   const healthStatusDist = healthByStatus.map((h) => ({ name: h.healthStatus, value: h._count._all }));
 
@@ -261,7 +271,7 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
   const [openStatus, setOpenStatus] = React.useState({});
 
   const statusSegments = statusDist.map((item) => ({ ...item, color: STATUS_COLORS[item.name] || CHART_COLORS.muted }));
-  const genderSegments = genderDist.map((d) => ({ ...d, color: GENDER_COLORS[d.label.toLowerCase()] || CHART_COLORS.muted }));
+  const genderSegments = genderDist.map((d) => ({ name: cap(d.label), value: d.value, color: GENDER_COLORS[d.label.toLowerCase()] || CHART_COLORS.muted }));
   const healthSegments = healthStatusDist.map((item) => ({ ...item, color: HEALTH_COLORS[item.name] || CHART_COLORS.muted }));
   const healthFlags = healthStatusDist.filter((h) => ["sick", "injured", "recovering", "inactive"].includes(h.name)).map((h) => ({ name: cap(h.name), value: h.value }));
 
@@ -291,19 +301,19 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
           <section id="athletes">
             <section className={styles.grid}>
               <div className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by sport</h2></div></div>
-                {sportDist.length ? <HBars data={sportDist} axisLabel="Sport" axisValue="Athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Events by sport</h2></div></div>
+                {sportDist.length ? <HBars data={sportDist} axisLabel="Sport" axisValue="Events" /> : <p className={styles.empty}>No sports yet.</p>}
               </div>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Share by status</h2></div></div>
-                <Donut segments={statusSegments} />
+                <Donut segments={statusSegments} label="athletes" />
               </div>
             </section>
 
             <section className={styles.grid}>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by gender</h2></div></div>
-                {genderDist.length ? <Donut segments={genderSegments} /> : <p className={styles.empty}>No athletes yet.</p>}
+                {genderDist.length ? <Donut segments={genderSegments} label="athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
               </div>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by school</h2></div></div>
@@ -358,19 +368,20 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
           <section className={styles.grid}>
             <div className={styles.panel}>
               <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Share by health status</h2></div></div>
-              <Donut segments={healthSegments} ariaLabel="Share of athletes by health status" label="athletes" emptyMessage="No athletes yet." />
+              <Donut segments={healthSegments} label="athletes" emptyMessage="No athletes yet." />
             </div>
             <div className={styles.panel}>
               <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Health flags</h2></div></div>
               {healthFlags.length ? <HBars data={healthFlags} colors={[CHART_COLORS.warning, CHART_COLORS.danger, CHART_COLORS.accent, CHART_COLORS.muted]} axisLabel="Status" axisValue="Athletes" /> : <p className={styles.empty}>No athletes flagged.</p>}
-            </div>
+              </div>
+            </section>
           </section>
 
           <section id="assessments">
             <section className={styles.grid}>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Assessments by type</h2></div></div>
-                {assessmentTypeDist.length ? <Donut segments={assessmentTypeDist} ariaLabel="Assessments by type" label="assessments" /> : <p className={styles.empty}>No assessments yet.</p>}
+                {assessmentTypeDist.length ? <Donut segments={assessmentTypeDist} label="assessments" /> : <p className={styles.empty}>No assessments yet.</p>}
               </div>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Assessments recorded per month</h2></div></div>
@@ -411,6 +422,35 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
             </section>
           </section>
 
+          <section id="training">
+            <section className={styles.grid}>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Activity completion — last 8 weeks</h2></div></div>
+                <VStacked data={completionBuckets} categories={["done", "partial", "missed"]} colors={[CHART_COLORS.primary, CHART_COLORS.warning, CHART_COLORS.danger]} xLabel="Week of" yLabel="Activities" emptyMessage="No activity logged yet." />
+              </div>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Ratings over time</h2></div></div>
+                <TrendLine data={ratingTrend} dataKey="rating" name="Rating" xLabel="Assessment date" emptyMessage="No training ratings yet." />
+              </div>
+            </section>
+
+            <section className={styles.grid}>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Rating distribution — 90 days</h2></div></div>
+                <VStacked data={ratingDist} categories={["athletes"]} colors={[CHART_COLORS.primary]} xLabel="Rating (1–10)" yLabel="Athletes" emptyMessage="No training ratings yet." />
+              </div>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Completion snapshot</h2></div></div>
+                <p className={styles.formHint}>Done, partial and missed activity totals across the last 8 weeks.</p>
+                <div className={styles.statRow}>
+                  <div className={styles.stat}><strong>{completionBuckets.reduce((s, w) => s + w.done, 0)}</strong><small>Done</small></div>
+                  <div className={styles.stat}><strong>{completionBuckets.reduce((s, w) => s + w.partial, 0)}</strong><small>Partial</small></div>
+                  <div className={styles.stat}><strong className={styles.statDanger}>{completionBuckets.reduce((s, w) => s + w.missed, 0)}</strong><small>Missed</small></div>
+                </div>
+              </div>
+            </section>
+          </section>
+
           {isAdmin && (
             <section id="program">
               <section className={styles.grid}>
@@ -441,36 +481,6 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
               </section>
             </section>
           )}
-
-          <section id="training">
-            <section className={styles.grid}>
-              <div className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Activity completion — last 8 weeks</h2></div></div>
-                <VStacked data={completionBuckets} categories={["done", "partial", "missed"]} colors={[CHART_COLORS.primary, CHART_COLORS.warning, CHART_COLORS.danger]} emptyMessage="No activity logged yet." />
-              </div>
-              <div className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Ratings over time</h2></div></div>
-                <TrendLine data={ratingTrend} dataKey="rating" name="Rating" emptyMessage="No training ratings yet." />
-              </div>
-            </section>
-
-            <section className={styles.grid}>
-              <div className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Rating distribution — 90 days</h2></div></div>
-                <VStacked data={ratingDist} categories={["value"]} colors={[CHART_COLORS.primary]} emptyMessage="No training ratings yet." />
-              </div>
-              <div className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Completion snapshot</h2></div></div>
-                <p className={styles.formHint}>Done, partial and missed activity totals across the last 8 weeks.</p>
-                <div className={styles.statRow}>
-                  <div className={styles.stat}><strong>{completionBuckets.reduce((s, w) => s + w.done, 0)}</strong><small>Done</small></div>
-                  <div className={styles.stat}><strong>{completionBuckets.reduce((s, w) => s + w.partial, 0)}</strong><small>Partial</small></div>
-                  <div className={styles.stat}><strong className={styles.statDanger}>{completionBuckets.reduce((s, w) => s + w.missed, 0)}</strong><small>Missed</small></div>
-                </div>
-              </div>
-            </section>
-          </section>
-        </section>
       </PageSectionTabs>
       </AppShell>
     </>

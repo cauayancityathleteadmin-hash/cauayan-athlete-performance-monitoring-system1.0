@@ -582,6 +582,12 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
           <div className="rd-sig-note">Signature over Printed Name</div>
         </div>
         <div className="rd-sig">
+          <div className="rd-sig-label">Reviewed by:</div>
+          <div className="rd-sig-name"></div>
+          <div className="rd-sig-pos">Head, Sports Development Division</div>
+          <div className="rd-sig-note">Signature over Printed Name</div>
+        </div>
+        <div className="rd-sig">
           <div className="rd-sig-label">Certified Correct:</div>
           <div className="rd-sig-name"></div>
           <div className="rd-sig-pos">City Sports Development Officer</div>
@@ -722,6 +728,12 @@ function CoachReportCard({ coach, session, prefix }) {
           <div className="rd-sig-label">Prepared by:</div>
           <div className="rd-sig-name">{session.user.name || session.user.email || ""}</div>
           <div className="rd-sig-pos">Authorized User, City Sports Development Office</div>
+          <div className="rd-sig-note">Signature over Printed Name</div>
+        </div>
+        <div className="rd-sig">
+          <div className="rd-sig-label">Reviewed by:</div>
+          <div className="rd-sig-name"></div>
+          <div className="rd-sig-pos">Head, Sports Development Division</div>
           <div className="rd-sig-note">Signature over Printed Name</div>
         </div>
         <div className="rd-sig">

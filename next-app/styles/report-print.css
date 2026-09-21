@@ -135,6 +135,7 @@
   border-bottom: 1px solid #333;
   padding-bottom: 6px;
   margin: 26px 0 14px;
+  page-break-after: avoid;
 }
 
 .rd-section-title span {
@@ -224,6 +225,11 @@
   text-align: left;
 }
 
+/* Repeat the table header row on every printed page a long table spans. */
+.rd-results thead {
+  display: table-header-group;
+}
+
 .rd-results td.num {
   text-align: right;
 }
@@ -247,6 +253,26 @@
   margin: 24px 0 30px;
   font-size: 12.5px;
   text-align: justify;
+  page-break-inside: avoid;
+}
+
+.rd-signatures {
+  display: flex;
+  gap: 32px;
+  justify-content: space-between;
+  page-break-inside: avoid;
+}
+
+.rd-footer {
+  margin-top: 32px;
+  border-top: 1px solid #999;
+  padding-top: 9px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 10px;
+  color: #555;
+  page-break-before: avoid;
 }
 
 .rd-cert strong {
@@ -255,12 +281,6 @@
   margin-bottom: 6px;
   font-size: 12px;
   letter-spacing: 0.08em;
-}
-
-.rd-signatures {
-  display: flex;
-  gap: 60px;
-  justify-content: space-between;
 }
 
 .rd-sig {
@@ -278,7 +298,8 @@
 
 .rd-sig-name {
   display: inline-block;
-  min-width: 230px;
+  min-width: 180px;
+  width: 80%;
   height: 28px;
   border-bottom: 1px solid #333;
   font-size: 13px;
@@ -298,17 +319,6 @@
   color: #555;
   margin-top: 2px;
   font-style: italic;
-}
-
-.rd-footer {
-  margin-top: 32px;
-  border-top: 1px solid #999;
-  padding-top: 9px;
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 10px;
-  color: #555;
 }
 
 /* Keep the app chrome out of print output */
