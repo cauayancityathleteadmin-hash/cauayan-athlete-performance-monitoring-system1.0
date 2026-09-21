@@ -277,6 +277,7 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
                             <form onSubmit={submitEdit} className={styles.formGrid} style={{ marginTop: 0 }}>
                               <label className={styles.fullField}>Activity name *<input className={styles.fieldControl} value={draft.activityName} onChange={(e) => setField("activityName", e.target.value)} required maxLength="191" /></label>
                               <label>Fitness dimension<select className={styles.fieldControl} value={draft.fitnessType} onChange={(e) => setField("fitnessType", e.target.value)}>{[...new Set([...offeredFitnessTypes, draft.fitnessType])].map((v) => <option key={v} value={v}>{(FITNESS_OPTIONS.find((o) => o.value === v) || { label: v }).label}</option>)}</select></label>
+                              <span className={`${styles.formHint} ${styles.fullField}`}>Targets — {isPreConditioning ? "required on Pre-Conditioning" : "optional on Normal"}</span>
                               <LockedTargetFields fitnessType={draft.fitnessType} values={draft} onChange={setField} requireTarget={isPreConditioning} />
                               <label>Day (1–7)<input className={styles.fieldControl} type="number" min="1" max="7" value={draft.dayIndex} onChange={(e) => setField("dayIndex", e.target.value)} placeholder="Day" /></label>
                               <label>Week<input className={styles.fieldControl} type="number" min="1" value={draft.weekNumber} onChange={(e) => setField("weekNumber", e.target.value)} placeholder="Week" /></label>
@@ -389,21 +390,26 @@ export function AddAthleteActivitiesForm({ planId, athlete, onCreated, planType 
     <div style={{ borderTop: "1px solid rgba(26,92,74,.5)", marginTop: "var(--space-3)", paddingTop: "var(--space-3)" }}>
       <form onSubmit={submit} className={styles.formGrid}>
         {rows.map((r) => (
-          <div key={r.id} className={styles.fullField} style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "var(--space-4)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-2)" }}>
+          <div key={r.id} className={styles.fullField} style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "var(--space-4)", display: "grid", gap: "var(--space-3)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <strong style={{ fontSize: 13 }}>Activity {rows.indexOf(r) + 1}</strong>
               {rows.length > 1 && <button type="button" className={`${styles.danger} ${styles.btnSm}`} onClick={() => removeRow(r.id)}>Remove</button>}
             </div>
-            <label className={styles.fullField} style={{ marginBottom: 8 }}>Name *<input value={r.name} onChange={(e) => updateRow(r.id, "name", e.target.value)} maxLength="191" placeholder="e.g. Endurance run" /></label>
-            <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", marginBottom: 8 }}>
-              <label style={{ flex: "1 1 150px" }}>Fitness type<select value={r.fitness} onChange={(e) => updateRow(r.id, "fitness", e.target.value)}>{offeredFitnessTypes.map((v) => <option key={v} value={v}>{(FITNESS_OPTIONS.find((o) => o.value === v) || { label: v }).label}</option>)}</select></label>
-              <LockedTargetFields fitnessType={r.fitness} values={r} onChange={(key, value) => updateRow(r.id, key, value)} requireTarget={isPreConditioning} />
+            <label>Name *<input className={styles.fieldControl} value={r.name} onChange={(e) => updateRow(r.id, "name", e.target.value)} maxLength="191" placeholder="e.g. Endurance run" /></label>
+            <div style={{ display: "flex", gap: "var(--space-4)", flexWrap: "wrap", alignItems: "flex-start" }}>
+              <label style={{ flex: "1 1 200px" }}>Fitness type<select className={styles.fieldControl} value={r.fitness} onChange={(e) => updateRow(r.id, "fitness", e.target.value)}>{offeredFitnessTypes.map((v) => <option key={v} value={v}>{(FITNESS_OPTIONS.find((o) => o.value === v) || { label: v }).label}</option>)}</select></label>
+              <div style={{ flex: "2 1 320px", minWidth: 0 }}>
+                <span className={styles.formHint} style={{ display: "block", marginBottom: "var(--space-2)" }}>Targets — {isPreConditioning ? "required on Pre-Conditioning" : "optional on Normal"}</span>
+                <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
+                  <LockedTargetFields fitnessType={r.fitness} values={r} onChange={(key, value) => updateRow(r.id, key, value)} requireTarget={isPreConditioning} />
+                </div>
+              </div>
             </div>
-            <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", marginBottom: 8 }}>
-              <label style={{ flex: "0 1 90px" }}>Day (1–7)<input value={r.dayIndex} onChange={(e) => updateRow(r.id, "dayIndex", e.target.value)} type="number" min="1" max="7" placeholder="Day" /></label>
-              <label style={{ flex: "0 1 90px" }}>Week<input value={r.weekNumber} onChange={(e) => updateRow(r.id, "weekNumber", e.target.value)} type="number" min="1" placeholder="Week" /></label>
+            <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
+              <label style={{ flex: "0 1 100px" }}>Day (1–7)<input className={styles.fieldControl} value={r.dayIndex} onChange={(e) => updateRow(r.id, "dayIndex", e.target.value)} type="number" min="1" max="7" placeholder="Day" /></label>
+              <label style={{ flex: "0 1 100px" }}>Week<input className={styles.fieldControl} value={r.weekNumber} onChange={(e) => updateRow(r.id, "weekNumber", e.target.value)} type="number" min="1" placeholder="Week" /></label>
             </div>
-            <label className={styles.fullField}>Instructions<textarea value={r.instructions} onChange={(e) => updateRow(r.id, "instructions", e.target.value)} rows="1" maxLength="2000" placeholder="How to do it, safety notes, etc." /></label>
+            <label>Instructions<textarea className={styles.fieldControl} value={r.instructions} onChange={(e) => updateRow(r.id, "instructions", e.target.value)} rows="2" maxLength="2000" placeholder="How to do it, safety notes, etc." /></label>
           </div>
         ))}
 

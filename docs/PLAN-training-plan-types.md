@@ -111,11 +111,21 @@ Status: pending deployment verification.
 
 ## Phase 5 — Add Activities form layout & input formatting
 
-Uniform label style/height/spacing, sensible field grid (short fields share
-rows), grouped by metric. Must work for both plan-type field sets and mobile;
-must still save correctly after any layout change.
+Implemented (`components/AthleteActivityManager.js`, add + edit forms):
+- Uniform input recipe across both forms: every add-form control now uses the
+  shared `.fieldControl` class (same border/background/radius/padding/font as the
+  edit form and `.formGrid`), so labels, heights and spacing match everywhere.
+- Grouped by metric: each add-form row is a card with stacked sections — Name,
+  then a **Fitness type + Targets** group (targets get a muted caption
+  "Targets — required on Pre-Conditioning / optional on Normal"), then a shared
+  Day (1–7) + Week row, then Instructions. The edit form gets the same Targets
+  caption for parity.
+- Short fields share rows (Day + Week); everything wraps on mobile via
+  `flexWrap`; the card grid uses `--space-*` gaps only (no raw px).
+- Layout-only change: save payloads and names are untouched, so the Phase 4 API
+  enforcement (plan-type filter + required target) is unaffected.
 
-Status: pending.
+Status: pending deployment verification.
 
 ## Phase 6 — Training Detail tabs
 
