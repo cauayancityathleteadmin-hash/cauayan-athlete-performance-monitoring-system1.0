@@ -50,7 +50,8 @@ const HBars = ({ data, axisLabel, axisValue, colors, emptyMessage }) => {
         </XAxis>
         <YAxis type="category" dataKey="name" width={CHART_AXES.barCategory} tick={CHART_AXIS.y} tickFormatter={(v) => shortAxisLabel(v)} />
         <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v} ${axisValue}`, axisLabel]} />
-        <Bar dataKey="value" radius={[0, 4, 4, 0]}>{cells}</Bar>
+        {/* Bar needs an explicit fill (SVG default is black); Cell fills override it when colors are provided */}
+        <Bar dataKey="value" fill={CHART_COLORS.primary} radius={[0, 4, 4, 0]}>{cells}</Bar>
       </BarChart>
     </ResponsiveContainer>
   );
@@ -299,7 +300,7 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
 
         <PageSectionTabs sections={ANALYTICS_SECTIONS} defaultSection="athletes">
           <section id="athletes">
-            <section className={styles.grid}>
+            <section className={styles.chartGrid}>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Events by sport</h2></div></div>
                 {sportDist.length ? <HBars data={sportDist} axisLabel="Sport" axisValue="Events" /> : <p className={styles.empty}>No sports yet.</p>}
@@ -310,7 +311,7 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
               </div>
             </section>
 
-            <section className={styles.grid}>
+            <section className={styles.chartGrid}>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by gender</h2></div></div>
                 {genderDist.length ? <Donut segments={genderSegments} label="athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
@@ -321,7 +322,7 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
               </div>
             </section>
 
-            <section className={styles.grid}>
+            <section className={styles.chartGrid}>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by event discipline</h2></div></div>
                 {eventDist.length ? <HBars data={eventDist} axisLabel="Event" axisValue="Athletes" /> : <p className={styles.empty}>No athletes assigned to events yet.</p>}
@@ -332,7 +333,7 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
               </div>
             </section>
 
-            <section className={styles.grid}>
+            <section className={styles.chartGrid}>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>By status — roster</h2></div></div>
                 <div className={styles.statusPanel}>
@@ -365,7 +366,7 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
               </div>
             </section>
 
-          <section className={styles.grid}>
+          <section className={styles.chartGrid}>
             <div className={styles.panel}>
               <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Share by health status</h2></div></div>
               <Donut segments={healthSegments} label="athletes" emptyMessage="No athletes yet." />
@@ -378,7 +379,7 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
           </section>
 
           <section id="assessments">
-            <section className={styles.grid}>
+            <section className={styles.chartGrid}>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Assessments by type</h2></div></div>
                 {assessmentTypeDist.length ? <Donut segments={assessmentTypeDist} label="assessments" /> : <p className={styles.empty}>No assessments yet.</p>}
@@ -389,7 +390,7 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
               </div>
             </section>
 
-            <section className={styles.grid}>
+            <section className={styles.chartGrid}>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Most assessments per athlete</h2></div></div>
                 {assessmentsPerAthlete.length ? <HBars data={assessmentsPerAthlete} axisLabel="Athlete" axisValue="Assessments" /> : <p className={styles.empty}>No assessments yet.</p>}
@@ -402,7 +403,7 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
           </section>
 
           <section id="measurements">
-            <section className={styles.grid}>
+            <section className={styles.chartGrid}>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Measurements</p><h2>Average results</h2></div></div>
                 {averages.length ? <div className={styles.tableWrap}><table><thead><tr><th scope="col">Metric</th><th scope="col">Sport</th><th scope="col">Sample avg</th></tr></thead><tbody>{averages.map((item) => <tr key={`${item.sportName}-${item.metricName}`}><td data-label="Metric">{item.metricName}<small>{item.unit}</small></td><td data-label="Sport">{item.sportName}</td><td data-label="Sample avg"><strong>{item.average}</strong>{item.unit ? <small>{item.unit}</small> : null}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No numeric results yet.</p>}
@@ -423,7 +424,7 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
           </section>
 
           <section id="training">
-            <section className={styles.grid}>
+            <section className={styles.chartGrid}>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Activity completion — last 8 weeks</h2></div></div>
                 <VStacked data={completionBuckets} categories={["done", "partial", "missed"]} colors={[CHART_COLORS.primary, CHART_COLORS.warning, CHART_COLORS.danger]} xLabel="Week of" yLabel="Activities" emptyMessage="No activity logged yet." />
@@ -434,7 +435,7 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
               </div>
             </section>
 
-            <section className={styles.grid}>
+            <section className={styles.chartGrid}>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Rating distribution — 90 days</h2></div></div>
                 <VStacked data={ratingDist} categories={["athletes"]} colors={[CHART_COLORS.primary]} xLabel="Rating (1–10)" yLabel="Athletes" emptyMessage="No training ratings yet." />
@@ -453,7 +454,7 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
 
           {isAdmin && (
             <section id="program">
-              <section className={styles.grid}>
+              <section className={styles.chartGrid}>
                 <div className={styles.panel}>
                   <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Program</p><h2>Coaches by school</h2></div></div>
                   {coachSchoolDist.length ? <HBars data={coachSchoolDist} axisLabel="School" axisValue="Coaches" /> : <p className={styles.empty}>No coaches registered.</p>}
@@ -464,7 +465,7 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
                 </div>
               </section>
 
-              <section className={styles.grid}>
+              <section className={styles.chartGrid}>
                 <div className={styles.panel}>
                   <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Program</p><h2>Event programs by status</h2></div></div>
                   {eventPlans.total ? <HBars data={eventPlans.byStatus} axisLabel="Status" axisValue="Programs" /> : <p className={styles.empty}>No event programs yet.</p>}

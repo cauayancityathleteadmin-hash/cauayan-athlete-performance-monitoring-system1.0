@@ -7,6 +7,7 @@ import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, Cartes
 import { prisma } from "../lib/prisma";
 import { CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, barChartHeight, completionColor } from "../lib/chart-config";
 import AppShell from "../components/AppShell";
+import PageSectionTabs from "../components/PageSectionTabs";
 import styles from "../styles/Dashboard.module.css";
 
 function planProgress(plan, totals) {
@@ -116,6 +117,11 @@ function fmtDate(value) {
   return isNaN(d) ? "—" : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
+const PLAN_SECTIONS = [
+  { label: "Progress", sectionId: "progress" },
+  { label: "Plans", sectionId: "plans" },
+];
+
 export default function TrainingPlans({ session, isAdmin, sports, coaches, athletes, initialPlans = [], initialTemplates = [], progressMap = {} }) {
   const router = useRouter();
   const [showPlanForm, setShowPlanForm] = React.useState(false);
@@ -181,7 +187,11 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
     <>
       <Head><title>Training | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Training" title="Training plans" active="/training-plans">
-        <RosterProgress />
+        <PageSectionTabs sections={PLAN_SECTIONS}>
+          <section id="progress">
+            <RosterProgress />
+          </section>
+          <section id="plans">
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Coaching</p><h2>Training plans</h2></div>
@@ -263,7 +273,9 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
               </tbody>
             </table></div>
           )}
-        </section>
+            </section>
+          </section>
+        </PageSectionTabs>
       </AppShell>
     </>
   );
