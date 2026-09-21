@@ -4,6 +4,7 @@ import { rateLimiters } from "../../../lib/rate-limit";
 
 const FREQUENCIES = ["day", "week", "month"];
 const STATUSES = ["active", "completed"];
+const PLAN_TYPES = ["normal", "pre_conditioning"];
 
 function toDurationDays(v) {
   if (v === "" || v == null) return null;
@@ -95,6 +96,7 @@ export default async function handler(req, res) {
       const frequency = FREQUENCIES.includes(body.frequency) ? body.frequency : "day";
       const durationDays = toDurationDays(body.durationDays) ?? (toDurationDays(body.durationWeeks) ? toDurationDays(body.durationWeeks) * 7 : toDurationDays(body.durationWeeks));
       const isTemplate = Boolean(body.isTemplate);
+      const planType = PLAN_TYPES.includes(body.planType) ? body.planType : "normal";
       if (isTemplate && !isAdmin) return res.status(403).json({ error: "Only admins can create template plans." });
       if (isAdmin && !isTemplate) return res.status(403).json({ error: "Only coaches manage training plans. Admins create templates and post suggestions as comments." });
 
@@ -125,6 +127,7 @@ export default async function handler(req, res) {
             endDate: endDate ? new Date(endDate) : null,
             status: STATUSES.includes(body.status) ? body.status : "active",
             isTemplate,
+            planType,
           },
           select: { id: true },
         });
@@ -200,6 +203,7 @@ export default async function handler(req, res) {
             endDate: endDate ? new Date(endDate) : null,
             status: "active",
             isTemplate: false,
+            planType: sourcePlan.planType || "normal",
           },
           select: { id: true },
         });
@@ -258,6 +262,8 @@ export default async function handler(req, res) {
     if (access === false) return res.status(403).json({ error: "You do not have permission to edit this plan." });
     const onlyLateFlag = isAdmin && Object.keys(req.body || {}).length > 0 && Object.keys(req.body || {}).every((k) => k === "allowLateAssessment");
     if (isAdmin && !access.isTemplate && !onlyLateFlag) return res.status(403).json({ error: "Only the assigned coach can edit this training plan." });
+
+    if ((req.body || {}).planType !== undefined) return res.status(400).json({ error: "Plan type is fixed after creation and cannot be changed. Create a new plan with the right type instead." });
 
     const body = req.body || {};
     const data = {};

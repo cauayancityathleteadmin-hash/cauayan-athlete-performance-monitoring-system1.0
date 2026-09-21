@@ -1767,6 +1767,59 @@
   flex-shrink: 0;
 }
 
+/* ===== Plan type selector (Normal vs Pre-Conditioning, fixed at creation) ===== */
+.planTypeOptions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.planTypeCard {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: rgba(6, 38, 30, 0.5);
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  padding: var(--space-4);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.planTypeCard:hover:not(:disabled) {
+  border-color: rgba(45, 212, 168, 0.6);
+}
+
+.planTypeCard.selected {
+  border-color: var(--accent);
+  background: rgba(45, 212, 168, 0.12);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.planTypeCard:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.planTypeCard strong {
+  display: block;
+  font-size: 15px;
+}
+
+.planTypeCard small {
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+@media (max-width: 700px) {
+  .planTypeOptions {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ===== Athlete selection report table (sortable, searchable) ===== */
 .reportTableScroll {
   border: 1px solid var(--border);

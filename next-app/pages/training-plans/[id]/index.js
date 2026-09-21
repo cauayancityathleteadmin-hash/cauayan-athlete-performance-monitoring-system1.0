@@ -10,6 +10,7 @@ import { prisma } from "../../../lib/prisma";
 import { buildMonitoringGrid } from "../../../lib/plan-monitoring";
 import PageSectionTabs from "../../../components/PageSectionTabs";
 import { METRIC_LABELS, resultUnitFor, targetValueFor } from "../../../lib/activity-score";
+import { PLAN_TYPE_META } from "../../../lib/training-metrics";
 import AppShell from "../../../components/AppShell";
 import styles from "../../../styles/Dashboard.module.css";
 import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, CHART_LEGEND, CHART_COLORS, barChartHeight, completionColor } from "../../../lib/chart-config";
@@ -310,6 +311,7 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
               </label>
             )}
             <span className={styles.badge}>{plan.status === "completed" ? "Completed" : "Active"}</span>
+            <span className={styles.badge}>{PLAN_TYPE_META[plan.planType]?.label || "Normal Training"}</span>
           </div>
           {plan.description ? <p>{plan.description}</p> : null}
         </section>

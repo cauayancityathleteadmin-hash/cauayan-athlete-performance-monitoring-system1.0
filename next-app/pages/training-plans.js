@@ -5,6 +5,7 @@ import React from "react";
 import { getSession } from "next-auth/react";
 import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { prisma } from "../lib/prisma";
+import { PLAN_TYPE_OPTIONS, PLAN_TYPE_META } from "../lib/training-metrics";
 import { CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, barChartHeight, completionColor } from "../lib/chart-config";
 import AppShell from "../components/AppShell";
 import PageSectionTabs from "../components/PageSectionTabs";
@@ -385,6 +386,7 @@ function CreatePlanForm({ isAdmin, sports, coaches, athletes, templates, onCreat
   const [sportId, setSportId] = React.useState(sports[0]?.id || "");
   const [coachId, setCoachId] = React.useState("");
   const [templateId, setTemplateId] = React.useState("");
+  const [planType, setPlanType] = React.useState("normal");
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState("");
   const [selectedAthletes, setSelectedAthletes] = React.useState([]);
@@ -394,6 +396,8 @@ function CreatePlanForm({ isAdmin, sports, coaches, athletes, templates, onCreat
   const [durationDays, setDurationDays] = React.useState("");
 
   const suggestedEnd = durationDays && startDate ? addDaysISO(startDate, Number(durationDays)) : "";
+  const selectedTemplate = templates.find((t) => String(t.id) === String(templateId));
+  const templatePlanType = selectedTemplate?.planType || "";
 
   const coachOptions = coaches.filter((c) => !c.sports?.length || c.sports.some((s) => s.sportId === Number(sportId)));
   const athleteOptions = athletes.filter((a) => (!sportId || a.sportId === Number(sportId)) && (!isAdmin || !coachId || a.coachId === Number(coachId)));
@@ -426,6 +430,7 @@ function CreatePlanForm({ isAdmin, sports, coaches, athletes, templates, onCreat
       description: form.get("description"),
       sportId: Number(form.get("sportId")),
       coachId: Number(form.get("coachId") || (isAdmin ? 0 : athletes[0]?.coachId)),
+      planType: templateId ? (templates.find((t) => String(t.id) === String(templateId))?.planType || "normal") : planType,
       frequency: form.get("frequency"),
       durationDays: form.get("durationDays") ? Number(form.get("durationDays")) : null,
       startDate,
@@ -455,6 +460,30 @@ function CreatePlanForm({ isAdmin, sports, coaches, athletes, templates, onCreat
       <form onSubmit={submit} className={styles.formGrid}>
         <label className={styles.fullField}>Plan name *<input name="planName" required maxLength="191" placeholder="e.g. Pre-season conditioning month" /></label>
         <label>Sport *<select name="sportId" value={sportId} required onChange={(e) => { setSportId(e.target.value); setCoachId(""); setSelectedAthletes([]); }}>{sports.map((s) => <option key={s.id} value={s.id}>{s.sportName}</option>)}</select></label>
+
+        <label className={styles.fullField}>
+          Plan type *
+          <div className={styles.planTypeOptions}>
+            {PLAN_TYPE_OPTIONS.map((opt) => (
+              <button
+                type="button"
+                key={opt.value}
+                className={`${styles.planTypeCard} ${planType === opt.value ? styles.selected : ""}`}
+                onClick={() => setPlanType(opt.value)}
+                disabled={busy || !!templateId}
+                aria-pressed={planType === opt.value}
+              >
+                <strong>{opt.label}</strong>
+                <small>{opt.description}</small>
+              </button>
+            ))}
+          </div>
+          {templateId ? (
+            <p className={styles.formHint}>Plan type follows the selected template ({PLAN_TYPE_META[templatePlanType]?.label || "Normal Training"}).</p>
+          ) : (
+            <p className={styles.formHint}>Chosen once at creation — the plan type cannot be changed later.</p>
+          )}
+        </label>
 
         {templates.length > 0 && (
           <label className={styles.fullField}>
@@ -552,6 +581,9 @@ function EditPlanForm({ isAdmin, plan, sports, coaches, athletes, onSaved, onCan
     <>
       <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Edit</p><h2>{plan.planName}</h2></div></div>
       <form onSubmit={submit} className={styles.formGrid}>
+        <p className={`${styles.fullField} ${styles.formHint}`} style={{ marginTop: 0 }}>
+          <strong>{PLAN_TYPE_META[plan.planType]?.label || "Normal Training"}</strong> plan — the type is fixed after creation and cannot be changed.
+        </p>
         <label className={styles.fullField}>Plan name *<input name="planName" required maxLength="191" defaultValue={formData.planName} onChange={handleChange} /></label>
         <label>Sport *<select name="sportId" value={formData.sportId} required onChange={handleChange}>{sports.map((s) => <option key={s.id} value={s.id}>{s.sportName}</option>)}</select></label>
         {isAdmin && <label>Coach *<select name="coachId" value={formData.coachId} required onChange={handleChange}><option value="">Select a coach</option>{coachOptions.map((c) => <option key={c.id} value={c.id}>{c.lastName}, {c.firstName}{c.coachCode ? ` (${c.coachCode})` : ""}</option>)}</select></label>}

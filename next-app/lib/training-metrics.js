@@ -134,3 +134,26 @@ export function defaultUnitFor(fitnessType) {
 /* { value, label } options for fitness-type dropdowns, same order as the DB
    enum for consistent presentation. */
 export const FITNESS_OPTIONS = FITNESS_TYPES.map((v) => ({ value: v, label: FITNESS_TYPE_METRICS[v].label }));
+
+/* ============================================================================
+   TRAINING PLAN TYPES — Normal vs Pre-Conditioning.
+
+   `planType` on a training plan is fixed at creation (never edited later).
+   It decides which fitness types are offered when adding activities and
+   whether a target is required. See docs/PLAN-training-plan-types.md.
+   ========================================================================== */
+
+export const PLAN_TYPES = ["normal", "pre_conditioning"];
+
+export const PLAN_TYPE_META = {
+  normal: {
+    label: "Normal Training",
+    description: "Regular practice and skill-building.",
+  },
+  pre_conditioning: {
+    label: "Pre-Conditioning",
+    description: "Preparing an athlete for an upcoming competition. Stricter tracking, focused on conditioning.",
+  },
+};
+
+export const PLAN_TYPE_OPTIONS = PLAN_TYPES.map((v) => ({ value: v, ...PLAN_TYPE_META[v] }));
