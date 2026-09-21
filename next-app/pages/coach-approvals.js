@@ -152,7 +152,7 @@ export default function CoachApprovals({ session }) {
               <p className={styles.eyebrow}>Activation required</p>
               <h3 style={{ margin: "0 0 6px" }}>Your coach approval power is ready but not yet active</h3>
               <p className={styles.formHint} style={{ marginTop: 0 }}>The administrator granted you the ability to approve coach applications. Enter the 6-digit activation code that was emailed and sent by SMS to finish activating it. Codes expire after 24 hours.</p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginTop: 10 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", alignItems: "center", marginTop: "var(--space-3)" }}>
                 <input
                   className={styles.fieldControl}
                   type="text"

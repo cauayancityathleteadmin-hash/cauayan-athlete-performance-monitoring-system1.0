@@ -48,7 +48,7 @@ export default function PasswordInput({
           disabled={disabled}
           style={{
             width: "100%",
-            padding: "14px 50px 14px 16px",
+            padding: "var(--space-3) 50px var(--space-3) var(--space-4)",
             border: error ? "1px solid var(--danger)" : "1px solid var(--border)",
             borderRadius: "8px",
             background: "rgba(6, 38, 30, .92)",

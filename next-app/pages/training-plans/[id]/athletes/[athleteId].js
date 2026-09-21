@@ -386,7 +386,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
                         </tr>
                         {isExpanded && (
                           <tr>
-                            <td colSpan="7" style={{ padding: "14px 14px 20px", background: "transparent" }}>
+                            <td colSpan="7" style={{ padding: "var(--space-3) var(--space-3) var(--space-4)", background: "transparent" }}>
                               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                                 {/* Activity history */}
                                 <div>

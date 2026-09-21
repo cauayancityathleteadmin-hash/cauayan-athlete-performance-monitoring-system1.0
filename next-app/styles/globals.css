@@ -149,20 +149,20 @@ h1, h2, h3, h4, h5, h6 {
 @media (min-width: 481px) and (max-width: 639px) {
   .login-page {
     width: min(100% - 40px, var(--auth-card-width));
-    padding: 36px 28px;
+    padding: var(--space-6) var(--space-5);
   }
 }
 
 @media (max-width: 480px) {
   .login-page {
-    padding: 28px 20px;
+    padding: var(--space-5) var(--space-4);
     width: calc(100% - 32px);
   }
 }
 
 @media (max-width: 360px) {
   .login-page {
-    padding: 22px 16px;
+    padding: var(--space-5) var(--space-4);
     width: calc(100% - 24px);
   }
   .login-page .logo {
@@ -175,7 +175,7 @@ h1, h2, h3, h4, h5, h6 {
   height: 84px;
   max-width: 100%;
   object-fit: contain;
-  margin: 0 auto 14px;
+  margin: 0 auto var(--space-4);
   filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
 }
 
@@ -196,7 +196,7 @@ h1, h2, h3, h4, h5, h6 {
 .login-page form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-4);
   width: 100%;
 }
 
@@ -213,7 +213,7 @@ h1, h2, h3, h4, h5, h6 {
 .login-page button,
 .login-page select {
   width: 100%;
-  padding: 13px;
+  padding: var(--space-3);
   border: 1px solid var(--border);
   border-radius: 6px;
   font: inherit;
@@ -251,7 +251,7 @@ h1, h2, h3, h4, h5, h6 {
 .login-page .register-fields {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 14px;
+  gap: var(--space-4);
 }
 
 @media (min-width: 560px) {
@@ -271,13 +271,13 @@ h1, h2, h3, h4, h5, h6 {
 
 @media (max-width: 480px) {
   .login-page.register-box {
-    padding: 24px 18px;
+    padding: var(--space-5) var(--space-4);
   }
 }
 
 @media (max-width: 360px) {
   .login-page.register-box {
-    padding: 18px 14px;
+    padding: var(--space-4) var(--space-3);
   }
 }
 
@@ -289,7 +289,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .login-page button {
-  margin-top: 10px;
+  margin-top: var(--space-3);
   background: var(--accent);
   color: #041f18;
   cursor: pointer;
@@ -310,19 +310,19 @@ h1, h2, h3, h4, h5, h6 {
 .login-page [role="alert"] { color: var(--danger); font-size: 15px; }
 .login-page [role="status"] { color: var(--accent); font-size: 15px; }
 .auth-kicker { margin: 0; color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
-.auth-subtitle { margin: 0 0 20px; color: var(--muted); font-size: 15px; text-align: center; }
-.auth-register { margin: 20px 0 0; text-align: center; font-size: 16px; }
-.login-page fieldset { display: grid; gap: 10px; margin: 8px 0; padding: 14px; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); }
-.login-page fieldset label { font-weight: 400; font-size: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.auth-subtitle { margin: 0 0 var(--space-5); color: var(--muted); font-size: 15px; text-align: center; }
+.auth-register { margin: var(--space-5) 0 0; text-align: center; font-size: 16px; }
+.login-page fieldset { display: grid; gap: var(--space-3); margin: var(--space-2) 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-lg); color: var(--muted); }
+.login-page fieldset label { font-weight: 400; font-size: 15px; display: flex; align-items: center; gap: var(--space-3); cursor: pointer; }
 .login-page fieldset input { width: auto; margin: 0; padding: 0; }
 .login-page fieldset input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); flex-shrink: 0; }
 
 .register-sports {
   display: block;
   margin: 4px 0;
-  padding: 16px;
+  padding: var(--space-4);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
   color: var(--muted);
   background: rgba(6, 38, 30, .5);
 }
@@ -339,14 +339,14 @@ h1, h2, h3, h4, h5, h6 {
 .register-sports-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .register-sports-option {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: var(--space-3);
+  padding: var(--space-3);
   border: 1px solid var(--border);
   border-radius: 8px;
   cursor: pointer;

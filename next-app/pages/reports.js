@@ -835,7 +835,7 @@ function PerformanceSummary({ athlete }) {
           <h4>Medals</h4>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {medals.length ? medals.slice(0, 6).map((m, i) => (
-              <span key={i} style={{ display: "inline-flex", alignItems: "center", padding: "3px 10px", borderRadius: 12, fontSize: 12, fontWeight: 700, textTransform: "capitalize", background: m.medal === "gold" ? "rgba(250,204,21,.16)" : m.medal === "silver" ? "rgba(203,213,225,.16)" : m.medal === "bronze" ? "rgba(217,119,6,.18)" : "rgba(100,116,139,.16)", color: m.medal === "gold" ? "#facc15" : m.medal === "silver" ? "#cbd5e1" : "var(--muted)" }}>
+              <span key={i} style={{ display: "inline-flex", alignItems: "center", padding: "3px 10px", borderRadius: 12, fontSize: 12, fontWeight: 700, textTransform: "capitalize", background: m.medal === "gold" ? "rgba(250,204,21,.16)" : m.medal === "silver" ? "rgba(203,213,225,.16)" : m.medal === "bronze" ? "rgba(217,119,6,.18)" : "rgba(66,135,99,.16)", color: m.medal === "gold" ? "#facc15" : m.medal === "silver" ? "#cbd5e1" : "var(--muted)" }}>
                 {m.medal}
               </span>
             )) : <span style={{ color: "var(--muted)", fontSize: 14 }}>—</span>}

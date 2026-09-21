@@ -122,11 +122,11 @@ function CoachProgressPanel({ coaches, evals }) {
             </div>
             <div style={{ marginTop: 12 }}>
               <h4 style={{ fontSize: 13, margin: "0 0 6px", color: "var(--accent)" }}>Average per criterion</h4>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)" }}>
                 {CRITERIA.map((c) => {
                   const avg = coachEvals.reduce((s, e) => s + Number(e[c.key] || 0), 0) / coachEvals.length;
                   return (
-                    <span key={c.key} style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", padding: "6px 10px", borderRadius: 10, background: "rgba(6,38,30,.35)", border: "1px solid var(--border)" }}>
+                    <span key={c.key} style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", padding: "6px 10px", borderRadius: "var(--radius-xl)", background: "rgba(6,38,30,.35)", border: "1px solid var(--border)" }}>
                       <strong style={{ color: ratingColor(avg), fontSize: 14 }}>{round(avg)}</strong>
                       <small style={{ color: "var(--muted)", fontSize: 10, textAlign: "center" }}>{c.label}</small>
                     </span>

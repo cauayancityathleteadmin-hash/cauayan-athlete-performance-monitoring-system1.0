@@ -190,7 +190,7 @@ export default function AdminCoachAccounts({ coaches, session }) {
                       </td>
                       <td data-label="Approves coaches">
                         {coach.user.status === "active" ? (
-                          <button type="button" className={styles.badge} disabled={busy} onClick={() => toggleApproval(coach)} style={{ cursor: "pointer", background: coach.canApproveCoaches ? "rgba(45,212,168,.18)" : "rgba(157,182,199,.14)", color: coach.canApproveCoaches ? "var(--accent)" : "var(--foreground)", border: "none" }}>
+                          <button type="button" className={styles.badge} disabled={busy} onClick={() => toggleApproval(coach)} style={{ cursor: "pointer", background: coach.canApproveCoaches ? "rgba(45,212,168,.18)" : "rgba(66,135,99,.16)", color: coach.canApproveCoaches ? "var(--accent)" : "var(--foreground)", border: "none" }}>
                             {coach.canApproveCoaches ? "Yes ✓" : "No"}
                           </button>
                         ) : (

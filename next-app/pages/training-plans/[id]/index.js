@@ -828,10 +828,10 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
   return (
     <div>
       <style jsx>{`
-        .studioBar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
-        .mkWrap { overflow: auto; border: 1px solid rgba(26,92,74,.55); border-radius: 10px; background: rgba(6,38,30,.25); max-height: 560px; }
+        .studioBar { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; margin-bottom: var(--space-4); }
+        .mkWrap { overflow: auto; border: 1px solid rgba(26,92,74,.55); border-radius: var(--radius-xl); background: rgba(6,38,30,.25); max-height: 560px; }
         .mkTable { border-collapse: collapse; min-width: 100%; font-size: 13px; }
-        .mkTable th, .mkTable td { border-bottom: 1px solid rgba(26,92,74,.45); padding: 8px 10px; text-align: left; vertical-align: middle; }
+        .mkTable th, .mkTable td { border-bottom: 1px solid rgba(26,92,74,.45); padding: var(--space-2) var(--space-3); text-align: left; vertical-align: middle; }
         .mkTable tbody tr:last-child td { border-bottom: none; }
         .mkTable thead th { position: sticky; top: 0; background: #0a3228; z-index: 2; }
         .mkTable th.fix, .mkTable td.fix { position: sticky; left: 0; background: #0d3d31; z-index: 1; min-width: 200px; }
@@ -847,13 +847,13 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
         .qtyIn { width: 72px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255,255,255,.04); color: var(--foreground); font-size: 13px; }
         .rowHead { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
         .rowActions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-        .miniBtn { padding: 6px 10px; font-size: 12px; border-radius: 5px; border: 1px solid var(--border); background: rgba(255,255,255,.04); color: var(--muted); cursor: pointer; min-height: 36px; }
+        .miniBtn { padding: 6px 10px; font-size: 12px; border-radius: var(--radius-md); border: 1px solid var(--border); background: rgba(255,255,255,.04); color: var(--muted); cursor: pointer; min-height: 36px; }
         .miniBtn:hover { color: var(--accent); border-color: rgba(45,212,168,.5); }
-        .evColBtn { margin-top: 2px; display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; font-size: 12px; border-radius: 5px; border: 1px solid rgba(45,212,168,.45); background: rgba(45,212,168,.1); color: var(--accent); cursor: pointer; min-height: 32px; }
+        .evColBtn { margin-top: 2px; display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; font-size: 12px; border-radius: var(--radius-md); border: 1px solid rgba(45,212,168,.45); background: rgba(45,212,168,.1); color: var(--accent); cursor: pointer; min-height: 32px; }
         .evColBtn:hover { background: rgba(45,212,168,.22); }
         .evCellDot { flex: 0 0 auto; width: 28px; height: 28px; border-radius: 6px; border: 1px solid rgba(45,212,168,.4); background: transparent; color: var(--accent); font-size: 12px; cursor: pointer; }
         .evCellDot:hover { background: rgba(45,212,168,.2); }
-        .revPanel { border: 1px solid rgba(45,212,168,.5); border-radius: 10px; background: rgba(6,38,30,.5); padding: 12px 14px; margin-top: 12px; }
+        .revPanel { border: 1px solid rgba(45,212,168,.5); border-radius: var(--radius-xl); background: rgba(6,38,30,.5); padding: var(--space-3) var(--space-4); margin-top: var(--space-3); }
         .revAthlete { padding: 8px 0; border-bottom: 1px dashed rgba(26,92,74,.5); }
         .revChip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; font-size: 11px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255,255,255,.03); }
         .revThumb { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(45,212,168,.4); cursor: pointer; }
@@ -1047,7 +1047,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
   if (!colsToShow.length) return null;
   return (
     <div className="revPanel">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-3)" }}>
         <strong style={{ color: "var(--accent)" }}>{isAll ? 'Evidence by activity (all)' : `Evidence by activity: ${colsToShow[0].activityName}`}</strong>
         <button className="miniBtn" onClick={() => setReviewColumn(null)}>Close</button>
       </div>

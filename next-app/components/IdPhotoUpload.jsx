@@ -218,7 +218,7 @@ export default function IdPhotoUpload({ value, onChange, required = false, label
             <span
               style={{
                 display: "inline-block",
-                padding: "10px 14px",
+                padding: "var(--space-3) var(--space-4)",
                 border: "1px solid var(--border)",
                 borderRadius: "6px",
                 background: "rgba(45,212,168,.12)",
@@ -244,7 +244,7 @@ export default function IdPhotoUpload({ value, onChange, required = false, label
               type="button"
               onClick={openCamera}
               disabled={busy}
-              style={{ display: "inline-block", padding: "10px 14px", border: "1px solid var(--border)", borderRadius: "6px", background: "rgba(127,199,175,.1)", color: "var(--foreground)", fontWeight: 600, cursor: "pointer", fontSize: "14px", textAlign: "left" }}
+              style={{ display: "inline-block", padding: "var(--space-3) var(--space-4)", border: "1px solid var(--border)", borderRadius: "6px", background: "rgba(127,199,175,.1)", color: "var(--foreground)", fontWeight: 600, cursor: "pointer", fontSize: "14px", textAlign: "left" }}
             >
               {busy ? "Uploading..." : "Take photo"}
             </button>
@@ -269,10 +269,10 @@ export default function IdPhotoUpload({ value, onChange, required = false, label
             <div style={{ position: "absolute", inset: 0, pointerEvents: "none", boxShadow: "inset 0 0 0 3px rgba(45,212,168,.8)", borderRadius: "8px", margin: "8%" }} />
           </div>
           <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-3)", flexWrap: "wrap" }}>
-            <button type="button" onClick={capturePhoto} disabled={busy} style={{ padding: "10px 16px", border: "none", borderRadius: "6px", background: "var(--accent)", color: "#041f18", fontWeight: 700, cursor: "pointer", fontSize: "14px" }}>
+            <button type="button" onClick={capturePhoto} disabled={busy} style={{ padding: "var(--space-3) var(--space-4)", border: "none", borderRadius: "6px", background: "var(--accent)", color: "#041f18", fontWeight: 700, cursor: "pointer", fontSize: "14px" }}>
               {busy ? "Uploading..." : "Capture photo"}
             </button>
-            <button type="button" onClick={closeCamera} disabled={busy} style={{ padding: "10px 16px", border: "1px solid var(--border)", borderRadius: "6px", background: "transparent", color: "var(--foreground)", fontWeight: 600, cursor: "pointer", fontSize: "14px" }}>
+            <button type="button" onClick={closeCamera} disabled={busy} style={{ padding: "var(--space-3) var(--space-4)", border: "1px solid var(--border)", borderRadius: "6px", background: "transparent", color: "var(--foreground)", fontWeight: 600, cursor: "pointer", fontSize: "14px" }}>
               Cancel
             </button>
           </div>

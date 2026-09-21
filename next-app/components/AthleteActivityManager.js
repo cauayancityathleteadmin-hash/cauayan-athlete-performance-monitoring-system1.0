@@ -219,7 +219,7 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
                         <td data-label="Target">{targetText}</td>
                         <td data-label="Latest status" style={{ textAlign: "center" }}>
                           {(() => {
-                            if (!latest) return <span className={styles.badge} style={{ background: "rgba(26,92,74,.08)", color: "var(--muted)", border: "1px dashed rgba(100,116,139,.3)", fontSize: "11px" }}>Not started</span>;
+                            if (!latest) return <span className={styles.badge} style={{ background: "rgba(26,92,74,.08)", color: "var(--muted)", border: "1px dashed rgba(66,135,99,.45)", fontSize: "11px" }}>Not started</span>;
                             return (
                               <span title={`${fmtDate(latest.performedAt)}${logResultText(latest) ? ` · ${logResultText(latest)}` : ""}`} className={`${styles.badge} ${styles[meta.cls]}`} style={{ fontSize: "11px" }}>
                                 {meta.label}
@@ -228,7 +228,7 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
                             );
                           })()}
                         </td>
-                        {!readOnly && <td><button className={`${styles.secondary} ${styles.btnSm}`} onClick={() => { if (isEditing) setEditingId(null); else startEdit(firstActivity); }} style={{ padding: "4px 8px", fontSize: "12px" }}>{isEditing ? "Cancel" : "Edit"}</button> <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => onRemove(firstActivity.id)}>Remove</button></td>}
+                        {!readOnly && <td><button className={`${styles.secondary} ${styles.btnSm}`} onClick={() => { if (isEditing) setEditingId(null); else startEdit(firstActivity); }}>{isEditing ? "Cancel" : "Edit"}</button> <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => onRemove(firstActivity.id)}>Remove</button></td>}
                       </tr>
                       {isEditing && draft && (
                         <tr><td colSpan="4" style={{ padding: 0, background: "transparent" }}>
@@ -338,11 +338,11 @@ export function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
               {rows.length > 1 && <button type="button" className={`${styles.danger} ${styles.btnSm}`} onClick={() => removeRow(r.id)}>Remove</button>}
             </div>
             <label className={styles.fullField} style={{ marginBottom: 8 }}>Name *<input value={r.name} onChange={(e) => updateRow(r.id, "name", e.target.value)} maxLength="191" placeholder="e.g. Endurance run" /></label>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
+            <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", marginBottom: 8 }}>
               <label style={{ flex: "1 1 150px" }}>Fitness type<select value={r.fitness} onChange={(e) => updateRow(r.id, "fitness", e.target.value)}>{FITNESS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
               <LockedTargetFields fitnessType={r.fitness} values={r} onChange={(key, value) => updateRow(r.id, key, value)} />
             </div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
+            <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", marginBottom: 8 }}>
               <label style={{ flex: "0 1 90px" }}>Day (1–7)<input value={r.dayIndex} onChange={(e) => updateRow(r.id, "dayIndex", e.target.value)} type="number" min="1" max="7" placeholder="Day" /></label>
               <label style={{ flex: "0 1 90px" }}>Week<input value={r.weekNumber} onChange={(e) => updateRow(r.id, "weekNumber", e.target.value)} type="number" min="1" placeholder="Week" /></label>
             </div>

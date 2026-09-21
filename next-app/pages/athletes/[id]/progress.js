@@ -383,7 +383,7 @@ export default function AthleteProgress({ session, isAdmin, athlete, trainingAss
           <section className={styles.panel}>
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Recognition</p><h2>Achievements</h2></div></div>
             {achievements.length ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
                 {achievements.map((a) => (
                   <div key={a.id} className={styles.detailPanel}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>

@@ -80,7 +80,7 @@ function medalChip(type, count) {
   if (!count) return null;
   const color = type === "gold" ? "#facc15" : type === "silver" ? "#cbd5e1" : type === "bronze" ? "#d97706" : "var(--muted)";
   return (
-    <span key={type} style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "2px 8px", borderRadius: 10, background: "rgba(6,38,30,.35)", border: "1px solid var(--border)", fontSize: 11, fontWeight: 700 }}>
+    <span key={type} style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "2px 8px", borderRadius: "var(--radius-xl)", background: "rgba(6,38,30,.35)", border: "1px solid var(--border)", fontSize: 11, fontWeight: 700 }}>
       <span style={{ color, fontSize: 12 }}>●</span> {type.charAt(0).toUpperCase()}{type.slice(1)} {count}
     </span>
   );

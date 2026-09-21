@@ -261,7 +261,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage })
           {editOpen && <EditAthleteForm athlete={athlete} catalog={catalog} isAdmin={isAdmin} onDone={() => { setEditOpen(false); router.reload(); }} />}
           <div className={styles.grid}>
             <div className={styles.detailPanel}>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 18, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-4)", flexWrap: "wrap" }}>
                 <AthletePhotoCard athlete={athlete} canManage={canManage} />
                 <div style={{ flex: 1, minWidth: 200 }}>
                   <h4>Personal</h4>
@@ -402,7 +402,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage })
 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Timeline</p><h2>Status history</h2></div></div>
             {canManage && <StatusForm athleteId={athlete.id} currentStatus={athlete.status} onComplete={() => router.reload()} />}
             {athlete.statusHistory?.length ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
                 {athlete.statusHistory.map((s) => (
                   <div key={s.id} className={styles.detailPanel}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
@@ -421,7 +421,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage })
 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Recognition</p><h2>Achievements</h2></div></div>
             {canManage && <AchievementForm athleteId={athlete.id} catalog={catalog} onComplete={() => router.reload()} />}
             {athlete.achievements?.length ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
                 {athlete.achievements.map((a) => (
                   <div key={a.id} className={styles.detailPanel}>
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
@@ -494,7 +494,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage })
             <div className={styles.detailPanel}>
               <h4>Training plans</h4>
               {athlete.trainingPlans?.length ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
                   {athlete.trainingPlans.map((tpl) => (
                     <div key={tpl.id} className={styles.detailPanel}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
@@ -511,7 +511,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage })
             <div className={styles.detailPanel}>
               <h4>Assessment history</h4>
               {athlete.trainingAssessments?.length ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
                   {athlete.trainingAssessments.map((a) => (
                     <div key={a.id} className={styles.detailPanel}>
                       <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
@@ -560,8 +560,8 @@ function StatusForm({ athleteId, currentStatus, onComplete }) {
   }
 
   return (
-    <form onSubmit={submit} className={styles.formStack} style={{ marginBottom: 14 }}>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+    <form onSubmit={submit} className={styles.formStack} style={{ marginBottom: "var(--space-4)" }}>
+      <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", alignItems: "flex-end" }}>
         <label style={{ flex: "0 0 auto" }}>Set status
           <select value={status} onChange={(e) => setStatus(e.target.value)} className={styles.fieldControl}>
             <option value="active">Active</option>
@@ -620,9 +620,9 @@ function AchievementForm({ athleteId, catalog, onComplete }) {
   }
 
   return (
-    <form onSubmit={submit} className={styles.formStack} style={{ marginBottom: 14 }}>
+    <form onSubmit={submit} className={styles.formStack} style={{ marginBottom: "var(--space-4)" }}>
       <label>Title *<input name="title" className={styles.fieldControl} required maxLength="150" placeholder="e.g. Gold medal, 100m sprint" /></label>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
         <label style={{ flex: "1 1 140px" }}>Medal / result
           <select name="medal" className={styles.fieldControl} defaultValue="">
             <option value="">None</option>
@@ -646,7 +646,7 @@ function AchievementForm({ athleteId, catalog, onComplete }) {
           <input name="achievementDate" className={styles.fieldControl} type="date" defaultValue={today} />
         </label>
       </div>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
         <label style={{ flex: "1 1 160px" }}>Sport
           <select name="sportId" className={styles.fieldControl} defaultValue="" onChange={(e) => setSportId(e.target.value)}>
             <option value="">None</option>
@@ -714,8 +714,8 @@ function HealthForm({ athleteId, onComplete }) {
   }
 
   return (
-    <form onSubmit={submit} className={styles.formStack} style={{ marginBottom: 18 }}>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+    <form onSubmit={submit} className={styles.formStack} style={{ marginBottom: "var(--space-4)" }}>
+      <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", alignItems: "flex-end" }}>
         <label style={{ flex: "0 0 auto" }}>Set health condition
           <select value={status} onChange={(e) => setStatus(e.target.value)} className={styles.fieldControl}>
             <option value="healthy">Healthy</option>
@@ -763,7 +763,7 @@ function NoteForm({ athleteId, onComplete }) {
   }
 
   return (
-    <form onSubmit={submit} className={styles.formStack} style={{ marginBottom: 14 }}>
+    <form onSubmit={submit} className={styles.formStack} style={{ marginBottom: "var(--space-4)" }}>
       <label>Add an observation about the athlete{String.fromCharCode(39)}s progress</label>
       <textarea className={styles.fieldControl} rows="3" maxLength="5000" placeholder="e.g. Showing consistent gains in sprint endurance; needs focus on starts." value={note} onChange={(e) => setNote(e.target.value)} />
       <button className={styles.primary} disabled={busy || !note.trim()}>{busy ? "Saving..." : "Add note"}</button>
@@ -799,14 +799,14 @@ function AthletePhotoCard({ athlete, canManage = true }) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--space-3)" }}>
       <ProfilePhoto url={pictureUrl} firstName={athlete.firstName} lastName={athlete.lastName} size={112} radius={10} />
       {canManage && <button type="button" className={styles.secondary} style={{ alignSelf: "center" }} onClick={() => { setEditing((c) => !c); setMessage(""); }}>{editing ? "Cancel" : "Edit photo"}</button>}
       {!editing && pictureUrl && <p className={styles.formHint} style={{ margin: 0 }}>2x2 ID picture</p>}
       {editing && (
         <form onSubmit={save} className={styles.formStack} style={{ width: "100%" }}>
           <IdPhotoUpload value={pictureUrl} onChange={setPictureUrl} label="Upload or paste photo URL" />
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: "var(--space-3)", alignItems: "center" }}>
             <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Save photo"}</button>
             {message && <p role="status" className={styles.formSuccess} style={{ margin: 0 }}>{message}</p>}
           </div>
@@ -849,7 +849,7 @@ function EditAthleteForm({ athlete, catalog, isAdmin, onDone }) {
   }
 
   return (
-    <form onSubmit={submit} className={styles.formStack} style={{ marginBottom: 18 }}>
+    <form onSubmit={submit} className={styles.formStack} style={{ marginBottom: "var(--space-4)" }}>
       <div className={styles.formGrid}>
         <label>First name *<input name="firstName" className={styles.fieldControl} type="text" required maxLength="100" defaultValue={athlete.firstName} /></label>
         <label>Middle name<input name="middleName" className={styles.fieldControl} type="text" maxLength="100" defaultValue={athlete.middleName || ""} /></label>
