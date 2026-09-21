@@ -292,9 +292,14 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
     <>
       <Head><title>{plan.planName} | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Training" title={plan.planName} active="/training-plans">
-        <div className={styles.pageActions}>
-          <nav className={styles.eyebrow} style={{ lineHeight: 1.5 }}>Training <span style={{ opacity: 0.6 }}>/</span> Training plans <span style={{ opacity: 0.6 }}>/</span> <strong>{plan.planName}</strong></nav>
-          <button className={styles.secondary} onClick={() => router.push("/training-plans")}>Back to plans</button>
+        <div className={styles.pageTitle}>
+          <div>
+            <p className={styles.eyebrow}>Training / Training plans</p>
+            <h1>{plan.planName}</h1>
+          </div>
+          <div className={styles.actions}>
+            <button className={styles.secondary} onClick={() => router.push("/training-plans")}>Back to plans</button>
+          </div>
         </div>
 
         <section className={styles.panel}>

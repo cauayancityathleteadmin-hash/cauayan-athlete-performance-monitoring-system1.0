@@ -306,17 +306,14 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
     <>
       <Head><title>{athlete.firstName} {athlete.lastName} — {plan.planName} | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Training" title={`${athlete.firstName} ${athlete.lastName}`} active="/training-plans">
-        <nav className={styles.eyebrow} style={{ lineHeight: 1.5, marginBottom: 12 }}>
-          Training <span style={{ opacity: 0.6 }}>/</span> Training plans <span style={{ opacity: 0.6 }}>/</span>
-          <span style={{ cursor: "pointer", opacity: 0.85 }} onClick={() => router.push(`/training-plans/${plan.id}`)}>{plan.planName}</span>
-          <span style={{ opacity: 0.6 }}>/</span> Athletes <span style={{ opacity: 0.6 }}>/</span> <strong>{athlete.firstName} {athlete.lastName}</strong>
-        </nav>
-
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", alignItems: "center", marginBottom: "var(--space-5)" }}>
-          <div className={styles.pageActions}>
-            <span className={styles.eyebrow}>{athlete.athleteCode} {athlete.sport?.sportName ? `· ${athlete.sport.sportName}` : ""}</span>
+        <div className={styles.pageTitle}>
+          <div>
+            <p className={styles.eyebrow}>{plan.planName} <span style={{ opacity: 0.6 }}>/</span> {athlete.athleteCode}{athlete.sport?.sportName ? ` · ${athlete.sport.sportName}` : ""}</p>
+            <h1>{athlete.firstName} {athlete.lastName}</h1>
           </div>
-          <button className={styles.secondary} onClick={() => router.push(`/training-plans/${plan.id}`)}>← Back to plan</button>
+          <div className={styles.actions}>
+            <button className={styles.secondary} onClick={() => router.push(`/training-plans/${plan.id}`)}>Back to plan</button>
+          </div>
         </div>
 
         <PageSectionTabs sections={ATHLETE_SECTIONS} defaultSection="overview">

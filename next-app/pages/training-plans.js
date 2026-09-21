@@ -188,6 +188,8 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
     <>
       <Head><title>Training | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Training" title="Training plans" active="/training-plans">
+        <div className={styles.pageTitle}><h1>Training plans</h1></div>
+
         <PageSectionTabs sections={PLAN_SECTIONS}>
           <section id="progress">
             <RosterProgress />
