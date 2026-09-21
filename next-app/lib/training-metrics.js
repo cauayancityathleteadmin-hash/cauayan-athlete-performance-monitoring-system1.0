@@ -148,10 +148,12 @@ export const PLAN_TYPES = ["normal", "pre_conditioning"];
 export const PLAN_TYPE_META = {
   normal: {
     label: "Normal Training",
+    short: "Normal",
     description: "Regular practice and skill-building.",
   },
   pre_conditioning: {
     label: "Pre-Conditioning",
+    short: "Pre-Conditioning",
     description: "Preparing an athlete for an upcoming competition. Stricter tracking, focused on conditioning.",
   },
 };

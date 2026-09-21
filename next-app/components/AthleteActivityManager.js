@@ -1,6 +1,7 @@
 import React from "react";
 import { resultFieldFor, resultUnitFor, targetValueFor } from "../lib/activity-score";
 import { FITNESS_OPTIONS, allowedTargetKeysFor, defaultUnitFor, metricFieldsFor, fitnessTypesForPlanType, primaryTargetKeyFor, betterDirectionFor, metricProfileFor } from "../lib/training-metrics";
+import { getStarterNorm } from "../lib/starter-metrics";
 import styles from "../styles/Dashboard.module.css";
 
 const ROW_TARGET_KEYS = ["targetTimeSec", "targetDistance", "targetLoad", "targetReps", "targetSets", "targetQuantity"];
@@ -313,13 +314,15 @@ export function AddAthleteActivitiesForm({ planId, athlete, onCreated, planType 
 
   function freshRow(id) {
     const first = offeredFitnessTypes[0] || "endurance";
+    const starter = getStarterNorm(first, athlete?.gender, athlete?.birthdate);
+    const targetKey = primaryTargetKeyFor(first);
     return {
       id,
       name: "",
       fitness: first,
       targetTimeSec: "",
       targetQuantity: "",
-      targetUnit: defaultUnitFor(first),
+      targetUnit: starter?.unit || defaultUnitFor(first),
       targetSets: "",
       targetReps: "",
       targetDistance: "",
@@ -327,6 +330,7 @@ export function AddAthleteActivitiesForm({ planId, athlete, onCreated, planType 
       instructions: "",
       dayIndex: "",
       weekNumber: "",
+      ...(starter && targetKey && starter.value != null ? { [targetKey]: String(starter.value) } : {}),
     };
   }
 
@@ -340,7 +344,19 @@ export function AddAthleteActivitiesForm({ planId, athlete, onCreated, planType 
     setRows((cur) => cur.map((r) => {
       if (r.id !== id) return r;
       const next = { ...r, [key]: value };
-      if (key === "fitness") return resetTargetsFor(next, value);
+      if (key === "fitness") {
+        const reset = resetTargetsFor(next, value);
+        // Pre-fill starter norm for the new fitness type
+        const starter = getStarterNorm(value, athlete?.gender, athlete?.birthdate);
+        if (starter) {
+          const targetKey = primaryTargetKeyFor(value);
+          if (targetKey && starter.value != null) {
+            reset[targetKey] = String(starter.value);
+            reset.targetUnit = starter.unit;
+          }
+        }
+        return reset;
+      }
       return next;
     }));
   }

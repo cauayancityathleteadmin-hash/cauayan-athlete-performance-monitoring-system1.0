@@ -106,6 +106,9 @@ export async function getServerSideProps(context) {
 const FREQ_META = { day: "Daily", week: "Weekly", month: "Monthly" };
 const STATUS_META = { active: { label: "Active", cls: "badgeActive" }, completed: { label: "Completed", cls: "badgeMuted" } };
 
+/* Legacy plans (no plan_type) always count as Normal. */
+const planTypeOf = (p) => (p.planType === "pre_conditioning" ? "pre_conditioning" : "normal");
+
 function durationLabel(p) {
   const days = p.durationDays;
   if (days == null) return null;
@@ -150,6 +153,9 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
       );
     });
   }, [plans, statusFilter, sportFilter, searchQuery]);
+
+  const normalPlans = React.useMemo(() => filteredPlans.filter((p) => planTypeOf(p) === "normal"), [filteredPlans]);
+  const preConditioningPlans = React.useMemo(() => filteredPlans.filter((p) => planTypeOf(p) === "pre_conditioning"), [filteredPlans]);
 
   function loadPlans() {
     fetch("/api/training-plans").then((r) => r.json()).then((data) => { setPlans(Array.isArray(data) ? data : []); setLoadingPlans(false); }).catch(() => { setLoadingPlans(false); setError("Could not load training plans."); });
@@ -234,49 +240,37 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
               <EditPlanForm isAdmin={isAdmin} plan={editingPlan} sports={sports} coaches={coaches} athletes={athletes} onSaved={() => { setEditingPlan(null); refresh(); }} onCancel={() => setEditingPlan(null)} />
             </div>
           )}
+          </section>
 
-          {loadingPlans ? <p className={styles.empty}>Loading plans...</p> : plans.length === 0 ? (
-            <p className={styles.empty}>No training plans yet. Create the first plan to get started.</p>
-          ) : filteredPlans.length === 0 ? (
-            <p className={styles.empty}>No plans match your filters.</p>
+          {loadingPlans ? (
+            <section className={styles.panel} style={{ marginTop: "var(--space-6)" }}><p className={styles.empty}>Loading plans...</p></section>
+          ) : plans.length === 0 ? (
+            <section className={styles.panel} style={{ marginTop: "var(--space-6)" }}><p className={styles.empty}>No training plans yet. Create the first plan to get started.</p></section>
           ) : (
-            <div className={styles.tableWrap}><table>
-              <thead><tr><th>Plan</th><th>Frequency</th><th>Sport</th><th>Coach</th><th>Period</th><th>Athletes</th><th>Progress</th><th>Rating</th><th>Status</th><th></th></tr></thead>
-              <tbody>
-                {filteredPlans.map((p) => {
-                  const prog = progressMap[p.id];
-                  return (
-                  <tr key={p.id}>
-                    <td data-label="Plan"><strong>{p.planName}</strong>{p.description ? <small>{p.description}</small> : null}{p.isTemplate && <span className={`${styles.badge} ${styles.badgePending}`} style={{ marginLeft: 8 }}>Template</span>}</td>
-                    <td data-label="Frequency">{FREQ_META[p.frequency] || p.frequency}{durationLabel(p) ? <small> · {durationLabel(p)}</small> : null}</td>
-                    <td data-label="Sport">{p.sport?.sportName || "—"}</td>
-                    <td data-label="Coach">{p.coach ? `${p.coach.firstName} ${p.coach.lastName}` : "—"}</td>
-                    <td data-label="Period">{fmtDate(p.startDate)}{p.endDate ? ` – ${fmtDate(p.endDate)}` : ""}</td>
-                    <td data-label="Athletes">{p.athletes?.length ?? 0}</td>
-                    <td data-label="Progress">
-                      {prog ? (
-                        <div className={styles.progressCell}>
-                          <strong>{prog.percent}%</strong>
-                          <small>{prog.completed} / {prog.total} done</small>
-                        </div>
-                      ) : "—"}
-                    </td>
-                    <td data-label="Rating">{prog && prog.avgRating != null ? <span className={`${styles.badge} ${styles.badgeActive}`}>★ {prog.avgRating}</span> : "—"}</td>
-                    <td data-label="Status"><span className={`${styles.badge} ${styles[STATUS_META[p.status]?.cls || "badgeMuted"]}`}>{STATUS_META[p.status]?.label || p.status}</span></td>
-                    <td data-label="Actions">
-                      <div className={styles.actionCell}>
-                        <Link className={styles.expandBtn} href={`/training-plans/${p.id}`}>Manage</Link>
-                        {!isAdmin && <button className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setEditingPlan(p)}>Edit</button>}
-                        {!isAdmin && <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => deletePlan(p.id)}>Delete</button>}
-                      </div>
-                    </td>
-                  </tr>
-                  );
-                })}
-              </tbody>
-            </table></div>
-          )}
-            </section>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)", marginTop: "var(--space-6)" }}>
+                <section className={styles.panel}>
+                  <div className={styles.panelHeader}>
+                    <div><p className={styles.eyebrow}>Normal Training</p><h2>Normal Trainings ({normalPlans.length})</h2></div>
+                  </div>
+                  {normalPlans.length === 0 ? (
+                    <p className={styles.empty}>{filteredPlans.length ? "No Normal trainings match your filters." : "No Normal trainings yet."}</p>
+                  ) : (
+                    <PlanTable plans={normalPlans} progressMap={progressMap} isAdmin={isAdmin} onEdit={setEditingPlan} onDelete={deletePlan} />
+                  )}
+                </section>
+
+                <section className={styles.panel}>
+                  <div className={styles.panelHeader}>
+                    <div><p className={styles.eyebrow}>Pre-Conditioning</p><h2>Pre-Conditioning Trainings ({preConditioningPlans.length})</h2></div>
+                  </div>
+                  {preConditioningPlans.length === 0 ? (
+                    <p className={styles.empty}>{filteredPlans.length ? "No Pre-Conditioning trainings match your filters." : "No Pre-Conditioning trainings yet."}</p>
+                  ) : (
+                    <PlanTable plans={preConditioningPlans} progressMap={progressMap} isAdmin={isAdmin} onEdit={setEditingPlan} onDelete={deletePlan} />
+                  )}
+                </section>
+              </div>
+            )}
           </section>
         </PageSectionTabs>
       </AppShell>
@@ -371,6 +365,51 @@ function RosterProgress() {
         </>
       )}
     </section>
+  );
+}
+
+function PlanTable({ plans, progressMap, isAdmin, onEdit, onDelete }) {
+  return (
+    <div className={styles.tableWrap}><table>
+      <thead><tr><th>Plan</th><th>Frequency</th><th>Sport</th><th>Coach</th><th>Period</th><th>Athletes</th><th>Progress</th><th>Rating</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {plans.map((p) => {
+          const prog = progressMap[p.id];
+          return (
+          <tr key={p.id}>
+            <td data-label="Plan">
+              <strong>{p.planName}</strong>
+              <span className={`${styles.badge} ${styles.badgeMuted}`} style={{ marginLeft: 8 }}>{PLAN_TYPE_META[planTypeOf(p)]?.short || "Normal"}</span>
+              {p.isTemplate && <span className={`${styles.badge} ${styles.badgePending}`} style={{ marginLeft: 8 }}>Template</span>}
+              {p.description ? <small>{p.description}</small> : null}
+            </td>
+            <td data-label="Frequency">{FREQ_META[p.frequency] || p.frequency}{durationLabel(p) ? <small> · {durationLabel(p)}</small> : null}</td>
+            <td data-label="Sport">{p.sport?.sportName || "—"}</td>
+            <td data-label="Coach">{p.coach ? `${p.coach.firstName} ${p.coach.lastName}` : "—"}</td>
+            <td data-label="Period">{fmtDate(p.startDate)}{p.endDate ? ` – ${fmtDate(p.endDate)}` : ""}</td>
+            <td data-label="Athletes">{p.athletes?.length ?? 0}</td>
+            <td data-label="Progress">
+              {prog ? (
+                <div className={styles.progressCell}>
+                  <strong>{prog.percent}%</strong>
+                  <small>{prog.completed} / {prog.total} done</small>
+                </div>
+              ) : "—"}
+            </td>
+            <td data-label="Rating">{prog && prog.avgRating != null ? <span className={`${styles.badge} ${styles.badgeActive}`}>★ {prog.avgRating}</span> : "—"}</td>
+            <td data-label="Status"><span className={`${styles.badge} ${styles[STATUS_META[p.status]?.cls || "badgeMuted"]}`}>{STATUS_META[p.status]?.label || p.status}</span></td>
+            <td data-label="Actions">
+              <div className={styles.actionCell}>
+                <Link className={styles.expandBtn} href={`/training-plans/${p.id}`}>Manage</Link>
+                {!isAdmin && <button className={`${styles.secondary} ${styles.btnSm}`} onClick={() => onEdit(p)}>Edit</button>}
+                {!isAdmin && <button className={`${styles.danger} ${styles.btnSm}`} onClick={() => onDelete(p.id)}>Delete</button>}
+              </div>
+            </td>
+          </tr>
+          );
+        })}
+      </tbody>
+    </table></div>
   );
 }
 
