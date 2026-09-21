@@ -193,3 +193,18 @@ export const BETTER_DIRECTION = {
 export function betterDirectionFor(metric) {
   return BETTER_DIRECTION[metric] || "higher";
 }
+
+/* The target column that carries the scoring value for a metric — i.e. the
+   one that must be set on a Pre-Conditioning activity (its primary metric). */
+const PRIMARY_TARGET_KEY = {
+  time: "targetTimeSec",
+  distance: "targetDistance",
+  load: "targetLoad",
+  reps: "targetReps",
+  sets: "targetSets",
+  quantity: "targetQuantity",
+};
+
+export function primaryTargetKeyFor(fitnessType) {
+  return PRIMARY_TARGET_KEY[primaryMetricFor(fitnessType)];
+}

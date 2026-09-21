@@ -1,6 +1,6 @@
 import React from "react";
 import { resultFieldFor, resultUnitFor, targetValueFor } from "../lib/activity-score";
-import { FITNESS_OPTIONS, allowedTargetKeysFor, defaultUnitFor, metricFieldsFor } from "../lib/training-metrics";
+import { FITNESS_OPTIONS, allowedTargetKeysFor, defaultUnitFor, metricFieldsFor, fitnessTypesForPlanType, primaryTargetKeyFor, betterDirectionFor, metricProfileFor } from "../lib/training-metrics";
 import styles from "../styles/Dashboard.module.css";
 
 const ROW_TARGET_KEYS = ["targetTimeSec", "targetDistance", "targetLoad", "targetReps", "targetSets", "targetQuantity"];
@@ -41,6 +41,24 @@ function computeProgress(activity, log) {
   return { percent, done, target };
 }
 
+/* "Meets target" / "Below target" for a recorded log, per the metric's
+   comparison direction (time: lower is better; everything else: higher). */
+function targetStatus(activity, log) {
+  if (!activity || !log) return null;
+  const target = targetValueFor(activity);
+  if (target == null) return null;
+  const toNum = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
+  const field = resultFieldFor(activity.metricType);
+  let done = field ? toNum(log[field]) : null;
+  if (done == null && activity.targetQuantity != null && log.quantityDone != null) {
+    done = toNum(log.quantityDone);
+  }
+  if (done == null || target <= 0 || (activity.metricType === "time" && done <= 0)) return null;
+  const direction = betterDirectionFor(activity.metricType);
+  const ok = direction === "lower" ? done <= target : done >= target;
+  return ok ? "met" : "below";
+}
+
 function logResultText(log) {
   if (!log) return "";
   const parts = [];
@@ -58,15 +76,18 @@ function logResultText(log) {
    PlanActivity target keys to current values; `onChange(key, value)` writes
    them. Exactly one field per type may carry a unit dropdown (stored in
    targetUnit); fixedUnit renders a static suffix. There is deliberately no
-   "what to measure" selector — the type locks its metric. */
-function LockedTargetFields({ fitnessType, values, onChange }) {
+   "what to measure" selector — the type locks its metric. When
+   `requireTarget` is true the scoring (primary) field is marked required —
+   that is the target a Pre-Conditioning activity must carry. */
+function LockedTargetFields({ fitnessType, values, onChange, requireTarget = false }) {
   const fields = metricFieldsFor(fitnessType);
+  const requiredKey = requireTarget ? primaryTargetKeyFor(fitnessType) : null;
   if (!fields.length) return <p className={styles.empty}>No configurable targets for this type.</p>;
   return (
     <>
       {fields.map((f) => (
         <label key={f.key} style={{ flex: "1 1 150px" }}>
-          <span>{f.label}</span>
+          <span>{f.label}{f.key === requiredKey ? <strong style={{ color: "var(--danger)" }}> *</strong> : null}</span>
           <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
             <input
               className={styles.fieldControl}
@@ -108,14 +129,19 @@ function resetTargetsFor(next, fitnessType) {
   return next;
 }
 
-export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, onEdit, onChanged, readOnly = false }) {
+export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, onEdit, onChanged, readOnly = false, planType }) {
   const [adding, setAdding] = React.useState(false);
   const [showActivities, setShowActivities] = React.useState(true);
   const [editingId, setEditingId] = React.useState(null);
   const [draft, setDraft] = React.useState(null);
   const [saving, setSaving] = React.useState(false);
 
+  const isPreConditioning = planType === "pre_conditioning";
+  const offeredFitnessTypes = fitnessTypesForPlanType(planType);
+  const [editMsg, setEditMsg] = React.useState("");
+
   function startEdit(act) {
+    setEditMsg("");
     setDraft({
       id: act.id,
       activityName: act.activityName,
@@ -144,6 +170,15 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
 
   function submitEdit(e) {
     e.preventDefault();
+    if (isPreConditioning) {
+      const reqKey = primaryTargetKeyFor(draft.fitnessType);
+      const v = reqKey ? draft[reqKey] : null;
+      if (v === "" || v == null || !(Number(v) >= 0)) {
+        setEditMsg("A target is required on Pre-Conditioning activities.");
+        return;
+      }
+    }
+    setEditMsg("");
     setSaving(true);
     onEdit(draft.id, {
       activityName: draft.activityName,
@@ -180,6 +215,7 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
         <AddAthleteActivitiesForm
           key={activities.length}
           planId={planId}
+          planType={planType}
           athlete={athlete}
           onCreated={() => { setAdding(false); onChanged && onChanged(); }}
         />
@@ -220,11 +256,16 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
                         <td data-label="Latest status" style={{ textAlign: "center" }}>
                           {(() => {
                             if (!latest) return <span className={styles.badge} style={{ background: "rgba(26,92,74,.08)", color: "var(--muted)", border: "1px dashed rgba(66,135,99,.45)", fontSize: "11px" }}>Not started</span>;
+                            const ts = targetStatus(firstActivity, latest);
                             return (
-                              <span title={`${fmtDate(latest.performedAt)}${logResultText(latest) ? ` · ${logResultText(latest)}` : ""}`} className={`${styles.badge} ${styles[meta.cls]}`} style={{ fontSize: "11px" }}>
-                                {meta.label}
-                                <small style={{ marginLeft: 6, opacity: 0.7 }}>{fmtDate(latest.performedAt)}</small>
-                              </span>
+                              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-1)", alignItems: "center" }}>
+                                <span title={`${fmtDate(latest.performedAt)}${logResultText(latest) ? ` · ${logResultText(latest)}` : ""}`} className={`${styles.badge} ${styles[meta.cls]}`} style={{ fontSize: "11px" }}>
+                                  {meta.label}
+                                  <small style={{ marginLeft: 6, opacity: 0.7 }}>{fmtDate(latest.performedAt)}</small>
+                                </span>
+                                {ts === "met" ? <span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)", fontSize: "11px" }}>Meets target</span> : null}
+                                {ts === "below" ? <span className={styles.badge} style={{ background: "rgba(251,191,36,.16)", color: "var(--warning)", fontSize: "11px" }}>Below target</span> : null}
+                              </div>
                             );
                           })()}
                         </td>
@@ -235,13 +276,14 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
                           <div className={styles.detailPanel}>
                             <form onSubmit={submitEdit} className={styles.formGrid} style={{ marginTop: 0 }}>
                               <label className={styles.fullField}>Activity name *<input className={styles.fieldControl} value={draft.activityName} onChange={(e) => setField("activityName", e.target.value)} required maxLength="191" /></label>
-                              <label>Fitness dimension<select className={styles.fieldControl} value={draft.fitnessType} onChange={(e) => setField("fitnessType", e.target.value)}>{FITNESS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
-                              <LockedTargetFields fitnessType={draft.fitnessType} values={draft} onChange={setField} />
+                              <label>Fitness dimension<select className={styles.fieldControl} value={draft.fitnessType} onChange={(e) => setField("fitnessType", e.target.value)}>{[...new Set([...offeredFitnessTypes, draft.fitnessType])].map((v) => <option key={v} value={v}>{(FITNESS_OPTIONS.find((o) => o.value === v) || { label: v }).label}</option>)}</select></label>
+                              <LockedTargetFields fitnessType={draft.fitnessType} values={draft} onChange={setField} requireTarget={isPreConditioning} />
                               <label>Day (1–7)<input className={styles.fieldControl} type="number" min="1" max="7" value={draft.dayIndex} onChange={(e) => setField("dayIndex", e.target.value)} placeholder="Day" /></label>
                               <label>Week<input className={styles.fieldControl} type="number" min="1" value={draft.weekNumber} onChange={(e) => setField("weekNumber", e.target.value)} placeholder="Week" /></label>
                               <label className={styles.fullField}>Instructions<textarea className={styles.fieldControl} rows="2" maxLength="2000" value={draft.instructions} onChange={(e) => setField("instructions", e.target.value)} /></label>
+                              {editMsg && <p role="status" className={`${styles.fullField} ${styles.formError}`}>{editMsg}</p>}
                               <div className={styles.formActions}>
-                                <button type="button" className={styles.secondary} onClick={() => setEditingId(null)} disabled={saving}>Cancel</button>
+                                <button type="button" className={styles.secondary} onClick={() => { setEditMsg(""); setEditingId(null); }} disabled={saving}>Cancel</button>
                                 <button className={styles.primary} disabled={saving}>{saving ? "Saving..." : "Save changes"}</button>
                               </div>
                             </form>
@@ -260,19 +302,23 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
   );
 }
 
-export function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
+export function AddAthleteActivitiesForm({ planId, athlete, onCreated, planType }) {
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState("");
   const [rows, setRows] = React.useState([freshRow(0)]);
 
+  const isPreConditioning = planType === "pre_conditioning";
+  const offeredFitnessTypes = fitnessTypesForPlanType(planType);
+
   function freshRow(id) {
+    const first = offeredFitnessTypes[0] || "endurance";
     return {
       id,
       name: "",
-      fitness: "endurance",
+      fitness: first,
       targetTimeSec: "",
       targetQuantity: "",
-      targetUnit: defaultUnitFor("endurance"),
+      targetUnit: defaultUnitFor(first),
       targetSets: "",
       targetReps: "",
       targetDistance: "",
@@ -302,6 +348,17 @@ export function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
     event.preventDefault();
     const valid = rows.filter((r) => r.name.trim());
     if (!valid.length) { setMessage("Enter at least one activity with a name."); return; }
+    if (isPreConditioning) {
+      const missing = valid.find((r) => {
+        const reqKey = primaryTargetKeyFor(r.fitness);
+        const v = reqKey ? r[reqKey] : null;
+        return !reqKey || v === "" || v == null || !(Number(v) >= 0);
+      });
+      if (missing) {
+        setMessage(`A target (${metricProfileFor(missing.fitness).primaryMetric}) is required for "${missing.name.trim()}" on Pre-Conditioning plans.`);
+        return;
+      }
+    }
     setBusy(true); setMessage("");
     const activities = valid.map((r) => ({
       athleteId: athlete.id,
@@ -339,8 +396,8 @@ export function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
             </div>
             <label className={styles.fullField} style={{ marginBottom: 8 }}>Name *<input value={r.name} onChange={(e) => updateRow(r.id, "name", e.target.value)} maxLength="191" placeholder="e.g. Endurance run" /></label>
             <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", marginBottom: 8 }}>
-              <label style={{ flex: "1 1 150px" }}>Fitness type<select value={r.fitness} onChange={(e) => updateRow(r.id, "fitness", e.target.value)}>{FITNESS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
-              <LockedTargetFields fitnessType={r.fitness} values={r} onChange={(key, value) => updateRow(r.id, key, value)} />
+              <label style={{ flex: "1 1 150px" }}>Fitness type<select value={r.fitness} onChange={(e) => updateRow(r.id, "fitness", e.target.value)}>{offeredFitnessTypes.map((v) => <option key={v} value={v}>{(FITNESS_OPTIONS.find((o) => o.value === v) || { label: v }).label}</option>)}</select></label>
+              <LockedTargetFields fitnessType={r.fitness} values={r} onChange={(key, value) => updateRow(r.id, key, value)} requireTarget={isPreConditioning} />
             </div>
             <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", marginBottom: 8 }}>
               <label style={{ flex: "0 1 90px" }}>Day (1–7)<input value={r.dayIndex} onChange={(e) => updateRow(r.id, "dayIndex", e.target.value)} type="number" min="1" max="7" placeholder="Day" /></label>

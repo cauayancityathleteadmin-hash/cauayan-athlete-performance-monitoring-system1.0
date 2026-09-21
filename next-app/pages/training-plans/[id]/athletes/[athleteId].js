@@ -141,7 +141,7 @@ export async function getServerSideProps(context) {
 
   const plan = await prisma.trainingPlan.findUnique({
     where: { id: planId },
-    select: { id: true, planName: true, coachId: true, startDate: true, durationDays: true, durationWeeks: true },
+    select: { id: true, planName: true, coachId: true, startDate: true, durationDays: true, durationWeeks: true, planType: true },
   });
   if (!plan) return { redirect: { destination: "/training-plans", permanent: false } };
   if (!isAdmin) {
@@ -159,7 +159,7 @@ export async function getServerSideProps(context) {
     props: {
       session,
       isAdmin,
-      plan: { id: plan.id, planName: plan.planName, startDate: plan.startDate.toISOString(), durationDays: plan.durationDays, durationWeeks: plan.durationWeeks },
+      plan: { id: plan.id, planName: plan.planName, startDate: plan.startDate.toISOString(), durationDays: plan.durationDays, durationWeeks: plan.durationWeeks, planType: plan.planType || "normal" },
       athlete: onPlan.athlete,
     },
   };
@@ -326,6 +326,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
             {manageMsg && <p role="status" className={styles.empty} style={{ margin: "0 16px 12px", color: "var(--danger)" }}>{manageMsg}</p>}
             <AthleteActivitiesBlock
               planId={plan.id}
+              planType={plan.planType}
               athlete={athlete}
               activities={allActivities.filter((a) => a.athleteId === athlete.id)}
               logs={allLogs}

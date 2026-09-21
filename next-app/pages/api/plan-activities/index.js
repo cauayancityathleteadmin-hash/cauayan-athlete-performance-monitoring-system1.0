@@ -1,7 +1,7 @@
 import { prisma } from "../../../lib/prisma";
 import { requireCsrf, requireSession, text, validId, setSecurityHeaders } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
-import { FITNESS_TYPES, primaryMetricFor, allowedTargetKeysFor, unitOptionsFor } from "../../../lib/training-metrics";
+import { FITNESS_TYPES, metricProfileFor, primaryMetricFor, primaryTargetKeyFor, allowedTargetKeysFor, unitOptionsFor, fitnessTypeAllowedForPlanType } from "../../../lib/training-metrics";
 
 const TARGET_KEYS = ["targetTimeSec", "targetDistance", "targetLoad", "targetReps", "targetSets", "targetQuantity"];
 
@@ -39,6 +39,13 @@ function buildTargetData(fitnessType, source) {
     targetLoad: toDecimal(source.targetLoad),
     targetTimeSec: toDecimal(source.targetTimeSec),
   });
+}
+
+/* True when the scoring (primary) target column has a value — the target that
+   a Pre-Conditioning activity must carry. */
+function hasPrimaryTarget(fitnessType, targetData) {
+  const key = primaryTargetKeyFor(fitnessType);
+  return Boolean(key && targetData[key] != null);
 }
 
 function toDecimal(v) {
@@ -98,8 +105,9 @@ export default async function handler(req, res) {
   if (session.user.role !== "coach" && session.user.role !== "admin") return res.status(403).json({ error: "You do not have permission for this action." });
 
   const body = req.body || {};
-  const plan = await prisma.trainingPlan.findUnique({ where: { id: planId }, select: { id: true } });
+  const plan = await prisma.trainingPlan.findUnique({ where: { id: planId }, select: { id: true, planType: true } });
   if (!plan) return res.status(404).json({ error: "Training plan not found." });
+  const planType = plan.planType || "normal";
 
   const action = body.action || "create";
 
@@ -107,6 +115,11 @@ export default async function handler(req, res) {
     const planAthletes = await prisma.trainingPlanAthlete.findMany({ where: { planId }, select: { athleteId: true } });
     const allowedAthleteIds = new Set(planAthletes.map((a) => a.athleteId));
     const list = Array.isArray(body.activities) ? body.activities : [];
+    const disallowedItem = list.find((item) => FITNESS_TYPES.includes(item.fitnessType) && !fitnessTypeAllowedForPlanType(planType, item.fitnessType));
+    if (disallowedItem) {
+      const ft = FITNESS_TYPES.includes(disallowedItem.fitnessType) ? disallowedItem.fitnessType : "endurance";
+      return res.status(400).json({ error: `${metricProfileFor(ft).label} activities are not available on a Pre-Conditioning plan.` });
+    }
     const cleaned = [];
     for (const item of list) {
       const name = text(item.activityName, 191, true);
@@ -118,6 +131,9 @@ export default async function handler(req, res) {
       const targetUnit = text(item.targetUnit, 50) || null;
       if (targetUnit && !validateUnit(fitnessType, targetUnit)) continue;
       const targetData = buildTargetData(fitnessType, item);
+      if (planType === "pre_conditioning" && !hasPrimaryTarget(fitnessType, targetData)) {
+        return res.status(400).json({ error: `A target (${metricType}) is required for "${name}" on a Pre-Conditioning plan.` });
+      }
       cleaned.push({
         athleteId,
         activityName: name,
@@ -170,6 +186,9 @@ export default async function handler(req, res) {
     const name = text(body.activityName, 191, true);
     if (!name) return res.status(400).json({ error: "An activity name is required." });
     const fitnessType = FITNESS_TYPES.includes(body.fitnessType) ? body.fitnessType : "endurance";
+    if (!fitnessTypeAllowedForPlanType(planType, fitnessType)) {
+      return res.status(400).json({ error: `${metricProfileFor(fitnessType).label} activities are not available on a Pre-Conditioning plan.` });
+    }
     const metricType = primaryMetricFor(fitnessType);
     const athleteId = validId(body.athleteId);
     if (!athleteId) return res.status(400).json({ error: "A valid athleteId is required." });
@@ -182,6 +201,9 @@ export default async function handler(req, res) {
     }
 
     const targetData = buildTargetData(fitnessType, body);
+    if (planType === "pre_conditioning" && !hasPrimaryTarget(fitnessType, targetData)) {
+      return res.status(400).json({ error: `A target (${metricType}) is required on Pre-Conditioning activities.` });
+    }
 
     const created = await prisma.planActivity.create({
       data: {
@@ -223,6 +245,9 @@ export default async function handler(req, res) {
     if (!data.activityName) return res.status(400).json({ error: "An activity name is required." });
     if (FITNESS_TYPES.includes(body.fitnessType)) data.fitnessType = body.fitnessType;
     const finalFitness = data.fitnessType || activity.fitnessType;
+    if (data.fitnessType !== undefined && data.fitnessType !== activity.fitnessType && !fitnessTypeAllowedForPlanType(planType, data.fitnessType)) {
+      return res.status(400).json({ error: `${metricProfileFor(data.fitnessType).label} activities are not available on a Pre-Conditioning plan.` });
+    }
     data.metricType = primaryMetricFor(finalFitness);
     if ("targetUnit" in body) {
       const newUnit = text(body.targetUnit, 50) || null;
@@ -265,6 +290,10 @@ export default async function handler(req, res) {
     data.targetDistance = sanitized.targetDistance;
     data.targetLoad = sanitized.targetLoad;
     data.targetTimeSec = sanitized.targetTimeSec;
+
+    if (planType === "pre_conditioning" && !hasPrimaryTarget(finalFitness, sanitized)) {
+      return res.status(400).json({ error: `A target (${primaryMetricFor(finalFitness)}) is required on Pre-Conditioning activities.` });
+    }
 
     await prisma.planActivity.update({ where: { id: activityId }, data });
     await prisma.auditLog.create({

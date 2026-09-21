@@ -83,15 +83,31 @@ Status: pending deployment verification.
 
 ## Phase 4 — Plan-type metrics + targets in activity creation
 
-- Activity creation shows only the fitness types relevant to the plan type.
-- Target field follows the metric's unit (existing target columns:
-  `targetTimeSec`, `targetDistance`, `targetLoad`, `targetReps`, `targetSets`,
-  `targetQuantity`).
-- Target **required** for Pre-Conditioning activities, optional for Normal.
-- Once a value is recorded, show a "Meets target / Below target" indicator
-  using the per-metric comparison direction.
+Implemented:
+- **Fitness types offered** are filtered by plan type everywhere activities are
+  added/edited (`components/AthleteActivityManager.js`): `fitnessTypesForPlanType`
+  drives the add-form and edit-form dropdowns (`AthleteActivitiesBlock` + the
+  `AddAthleteActivitiesForm`). Existing activities keep their current type in the
+  edit dropdown even when it is outside the plan type's offerable set, so legacy
+  rows stay editable.
+- **Target required** for Pre-Conditioning (optional for Normal). The required
+  value is the scoring (primary) target column for the activity's metric
+  (`primaryTargetKeyFor(fitnessType)` in `lib/training-metrics.js`): e.g.
+  endurance → `targetTimeSec`, strength → `targetLoad`, recovery →
+  `targetQuantity`. Marked with a red `*` in the target fields
+  (`LockedTargetFields`), enforced client-side on submit (add + edit) and
+  server-side in `pages/api/plan-activities/index.js`:
+  - bulk/create reject a missing primary target on Pre-Conditioning plans;
+  - bulk/create reject fitness types outside the plan type's offerable set;
+  - update blocks changing to a disallowed type (keeping an existing type is
+    allowed) and re-checks the required target on save.
+- **Meets target / Below target** indicator on each activity row (Athlete Detail
+  → Activities): computed from the latest recorded log vs the activity target
+  using `BETTER_DIRECTION` (`time` → lower is better; everything else → higher),
+  shown as a small badge under the latest status: `Meets target` (accent) /
+  `Below target` (warning). Hidden when there is no target or no recorded value.
 
-Status: pending.
+Status: pending deployment verification.
 
 ## Phase 5 — Add Activities form layout & input formatting
 
