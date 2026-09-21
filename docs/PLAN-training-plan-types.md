@@ -67,7 +67,19 @@ Single source of truth: `lib/training-metrics.js`
 (`FITNESS_TYPES_BY_PLAN_TYPE`, `BETTER_DIRECTION`, plan-type labels/descriptions).
 Target unit and comparison direction for each metric are the Phase 1 table above.
 
-Status: pending.
+Implemented helpers (all in `lib/training-metrics.js`):
+- `FITNESS_TYPES_BY_PLAN_TYPE` — `normal` → full `FITNESS_TYPES` list (source of
+  truth stays the locked array); `pre_conditioning` →
+  `[endurance, strength, speed_agility, mobility, recovery]`.
+- `fitnessTypesForPlanType(planType)` — the offerable set for a plan type
+  (unknown/legacy plan types fall back to Normal's full set).
+- `fitnessTypeAllowedForPlanType(planType, fitnessType)` — boolean check used by
+  the Add Activities form/API in Phase 4.
+- `BETTER_DIRECTION` — per-metric comparison: `time → "lower"`,
+  `distance/load/reps/sets/quantity → "higher"`; `betterDirectionFor(metric)`
+  defaults to `"higher"` for anything unlisted.
+
+Status: pending deployment verification.
 
 ## Phase 4 — Plan-type metrics + targets in activity creation
 

@@ -157,3 +157,39 @@ export const PLAN_TYPE_META = {
 };
 
 export const PLAN_TYPE_OPTIONS = PLAN_TYPES.map((v) => ({ value: v, ...PLAN_TYPE_META[v] }));
+
+/* Which fitness types a plan type offers when adding activities.
+   Normal uses the full locked set; Pre-Conditioning focuses on
+   conditioning (power + skill_technique excluded). */
+export const FITNESS_TYPES_BY_PLAN_TYPE = {
+  normal: FITNESS_TYPES,
+  pre_conditioning: ["endurance", "strength", "speed_agility", "mobility", "recovery"],
+};
+
+export function fitnessTypesForPlanType(planType) {
+  return FITNESS_TYPES_BY_PLAN_TYPE[planType] || FITNESS_TYPES;
+}
+
+export function fitnessTypeAllowedForPlanType(planType, fitnessType) {
+  return fitnessTypesForPlanType(planType).includes(fitnessType);
+}
+
+/* Comparison direction per metric for "Meets target":
+   - time     → lower is better (beat-or-equal the target by going under)
+   - distance → higher is better (targetDistance)
+   - load     → higher is better (targetLoad)
+   - reps     → higher is better (targetReps)
+   - sets     → higher is better (targetSets)
+   - quantity → higher is better (targetQuantity) */
+export const BETTER_DIRECTION = {
+  time: "lower",
+  distance: "higher",
+  load: "higher",
+  reps: "higher",
+  sets: "higher",
+  quantity: "higher",
+};
+
+export function betterDirectionFor(metric) {
+  return BETTER_DIRECTION[metric] || "higher";
+}
