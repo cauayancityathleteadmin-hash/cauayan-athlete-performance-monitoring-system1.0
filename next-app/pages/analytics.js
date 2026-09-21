@@ -12,8 +12,8 @@ import styles from "../styles/Dashboard.module.css";
 import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, CHART_LEGEND, CHART_COLORS, shortAxisLabel } from "../lib/chart-config";
 
 const STATUS_COLORS = { active: CHART_COLORS.primary, inactive: CHART_COLORS.muted, pending: CHART_COLORS.warning, draft: CHART_COLORS.muted };
-const GENDER_COLORS = { male: CHART_COLORS.primary, female: "#f472b6", other: CHART_COLORS.warning, prefer_not_to_say: CHART_COLORS.muted };
-const HEALTH_COLORS = { healthy: CHART_COLORS.primary, sick: CHART_COLORS.warning, injured: CHART_COLORS.danger, recovering: "#d6b26e", inactive: CHART_COLORS.muted };
+const GENDER_COLORS = { male: CHART_COLORS.primary, female: CHART_COLORS.palette[2], other: CHART_COLORS.warning, prefer_not_to_say: CHART_COLORS.muted };
+const HEALTH_COLORS = { healthy: CHART_COLORS.primary, sick: CHART_COLORS.warning, injured: CHART_COLORS.danger, recovering: CHART_COLORS.muted, inactive: CHART_COLORS.muted };
 const PALETTE = CHART_COLORS.palette;
 
 const KPI = ({ label, value }) => (
@@ -365,7 +365,6 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
               {healthFlags.length ? <HBars data={healthFlags} colors={[CHART_COLORS.warning, CHART_COLORS.danger, CHART_COLORS.accent, CHART_COLORS.muted]} axisLabel="Status" axisValue="Athletes" /> : <p className={styles.empty}>No athletes flagged.</p>}
             </div>
           </section>
-          </section>
 
           <section id="assessments">
             <section className={styles.grid}>
@@ -471,7 +470,8 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
               </div>
             </section>
           </section>
-        </PageSectionTabs>
+        </section>
+      </PageSectionTabs>
       </AppShell>
     </>
   );

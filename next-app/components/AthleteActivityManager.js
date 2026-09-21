@@ -1,40 +1,9 @@
 import React from "react";
-import { METRIC_TYPES, METRIC_LABELS } from "../lib/activity-score";
+import { resultFieldFor, resultUnitFor, targetValueFor } from "../lib/activity-score";
+import { FITNESS_OPTIONS, allowedTargetKeysFor, defaultUnitFor, metricFieldsFor } from "../lib/training-metrics";
 import styles from "../styles/Dashboard.module.css";
 
-const FITNESS_META = {
-  endurance: "Endurance",
-  strength: "Strength",
-  power: "Power",
-  speed_agility: "Speed / Agility",
-  skill_technique: "Skill / Technique",
-  mobility: "Mobility",
-  recovery: "Recovery",
-};
-
-const UNITS_BY_FITNESS = {
-  endurance: ["km", "m", "miles", "min", "hr"],
-  strength: ["kg", "lb", "reps", "sets"],
-  power: ["w", "kg", "lb", "reps"],
-  speed_agility: ["sec", "m", "reps"],
-  skill_technique: ["reps", "attempts", "rating"],
-  mobility: ["min", "sec", "deg", "reps"],
-  recovery: ["min", "hr", "sessions"],
-};
-
-const TARGET_FIELD_RULES = {
-  endurance: { quantity: true, sets: false, reps: false, distance: true, load: false },
-  strength: { quantity: true, sets: true, reps: true, distance: false, load: true },
-  power: { quantity: true, sets: true, reps: true, distance: false, load: true },
-  speed_agility: { quantity: true, sets: true, reps: true, distance: true, load: false },
-  skill_technique: { quantity: true, sets: true, reps: true, distance: false, load: false },
-  mobility: { quantity: true, sets: true, reps: true, distance: false, load: false },
-  recovery: { quantity: true, sets: false, reps: false, distance: false, load: false },
-};
-
-function targetFieldRules(fitnessType) {
-  return TARGET_FIELD_RULES[fitnessType] || { quantity: true, sets: true, reps: true, distance: false, load: false };
-}
+const ROW_TARGET_KEYS = ["targetTimeSec", "targetDistance", "targetLoad", "targetReps", "targetSets", "targetQuantity"];
 
 const LOG_STATUS = {
   planned: { label: "Planned", cls: "badgeMuted" },
@@ -48,30 +17,26 @@ function fmtDate(value) {
   return isNaN(d) ? "—" : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
+/* Target text honoring the activity's own unit (e.g. kg/km/lb/sessions). */
+function targetDisplay(activity) {
+  const t = targetValueFor(activity);
+  if (t == null) return "—";
+  const unit = activity.targetUnit || resultUnitFor(activity.metricType) || "";
+  return `${t}${unit ? ` ${unit}` : ""}`;
+}
+
 function computeProgress(activity, log) {
   if (!log) return null;
   const toNum = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
-  let done = null;
-  let target = null;
-  const lowerBetter = activity.metricType === "time";
-  if (activity.metricType === "time" && activity.targetTimeSec != null) {
-    done = log.timeSec != null ? toNum(log.timeSec) : null;
-    target = toNum(activity.targetTimeSec);
-  } else if (activity.targetQuantity != null) {
-    done = toNum(log.quantityDone);
+  const field = resultFieldFor(activity.metricType);
+  let target = targetValueFor(activity);
+  let done = field && target != null ? toNum(log[field]) : null;
+  if (target == null && activity.targetQuantity != null) {
     target = toNum(activity.targetQuantity);
-  } else if (activity.targetDistance != null) {
-    done = lowerBetter ? (log.timeSec != null ? toNum(log.timeSec) : null) : toNum(log.quantityDone);
-    target = toNum(activity.targetDistance);
-  } else if (activity.targetSets != null) {
-    done = log.setsDone != null ? toNum(log.setsDone) : null;
-    target = toNum(activity.targetSets);
-  } else if (activity.targetReps != null) {
-    done = log.repsDone != null ? toNum(log.repsDone) : null;
-    target = toNum(activity.targetReps);
+    done = toNum(log.quantityDone);
   }
-  if (done == null || target == null || target <= 0 || (lowerBetter && done <= 0)) return null;
-  const ratio = lowerBetter ? target / done : done / target;
+  if (done == null || target == null || target <= 0 || (activity.metricType === "time" && done <= 0)) return null;
+  const ratio = activity.metricType === "time" ? target / done : done / target;
   const percent = Math.round(Math.min(100, Math.max(0, ratio * 100)));
   return { percent, done, target };
 }
@@ -81,12 +46,66 @@ function logResultText(log) {
   const parts = [];
   if (log.timeSec != null) parts.push(`${log.timeSec} sec`);
   if (log.distanceDone != null) parts.push(`${log.distanceDone} m`);
-  if (log.loadUsed != null) parts.push(`${log.loadUsed} kg`);
+  if (log.loadUsed != null) parts.push(`${log.loadUsed}${log.activity?.targetUnit ? ` ${log.activity.targetUnit}` : " kg"}`);
   if (log.quantityDone != null) parts.push(`${log.quantityDone}${log.activity?.targetUnit ? ` ${log.activity.targetUnit}` : ""}`);
   if (log.setsDone != null) parts.push(`${log.setsDone} sets`);
   if (log.repsDone != null) parts.push(`${log.repsDone} reps`);
   if (log.attempts != null) parts.push(`${log.attempts} attempts`);
   return parts.join(" · ");
+}
+
+/* Renders the FIXED metric-field set for a fitness type. `values` maps the
+   PlanActivity target keys to current values; `onChange(key, value)` writes
+   them. Exactly one field per type may carry a unit dropdown (stored in
+   targetUnit); fixedUnit renders a static suffix. There is deliberately no
+   "what to measure" selector — the type locks its metric. */
+function LockedTargetFields({ fitnessType, values, onChange }) {
+  const fields = metricFieldsFor(fitnessType);
+  if (!fields.length) return <p className={styles.empty}>No configurable targets for this type.</p>;
+  return (
+    <>
+      {fields.map((f) => (
+        <label key={f.key} style={{ flex: "1 1 150px" }}>
+          <span>{f.label}</span>
+          <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
+            <input
+              className={styles.fieldControl}
+              style={{ flex: "1 1 auto" }}
+              type="number"
+              min="0"
+              step="any"
+              value={values[f.key] || ""}
+              onChange={(e) => onChange(f.key, e.target.value)}
+              placeholder="0"
+            />
+            {f.units && f.units.length ? (
+              <select
+                className={styles.fieldControl}
+                style={{ flex: "0 0 auto" }}
+                value={values.targetUnit || ""}
+                onChange={(e) => onChange("targetUnit", e.target.value)}
+              >
+                {f.units.map((u) => <option key={u} value={u}>{u}</option>)}
+              </select>
+            ) : f.fixedUnit ? (
+              <span style={{ flex: "0 0 auto", fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap" }}>{f.fixedUnit}</span>
+            ) : null}
+          </div>
+        </label>
+      ))}
+    </>
+  );
+}
+
+/* Clears any target field this fitness type does not allow, and re-rolls the
+   unit to the type's locked default. */
+function resetTargetsFor(next, fitnessType) {
+  const allowed = allowedTargetKeysFor(fitnessType);
+  for (const key of ROW_TARGET_KEYS) {
+    if (!allowed.has(key)) next[key] = "";
+  }
+  next.targetUnit = defaultUnitFor(fitnessType);
+  return next;
 }
 
 export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, onEdit, onChanged, readOnly = false }) {
@@ -101,10 +120,9 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
       id: act.id,
       activityName: act.activityName,
       fitnessType: act.fitnessType,
-      metricType: act.metricType || "none",
       targetTimeSec: act.targetTimeSec != null ? String(act.targetTimeSec) : "",
       targetQuantity: act.targetQuantity != null ? String(act.targetQuantity) : "",
-      targetUnit: act.targetUnit || "",
+      targetUnit: act.targetUnit || defaultUnitFor(act.fitnessType),
       targetSets: act.targetSets != null ? String(act.targetSets) : "",
       targetReps: act.targetReps != null ? String(act.targetReps) : "",
       targetDistance: act.targetDistance != null ? String(act.targetDistance) : "",
@@ -119,15 +137,7 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
   function setField(name, value) {
     setDraft((d) => {
       const next = { ...d, [name]: value };
-      if (name === "fitnessType") {
-        const allowed = UNITS_BY_FITNESS[value] || [];
-        if (!allowed.includes(next.targetUnit)) next.targetUnit = allowed[0] || "";
-        const rules = targetFieldRules(value);
-        if (!rules.sets) next.targetSets = "";
-        if (!rules.reps) next.targetReps = "";
-        if (!rules.distance) next.targetDistance = "";
-        if (!rules.load) next.targetLoad = "";
-      }
+      if (name === "fitnessType") return resetTargetsFor(next, value);
       return next;
     });
   }
@@ -138,8 +148,7 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
     onEdit(draft.id, {
       activityName: draft.activityName,
       fitnessType: draft.fitnessType,
-      metricType: draft.metricType,
-      targetTimeSec: draft.metricType === "time" ? draft.targetTimeSec || null : null,
+      targetTimeSec: draft.targetTimeSec || null,
       targetQuantity: draft.targetQuantity || null,
       targetUnit: draft.targetUnit || null,
       targetSets: draft.targetSets || null,
@@ -199,18 +208,13 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
                   const latest = latestLogs.length ? [...latestLogs].filter(Boolean).sort((a2, b) => new Date(b.performedAt) - new Date(a2.performedAt))[0] : null;
                   const p = latest ? computeProgress(firstActivity, latest) : null;
                   const meta = LOG_STATUS[latest?.status] || LOG_STATUS.planned;
-                  const targetText = (() => {
-                    if (firstActivity.metricType === "time" && firstActivity.targetTimeSec != null) return `${firstActivity.targetTimeSec} sec (time)`;
-                    if (firstActivity.targetQuantity != null) return `${firstActivity.targetQuantity}${firstActivity.targetUnit ? ` ${firstActivity.targetUnit}` : ""}`;
-                    if (firstActivity.targetDistance != null) return `${firstActivity.targetDistance} m`;
-                    return "—";
-                  })();
+                  const targetText = targetDisplay(firstActivity);
                   const isEditing = editingId === firstActivity.id;
                   return (
                     <React.Fragment key={fitnessType}>
                       <tr>
                         <td data-label="Fitness Type">
-                          <span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)" }}>{FITNESS_META[fitnessType] || fitnessType}</span>
+                          <span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)" }}>{(FITNESS_OPTIONS.find((o) => o.value === fitnessType) || { label: fitnessType }).label}</span>
                         </td>
                         <td data-label="Target">{targetText}</td>
                         <td data-label="Latest status" style={{ textAlign: "center" }}>
@@ -231,17 +235,8 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
                           <div className={styles.detailPanel}>
                             <form onSubmit={submitEdit} className={styles.formGrid} style={{ marginTop: 0 }}>
                               <label className={styles.fullField}>Activity name *<input className={styles.fieldControl} value={draft.activityName} onChange={(e) => setField("activityName", e.target.value)} required maxLength="191" /></label>
-                              <label>Fitness dimension<select className={styles.fieldControl} value={draft.fitnessType} onChange={(e) => setField("fitnessType", e.target.value)}>{Object.keys(FITNESS_META).map((k) => <option key={k} value={k}>{FITNESS_META[k]}</option>)}</select></label>
-                              <label>What to measure<select className={styles.fieldControl} value={draft.metricType} onChange={(e) => setField("metricType", e.target.value)} title="How this activity is measured. Time = how fast.">{METRIC_TYPES.map((m) => <option key={m} value={m}>{METRIC_LABELS[m]}</option>)}</select></label>
-                              {draft.metricType === "time" && <label>Time target (seconds)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetTimeSec} onChange={(e) => setField("targetTimeSec", e.target.value)} placeholder="e.g. 60" /></label>}
-                              {targetFieldRules(draft.fitnessType).quantity && <>
-                                <label>Target quantity<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetQuantity} onChange={(e) => setField("targetQuantity", e.target.value)} placeholder="e.g. 20" /></label>
-                                <label>Target unit<select className={styles.fieldControl} value={draft.targetUnit} onChange={(e) => setField("targetUnit", e.target.value)}><option value="">— select —</option>{(UNITS_BY_FITNESS[draft.fitnessType] || []).map((u) => <option key={u} value={u}>{u}</option>)}</select></label>
-                              </>}
-                              {targetFieldRules(draft.fitnessType).sets && <label>Sets<input className={styles.fieldControl} type="number" min="0" value={draft.targetSets} onChange={(e) => setField("targetSets", e.target.value)} /></label>}
-                              {targetFieldRules(draft.fitnessType).reps && <label>Reps<input className={styles.fieldControl} type="number" min="0" value={draft.targetReps} onChange={(e) => setField("targetReps", e.target.value)} /></label>}
-                              {targetFieldRules(draft.fitnessType).distance && <label>Distance (m)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetDistance} onChange={(e) => setField("targetDistance", e.target.value)} /></label>}
-                              {targetFieldRules(draft.fitnessType).load && <label>Load (kg)<input className={styles.fieldControl} type="number" min="0" step="any" value={draft.targetLoad} onChange={(e) => setField("targetLoad", e.target.value)} /></label>}
+                              <label>Fitness dimension<select className={styles.fieldControl} value={draft.fitnessType} onChange={(e) => setField("fitnessType", e.target.value)}>{FITNESS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
+                              <LockedTargetFields fitnessType={draft.fitnessType} values={draft} onChange={setField} />
                               <label>Day (1–7)<input className={styles.fieldControl} type="number" min="1" max="7" value={draft.dayIndex} onChange={(e) => setField("dayIndex", e.target.value)} placeholder="Day" /></label>
                               <label>Week<input className={styles.fieldControl} type="number" min="1" value={draft.weekNumber} onChange={(e) => setField("weekNumber", e.target.value)} placeholder="Week" /></label>
                               <label className={styles.fullField}>Instructions<textarea className={styles.fieldControl} rows="2" maxLength="2000" value={draft.instructions} onChange={(e) => setField("instructions", e.target.value)} /></label>
@@ -268,10 +263,28 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
 export function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState("");
-  const [rows, setRows] = React.useState([{ id: 0, name: "", fitness: "endurance", metric: "none", tsec: "", qty: "", unit: "", sets: "", reps: "", dist: "", load: "", instr: "", day: "", week: "" }]);
+  const [rows, setRows] = React.useState([freshRow(0)]);
+
+  function freshRow(id) {
+    return {
+      id,
+      name: "",
+      fitness: "endurance",
+      targetTimeSec: "",
+      targetQuantity: "",
+      targetUnit: defaultUnitFor("endurance"),
+      targetSets: "",
+      targetReps: "",
+      targetDistance: "",
+      targetLoad: "",
+      instructions: "",
+      dayIndex: "",
+      weekNumber: "",
+    };
+  }
 
   function addRow() {
-    setRows((cur) => [...cur, { id: Date.now(), name: "", fitness: "endurance", metric: "none", tsec: "", qty: "", unit: "", sets: "", reps: "", dist: "", load: "", instr: "", day: "", week: "" }]);
+    setRows((cur) => [...cur, freshRow(Date.now())]);
   }
   function removeRow(id) {
     setRows((cur) => cur.filter((r) => r.id !== id));
@@ -280,15 +293,7 @@ export function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
     setRows((cur) => cur.map((r) => {
       if (r.id !== id) return r;
       const next = { ...r, [key]: value };
-      if (key === "fitness") {
-        const allowed = UNITS_BY_FITNESS[value] || [];
-        if (!allowed.includes(next.unit)) next.unit = allowed[0] || "";
-        const fRules = targetFieldRules(value);
-        if (!fRules.sets) next.sets = "";
-        if (!fRules.reps) next.reps = "";
-        if (!fRules.distance) next.dist = "";
-        if (!fRules.load) next.load = "";
-      }
+      if (key === "fitness") return resetTargetsFor(next, value);
       return next;
     }));
   }
@@ -302,23 +307,22 @@ export function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
       athleteId: athlete.id,
       activityName: r.name.trim(),
       fitnessType: r.fitness,
-      metricType: r.metric,
-      targetTimeSec: r.metric === "time" ? r.tsec || null : null,
-      targetQuantity: r.qty || null,
-      targetUnit: r.unit || null,
-      targetSets: r.sets || null,
-      targetReps: r.reps || null,
-      targetDistance: r.dist || null,
-      targetLoad: r.load || null,
-      instructions: r.instr || null,
-      dayIndex: r.day ? parseInt(r.day) : null,
-      weekNumber: r.week ? parseInt(r.week) : null,
+      targetTimeSec: r.targetTimeSec || null,
+      targetQuantity: r.targetQuantity || null,
+      targetUnit: r.targetUnit || null,
+      targetSets: r.targetSets || null,
+      targetReps: r.targetReps || null,
+      targetDistance: r.targetDistance || null,
+      targetLoad: r.targetLoad || null,
+      instructions: r.instructions || null,
+      dayIndex: r.dayIndex ? parseInt(r.dayIndex) : null,
+      weekNumber: r.weekNumber ? parseInt(r.weekNumber) : null,
     }));
     const csrf = await fetch("/api/csrf").then((r) => r.json());
     try {
       const response = await fetch("/api/plan-activities", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify({ planId, action: "bulk", activities }) });
       const result = await response.json().catch(() => ({}));
-      if (response.ok && !result.error) { setRows([{ id: 0, name: "", fitness: "endurance", metric: "none", tsec: "", qty: "", unit: "", sets: "", reps: "", dist: "", load: "", instr: "", day: "", week: "" }]); onCreated(); return; }
+      if (response.ok && !result.error) { setRows([freshRow(0)]); onCreated(); return; }
       setMessage(result.error || "Could not add the activities.");
     } catch (e) { setMessage("Unable to reach the server."); }
     setBusy(false);
@@ -327,35 +331,24 @@ export function AddAthleteActivitiesForm({ planId, athlete, onCreated }) {
   return (
     <div style={{ borderTop: "1px solid rgba(26,92,74,.5)", marginTop: "var(--space-3)", paddingTop: "var(--space-3)" }}>
       <form onSubmit={submit} className={styles.formGrid}>
-        {rows.map((r) => {
-          const allowedUnits = UNITS_BY_FITNESS[r.fitness] || [];
-          const fRules = targetFieldRules(r.fitness);
-          return (
-            <div key={r.id} className={styles.fullField} style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "var(--space-4)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-2)" }}>
-                <strong style={{ fontSize: 13 }}>Activity {rows.indexOf(r) + 1}</strong>
-                {rows.length > 1 && <button type="button" className={`${styles.danger} ${styles.btnSm}`} onClick={() => removeRow(r.id)}>Remove</button>}
-              </div>
-              <label className={styles.fullField} style={{ marginBottom: 8 }}>Name *<input value={r.name} onChange={(e) => updateRow(r.id, "name", e.target.value)} maxLength="191" placeholder="e.g. Endurance run" /></label>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
-                <label style={{ flex: "1 1 150px" }}>Fitness type<select value={r.fitness} onChange={(e) => updateRow(r.id, "fitness", e.target.value)}>{Object.keys(FITNESS_META).map((k) => <option key={k} value={k}>{FITNESS_META[k]}</option>)}</select></label>
-                <label style={{ flex: "1 1 150px" }}>What to measure<select value={r.metric} onChange={(e) => updateRow(r.id, "metric", e.target.value)} title="How this activity is measured. Time = how fast.">{METRIC_TYPES.map((m) => <option key={m} value={m}>{METRIC_LABELS[m]}</option>)}</select></label>
-                {r.metric === "time" && <label style={{ flex: "0 1 120px" }}>Time target (sec)<input value={r.tsec} onChange={(e) => updateRow(r.id, "tsec", e.target.value)} type="number" min="0" step="any" placeholder="e.g. 60" /></label>}
-                {fRules.quantity && <label style={{ flex: "0 1 110px" }}>Quantity<input value={r.qty} onChange={(e) => updateRow(r.id, "qty", e.target.value)} type="number" min="0" step="any" placeholder="e.g. 1" /></label>}
-                {fRules.quantity && <label style={{ flex: "0 1 120px" }}>Unit<select value={r.unit} onChange={(e) => updateRow(r.id, "unit", e.target.value)}><option value="">— select —</option>{allowedUnits.map((u) => <option key={u} value={u}>{u}</option>)}</select></label>}
-                {fRules.sets && <label style={{ flex: "0 1 90px" }}>Sets<input value={r.sets} onChange={(e) => updateRow(r.id, "sets", e.target.value)} type="number" min="0" /></label>}
-                {fRules.reps && <label style={{ flex: "0 1 90px" }}>Reps<input value={r.reps} onChange={(e) => updateRow(r.id, "reps", e.target.value)} type="number" min="0" /></label>}
-                {fRules.distance && <label style={{ flex: "0 1 100px" }}>Dist (m)<input value={r.dist} onChange={(e) => updateRow(r.id, "dist", e.target.value)} type="number" min="0" step="any" /></label>}
-                {fRules.load && <label style={{ flex: "0 1 90px" }}>Load (kg)<input value={r.load} onChange={(e) => updateRow(r.id, "load", e.target.value)} type="number" min="0" step="any" /></label>}
-              </div>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
-                <label style={{ flex: "0 1 90px" }}>Day (1–7)<input value={r.day} onChange={(e) => updateRow(r.id, "day", e.target.value)} type="number" min="1" max="7" placeholder="Day" /></label>
-                <label style={{ flex: "0 1 90px" }}>Week<input value={r.week} onChange={(e) => updateRow(r.id, "week", e.target.value)} type="number" min="1" placeholder="Week" /></label>
-              </div>
-              <label className={styles.fullField}>Instructions<textarea value={r.instr} onChange={(e) => updateRow(r.id, "instr", e.target.value)} rows="1" maxLength="2000" placeholder="How to do it, safety notes, etc." /></label>
+        {rows.map((r) => (
+          <div key={r.id} className={styles.fullField} style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "var(--space-4)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-2)" }}>
+              <strong style={{ fontSize: 13 }}>Activity {rows.indexOf(r) + 1}</strong>
+              {rows.length > 1 && <button type="button" className={`${styles.danger} ${styles.btnSm}`} onClick={() => removeRow(r.id)}>Remove</button>}
             </div>
-          );
-        })}
+            <label className={styles.fullField} style={{ marginBottom: 8 }}>Name *<input value={r.name} onChange={(e) => updateRow(r.id, "name", e.target.value)} maxLength="191" placeholder="e.g. Endurance run" /></label>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
+              <label style={{ flex: "1 1 150px" }}>Fitness type<select value={r.fitness} onChange={(e) => updateRow(r.id, "fitness", e.target.value)}>{FITNESS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
+              <LockedTargetFields fitnessType={r.fitness} values={r} onChange={(key, value) => updateRow(r.id, key, value)} />
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
+              <label style={{ flex: "0 1 90px" }}>Day (1–7)<input value={r.dayIndex} onChange={(e) => updateRow(r.id, "dayIndex", e.target.value)} type="number" min="1" max="7" placeholder="Day" /></label>
+              <label style={{ flex: "0 1 90px" }}>Week<input value={r.weekNumber} onChange={(e) => updateRow(r.id, "weekNumber", e.target.value)} type="number" min="1" placeholder="Week" /></label>
+            </div>
+            <label className={styles.fullField}>Instructions<textarea value={r.instructions} onChange={(e) => updateRow(r.id, "instructions", e.target.value)} rows="1" maxLength="2000" placeholder="How to do it, safety notes, etc." /></label>
+          </div>
+        ))}
 
         <div className={styles.fullField}>
           <button type="button" className={styles.secondary} onClick={addRow}>+ Add another activity</button>

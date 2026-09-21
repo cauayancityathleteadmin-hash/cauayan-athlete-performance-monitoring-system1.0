@@ -1,68 +1,44 @@
 import { prisma } from "../../../lib/prisma";
 import { requireCsrf, requireSession, text, validId, setSecurityHeaders } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
+import { FITNESS_TYPES, primaryMetricFor, allowedTargetKeysFor, unitOptionsFor } from "../../../lib/training-metrics";
 
-const FITNESS_TYPES = ["endurance", "strength", "power", "speed_agility", "skill_technique", "mobility", "recovery"];
-const METRIC_TYPES = ["time", "distance", "load", "reps", "sets", "quantity", "none"];
+const TARGET_KEYS = ["targetTimeSec", "targetDistance", "targetLoad", "targetReps", "targetSets", "targetQuantity"];
 
-const UNITS_BY_FITNESS = {
-  endurance: ["km", "m", "miles", "min", "hr"],
-  strength: ["kg", "lb", "reps", "sets"],
-  power: ["w", "kg", "lb", "reps"],
-  speed_agility: ["sec", "m", "reps"],
-  skill_technique: ["reps", "attempts", "rating"],
-  mobility: ["min", "sec", "deg", "reps"],
-  recovery: ["min", "hr", "sessions"],
-};
-
-const TARGET_FIELD_RULES = {
-  endurance: { quantity: true, sets: false, reps: false, distance: true, load: false },
-  strength: { quantity: true, sets: true, reps: true, distance: false, load: true },
-  power: { quantity: true, sets: true, reps: true, distance: false, load: true },
-  speed_agility: { quantity: true, sets: true, reps: true, distance: true, load: false },
-  skill_technique: { quantity: true, sets: true, reps: true, distance: false, load: false },
-  mobility: { quantity: true, sets: true, reps: true, distance: false, load: false },
-  recovery: { quantity: true, sets: false, reps: false, distance: false, load: false },
-};
-
+/* Enforce the LOCKED metric profile: any target column outside the type's
+   fixed set is nulled. metricType itself is always derived server-side
+   (primaryMetricFor) and is never accepted from the client. */
 function sanitizeTargetFields(fitnessType, fields) {
-  const rules = TARGET_FIELD_RULES[fitnessType] || { quantity: true, sets: true, reps: true, distance: false, load: false };
+  const allowed = allowedTargetKeysFor(fitnessType);
   const out = { ...fields };
-  if (!rules.sets) out.targetSets = null;
-  if (!rules.reps) out.targetReps = null;
-  if (!rules.distance) out.targetDistance = null;
-  if (!rules.load) out.targetLoad = null;
+  for (const key of TARGET_KEYS) {
+    if (!allowed.has(key)) out[key] = null;
+  }
+  if (!unitOptionsFor(fitnessType).length) out.targetUnit = null;
   return out;
 }
 
 function validateUnit(fitnessType, unit) {
   if (!unit) return true;
-  const allowed = UNITS_BY_FITNESS[fitnessType] || [];
-  return allowed.includes(unit);
+  const allowed = unitOptionsFor(fitnessType);
+  return allowed.length > 0 && allowed.includes(unit);
 }
 
-function validateTargetFields(fitnessType, fields) {
-  const rules = TARGET_FIELD_RULES[fitnessType] || { quantity: true, sets: true, reps: true, distance: false, load: false };
-  const { quantity, sets, reps, distance, load } = rules;
-  const out = { ...fields };
-  let changed = false;
+function unitMessage(fitnessType) {
+  const allowed = unitOptionsFor(fitnessType);
+  return allowed.length ? allowed.join(", ") : "this type has no unit";
+}
 
-  if (!quantity) {
-    if (out.targetQuantity != null) { out.targetQuantity = null; changed = true; }
-  }
-  if (!sets) {
-    if (out.targetSets != null) { out.targetSets = null; changed = true; }
-  }
-  if (!reps) {
-    if (out.targetReps != null) { out.targetReps = null; changed = true; }
-  }
-  if (!distance) {
-    if (out.targetDistance != null) { out.targetDistance = null; changed = true; }
-  }
-  if (!load) {
-    if (out.targetLoad != null) { out.targetLoad = null; changed = true; }
-  }
-  return { valid: !changed, fields: out };
+function buildTargetData(fitnessType, source) {
+  return sanitizeTargetFields(fitnessType, {
+    targetQuantity: toDecimal(source.targetQuantity),
+    targetUnit: text(source.targetUnit, 50) || null,
+    targetSets: toInt(source.targetSets),
+    targetReps: toInt(source.targetReps),
+    targetDistance: toDecimal(source.targetDistance),
+    targetLoad: toDecimal(source.targetLoad),
+    targetTimeSec: toDecimal(source.targetTimeSec),
+  });
 }
 
 function toDecimal(v) {
@@ -138,33 +114,18 @@ export default async function handler(req, res) {
       const athleteId = validId(item.athleteId);
       if (!athleteId || !allowedAthleteIds.has(athleteId)) continue;
       const fitnessType = FITNESS_TYPES.includes(item.fitnessType) ? item.fitnessType : "endurance";
-      const metricType = METRIC_TYPES.includes(item.metricType) ? item.metricType : "none";
-      const targetTimeSec = metricType === "time" ? toDecimal(item.targetTimeSec) : null;
+      const metricType = primaryMetricFor(fitnessType);
       const targetUnit = text(item.targetUnit, 50) || null;
       if (targetUnit && !validateUnit(fitnessType, targetUnit)) continue;
-      const sanitized = sanitizeTargetFields(fitnessType, {
+      const targetData = buildTargetData(fitnessType, item);
+      cleaned.push({
         athleteId,
         activityName: name,
         fitnessType,
         metricType,
-        targetQuantity: toDecimal(item.targetQuantity),
-        targetUnit,
-        targetSets: toInt(item.targetSets),
-        targetReps: toInt(item.targetReps),
-        targetDistance: toDecimal(item.targetDistance),
-        targetLoad: toDecimal(item.targetLoad),
-        targetTimeSec,
+        ...targetData,
         instructions: text(item.instructions, 2000) || null,
       });
-      const validated = validateTargetFields(fitnessType, {
-        targetQuantity: sanitized.targetQuantity,
-        targetUnit: sanitized.targetUnit,
-        targetSets: sanitized.targetSets,
-        targetReps: sanitized.targetReps,
-        targetDistance: sanitized.targetDistance,
-        targetLoad: sanitized.targetLoad,
-      });
-      if (validated.valid) cleaned.push({ ...sanitized, athleteId });
     }
     if (!cleaned.length) return res.status(400).json({ error: "Enter at least one activity with a name for an athlete on this plan." });
     if (cleaned.length > 50) return res.status(400).json({ error: "Please limit a bulk add to 50 activities at a time." });
@@ -209,8 +170,7 @@ export default async function handler(req, res) {
     const name = text(body.activityName, 191, true);
     if (!name) return res.status(400).json({ error: "An activity name is required." });
     const fitnessType = FITNESS_TYPES.includes(body.fitnessType) ? body.fitnessType : "endurance";
-    const metricType = METRIC_TYPES.includes(body.metricType) ? body.metricType : "none";
-    const targetTimeSec = metricType === "time" ? toDecimal(body.targetTimeSec) : null;
+    const metricType = primaryMetricFor(fitnessType);
     const athleteId = validId(body.athleteId);
     if (!athleteId) return res.status(400).json({ error: "A valid athleteId is required." });
     const onPlan = await prisma.trainingPlanAthlete.findFirst({ where: { planId, athleteId } });
@@ -218,31 +178,10 @@ export default async function handler(req, res) {
 
     const targetUnit = text(body.targetUnit, 50) || null;
     if (targetUnit && !validateUnit(fitnessType, targetUnit)) {
-      return res.status(400).json({ error: `Invalid unit for ${fitnessType}. Allowed: ${UNITS_BY_FITNESS[fitnessType].join(", ")}` });
+      return res.status(400).json({ error: `Invalid unit for ${fitnessType}. Allowed: ${unitMessage(fitnessType)}` });
     }
 
-    const targetData = sanitizeTargetFields(fitnessType, {
-      targetQuantity: toDecimal(body.targetQuantity),
-      targetUnit: targetUnit || null,
-      targetSets: toInt(body.targetSets),
-      targetReps: toInt(body.targetReps),
-      targetDistance: toDecimal(body.targetDistance),
-      targetLoad: toDecimal(body.targetLoad),
-      metricType,
-      targetTimeSec,
-    });
-
-    const validated = validateTargetFields(fitnessType, {
-      targetQuantity: targetData.targetQuantity,
-      targetUnit: targetData.targetUnit,
-      targetSets: targetData.targetSets,
-      targetReps: targetData.targetReps,
-      targetDistance: targetData.targetDistance,
-      targetLoad: targetData.targetLoad,
-    });
-    if (!validated.valid) {
-      return res.status(400).json({ error: `Invalid target fields for ${fitnessType}.` });
-    }
+    const targetData = buildTargetData(fitnessType, body);
 
     const created = await prisma.planActivity.create({
       data: {
@@ -283,25 +222,17 @@ export default async function handler(req, res) {
     };
     if (!data.activityName) return res.status(400).json({ error: "An activity name is required." });
     if (FITNESS_TYPES.includes(body.fitnessType)) data.fitnessType = body.fitnessType;
-    if ("targetQuantity" in body) data.targetQuantity = toDecimal(body.targetQuantity);
+    const finalFitness = data.fitnessType || activity.fitnessType;
+    data.metricType = primaryMetricFor(finalFitness);
     if ("targetUnit" in body) {
       const newUnit = text(body.targetUnit, 50) || null;
-      const checkFitnessType = data.fitnessType || activity.fitnessType;
-      if (newUnit && !validateUnit(checkFitnessType, newUnit)) {
-        return res.status(400).json({ error: `Invalid unit for ${checkFitnessType}. Allowed: ${UNITS_BY_FITNESS[checkFitnessType].join(", ")}` });
+      if (newUnit && !validateUnit(finalFitness, newUnit)) {
+        return res.status(400).json({ error: `Invalid unit for ${finalFitness}. Allowed: ${unitMessage(finalFitness)}` });
       }
       data.targetUnit = newUnit;
     }
-    if ("targetSets" in body) data.targetSets = toInt(body.targetSets);
-    if ("targetReps" in body) data.targetReps = toInt(body.targetReps);
-    if ("targetDistance" in body) data.targetDistance = toDecimal(body.targetDistance);
-    if ("targetLoad" in body) data.targetLoad = toDecimal(body.targetLoad);
-    if ("metricType" in body) {
-      if (METRIC_TYPES.includes(body.metricType)) data.metricType = body.metricType;
-    }
-    if ("targetTimeSec" in body) {
-      const type = data.metricType || activity.metricType;
-      data.targetTimeSec = type === "time" ? toDecimal(body.targetTimeSec) : null;
+    for (const key of TARGET_KEYS) {
+      if (key in body) data[key] = key === "targetSets" || key === "targetReps" ? toInt(body[key]) : toDecimal(body[key]);
     }
     if ("instructions" in body) data.instructions = text(body.instructions, 2000) || null;
     if ("dayIndex" in body) data.dayIndex = toInt(body.dayIndex);
@@ -315,31 +246,25 @@ export default async function handler(req, res) {
       data.athleteId = newAthleteId;
     }
 
-    const finalFitness = data.fitnessType || activity.fitnessType;
-    const finalRules = TARGET_FIELD_RULES[finalFitness] || { quantity: true, sets: true, reps: true, distance: false, load: false };
-    if (!finalRules.sets) data.targetSets = null;
-    if (!finalRules.reps) data.targetReps = null;
-    if (!finalRules.distance) data.targetDistance = null;
-    if (!finalRules.load) data.targetLoad = null;
-    if ((data.metricType || activity.metricType) !== "time") data.targetTimeSec = null;
-
-    const validated = validateTargetFields(finalFitness, {
-      targetQuantity: data.targetQuantity,
-      targetUnit: data.targetUnit,
-      targetSets: data.targetSets,
-      targetReps: data.targetReps,
-      targetDistance: data.targetDistance,
-      targetLoad: data.targetLoad,
+    /* Lock enforcement on update too: re-sanitize every target column and the
+       unit against the type's fixed profile, so disallowed fields (including
+       legacy values) are cleared the moment an activity is edited. */
+    const sanitized = sanitizeTargetFields(finalFitness, {
+      targetQuantity: "targetQuantity" in data ? data.targetQuantity : activity.targetQuantity,
+      targetUnit: data.targetUnit !== undefined ? data.targetUnit : activity.targetUnit,
+      targetSets: "targetSets" in data ? data.targetSets : activity.targetSets,
+      targetReps: "targetReps" in data ? data.targetReps : activity.targetReps,
+      targetDistance: "targetDistance" in data ? data.targetDistance : activity.targetDistance,
+      targetLoad: "targetLoad" in data ? data.targetLoad : activity.targetLoad,
+      targetTimeSec: "targetTimeSec" in data ? data.targetTimeSec : activity.targetTimeSec,
     });
-    if (!validated.valid) {
-      // Clear invalid fields and proceed with update using cleared values
-      data.targetQuantity = validated.fields.targetQuantity;
-      data.targetUnit = validated.fields.targetUnit;
-      data.targetSets = validated.fields.targetSets;
-      data.targetReps = validated.fields.targetReps;
-      data.targetDistance = validated.fields.targetDistance;
-      data.targetLoad = validated.fields.targetLoad;
-    }
+    data.targetQuantity = sanitized.targetQuantity;
+    data.targetUnit = sanitized.targetUnit;
+    data.targetSets = sanitized.targetSets;
+    data.targetReps = sanitized.targetReps;
+    data.targetDistance = sanitized.targetDistance;
+    data.targetLoad = sanitized.targetLoad;
+    data.targetTimeSec = sanitized.targetTimeSec;
 
     await prisma.planActivity.update({ where: { id: activityId }, data });
     await prisma.auditLog.create({
