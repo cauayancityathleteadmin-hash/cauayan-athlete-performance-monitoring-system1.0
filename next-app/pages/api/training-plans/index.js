@@ -1,4 +1,5 @@
 import { prisma } from "../../../lib/prisma";
+import { ensureSchema } from "../../../lib/db-schema";
 import { requireCsrf, requireSession, text, validId, setSecurityHeaders } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
 
@@ -30,6 +31,11 @@ export default async function handler(req, res) {
   setSecurityHeaders(res);
   const session = await requireSession(req, res);
   if (!session) return;
+  try {
+    await ensureSchema();
+  } catch (e) {
+    console.warn("[training-plans] schema self-heal skipped:", e && e.message);
+  }
 
   const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || "unknown";
   const rate = rateLimiters.api(`api:${ip}:${req.method}`);
