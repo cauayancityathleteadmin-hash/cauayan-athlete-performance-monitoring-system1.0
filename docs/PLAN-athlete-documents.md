@@ -14,20 +14,23 @@ Goal: let coaches upload, manage, download, and print each athlete's required do
 
 ## Phase 1 — Document types (fixed list + Other) ✅ documented
 
-Starter catalog (editable by admins — see Phase 1 storage note below):
+Starter catalog (editable by admins — see Phase 1 storage note below). **Based on real DepEd/Palarong Pambansa athlete eligibility screening requirements:**
 
-| # | Type | Required by default |
-|---|------|--------------------|
-| 1 | PSA Birth Certificate | ✅ required |
-| 2 | School ID | ✅ required |
-| 3 | Form 137 (Permanent Record) | ✅ required |
-| 4 | Form 138 (Report Card) | ✅ required |
-| 5 | Medical Certificate | optional (renewable — has expiry) |
-| 6 | Parent/Guardian Consent Form | optional |
-| 7 | Barangay Certificate | optional |
-| 8 | Other (free label) | optional — coach types a custom label |
+| # | Type | Required by default | Expiry tracking | Notes |
+|---|------|--------------------|-----------------|-------|
+| 1 | PSA/NSO Birth Certificate | ✅ required | — | Original + photocopy; identity & age eligibility. Foreign-born: original BC from country of birth + valid passport. |
+| 2 | AR-1 (Athlete's Record) | ✅ required | — | Official form signed by athlete, coach, Sports Division Supervisor. System can help generate/track. |
+| 3 | Medical Certificate | ✅ required | **3 months** | Signed by licensed physician, fit to compete. Combative sports (Arnis, Boxing, Taekwondo, Wrestling, Wushu, Gymnastics, Pencak Silat) require a separate, more detailed medical form — track as distinct type/variant. |
+| 4 | Dental Certificate | ✅ required | **6 months** | Signed by licensed dentist. |
+| 5 | ID Photo (1.5"×1.5", white bg) | ✅ required | — | Required alongside AR-1 and Dental Certificate. |
+| 6 | Form 137 (Permanent Record) | ✅ required | — | Standard basic education record for enrollment/academic standing. |
+| 7 | Form 138 (Report Card) | ✅ required | — | Standard basic education record for enrollment/academic standing. |
+| 8 | School ID | ✅ required | — | Common identity requirement. |
+| 9 | Parent/Guardian Consent Form | ✅ required | — | Required for minor athletes. |
+| 10 | Barangay Certificate | optional | — | Local program may require (e.g., Cauayan City-specific). |
+| 11 | Other (free label) | optional | — | Coach types a custom label. |
 
-Rationale for "required" default: PSA BC + Form 137/138 are the standard school-accreditation records for DepEd-backed competition; School ID is the usual identity requirement. Medical Certificate is renewable (expiry-aware), Consent Forms are per-event, so they are tracked but not marked required by default. Everything is admin-adjustable.
+Rationale for "required" default: Birth Certificate, AR-1, Medical Certificate, Dental Certificate, and ID Photo are the core DepEd/Palaro eligibility screening documents. School ID, Form 137/138, and Consent Form are standard supporting documents. Medical (3 months) and Dental (6 months) have official validity windows — system flags "Expiring soon" / "Expired." Barangay Certificate is optional (local add-on). Everything is admin-adjustable.
 
 - **Editable data, no code change needed:** new `DocumentType` table seeded from `lib/document-types.js` (single source of truth, same pattern as `lib/athlete-import-headers.js` / `lib/starter-metrics.js`). Admins manage via `pages/admin/document-types.js` (mirrors the metrics-management approach, persisted to the DB — not the in-memory stub training-metrics currently uses). "Other" is a flag on the type, not a hardcoded row.
 

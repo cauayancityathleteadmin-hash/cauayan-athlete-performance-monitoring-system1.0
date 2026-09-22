@@ -360,15 +360,17 @@ model Athlete {
 }
 
 model DocumentType {
-  id         Int          @id @default(autoincrement())
-  name       String       @unique @map("name")
-  isRequired Boolean      @default(false) @map("is_required")
-  isOther    Boolean      @default(false) @map("is_other")
-  sortOrder  Int          @default(0) @map("sort_order")
-  status     ActiveStatus @default(active)
-  createdAt  DateTime     @default(now()) @map("created_at")
-  updatedAt  DateTime     @updatedAt @map("updated_at")
-  documents  AthleteDocument[]
+  id           Int          @id @default(autoincrement())
+  name         String       @unique @map("name")
+  isRequired   Boolean      @default(false) @map("is_required")
+  isOther      Boolean      @default(false) @map("is_other")
+  sortOrder    Int          @default(0) @map("sort_order")
+  hasExpiry    Boolean      @default(false) @map("has_expiry")
+  expiryMonths Int?         @map("expiry_months")
+  status       ActiveStatus @default(active)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  documents    AthleteDocument[]
 
   @@index([status, sortOrder])
   @@map("document_types")

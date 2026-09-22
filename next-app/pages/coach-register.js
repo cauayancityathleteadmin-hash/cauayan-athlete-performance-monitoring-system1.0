@@ -1,12 +1,12 @@
 import Head from "next/head";
 import Link from "next/link";
 import React from "react";
-import { prisma } from "../lib/prisma";
-import styles from "../styles/Dashboard.module.css";
-import PasswordInput from "../components/PasswordInput";
-import IdPhotoUpload from "../components/IdPhotoUpload";
-import { checkPasswordStrength } from "../lib/password";
-import { turnstileEnabled, turnstileSiteKey } from "../lib/turnstile";
+import { prisma } from "@/lib/prisma";
+import styles from "@/styles/Dashboard.module.css";
+import PasswordInput from "@/components/PasswordInput";
+import IdPhotoUpload from "@/components/IdPhotoUpload";
+import { checkPasswordStrength } from "@/lib/password";
+import { turnstileEnabled, turnstileSiteKey } from "@/lib/turnstile";
 
 export async function getServerSideProps() {
   const [sports] = await Promise.all([
@@ -283,7 +283,7 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
                     {formData.pictureUrl ? (
                       <img src={formData.pictureUrl} alt="2x2 ID preview" style={{ width: "72px", height: "72px", objectFit: "cover", borderRadius: "8px", border: "1px solid var(--border)" }} />
                     ) : (
-                      <span style={{ color: "var(--muted)", fontSize: "14px" }}>No photo (you can add one later)</span>
+                      <span style={{ color: "var(--muted)", fontSize: "14px" }}>No photo provided (optional)</span>
                     )}
                   </dd>
                 </div>
@@ -326,99 +326,116 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
           </div>
         ) : (
           <form onSubmit={review} noValidate className="register-fields" style={{ width: "100%" }}>
-            <div className="name-row">
+            {/* Section: Personal Information */}
+            <fieldset style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "var(--space-5)", marginBottom: "var(--space-5)", background: "rgba(6,38,30,.35)" }}>
+              <legend style={{ fontSize: "13px", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--accent)", padding: "0 var(--space-3)" }}>Personal Information</legend>
+              <div className="name-row">
+                <label>
+                  First name *
+                  <input
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={(e) => handleChange("firstName", e.target.value)}
+                    required
+                    maxLength="100"
+                    style={{ borderColor: errors.firstName ? "var(--danger)" : "var(--border)" }}
+                  />
+                  {errors.firstName && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.firstName}</span>}
+                </label>
+                <label>
+                  Middle name
+                  <input
+                    name="middleName"
+                    value={formData.middleName}
+                    onChange={(e) => handleChange("middleName", e.target.value)}
+                    maxLength="100"
+                  />
+                </label>
+                <label>
+                  Last name *
+                  <input
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={(e) => handleChange("lastName", e.target.value)}
+                    required
+                    maxLength="100"
+                    style={{ borderColor: errors.lastName ? "var(--danger)" : "var(--border)" }}
+                  />
+                  {errors.lastName && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.lastName}</span>}
+                </label>
+              </div>
               <label>
-                First name
+                Birthdate *
                 <input
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={(e) => handleChange("firstName", e.target.value)}
+                  name="birthdate"
+                  type="date"
+                  value={formData.birthdate}
+                  onChange={(e) => handleChange("birthdate", e.target.value)}
                   required
-                  maxLength="100"
-                  style={{ borderColor: errors.firstName ? "var(--danger)" : "var(--border)" }}
+                  style={{ borderColor: errors.birthdate ? "var(--danger)" : "var(--border)" }}
                 />
-                {errors.firstName && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.firstName}</span>}
+                {errors.birthdate && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.birthdate}</span>}
               </label>
-              <label>
-                Middle name
-                <input
-                  name="middleName"
-                  value={formData.middleName}
-                  onChange={(e) => handleChange("middleName", e.target.value)}
-                  maxLength="100"
-                />
-              </label>
-              <label>
-                Last name
-                <input
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={(e) => handleChange("lastName", e.target.value)}
+            </fieldset>
+
+            {/* Section: Contact Information */}
+            <fieldset style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "var(--space-5)", marginBottom: "var(--space-5)", background: "rgba(6,38,30,.35)" }}>
+              <legend style={{ fontSize: "13px", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--accent)", padding: "0 var(--space-3)" }}>Contact Information</legend>
+              <div className="contact-row">
+                <label>
+                  Email *
+                  <input
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleChange("email", e.target.value)}
+                    required
+                    maxLength="191"
+                    style={{ borderColor: errors.email ? "var(--danger)" : "var(--border)" }}
+                  />
+                  {errors.email && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.email}</span>}
+                </label>
+                <label>
+                  Contact number <small style={{ color: "var(--muted)", fontWeight: 400 }}>(optional)</small>
+                  <input
+                    name="contactNumber"
+                    type="tel"
+                    value={formData.contactNumber}
+                    onChange={(e) => handleChange("contactNumber", e.target.value)}
+                    maxLength="30"
+                    placeholder="e.g. 0917 000 0000"
+                    style={{ borderColor: errors.contactNumber ? "var(--danger)" : "var(--border)" }}
+                  />
+                  {errors.contactNumber && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.contactNumber}</span>}
+                </label>
+              </div>
+            </fieldset>
+
+            {/* Section: Credentials */}
+            <fieldset style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "var(--space-5)", marginBottom: "var(--space-5)", background: "rgba(6,38,30,.35)" }}>
+              <legend style={{ fontSize: "13px", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--accent)", padding: "0 var(--space-3)" }}>Credentials</legend>
+              <div className="span-2">
+                <PasswordInput
+                  name="password"
+                  label="Password *"
+                  value={formData.password}
+                  onChange={handleChange}
                   required
-                  maxLength="100"
-                  style={{ borderColor: errors.lastName ? "var(--danger)" : "var(--border)" }}
+                  minLength="12"
+                  maxLength="200"
+                  autoComplete="new-password"
+                  showStrength={true}
+                  placeholder="At least 12 characters"
+                  error={errors.password}
                 />
-                {errors.lastName && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.lastName}</span>}
-              </label>
-            </div>
-            <label>
-              Birthdate
-              <input
-                name="birthdate"
-                type="date"
-                value={formData.birthdate}
-                onChange={(e) => handleChange("birthdate", e.target.value)}
-                required
-                style={{ borderColor: errors.birthdate ? "var(--danger)" : "var(--border)" }}
-              />
-              {errors.birthdate && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.birthdate}</span>}
-            </label>
-            <div className="contact-row">
+              </div>
+            </fieldset>
+
+            {/* Section: Professional Information */}
+            <fieldset style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "var(--space-5)", marginBottom: "var(--space-5)", background: "rgba(6,38,30,.35)" }}>
+              <legend style={{ fontSize: "13px", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--accent)", padding: "0 var(--space-3)" }}>Professional Information</legend>
               <label>
-                Contact number <small style={{ color: "var(--muted)", fontWeight: 400 }}>(optional)</small>
-                <input
-                  name="contactNumber"
-                  type="tel"
-                  value={formData.contactNumber}
-                  onChange={(e) => handleChange("contactNumber", e.target.value)}
-                  maxLength="30"
-                  placeholder="e.g. 0917 000 0000"
-                  style={{ borderColor: errors.contactNumber ? "var(--danger)" : "var(--border)" }}
-                />
-                {errors.contactNumber && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.contactNumber}</span>}
-              </label>
-              <label>
-                Email
-                <input
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleChange("email", e.target.value)}
-                  required
-                  maxLength="191"
-                  style={{ borderColor: errors.email ? "var(--danger)" : "var(--border)" }}
-                />
-                {errors.email && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.email}</span>}
-              </label>
-            </div>
-            <div className="span-2">
-              <PasswordInput
-                name="password"
-                label="Password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                minLength="12"
-                maxLength="200"
-                autoComplete="new-password"
-                showStrength={true}
-                placeholder="At least 12 characters"
-                error={errors.password}
-              />
-            </div>
-            <div className="school-sports-row">
-              <label>
-                School
+                School *
                 <input
                   name="school"
                   value={formData.school}
@@ -431,7 +448,7 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
                 {errors.school && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.school}</span>}
               </label>
               <fieldset className="register-sports">
-                <legend>Sports coached</legend>
+                <legend>Sports coached *</legend>
                 <div className="register-sports-grid">
                   {sports.map((sport) => {
                     const checked = formData.sportIds.includes(sport.id);
@@ -451,14 +468,15 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
                 </div>
                 {errors.sports && <span style={{ color: "var(--danger)", fontSize: "12px", marginTop: "4px", display: "block" }}>{errors.sports}</span>}
               </fieldset>
-            </div>
-            <div className="span-2">
-              <fieldset className="register-sports" style={{ margin: 0 }}>
-                <legend>2x2 ID picture</legend>
-                <IdPhotoUpload value={formData.pictureUrl} onChange={(url) => handleChange("pictureUrl", url)} label="ID photo" />
-              </fieldset>
-              {errors.pictureUrl && <span style={{ color: "var(--danger)", fontSize: "12px", marginTop: "4px", display: "block" }}>{errors.pictureUrl}</span>}
-            </div>
+            </fieldset>
+
+            {/* Section: Optional — 2x2 ID Picture */}
+            <fieldset style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "var(--space-5)", marginBottom: "var(--space-5)", background: "rgba(6,38,30,.35)" }}>
+              <legend style={{ fontSize: "13px", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--accent)", padding: "0 var(--space-3)" }}>Optional — 2×2 ID Picture</legend>
+              <p style={{ color: "var(--muted)", fontSize: "14px", margin: "0 0 var(--space-4)" }}>Upload a 2×2 ID photo for your coach profile. This is optional and can be added later.</p>
+              <IdPhotoUpload value={formData.pictureUrl} onChange={(url) => handleChange("pictureUrl", url)} label="ID photo" />
+            </fieldset>
+
             <button type="submit" disabled={busy} className={`${styles.primary} span-2`} style={{ marginTop: "var(--space-3)" }}>
               Review registration
             </button>

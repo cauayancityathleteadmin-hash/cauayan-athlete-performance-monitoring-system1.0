@@ -130,8 +130,8 @@ async function seedReferenceData() {
   for (const t of DOCUMENT_TYPE_SEED) {
     await prisma.documentType.upsert({
       where: { name: t.name },
-      update: { isRequired: t.isRequired, isOther: t.isOther, sortOrder: t.sortOrder, status: "active" },
-      create: { name: t.name, isRequired: t.isRequired, isOther: t.isOther, sortOrder: t.sortOrder },
+      update: { isRequired: t.isRequired, isOther: t.isOther, sortOrder: t.sortOrder, hasExpiry: t.hasExpiry, expiryMonths: t.expiryMonths, status: "active" },
+      create: { name: t.name, isRequired: t.isRequired, isOther: t.isOther, sortOrder: t.sortOrder, hasExpiry: t.hasExpiry, expiryMonths: t.expiryMonths },
     });
   }
 
