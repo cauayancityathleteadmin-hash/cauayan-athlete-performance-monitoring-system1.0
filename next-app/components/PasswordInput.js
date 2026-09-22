@@ -2,8 +2,8 @@ import React from "react";
 import { checkPasswordStrength, getPasswordStrengthColor } from "../lib/password";
 
 export default function PasswordInput({
+  id,
   name,
-  label,
   value,
   onChange,
   required = true,
@@ -30,13 +30,13 @@ export default function PasswordInput({
     setShowPassword((prev) => !prev);
   };
 
+  // When used inline (no label prop), render just the input + toggle + strength
+  // The parent field-group handles the label
   return (
-    <div style={{ position: "relative" }}>
-      <label style={{ color: "var(--muted)", fontSize: "13px", fontWeight: 700, display: "block", marginBottom: "6px" }}>
-        {label}
-      </label>
+    <>
       <div style={{ position: "relative" }}>
         <input
+          id={id}
           type={showPassword ? "text" : "password"}
           name={name}
           value={value}
@@ -48,10 +48,11 @@ export default function PasswordInput({
           disabled={disabled}
           style={{
             width: "100%",
-            padding: "var(--space-3) 50px var(--space-3) var(--space-4)",
+            height: "48px",
+            padding: "0 var(--space-4) 0 calc(var(--space-4) + 50px)",
             border: error ? "1px solid var(--danger)" : "1px solid var(--border)",
             borderRadius: "8px",
-            background: "rgba(6, 38, 30, .92)",
+            background: "rgba(6, 38, 30, .9)",
             color: "var(--foreground)",
             font: "inherit",
             fontSize: "16px",
@@ -100,7 +101,7 @@ export default function PasswordInput({
         </button>
       </div>
       {error && (
-        <p style={{ color: "var(--danger)", fontSize: "13px", marginTop: "6px" }}>{error}</p>
+        <p className="error-text" style={{ color: "var(--danger)", fontSize: "12px", marginTop: "4px" }}>{error}</p>
       )}
       {showStrength && strength && (
         <div id={`${name}-strength`} style={{ marginTop: "10px" }}>
@@ -136,6 +137,6 @@ export default function PasswordInput({
           </ul>
         </div>
       )}
-    </div>
+    </>
   );
 }

@@ -187,18 +187,19 @@ export default function IdPhotoUpload({ value, onChange, required = false, label
   }
 
   return (
-    <div>
-      <label style={{ display: "flex", flexDirection: "column", gap: "8px", color: "var(--muted)", fontWeight: 700, fontSize: "15px" }}>
+    <div className="field-group id-photo-upload" style={{ width: "100%" }}>
+      <label style={{ color: "var(--muted)", fontSize: "13px", fontWeight: 700, display: "flex", alignItems: "center", gap: "6px" }}>
         {label}
-        {required && <span style={{ color: "var(--danger)", fontSize: "12px", fontWeight: 600 }}>Required — a clear, front-facing 2x2 ID photo</span>}
+        {required && <span style={{ color: "var(--danger)", fontSize: "12px" }}>*</span>}
       </label>
+
       <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "8px", flexWrap: "wrap" }}>
         <div
           style={{
             width: 96,
             height: 96,
             borderRadius: "8px",
-            border: "2px dashed var(--border)",
+            border: value ? "1px solid var(--border)" : "2px dashed var(--border)",
             background: value ? "transparent" : "rgba(6,38,30,.4)",
             display: "flex",
             alignItems: "center",
@@ -213,19 +214,23 @@ export default function IdPhotoUpload({ value, onChange, required = false, label
             <span style={{ color: "var(--muted)", fontSize: "12px", textAlign: "center", padding: "4px" }}>No photo</span>
           )}
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1, minWidth: 200 }}>
           <label style={{ display: "inline-flex" }}>
             <span
               style={{
                 display: "inline-block",
+                width: "100%",
                 padding: "var(--space-3) var(--space-4)",
                 border: "1px solid var(--border)",
-                borderRadius: "6px",
+                borderRadius: "8px",
                 background: "rgba(45,212,168,.12)",
                 color: "var(--accent)",
                 fontWeight: 600,
                 cursor: "pointer",
                 fontSize: "14px",
+                textAlign: "center",
+                boxSizing: "border-box",
               }}
             >
               {busy ? "Uploading..." : value ? "Change photo" : "Choose photo"}
@@ -244,7 +249,19 @@ export default function IdPhotoUpload({ value, onChange, required = false, label
               type="button"
               onClick={openCamera}
               disabled={busy}
-              style={{ display: "inline-block", padding: "var(--space-3) var(--space-4)", border: "1px solid var(--border)", borderRadius: "6px", background: "rgba(127,199,175,.1)", color: "var(--foreground)", fontWeight: 600, cursor: "pointer", fontSize: "14px", textAlign: "left" }}
+              style={{
+                display: "inline-block",
+                width: "100%",
+                padding: "var(--space-3) var(--space-4)",
+                border: "1px solid var(--border)",
+                borderRadius: "8px",
+                background: "rgba(127,199,175,.1)",
+                color: "var(--foreground)",
+                fontWeight: 600,
+                cursor: "pointer",
+                fontSize: "14px",
+                textAlign: "center",
+              }}
             >
               {busy ? "Uploading..." : "Take photo"}
             </button>
@@ -253,7 +270,7 @@ export default function IdPhotoUpload({ value, onChange, required = false, label
             <button
               type="button"
               onClick={() => onChange("")}
-              style={{ background: "transparent", border: "none", color: "var(--danger)", cursor: "pointer", fontWeight: 600, padding: 0, textAlign: "left", fontSize: "13px" }}
+              style={{ background: "transparent", border: "none", color: "var(--danger)", cursor: "pointer", fontWeight: 600, padding: "4px 0", textAlign: "left", fontSize: "13px" }}
             >
               Remove photo
             </button>
@@ -262,7 +279,7 @@ export default function IdPhotoUpload({ value, onChange, required = false, label
       </div>
 
       {cameraOpen && (
-        <div style={{ marginTop: "var(--space-3)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "var(--space-4)", background: "rgba(6,38,30,.35)", maxWidth: "var(--auth-card-width)" }}>
+        <div style={{ marginTop: "var(--space-3)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "var(--space-4)", background: "rgba(6,38,30,.35)" }}>
           <p style={{ margin: "0 0 var(--space-3)", color: "var(--muted)", fontSize: "13px" }}>Line up your face in the square, then take the photo. Your photo is saved as a 2x2 ID picture.</p>
           <div style={{ position: "relative", width: "100%", maxWidth: 320, borderRadius: "8px", overflow: "hidden" }}>
             <video ref={videoRef} playsInline muted autoPlay style={{ width: "100%", display: "block", background: "#000" }} />
@@ -278,7 +295,8 @@ export default function IdPhotoUpload({ value, onChange, required = false, label
           </div>
         </div>
       )}
-      {error && <p style={{ color: "var(--danger)", fontSize: "12px", marginTop: "6px" }}>{error}</p>}
+
+      {error && <p className="error-text" style={{ color: "var(--danger)", fontSize: "12px", marginTop: "4px" }}>{error}</p>}
     </div>
   );
 }

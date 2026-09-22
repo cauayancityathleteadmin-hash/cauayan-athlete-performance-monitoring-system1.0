@@ -429,7 +429,7 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
                 <label htmlFor="password">Password <span className="required">*</span></label>
                 <PasswordInput
                   name="password"
-                  label=""
+                  id="password"
                   value={formData.password}
                   onChange={handleChange}
                   required
