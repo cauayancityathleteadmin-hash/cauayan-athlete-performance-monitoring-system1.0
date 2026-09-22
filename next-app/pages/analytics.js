@@ -140,7 +140,7 @@ export async function getServerSideProps(context) {
     prisma.sport.findMany({ include: { _count: { select: { events: true } } } }),
     prisma.eventPlan.findMany(),
     prisma.eventApplication.findMany(),
-    prisma.eventParticipant.findMany({ include: { eventPlan: true, sport: true, athlete: true } }),
+    prisma.eventParticipant.findMany({ where: { status: "active" }, include: { eventPlan: true, sport: true, athlete: true } }),
     prisma.planActivityLog.findMany({ where: { performedAt: { gte: firstBucket }, status: { in: ["done", "partial", "missed"] } }, select: { status: true, performedAt: true } }),
     prisma.trainingAssessment.findMany({ where: { assessmentDate: { gte: ninetyDayStart } }, select: { rating: true, assessmentDate: true }, orderBy: { assessmentDate: "desc" } }),
     prisma.athlete.groupBy({ by: ["healthStatus"], _count: { _all: true } }),
@@ -233,7 +233,11 @@ export async function getServerSideProps(context) {
   const achievementTypeDist = [];
   const eventPlansAgg = { total: eventPlans.length, byStatus: Object.entries(eventPlans.reduce((acc, e) => { acc[e.status] = (acc[e.status] || 0) + 1; return acc; }, {})).map(([name, value]) => ({ name, value })) };
   const applicationsAgg = { total: applications.length, byStatus: Object.entries(applications.reduce((acc, a) => { acc[a.status] = (acc[a.status] || 0) + 1; return acc; }, {})).map(([name, value]) => ({ name, value })) };
-  const participantsAgg = { total: participants.length, byType: Object.entries(participants.reduce((acc, p) => { const t = p.athlete ? "Athlete" : "Coach delegation"; acc[t] = (acc[t] || 0) + 1; return acc; }, {})).map(([name, value]) => ({ name, value })) };
+  const participantsAgg = (() => {
+    const athletePeople = new Set(participants.filter((p) => p.athlete).map((p) => p.athleteId));
+    const coachPeople = new Set(participants.filter((p) => !p.athlete).map((p) => p.coachId));
+    return { total: athletePeople.size + coachPeople.size, byType: [{ name: "Athlete", value: athletePeople.size }, { name: "Coach delegation", value: coachPeople.size }] };
+  })();
 
   const completionBuckets = [];
   for (let i = 0; i < 8; i += 1) {

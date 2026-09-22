@@ -68,6 +68,7 @@ export default function ChangePassword({ session }) {
     <>
       <Head><title>Change password | Cauayan Athlete Performance</title></Head>
       <AppShell session={current} isAdmin={isAdmin} eyebrow="Cauayan City" title="Change password" active="/change-password">
+        <div className={styles.pageTitle}><h1>Change password</h1></div>
         <section className={styles.panel}>
         <div className={styles.panelHeader}>
           <div><p className={styles.eyebrow}>Security</p><h2>Change your password</h2></div>

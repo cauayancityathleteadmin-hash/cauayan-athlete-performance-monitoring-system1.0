@@ -39,7 +39,7 @@ export async function getServerSideProps(context) {
       trainingAttendances: { orderBy: { session: { sessionDate: "desc" } }, include: { session: { select: { sessionDate: true, sessionType: true, sport: { select: { sportName: true } } } } }, take: 200 },
       trainingPerformances: { orderBy: { recordedAt: "desc" }, include: { exercise: { select: { exerciseName: true, category: true } }, recorder: { select: { email: true } } }, take: 100 },
       trainingPlans: { include: { plan: { include: { sport: true } } }, take: 50 },
-      participants: { orderBy: { createdAt: "desc" }, include: { eventPlan: { select: { eventName: true, venue: true, status: true, startDate: true } }, sport: true }, take: 100 },
+      participants: { where: { status: "active" }, orderBy: { createdAt: "desc" }, include: { eventPlan: { select: { eventName: true, venue: true, status: true, startDate: true } }, sport: true }, take: 100 },
       _count: { select: { assessments: true, achievements: true, healthLogs: true, trainingAttendances: true } },
       assessments: { orderBy: { assessmentDate: "desc" }, include: { recorder: { select: { email: true, username: true } }, results: { include: { metric: true } } }, take: 500 },
     };
@@ -59,8 +59,8 @@ export async function getServerSideProps(context) {
             trainingPlans: { include: { sport: true, athletes: { select: { athleteId: true } } }, take: 50 },
             trainingSessions: { orderBy: { sessionDate: "desc" }, include: { sport: true, _count: { select: { attendances: true } } }, take: 100 },
             applications: { orderBy: { appliedAt: "desc" }, include: { eventPlan: { select: { eventName: true, venue: true, status: true, startDate: true } } }, take: 100 },
-            participants: { orderBy: { createdAt: "desc" }, include: { eventPlan: { select: { eventName: true, venue: true, status: true, startDate: true } }, sport: true, athlete: { select: { firstName: true, lastName: true, athleteCode: true } } }, take: 100 },
-            _count: { select: { athletes: true, performances: true, trainingPlans: true, trainingSessions: true, applications: true, participants: true } },
+            participants: { where: { status: "active" }, orderBy: { createdAt: "desc" }, include: { eventPlan: { select: { eventName: true, venue: true, status: true, startDate: true } }, sport: true, athlete: { select: { firstName: true, lastName: true, athleteCode: true } } }, take: 100 },
+            _count: { select: { athletes: true, performances: true, trainingPlans: true, trainingSessions: true, applications: true, participants: { where: { status: "active" } } } },
           },
         }),
       ]);

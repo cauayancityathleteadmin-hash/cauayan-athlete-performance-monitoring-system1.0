@@ -24,7 +24,7 @@ export async function getServerSideProps(context) {
   } else {
     const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
     coachId = coach?.id ?? null;
-    athletes = coach ? await prisma.athlete.findMany({ where: { coach: { userId: Number(session.user.id) }, status: "active" }, select: { id: true, athleteCode: true, firstName: true, lastName: true }, orderBy: { lastName: "asc" } }) : [];
+    athletes = coach ? await prisma.athlete.findMany({ where: { coach: { userId: Number(session.user.id) }, status: "active" }, select: { id: true, athleteCode: true, firstName: true, lastName: true, sportId: true }, orderBy: { lastName: "asc" } }) : [];
   }
   return { props: { session, plans: JSON.parse(JSON.stringify(plans)), page: planResult.page, totalPages: planResult.totalPages, sports, athletes: JSON.parse(JSON.stringify(athletes)), coachId } };
 }
@@ -151,9 +151,38 @@ export default function EventPlans({ plans, session, page, totalPages, sports, a
   );
 }
 
-function participantName(p) {
-  if (p.athlete) return `${p.athlete.lastName}, ${p.athlete.firstName}${p.athlete.middleName ? " " + p.athlete.middleName : ""}`;
-  return `${p.coach.lastName}, ${p.coach.firstName}${p.coach.middleName ? " " + p.coach.middleName : ""}`;
+/* Group active participant rows into distinct people: one coach group per coach
+   (delegation rows + athlete rows), and one athlete entry per athleteId (sports joined),
+   so counts always equal the names actually rendered. */
+function groupParticipation(participants) {
+  const byCoach = new Map();
+  for (const p of participants || []) {
+    if (!p.coach) continue;
+    let group = byCoach.get(p.coachId);
+    if (!group) {
+      group = { coach: p.coach, delegateSports: [], athletes: new Map() };
+      byCoach.set(p.coachId, group);
+    }
+    const sportName = p.sport?.sportName || "—";
+    if (p.participantType === "coach") {
+      group.delegateSports.push(sportName);
+    } else if (p.athlete) {
+      let entry = group.athletes.get(p.athleteId);
+      if (!entry) {
+        entry = { athlete: p.athlete, sports: [] };
+        group.athletes.set(p.athleteId, entry);
+      }
+      entry.sports.push(sportName);
+    }
+  }
+  return [...byCoach.values()].map((g) => ({ coach: g.coach, delegateSports: g.delegateSports, athletes: [...g.athletes.values()] }));
+}
+
+function participationCount(participants) {
+  const groups = groupParticipation(participants);
+  const athletes = groups.reduce((sum, g) => sum + g.athletes.length, 0);
+  const coaches = groups.length;
+  return `${athletes} athlete${athletes === 1 ? "" : "s"} · ${coaches} coach${coaches === 1 ? "" : "es"}`;
 }
 
 function ParticipationToggle({ open, count, children, label }) {
@@ -172,19 +201,20 @@ function AthleteList({ items, empty, onRemove, busyRemove }) {
   if (!items.length) return <div className={styles.detailEmpty}>{empty}</div>;
   return (
     <div className={styles.statusAthletes}>
-      {items.map((p) => (
-        <div key={p.id} className={styles.statusAthlete}>
-          <span className={styles.statusAthleteName}>{p.athlete.firstName} {p.athlete.lastName}</span>
-          <small>{p.athlete.athleteCode} · {p.sport.sportName || "—"}</small>
-          {onRemove && <button type="button" className={`${styles.danger} ${styles.btnSm}`} disabled={busyRemove} onClick={() => onRemove(p.athlete.id)}>Remove</button>}
+      {items.map((a) => (
+        <div key={a.athlete.id} className={styles.statusAthlete}>
+          <span className={styles.statusAthleteName}>{a.athlete.firstName} {a.athlete.lastName}</span>
+          <small>{a.athlete.athleteCode} · {a.sports.join(", ") || "—"}</small>
+          {onRemove && <button type="button" className={`${styles.danger} ${styles.btnSm}`} disabled={busyRemove} onClick={() => onRemove(a.athlete.id)}>Remove</button>}
         </div>
       ))}
     </div>
   );
 }
 
-function CoachRow({ coach, athletesOfCoach, open, onToggle }) {
-  const hasAthletes = athletesOfCoach.length > 0;
+function CoachRow({ group, open, onToggle }) {
+  const { coach, delegateSports, athletes } = group;
+  const hasAthletes = athletes.length > 0;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexWrap: "wrap", padding: "var(--space-3) var(--space-4)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", background: "rgba(10, 50, 40, 0.7)" }}>
@@ -192,48 +222,49 @@ function CoachRow({ coach, athletesOfCoach, open, onToggle }) {
           <strong style={{ fontSize: 14 }}>{coach.firstName} {coach.lastName}</strong>
           <small style={{ display: "block", color: "var(--muted)", fontSize: 12 }}>{coach.coachCode}{coach.school ? ` · ${coach.school.schoolName}` : ""}</small>
         </div>
+        {delegateSports.length > 0 && (
+          <span style={{ display: "inline-block", background: "rgba(45,212,168,.16)", color: "var(--accent)", padding: "2px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: 700 }}>Delegation · {delegateSports.join(", ")}</span>
+        )}
         {hasAthletes && (
           <button type="button" className={styles.expandBtn} onClick={onToggle}>
-            {open ? "Hide " : "View "}athletes ({athletesOfCoach.length}) {open ? "▲" : "▼"}
+            {open ? "Hide " : "View "}athletes ({athletes.length}) {open ? "▲" : "▼"}
           </button>
         )}
         {!hasAthletes && <small style={{ color: "var(--muted)", fontSize: 12 }}>No athletes enrolled</small>}
       </div>
-      {open && <AthleteList items={athletesOfCoach} empty="No athletes enrolled under this coach." />}
+      {open && <AthleteList items={athletes} empty="No athletes enrolled under this coach." />}
     </div>
   );
 }
 
-function CoachGroup({ coachId, participants }) {
+function CoachGroup({ group }) {
   const [open, setOpen] = React.useState(false);
-  const coach = participants.find((p) => p.coach && p.coachId === coachId)?.coach;
-  const athleteRows = participants.filter((p) => p.participantType === "athlete" && p.coachId === coachId);
-  if (!coach) return null;
-  return <CoachRow coach={coach} athletesOfCoach={athleteRows} open={open} onToggle={() => setOpen((c) => !c)} />;
+  return <CoachRow group={group} open={open} onToggle={() => setOpen((c) => !c)} />;
 }
 
 function ParticipantRoster({ participants, myCoachId, onRemove, busyRemove }) {
-  const myAthletes = (myCoachId ? participants.filter((p) => p.participantType === "athlete" && p.coachId === myCoachId) : []);
-  const coachRows = participants.filter((p) => p.participantType === "coach" && p.coach);
-  const seenCoaches = new Set();
-  const otherCoachIds = [...new Set(coachRows.map((p) => p.coachId).filter((cid) => { if (seenCoaches.has(cid) || cid === myCoachId) return false; seenCoaches.add(cid); return true; }))];
-  const isCoachView = Boolean(myCoachId);
-  const sectionLabel = isCoachView ? "Other coaches" : "Coaches";
+  const groups = React.useMemo(() => groupParticipation(participants), [participants]);
+  const myGroup = myCoachId ? groups.find((g) => g.coach.id === myCoachId) || null : null;
+  const otherGroups = myCoachId ? groups.filter((g) => g.coach.id !== myCoachId) : groups;
+  const sectionLabel = myCoachId ? "Other coaches" : "Coaches";
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-      {isCoachView && (
+      {myCoachId && (
         <div>
-          <p className={styles.eyebrow} style={{ marginBottom: 8 }}>My athletes ({myAthletes.length})</p>
-          <AthleteList items={myAthletes} empty="You have no athletes enrolled in this event plan." onRemove={onRemove} busyRemove={busyRemove} />
+          <p className={styles.eyebrow} style={{ marginBottom: "var(--space-2)" }}>My athletes ({myGroup ? myGroup.athletes.length : 0})</p>
+          {myGroup && myGroup.delegateSports.length > 0 && (
+            <small style={{ display: "block", color: "var(--accent)", marginBottom: "var(--space-2)" }}>&#10003; You&apos;re enrolled as delegation ({myGroup.delegateSports.join(", ")}).</small>
+          )}
+          <AthleteList items={myGroup ? myGroup.athletes : []} empty="You have no athletes enrolled in this event plan." onRemove={onRemove} busyRemove={busyRemove} />
         </div>
       )}
       <div>
-        <p className={styles.eyebrow} style={{ marginBottom: "var(--space-2)" }}>{sectionLabel} ({otherCoachIds.length})</p>
-        {otherCoachIds.length ? (
+        <p className={styles.eyebrow} style={{ marginBottom: "var(--space-2)" }}>{sectionLabel} ({otherGroups.length})</p>
+        {otherGroups.length ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-            {otherCoachIds.map((cid) => <CoachGroup key={cid} coachId={cid} participants={participants} />)}
+            {otherGroups.map((group) => <CoachGroup key={group.coach.id} group={group} />)}
           </div>
-        ) : <div className={styles.detailEmpty}>{isCoachView ? "No other coaches participating yet." : "No participating coaches yet."}</div>}
+        ) : <div className={styles.detailEmpty}>{myCoachId ? "No other coaches participating yet." : "No participating coaches yet."}</div>}
       </div>
     </div>
   );
@@ -335,7 +366,8 @@ function EventPlanActions({ plan, session, athletes, coachId, sports }) {
       return <p style={{ color: "var(--muted)", fontSize: 13, margin: "12px 0 0" }}>This event plan has been closed. Participation is no longer open.</p>;
     }
     const isApproved = Boolean(myApp && myApp.status === "approved");
-    const available = athletes || [];
+    const planSportIds = new Set((plan.sports || []).map((s) => s.sportId));
+    const available = (athletes || []).filter((a) => planSportIds.has(a.sportId));
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
         {plan.status === "closed" ? (
@@ -346,7 +378,7 @@ function EventPlanActions({ plan, session, athletes, coachId, sports }) {
             {available.length > 0 ? (
               <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setPickerOpen((current) => !current)}>{pickerOpen ? "Close athlete list" : "Add athlete"}</button>
             ) : (
-              <small style={{ color: "var(--muted)" }}>You have no active athletes to add.</small>
+              <small style={{ color: "var(--muted)" }}>No active athletes in this event&apos;s sports to add.</small>
             )}
             {message && <small role="status">{message}</small>}
           </div>
@@ -391,7 +423,7 @@ function EventPlanActions({ plan, session, athletes, coachId, sports }) {
           </div>
         )}
         {isApproved && (
-          <ParticipationToggle label="participants" count={(plan.participants || []).length} open={true}>
+          <ParticipationToggle label="participants" count={participationCount(plan.participants)} open={true}>
             <ParticipantRoster participants={plan.participants || []} myCoachId={coachId} onRemove={removeAthlete} busyRemove={busy} />
           </ParticipationToggle>
         )}
@@ -427,7 +459,7 @@ const pending = plan.applications.filter((application) => application.status ===
           </div>
         ) : <div className={styles.detailEmpty}>No applications pending review.</div>}
       </ParticipationToggle>
-      <ParticipationToggle label="participants" count={(plan.participants || []).length} open={false}>
+      <ParticipationToggle label="participants" count={participationCount(plan.participants)} open={false}>
         <ParticipantRoster participants={plan.participants || []} />
       </ParticipationToggle>
     </div>

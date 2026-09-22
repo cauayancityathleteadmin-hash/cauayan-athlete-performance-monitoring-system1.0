@@ -58,7 +58,7 @@ export default async function handler(req, res) {
   if (!coach || coach.status !== "active") return res.status(403).json({ error: "Active coach profile required." });
 
   const [plan, athlete, application] = await Promise.all([
-    prisma.eventPlan.findUnique({ where: { id: eventPlanId }, select: { id: true, status: true } }),
+    prisma.eventPlan.findUnique({ where: { id: eventPlanId }, select: { id: true, status: true, sports: { select: { sportId: true } } } }),
     prisma.athlete.findUnique({ where: { id: athleteId }, select: { id: true, sportId: true, coachId: true } }),
     prisma.eventApplication.findUnique({ where: { eventPlanId_coachId: { eventPlanId, coachId: coach.id } }, select: { status: true } }),
   ]);
@@ -66,6 +66,7 @@ export default async function handler(req, res) {
   if (!plan || plan.status !== "open") return res.status(400).json({ error: "You can only add athletes to open event plans." });
   if (!athlete || athlete.coachId !== coach.id) return res.status(403).json({ error: "You can only add athletes assigned to you." });
   if (!application || application.status !== "approved") return res.status(403).json({ error: "Your application to this event plan must be approved first." });
+  if (!plan.sports.some((s) => s.sportId === athlete.sportId)) return res.status(400).json({ error: "Athlete's sport is not part of this event plan." });
 
   const participant = await prisma.$transaction(async (tx) => {
     const saved = await tx.eventParticipant.upsert({
