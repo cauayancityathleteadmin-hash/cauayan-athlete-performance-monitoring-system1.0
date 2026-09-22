@@ -34,6 +34,13 @@ Verify every piece of value from the standalone Progress feature now lives insid
 Per the plan, Training List stays as-is → the built-in Progress tab inside
 `/training-plans` is retained (it is already part of the Training feature, not a sidebar item).
 
+> **Superseded in the final follow-up step** — the "Progress" tab was then removed from
+> `/training-plans` so that *all* training progress lives inside each training's **Training
+> Detail** (charts + roster with per-athlete completion/rating + "See progress →") and *all*
+> athlete progress lives inside **See Progress** (the drill page). The Plans table on the
+> Training List keeps its per-plan Progress/Rating columns. `/api/progress?roster=1` remains
+> available in the API (no longer referenced by the UI).
+
 | Feature | Location | Status |
 |---|---|---|
 | Roster-wide latest completion % per athlete (coach's plans) | `/training-plans` → Progress tab (`RosterProgress`, `/api/progress?roster=1`) | ✅ stays |

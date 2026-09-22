@@ -7,8 +7,10 @@ Remove "Progress" as a standalone destination and fold everything useful about i
 Training, so there is one place for athlete monitoring. Build/verify first, remove second.
 
 ## Final structure
-- **Training List** `/training-plans` — unchanged: two containers (Normal (N) /
-  Pre-Conditioning (N)) + built-in Progress tab (`RosterProgress`, cross-plan roster).
+- **Training List** `/training-plans` — the two containers (Normal (N) /
+  Pre-Conditioning (N)). Each plan row shows its own Progress % + Rating. The cross-plan
+  "Progress" tab was removed in the final follow-up (see below) — "Progress" no longer
+  exists as any standalone destination.
 - **Training Detail** `/training-plans/[id]` — team-wide progress charts, athlete roster
   with "See progress →", assessment/scoring, trends.
 - **Athlete "See Progress"** `/training-plans/[id]/athletes/[athleteId]` — the merged
@@ -22,6 +24,18 @@ Training, so there is one place for athlete monitoring. Build/verify first, remo
   7. Attendance — effort overview + session history
   8. Achievements — full recognition list
   9. Health — recent health history + status
+
+## Follow-up (final step): Training List "Progress" tab removed
+The `RosterProgress` tab on `/training-plans` (the cross-plan "Latest progress across
+plans" rollup) was removed so all progress lives in exactly two places:
+- **training's progress** → inside each training (`/training-plans/[id]`: Overview,
+  Trends & Charts, Athletes roster with per-athlete completion/rating + "See progress →");
+- **athlete's progress** → inside the athlete's "See Progress" page
+  (`/training-plans/[id]/athletes/[athleteId]`: 9 tabs).
+The Plans table keeps its per-plan Progress/Rating columns. `/api/progress` is unchanged
+(the drill page still uses `planId`+`athleteId`; `roster=1` remains in the API). Local
+regression (admin login): `/training-plans` 200 with tab gone and both containers intact;
+Training Detail + drill pages 200.
 
 ## What was removed / changed (Phase 5)
 - No sidebar "Progress" item existed to remove (verified `AppShell` `NAV_GROUPS`).

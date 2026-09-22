@@ -3,12 +3,9 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import React from "react";
 import { getSession } from "next-auth/react";
-import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { prisma } from "../lib/prisma";
 import { PLAN_TYPE_OPTIONS, PLAN_TYPE_META } from "../lib/training-metrics";
-import { CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, barChartHeight, completionColor } from "../lib/chart-config";
 import AppShell from "../components/AppShell";
-import PageSectionTabs from "../components/PageSectionTabs";
 import styles from "../styles/Dashboard.module.css";
 
 function planProgress(plan, totals) {
@@ -121,11 +118,6 @@ function fmtDate(value) {
   return isNaN(d) ? "—" : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
-const PLAN_SECTIONS = [
-  { label: "Progress", sectionId: "progress" },
-  { label: "Plans", sectionId: "plans" },
-];
-
 export default function TrainingPlans({ session, isAdmin, sports, coaches, athletes, initialPlans = [], initialTemplates = [], progressMap = {} }) {
   const router = useRouter();
   const [showPlanForm, setShowPlanForm] = React.useState(false);
@@ -196,11 +188,6 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Training" title="Training plans" active="/training-plans">
         <div className={styles.pageTitle}><h1>Training plans</h1></div>
 
-        <PageSectionTabs sections={PLAN_SECTIONS}>
-          <section id="progress">
-            <RosterProgress />
-          </section>
-          <section id="plans">
         <section className={styles.panel}>
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Coaching</p><h2>Training plans</h2></div>
@@ -271,8 +258,6 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
                 </section>
               </div>
             )}
-          </section>
-        </PageSectionTabs>
       </AppShell>
     </>
   );
@@ -281,91 +266,6 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
 function toDateInput(date) {
   const d = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
   return isNaN(d) ? "" : d.toISOString().slice(0, 10);
-}
-
-/* Latest completion/rating for every athlete across the coach's training plans
-   (admin: all plans). Scope lives in /api/progress?roster=1. */
-function RosterProgress() {
-  const router = useRouter();
-  const [roster, setRoster] = React.useState(null);
-  const [error, setError] = React.useState("");
-
-  React.useEffect(() => {
-    let cancelled = false;
-    fetch("/api/progress?roster=1")
-      .then((r) => (r.ok ? r.json() : {}))
-      .then((json) => {
-        if (cancelled) return;
-        if (json.roster) setRoster(json.roster);
-        else setError(json.error || "Could not load roster progress.");
-      })
-      .catch(() => { if (!cancelled) setError("Unable to reach the server."); });
-    return () => { cancelled = true; };
-  }, []);
-
-  const rows = roster || [];
-  const chartData = rows.slice(0, 25).map((r) => ({ name: `${r.athlete}`, full: `${r.athlete} — ${r.planName}`, percent: r.completionPercent, total: r.total }));
-
-  return (
-    <section className={styles.panel}>
-      <div className={styles.panelHeader}>
-        <div><p className={styles.eyebrow}>Progress</p><h2>Latest progress across plans</h2></div>
-        <span className={styles.formHint} style={{ alignSelf: "center" }}>{rows.length > 0 ? `${rows.length} athlete${rows.length === 1 ? "" : "s"} on plans` : ""}</span>
-      </div>
-      <p className={styles.formHint} style={{ marginTop: 0 }}>Latest completion for every athlete across your training plans.</p>
-
-      {error ? <p role="status" className={styles.empty}>{error}</p> : rows.length === 0 ? (
-        <p className={styles.empty}>{roster ? "No athletes on your training plans yet." : "Loading latest progress..."}</p>
-      ) : (
-        <>
-          {chartData.length ? (
-            <ResponsiveContainer width="100%" height={barChartHeight(chartData.length)}>
-              <BarChart data={chartData} layout="vertical" margin={CHART_MARGINS.barHorizontal}>
-                <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
-                <XAxis type="number" domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tick={CHART_AXIS.x} tickFormatter={(v) => `${v}%`} />
-                <YAxis type="category" dataKey="name" width={CHART_AXES.barCategory} tick={CHART_AXIS.y} />
-                <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l, p) => p?.[0]?.payload?.full || l} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
-                <Bar dataKey="percent" radius={[0, 4, 4, 0]}>{chartData.map((d) => <Cell key={d.full} fill={completionColor(d.percent)} />)}</Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : <p className={styles.empty}>Nothing to chart yet.</p>}
-
-          <div className={styles.tableWrap} style={{ marginTop: "var(--space-4)" }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>Athlete</th>
-                  <th>Plan</th>
-                  <th>Planned</th>
-                  <th>Done</th>
-                  <th>Partial</th>
-                  <th>Missed</th>
-                  <th>Completion</th>
-                  <th>Rating</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={`${r.athleteId}:${r.planId}`}>
-                    <td data-label="Athlete"><strong>{r.athlete}</strong><small> · {r.athleteCode}</small></td>
-                    <td data-label="Plan">{r.planName}</td>
-                    <td data-label="Planned" style={{ textAlign: "center" }}>{r.total}</td>
-                    <td data-label="Done" style={{ textAlign: "center" }}><strong style={{ color: "var(--accent)" }}>{r.completed}</strong></td>
-                    <td data-label="Partial" style={{ textAlign: "center" }}><span style={{ color: "var(--warning)" }}>{r.partial}</span></td>
-                    <td data-label="Missed" style={{ textAlign: "center" }}><span style={{ color: r.missed > 0 ? "var(--danger)" : "var(--muted)" }}>{r.missed}</span></td>
-                    <td data-label="Completion" style={{ textAlign: "center" }}><strong style={{ color: completionColor(r.completionPercent) }}>{r.completionPercent}%</strong></td>
-                    <td data-label="Rating" style={{ textAlign: "center" }}>{r.rating != null ? r.rating : "—"}</td>
-                    <td><button className={styles.secondary} onClick={() => router.push(`/training-plans/${r.planId}/athletes/${r.athleteId}`)}>View</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-    </section>
-  );
 }
 
 function PlanTable({ plans, progressMap, isAdmin, onEdit, onDelete }) {

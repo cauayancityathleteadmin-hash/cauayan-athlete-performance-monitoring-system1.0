@@ -58,8 +58,19 @@
   `.tableWrap` / badge classes and `lib/chart-config.js` tokens; no new CSS.
 
 ## Final structure (per plan)
-- **Training List** `/training-plans` — two containers (Normal / Pre-Conditioning) + built-in Progress tab (unchanged).
-- **Training Detail** `/training-plans/[id]` — team-wide progress charts, athlete roster with "See progress →", assessment/scoring.
+- **Training List** `/training-plans` — two containers (Normal / Pre-Conditioning). The
+  cross-plan "Progress" tab was removed in the final follow-up step: each plan row keeps its
+  own Progress/Rating columns, and all *training* progress lives inside Training Detail.
+- **Training Detail** `/training-plans/[id]` — team-wide progress charts, athlete roster with per-athlete completion/rating and "See progress →", assessment/scoring.
 - **Athlete "See Progress"** `/training-plans/[id]/athletes/[athleteId]` — all activities, all progress charts, plus assessments/exercise performance/attendance/achievements/health.
+
+## Follow-up step (final): remove the Training List "Progress" tab
+After Phase 6 verification, the `/training-plans` "Progress" tab (`RosterProgress` — a
+cross-plan "latest progress across plans" rollup) was removed so that "Progress" no longer
+exists as any standalone destination. Its value is preserved per plan inside **Training
+Detail** (every plan's roster completion/rating) and per athlete inside **See Progress**.
+The Plans table keeps its per-plan Progress/Rating columns; `/api/progress` stays (drill
+page + `roster=1` mode remains in the API). Verified locally: tab gone, containers intact,
+all routes 200.
 
 **Status: All phases complete ✅**
