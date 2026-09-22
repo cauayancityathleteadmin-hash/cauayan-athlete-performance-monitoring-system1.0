@@ -21,6 +21,11 @@ const ATHLETE_SECTIONS = [
   { label: "Activities", sectionId: "activities" },
   { label: "Trends & charts", sectionId: "trends" },
   { label: "Distribution", sectionId: "distribution" },
+  { label: "Assessments", sectionId: "assessments" },
+  { label: "Exercise Performance", sectionId: "performance" },
+  { label: "Attendance", sectionId: "attendance" },
+  { label: "Achievements", sectionId: "achievements" },
+  { label: "Health", sectionId: "health" },
 ];
 
 function fmtDate(value) {
@@ -55,6 +60,148 @@ const LOG_STATUS = {
   partial: { label: "Partial", cls: "badgePending" },
   missed: { label: "Missed", cls: "badgeRejected" },
 };
+
+const HEALTH_META = {
+  healthy: { label: "Healthy", cls: "badgeActive" },
+  sick: { label: "Sick", cls: "badgeRejected" },
+  injured: { label: "Injured", cls: "badgeRejected" },
+  recovering: { label: "Recovering", cls: "badgePending" },
+  inactive: { label: "Inactive", cls: "badgeMuted" },
+};
+
+function HealthBadge({ status }) {
+  const meta = HEALTH_META[status] || { label: status || "—", cls: "badgeMuted" };
+  return <span className={`${styles.badge} ${styles[meta.cls]}`}>{meta.label}</span>;
+}
+
+const FITNESS_META_FULL = {
+  endurance: "Endurance",
+  strength: "Strength",
+  power: "Power",
+  speed_agility: "Speed / Agility",
+  skill_technique: "Skill / Technique",
+  mobility: "Mobility",
+  recovery: "Recovery",
+};
+
+function MiniTrend({ points, color = CHART_COLORS.primary }) {
+  const w = 360;
+  const h = 110;
+  const padL = 18;
+  const padR = 12;
+  const padT = 10;
+  const padB = 22;
+  if (!points || points.length < 2) return <p className={styles.empty}>Not enough points to plot a trend yet.</p>;
+  const values = points.map((p) => p.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const plotW = w - padL - padR;
+  const plotH = h - padT - padB;
+  const step = plotW / (points.length - 1 || 1);
+  const coords = points.map((p, i) => ({ x: padL + i * step, y: padT + plotH - ((p.value - min) / range) * plotH, p }));
+  const path = coords.map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
+  const area = `${path} L${coords[coords.length - 1].x.toFixed(1)},${h - padB} L${coords[0].x.toFixed(1)},${h - padB} Z`;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: "auto", display: "block" }} role="img" aria-label="Progress trend chart">
+      <defs>
+        <linearGradient id="ptrend" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+          <stop offset="100%" stopColor={color} stopOpacity={0.02} />
+        </linearGradient>
+      </defs>
+      {[0.1, 0.5, 0.9].map((fy) => (
+        <line key={fy} x1={padL} x2={w - padR} y1={padT + plotH * fy} y2={padT + plotH * fy} stroke={CHART_GRID.cartesian.stroke} strokeWidth="1" />
+      ))}
+      <path d={area} fill="url(#ptrend)" />
+      <path d={path} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      {coords.map((c, i) => {
+        const n = coords.length;
+        const showLabel = n <= 8 || i === 0 || i === n - 1 || i % Math.ceil(n / 8) === 0;
+        return (
+          <g key={i}>
+            <circle cx={c.x} cy={c.y} r="3" fill="#041f18" stroke={color} strokeWidth="2" />
+            {showLabel && <text x={c.x} y={h - 7} textAnchor="middle" fontSize="9" fill={CHART_COLORS.text}>{c.p.when}</text>}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function Stat({ label, value, sub }) {
+  return (
+    <div className={styles.detailPanel}>
+      <h4>{label}</h4>
+      <div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)", margin: "4px 0" }}>{value}</div>
+      {sub ? <small style={{ color: "var(--muted)" }}>{sub}</small> : null}
+    </div>
+  );
+}
+
+function RatingChip({ rating }) {
+  const tone = rating >= 8 ? "rgba(45,212,168,.16)" : rating >= 6 ? "rgba(251,191,36,.16)" : "rgba(248,113,113,.16)";
+  const color = rating >= 8 ? "var(--accent)" : rating >= 6 ? "var(--warning)" : "var(--danger)";
+  return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 12, fontSize: 12, fontWeight: 700, background: tone, color }}>{rating}<small style={{ fontSize: 9, opacity: .7 }}>/10</small></span>;
+}
+
+/* Training assessments summary per fitness dimension */
+function trainingSummary(assessments) {
+  const byDim = {};
+  for (const a of assessments) {
+    const key = a.fitnessDimension || "general";
+    if (!byDim[key]) byDim[key] = [];
+    byDim[key].push(a.rating);
+  }
+  const out = [];
+  for (const [key, ratings] of Object.entries(byDim)) {
+    if (!ratings.length) continue;
+    const avg = ratings.reduce((s, r) => s + r, 0) / ratings.length;
+    out.push({ key, label: FITNESS_META_FULL[key] || (key === "general" ? "General" : key), latest: ratings[ratings.length - 1], avg, count: ratings.length });
+  }
+  return out.sort((a, b) => b.latest - a.latest);
+}
+
+/* Overall training trend over time (avg of all ratings per date) */
+function trainingTrend(assessments) {
+  const byDate = new Map();
+  for (const a of assessments) {
+    const d = new Date(a.assessmentDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" });
+    if (!byDate.has(d)) byDate.set(d, []);
+    byDate.get(d).push(a.rating);
+  }
+  return [...byDate.entries()].map(([when, ratings]) => ({ when, value: ratings.reduce((s, r) => s + r, 0) / ratings.length }));
+}
+
+/* Physical performance summary: best & average score, plus trend */
+function performanceSummary(performances) {
+  const scored = performances.filter((p) => p.score !== null && p.score !== undefined && !isNaN(Number(p.score))).map((p) => Number(p.score));
+  if (!scored.length) return { best: null, avg: null, count: 0, trend: [] };
+  const best = Math.max(...scored);
+  const avg = scored.reduce((s, v) => s + v, 0) / scored.length;
+  const byDate = new Map();
+  for (const p of performances) {
+    if (p.score === null || p.score === undefined || isNaN(Number(p.score))) continue;
+    const d = new Date(p.recordedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" });
+    if (!byDate.has(d)) byDate.set(d, []);
+    byDate.get(d).push(Number(p.score));
+  }
+  const trend = [...byDate.entries()].map(([when, vals]) => ({ when, value: vals.reduce((s, v) => s + v, 0) / vals.length }));
+  return { best, avg, count: scored.length, trend };
+}
+
+/* Attendance + plan logs effort summary */
+function effortSummary(attendances) {
+  const att = { present: 0, late: 0, excused: 0, absent: 0 };
+  for (const a of attendances) att[a.status] = (att[a.status] || 0) + 1;
+  const totalAtt = attendances.length;
+  return {
+    attendances,
+    att,
+    totalAtt,
+    attendanceRate: totalAtt ? Math.round(((att.present + att.late) / totalAtt) * 100) : null,
+  };
+}
 
 function commentAuthorName(author) {
   if (!author) return "Admin";
@@ -155,17 +302,52 @@ export async function getServerSideProps(context) {
   });
   if (!onPlan) return { redirect: { destination: `/training-plans/${planId}`, permanent: false } };
 
+  // Fetch additional data for merged progress features
+  const [trainingAssessments, performances, attendances, achievements, healthLogs] = await Promise.all([
+    prisma.trainingAssessment.findMany({
+      where: { planId, athleteId },
+      orderBy: { assessmentDate: "asc" },
+      select: { id: true, assessmentDate: true, rating: true, fitnessDimension: true, comments: true },
+    }),
+    prisma.exercisePerformance.findMany({
+      where: { athleteId },
+      orderBy: { recordedAt: "asc" },
+      select: { id: true, recordedAt: true, score: true, rpe: true, exercise: { select: { exerciseName: true, category: true } } },
+    }),
+    prisma.trainingAttendance.findMany({
+      where: { athleteId },
+      orderBy: { sessionDate: "asc" },
+      select: { id: true, sessionDate: true, status: true, session: { select: { sessionName: true } } },
+    }),
+    prisma.achievement.findMany({
+      where: { athleteId },
+      orderBy: { achievementDate: "desc" },
+      select: { id: true, achievementTitle: true, achievementType: true, achievementDate: true, organization: true, description: true, medal: true, level: true },
+    }),
+    prisma.healthLog.findMany({
+      where: { athleteId },
+      orderBy: { reportedAt: "desc" },
+      take: 10,
+      select: { id: true, status: true, description: true, reportedAt: true },
+    }),
+  ]);
+
   return {
     props: {
       session,
       isAdmin,
       plan: { id: plan.id, planName: plan.planName, startDate: plan.startDate.toISOString(), durationDays: plan.durationDays, durationWeeks: plan.durationWeeks, planType: plan.planType || "normal" },
       athlete: onPlan.athlete,
+      trainingAssessments: JSON.parse(JSON.stringify(trainingAssessments)),
+      performances: JSON.parse(JSON.stringify(performances)),
+      attendances: JSON.parse(JSON.stringify(attendances)),
+      achievements: JSON.parse(JSON.stringify(achievements)),
+      healthLogs: JSON.parse(JSON.stringify(healthLogs)),
     },
   };
 }
 
-export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
+export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trainingAssessments = [], performances = [], attendances = [], achievements = [], healthLogs = [] }) {
   const router = useRouter();
   const [data, setData] = React.useState(null);
   const [allLogs, setAllLogs] = React.useState([]);
@@ -539,6 +721,209 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete }) {
             ) : <p className={styles.empty}>Add activities in more than one fitness dimension to see the distribution.</p>}
           </section>
         )}
+
+        {/* Assessments tab */}
+        <section className={styles.panel} id="assessments">
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Training assessments</h2></div></div>
+          {trainingAssessments.length ? (
+            <>
+              {/* Training rating trend */}
+              <section className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Trend</p><h2>Training rating trend</h2></div></div>
+                {trainingAssessments.length ? (
+                  <>
+                    <MiniTrend points={trainingTrend(trainingAssessments)} />
+                    <div className={styles.tableWrap} style={{ marginTop: "var(--space-4)" }}>
+                      <table>
+                        <thead><tr><th>Date</th><th>Rating</th><th>Fitness</th><th>Comments</th></tr></thead>
+                        <tbody>
+                          {[...trainingAssessments].reverse().slice(0, 10).map((a) => (
+                            <tr key={a.id}>
+                              <td data-label="Date">{fmtDate(a.assessmentDate)}</td>
+                              <td data-label="Rating"><RatingChip rating={a.rating} /></td>
+                              <td data-label="Fitness">{FITNESS_META_FULL[a.fitnessDimension] || "General"}</td>
+                              <td data-label="Comments">{a.comments || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                ) : <p className={styles.empty}>No training assessments yet.</p>}
+              </section>
+
+              {/* Strengths by fitness dimension */}
+              <section className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Strengths</p><h2>Strengths by area</h2></div></div>
+                {(() => {
+                  const dims = trainingSummary(trainingAssessments);
+                  return dims.length ? (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                      {dims.map((d) => (
+                        <div key={d.key} className={styles.detailPanel} style={{ minWidth: 200, flex: "1 1 200px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <h4 style={{ margin: 0, textTransform: "capitalize" }}>{d.label}</h4>
+                            <RatingChip rating={Math.round(d.latest)} />
+                          </div>
+                          <small style={{ color: "var(--muted)" }}>Avg {fmtNum(d.avg)}/10 · {d.count} assessment{d.count === 1 ? "" : "s"}</small>
+                        </div>
+                      ))}
+                    </div>
+                  ) : <p className={styles.empty}>No per-dimension assessments yet.</p>;
+                })()}
+              </section>
+            </>
+          ) : <p className={styles.empty}>No training assessments for this plan yet.</p>}
+        </section>
+
+        {/* Exercise Performance tab */}
+        <section className={styles.panel} id="performance">
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Performance</p><h2>Exercise performance</h2></div></div>
+          {performances.length ? (
+            <>
+              {/* Performance score trend */}
+              <section className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Trend</p><h2>Exercise score trend</h2></div></div>
+                {(() => {
+                  const perf = performanceSummary(performances);
+                  return perf.trend.length ? (
+                    <>
+                      <MiniTrend points={perf.trend} color={CHART_COLORS.secondary || CHART_COLORS.warning} />
+                      <div className={styles.tableWrap} style={{ marginTop: "var(--space-4)" }}>
+                        <table>
+                          <thead><tr><th>Date</th><th>Exercise</th><th>Score</th><th>RPE</th></tr></thead>
+                          <tbody>
+                            {[...performances].reverse().slice(0, 10).map((p) => (
+                              <tr key={p.id}>
+                                <td data-label="Date">{fmtDate(p.recordedAt)}</td>
+                                <td data-label="Exercise">{p.exercise?.exerciseName || "—"}</td>
+                                <td data-label="Score">{fmtNum(p.score)}</td>
+                                <td data-label="RPE">{p.rpe != null ? p.rpe : "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  ) : <p className={styles.empty}>No exercise performance data yet.</p>;
+                })()}
+              </section>
+
+              {/* Best by exercise category */}
+              <section className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Strengths</p><h2>Best scores by category</h2></div></div>
+                {(() => {
+                  const byCat = new Map();
+                  for (const p of performances) {
+                    if (p.score === null || p.score === undefined || isNaN(Number(p.score))) continue;
+                    const cat = p.exercise?.category || "General";
+                    if (!byCat.has(cat) || Number(p.score) > byCat.get(cat).score) {
+                      byCat.set(cat, { score: Number(p.score), exercise: p.exercise?.exerciseName, date: p.recordedAt });
+                    }
+                  }
+                  return byCat.size ? (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                      {[...byCat.entries()].map(([cat, data]) => (
+                        <div key={cat} className={styles.detailPanel} style={{ minWidth: 200, flex: "1 1 200px" }}>
+                          <h4 style={{ margin: 0, textTransform: "capitalize" }}>{cat}</h4>
+                          <div style={{ fontSize: 22, fontWeight: 800, color: "var(--accent)" }}>{fmtNum(data.score)}</div>
+                          <small style={{ color: "var(--muted)" }}>{data.exercise} · {fmtDate(data.date)}</small>
+                        </div>
+                      ))}
+                    </div>
+                  ) : <p className={styles.empty}>No performance data yet.</p>;
+                })()}
+              </section>
+            </>
+          ) : <p className={styles.empty}>No exercise performance records yet.</p>}
+        </section>
+
+        {/* Attendance tab */}
+        <section className={styles.panel} id="attendance">
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Attendance</p><h2>Training attendance</h2></div></div>
+          {attendances.length ? (
+            <>
+              <section className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Effort</p><h2>Effort overview</h2></div></div>
+                {(() => {
+                  const effort = effortSummary(attendances);
+                  return effort.totalAtt ? (
+                    <>
+                      <div className={styles.infoList}>
+                        <div><dt>Sessions present</dt><dd>{effort.att.present}</dd></div>
+                        <div><dt>Late</dt><dd>{effort.att.late}</dd></div>
+                        <div><dt>Excused</dt><dd>{effort.att.excused}</dd></div>
+                        <div><dt>Absent</dt><dd>{effort.att.absent}</dd></div>
+                        {effort.attendanceRate != null && <div><dt>Attendance rate</dt><dd>{effort.attendanceRate}%</dd></div>}
+                      </div>
+                    </>
+                  ) : <p className={styles.empty}>No attendance data yet.</p>;
+                })()}
+              </section>
+
+              <section className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Sessions</p><h2>Session history</h2></div></div>
+                <div className={styles.tableWrap}><table>
+                  <thead><tr><th>Date</th><th>Session</th><th>Status</th></tr></thead>
+                  <tbody>
+                    {attendances.map((a) => (
+                      <tr key={a.id}>
+                        <td data-label="Date">{fmtDate(a.sessionDate)}</td>
+                        <td data-label="Session">{a.session?.sessionName || "—"}</td>
+                        <td data-label="Status"><span className={`${styles.badge} ${a.status === "present" ? styles.badgeActive : a.status === "late" ? styles.badgePending : styles.badgeRejected}`}>{a.status}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table></div>
+              </section>
+            </>
+          ) : <p className={styles.empty}>No attendance records yet.</p>}
+        </section>
+
+        {/* Achievements tab */}
+        <section className={styles.panel} id="achievements">
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Recognition</p><h2>Achievements</h2></div></div>
+          {achievements.length ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+              {achievements.map((a) => (
+                <div key={a.id} className={styles.detailPanel}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
+                    <strong style={{ fontSize: 13 }}>{a.achievementTitle}</strong>
+                    <small style={{ color: "var(--muted)", fontSize: 12 }}>{fmtDate(a.achievementDate)}</small>
+                  </div>
+                  {(a.medal || a.level) && (
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                      {a.medal && <span className={`${styles.badge} ${a.medal === "gold" ? styles.badgeActive : a.medal === "participation" ? styles.badgeMuted : styles.badgePending}`} style={{ textTransform: "capitalize" }}>{a.medal}</span>}
+                      {a.level && <span className={`${styles.badge} ${styles.badgePending}`} style={{ textTransform: "capitalize" }}>{a.level}</span>}
+                    </div>
+                  )}
+                  {a.achievementType && <small style={{ display: "block", color: "var(--accent)", fontSize: 12, textTransform: "capitalize", marginTop: 4 }}>{a.achievementType}</small>}
+                  {a.organization && <small style={{ display: "block", color: "var(--muted)", fontSize: 12 }}>{a.organization}</small>}
+                  {a.description && <small style={{ display: "block", color: "var(--muted)", fontSize: 12 }}>{a.description}</small>}
+                </div>
+              ))}
+            </div>
+          ) : <p className={styles.empty}>No achievements recorded yet.</p>}
+        </section>
+
+        {/* Health tab */}
+        <section className={styles.panel} id="health">
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Wellness</p><h2>Recent health history</h2></div><HealthBadge status={athlete.healthStatus} /></div>
+          {healthLogs.length ? (
+            <div className={styles.tableWrap}><table>
+              <thead><tr><th>Status</th><th>Notes</th><th>Date</th></tr></thead>
+              <tbody>
+                {healthLogs.map((h) => (
+                  <tr key={h.id}>
+                    <td data-label="Status"><HealthBadge status={h.status} /></td>
+                    <td data-label="Notes">{h.description || "—"}</td>
+                    <td data-label="Date">{fmtDate(h.reportedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table></div>
+          ) : <p className={styles.empty}>No health history recorded yet.</p>}
+        </section>
       </PageSectionTabs>
       </AppShell>
     </>
