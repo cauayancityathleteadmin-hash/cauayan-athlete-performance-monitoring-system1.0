@@ -326,39 +326,41 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
           </div>
         ) : (
           <form onSubmit={review} noValidate className="register-fields" style={{ width: "100%" }}>
-            <label>
-              First name
-              <input
-                name="firstName"
-                value={formData.firstName}
-                onChange={(e) => handleChange("firstName", e.target.value)}
-                required
-                maxLength="100"
-                style={{ borderColor: errors.firstName ? "var(--danger)" : "var(--border)" }}
-              />
-              {errors.firstName && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.firstName}</span>}
-            </label>
-            <label>
-              Middle name
-              <input
-                name="middleName"
-                value={formData.middleName}
-                onChange={(e) => handleChange("middleName", e.target.value)}
-                maxLength="100"
-              />
-            </label>
-            <label>
-              Last name
-              <input
-                name="lastName"
-                value={formData.lastName}
-                onChange={(e) => handleChange("lastName", e.target.value)}
-                required
-                maxLength="100"
-                style={{ borderColor: errors.lastName ? "var(--danger)" : "var(--border)" }}
-              />
-              {errors.lastName && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.lastName}</span>}
-            </label>
+            <div className="name-row">
+              <label>
+                First name
+                <input
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={(e) => handleChange("firstName", e.target.value)}
+                  required
+                  maxLength="100"
+                  style={{ borderColor: errors.firstName ? "var(--danger)" : "var(--border)" }}
+                />
+                {errors.firstName && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.firstName}</span>}
+              </label>
+              <label>
+                Middle name
+                <input
+                  name="middleName"
+                  value={formData.middleName}
+                  onChange={(e) => handleChange("middleName", e.target.value)}
+                  maxLength="100"
+                />
+              </label>
+              <label>
+                Last name
+                <input
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={(e) => handleChange("lastName", e.target.value)}
+                  required
+                  maxLength="100"
+                  style={{ borderColor: errors.lastName ? "var(--danger)" : "var(--border)" }}
+                />
+                {errors.lastName && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.lastName}</span>}
+              </label>
+            </div>
             <label>
               Birthdate
               <input
@@ -371,32 +373,34 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
               />
               {errors.birthdate && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.birthdate}</span>}
             </label>
-            <label>
-              Contact number <small style={{ color: "var(--muted)", fontWeight: 400 }}>(optional)</small>
-              <input
-                name="contactNumber"
-                type="tel"
-                value={formData.contactNumber}
-                onChange={(e) => handleChange("contactNumber", e.target.value)}
-                maxLength="30"
-                placeholder="e.g. 0917 000 0000"
-                style={{ borderColor: errors.contactNumber ? "var(--danger)" : "var(--border)" }}
-              />
-              {errors.contactNumber && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.contactNumber}</span>}
-            </label>
-            <label className="span-2">
-              Email
-              <input
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleChange("email", e.target.value)}
-                required
-                maxLength="191"
-                style={{ borderColor: errors.email ? "var(--danger)" : "var(--border)" }}
-              />
-              {errors.email && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.email}</span>}
-            </label>
+            <div className="contact-row">
+              <label>
+                Contact number <small style={{ color: "var(--muted)", fontWeight: 400 }}>(optional)</small>
+                <input
+                  name="contactNumber"
+                  type="tel"
+                  value={formData.contactNumber}
+                  onChange={(e) => handleChange("contactNumber", e.target.value)}
+                  maxLength="30"
+                  placeholder="e.g. 0917 000 0000"
+                  style={{ borderColor: errors.contactNumber ? "var(--danger)" : "var(--border)" }}
+                />
+                {errors.contactNumber && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.contactNumber}</span>}
+              </label>
+              <label>
+                Email
+                <input
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleChange("email", e.target.value)}
+                  required
+                  maxLength="191"
+                  style={{ borderColor: errors.email ? "var(--danger)" : "var(--border)" }}
+                />
+                {errors.email && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.email}</span>}
+              </label>
+            </div>
             <div className="span-2">
               <PasswordInput
                 name="password"
@@ -412,40 +416,42 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
                 error={errors.password}
               />
             </div>
-            <label className="span-2">
-              School
-              <input
-                name="school"
-                value={formData.school}
-                onChange={(e) => handleChange("school", e.target.value)}
-                required
-                maxLength="191"
-                placeholder="Enter your school name"
-                style={{ borderColor: errors.school ? "var(--danger)" : "var(--border)" }}
-              />
-              {errors.school && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.school}</span>}
-            </label>
-            <fieldset className="span-2 register-sports">
-              <legend>Sports coached</legend>
-              <div className="register-sports-grid">
-                {sports.map((sport) => {
-                  const checked = formData.sportIds.includes(sport.id);
-                  return (
-                    <label key={sport.id} className={`register-sports-option${checked ? " is-checked" : ""}`}>
-                      <input
-                        type="checkbox"
-                        name="sportIds"
-                        value={sport.id}
-                        checked={checked}
-                        onChange={(e) => handleSportChange(sport.id, e.target.checked)}
-                      />
-                      <span>{sport.sportName}</span>
-                    </label>
-                  );
-                })}
-              </div>
-              {errors.sports && <span style={{ color: "var(--danger)", fontSize: "12px", marginTop: "4px", display: "block" }}>{errors.sports}</span>}
-            </fieldset>
+            <div className="school-sports-row">
+              <label>
+                School
+                <input
+                  name="school"
+                  value={formData.school}
+                  onChange={(e) => handleChange("school", e.target.value)}
+                  required
+                  maxLength="191"
+                  placeholder="Enter your school name"
+                  style={{ borderColor: errors.school ? "var(--danger)" : "var(--border)" }}
+                />
+                {errors.school && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.school}</span>}
+              </label>
+              <fieldset className="register-sports">
+                <legend>Sports coached</legend>
+                <div className="register-sports-grid">
+                  {sports.map((sport) => {
+                    const checked = formData.sportIds.includes(sport.id);
+                    return (
+                      <label key={sport.id} className={`register-sports-option${checked ? " is-checked" : ""}`}>
+                        <input
+                          type="checkbox"
+                          name="sportIds"
+                          value={sport.id}
+                          checked={checked}
+                          onChange={(e) => handleSportChange(sport.id, e.target.checked)}
+                        />
+                        <span>{sport.sportName}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {errors.sports && <span style={{ color: "var(--danger)", fontSize: "12px", marginTop: "4px", display: "block" }}>{errors.sports}</span>}
+              </fieldset>
+            </div>
             <div className="span-2">
               <fieldset className="register-sports" style={{ margin: 0 }}>
                 <legend>2x2 ID picture</legend>
