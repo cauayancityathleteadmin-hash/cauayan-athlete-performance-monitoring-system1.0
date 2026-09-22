@@ -2,6 +2,12 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  experimental: {
+    // Let request bodies up to 16 MB pass through middleware intact; the documents
+    // API allows up to 14 MB of JSON (10 MB file as base64) so its own validation
+    // messages fire instead of silent truncation.
+    middlewareClientMaxBodySize: "16mb",
+  },
   env: {
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || "",
   },

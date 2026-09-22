@@ -255,6 +255,7 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
           <FeatureCard eyebrow="People" title="Coach approvals" href="/coach-approvals">{plural(stats.pendingCoaches, "account")} waiting for approval.</FeatureCard>
           <FeatureCard eyebrow="Catalog" title="Sports &amp; discipline" href="/admin/catalog">{plural(stats.sports, "sport")} registered under the program catalog.</FeatureCard>
           <FeatureCard eyebrow="Measurements" title="Performance metrics" href="/admin/metrics">Configure the quantifiable metrics that define each event.</FeatureCard>
+          <FeatureCard eyebrow="Records" title="Document types" href="/admin/document-types">Define the required and optional records tracked on each athlete&rsquo;s profile.</FeatureCard>
           <FeatureCard eyebrow="Records" title="Audit trail" href="/admin/audit-logs">{plural(stats.logs, "meaningful action")} recorded in the database.</FeatureCard>
           <FeatureCard eyebrow="Maintenance" title="Database backup" href="/admin/backup">Request backups and plan off-site snapshots.</FeatureCard>
         </section>

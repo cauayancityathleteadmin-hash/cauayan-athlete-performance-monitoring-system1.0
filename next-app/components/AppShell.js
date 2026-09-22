@@ -156,7 +156,7 @@ const NAV_GROUPS = [
   { key: "analytics", label: "Analytics", links: [{ href: "/analytics", label: "Analytics", icon: "barChart" }, { href: "/standings", label: "Standings", icon: "trophy" }] },
   { key: "reports", label: "Reports", links: [{ href: "/reports", label: "Reports", icon: "fileText" }] },
   { key: "events", label: "Sports & Events", links: [{ href: "/event-plans", label: "Events", icon: "calendar" }, { href: "/admin/catalog", label: "Sports", icon: "flag", adminOnly: true }] },
-  { key: "metrics", label: "Metrics", links: [{ href: "/admin/metrics", label: "Metrics", icon: "gauge", adminOnly: true }] },
+  { key: "metrics", label: "Metrics", links: [{ href: "/admin/metrics", label: "Metrics", icon: "gauge", adminOnly: true }, { href: "/admin/document-types", label: "Document types", icon: "fileText", adminOnly: true }] },
   {
     key: "system",
     label: "System & Account",

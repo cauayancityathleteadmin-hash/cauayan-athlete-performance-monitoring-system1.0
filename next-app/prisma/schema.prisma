@@ -171,6 +171,7 @@ model User {
   activityCommentsAuthored ActivityPlanComment[]  @relation("ActivityPlanCommentAuthor")
   transferRequests         AthleteTransfer[]      @relation("TransferRequester")
   transferDecisions        AthleteTransfer[]      @relation("TransferDecider")
+  documentUploads          AthleteDocument[]      @relation("AthleteDocumentUploader")
 
   @@index([role, status])
   @@map("users")
@@ -344,10 +345,48 @@ model Athlete {
   planEvidence         PlanEvidence[]
   activityComments     ActivityPlanComment[]  @relation("ActivityPlanCommentAthlete")
   transfers            AthleteTransfer[]
+  documents            AthleteDocument[]
 
   @@index([coachId, status])
   @@index([sportId, eventId])
   @@map("athletes")
+}
+
+model DocumentType {
+  id         Int          @id @default(autoincrement())
+  name       String       @unique @map("name")
+  isRequired Boolean      @default(false) @map("is_required")
+  isOther    Boolean      @default(false) @map("is_other")
+  sortOrder  Int          @default(0) @map("sort_order")
+  status     ActiveStatus @default(active)
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+  documents  AthleteDocument[]
+
+  @@index([status, sortOrder])
+  @@map("document_types")
+}
+
+model AthleteDocument {
+  id             Int          @id @default(autoincrement())
+  athleteId      Int          @map("athlete_id")
+  documentTypeId Int          @map("document_type_id")
+  customLabel    String?      @map("custom_label")
+  fileName       String       @map("file_name")
+  mimeType       String       @map("mime_type")
+  sizeBytes      Int          @map("size_bytes")
+  data           Bytes        @map("data")
+  notes          String?      @map("notes")
+  expiresAt      DateTime?    @map("expires_at")
+  uploadedBy     Int?         @map("uploaded_by")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  athlete        Athlete      @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  documentType   DocumentType @relation(fields: [documentTypeId], references: [id])
+  uploader       User?        @relation("AthleteDocumentUploader", fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  @@index([athleteId, documentTypeId])
+  @@map("athlete_documents")
 }
 
 model AthleteCoachHistory {

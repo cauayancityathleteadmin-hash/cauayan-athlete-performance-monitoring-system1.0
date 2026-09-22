@@ -7,6 +7,7 @@ import { prisma } from "../../lib/prisma";
 import AppShell from "../../components/AppShell";
 import IdPhotoUpload from "../../components/IdPhotoUpload";
 import ProfilePhoto from "../../components/ProfilePhoto";
+import AthleteDocuments from "../../components/AthleteDocuments";
 import { CHART_COLORS, CHART_GRID } from "../../lib/chart-config";
 import styles from "../../styles/Dashboard.module.css";
 
@@ -45,6 +46,26 @@ participants: {
         orderBy: { assessmentDate: "desc" },
         include: { plan: { select: { id: true, planName: true } }, assessor: { select: { username: true, email: true } } },
       },
+      // Metadata only — file bytes (`data`) are never selected here; they are
+      // served exclusively by GET /api/athletes/[id]/documents/[documentId].
+      documents: {
+        select: {
+          id: true,
+          documentTypeId: true,
+          customLabel: true,
+          fileName: true,
+          mimeType: true,
+          sizeBytes: true,
+          notes: true,
+          expiresAt: true,
+          uploadedBy: true,
+          createdAt: true,
+          updatedAt: true,
+          documentType: { select: { id: true, name: true, isRequired: true, isOther: true } },
+          uploader: { select: { username: true, email: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 
@@ -66,12 +87,15 @@ if (!athlete) return { notFound: true };
       : [],
   };
 
+  const documentTypes = await prisma.documentType.findMany({ where: { status: "active" }, orderBy: { sortOrder: "asc" } });
+
   return {
     props: {
       session,
       canManage,
       athlete: JSON.parse(JSON.stringify(athlete)),
       catalog: JSON.parse(JSON.stringify(catalog)),
+      documentTypes: JSON.parse(JSON.stringify(documentTypes)),
       progressHref: athlete.trainingPlans?.[0]?.plan ? `/training-plans/${athlete.trainingPlans[0].plan.id}/athletes/${athlete.id}` : "/training-plans",
     },
   };
@@ -204,7 +228,7 @@ function trendBadge(betterDirection, first, last) {
     : { text: "Declining", cls: styles.badgeMuted };
 }
 
-export default function AthleteProfile({ session, athlete, catalog, canManage, progressHref }) {
+export default function AthleteProfile({ session, athlete, catalog, canManage, progressHref, documentTypes = [] }) {
   const isAdmin = session?.user?.role === "admin";
   const router = useRouter();
   const [editOpen, setEditOpen] = React.useState(false);
@@ -487,6 +511,15 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
             </table></div>
           ) : <p className={styles.empty}>Not enrolled in any events yet.</p>}
         </section>
+
+        {/* Documents */}
+        <AthleteDocuments
+          athleteId={athlete.id}
+          documents={athlete.documents}
+          documentTypes={documentTypes}
+          canManage={canManage}
+          onComplete={() => router.reload()}
+        />
 
         {/* Training plans & assessments */}
         <section className={styles.panel}>

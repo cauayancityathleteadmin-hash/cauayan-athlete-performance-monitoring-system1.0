@@ -125,6 +125,16 @@ async function seedReferenceData() {
     });
   }
 
+  // --- Athlete document types (idempotent; mirrors lib/document-types.js) ---
+  const { DOCUMENT_TYPE_SEED } = require("../lib/document-types.js");
+  for (const t of DOCUMENT_TYPE_SEED) {
+    await prisma.documentType.upsert({
+      where: { name: t.name },
+      update: { isRequired: t.isRequired, isOther: t.isOther, sortOrder: t.sortOrder, status: "active" },
+      create: { name: t.name, isRequired: t.isRequired, isOther: t.isOther, sortOrder: t.sortOrder },
+    });
+  }
+
   return { schools, sports, events, metrics };
 }
 
