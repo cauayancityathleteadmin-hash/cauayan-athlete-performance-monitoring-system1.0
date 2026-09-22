@@ -325,99 +325,111 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
             )}
           </div>
         ) : (
-          <form onSubmit={review} noValidate className="register-fields" style={{ width: "100%" }}>
-            {/* Section: Personal Information */}
-            <fieldset style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "var(--space-5)", marginBottom: "var(--space-5)", background: "rgba(6,38,30,.35)" }}>
-              <legend style={{ fontSize: "13px", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--accent)", padding: "0 var(--space-3)" }}>Personal Information</legend>
-              <div className="name-row">
-                <label>
-                  First name *
+          <form onSubmit={review} noValidate className="register-form" style={{ width: "100%" }}>
+            {/* Personal Information */}
+            <div className="form-section">
+              <h3 className="section-title">Personal Information</h3>
+              <div className="field-row name-fields">
+                <div className="field-group">
+                  <label htmlFor="firstName">First Name <span className="required">*</span></label>
                   <input
+                    id="firstName"
                     name="firstName"
                     value={formData.firstName}
                     onChange={(e) => handleChange("firstName", e.target.value)}
                     required
                     maxLength="100"
-                    style={{ borderColor: errors.firstName ? "var(--danger)" : "var(--border)" }}
+                    className={errors.firstName ? "error" : ""}
+                    placeholder="First name"
                   />
-                  {errors.firstName && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.firstName}</span>}
-                </label>
-                <label>
-                  Middle name
+                  {errors.firstName && <span className="error-text">{errors.firstName}</span>}
+                </div>
+                <div className="field-group">
+                  <label htmlFor="middleName">Middle Name</label>
                   <input
+                    id="middleName"
                     name="middleName"
                     value={formData.middleName}
                     onChange={(e) => handleChange("middleName", e.target.value)}
                     maxLength="100"
+                    placeholder="Middle name"
                   />
-                </label>
-                <label>
-                  Last name *
+                </div>
+                <div className="field-group">
+                  <label htmlFor="lastName">Last Name <span className="required">*</span></label>
                   <input
+                    id="lastName"
                     name="lastName"
                     value={formData.lastName}
                     onChange={(e) => handleChange("lastName", e.target.value)}
                     required
                     maxLength="100"
-                    style={{ borderColor: errors.lastName ? "var(--danger)" : "var(--border)" }}
+                    className={errors.lastName ? "error" : ""}
+                    placeholder="Last name"
                   />
-                  {errors.lastName && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.lastName}</span>}
-                </label>
+                  {errors.lastName && <span className="error-text">{errors.lastName}</span>}
+                </div>
               </div>
-              <label>
-                Birthdate *
+
+              <div className="field-group">
+                <label htmlFor="birthdate">Birthdate <span className="required">*</span></label>
                 <input
+                  id="birthdate"
                   name="birthdate"
                   type="date"
                   value={formData.birthdate}
                   onChange={(e) => handleChange("birthdate", e.target.value)}
                   required
-                  style={{ borderColor: errors.birthdate ? "var(--danger)" : "var(--border)" }}
+                  className={errors.birthdate ? "error" : ""}
                 />
-                {errors.birthdate && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.birthdate}</span>}
-              </label>
-            </fieldset>
+                {errors.birthdate && <span className="error-text">{errors.birthdate}</span>}
+              </div>
+            </div>
 
-            {/* Section: Contact Information */}
-            <fieldset style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "var(--space-5)", marginBottom: "var(--space-5)", background: "rgba(6,38,30,.35)" }}>
-              <legend style={{ fontSize: "13px", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--accent)", padding: "0 var(--space-3)" }}>Contact Information</legend>
-              <div className="contact-row">
-                <label>
-                  Email *
+            {/* Contact Information */}
+            <div className="form-section">
+              <h3 className="section-title">Contact Information</h3>
+              <div className="field-row contact-fields">
+                <div className="field-group">
+                  <label htmlFor="email">Email Address <span className="required">*</span></label>
                   <input
+                    id="email"
                     name="email"
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleChange("email", e.target.value)}
                     required
                     maxLength="191"
-                    style={{ borderColor: errors.email ? "var(--danger)" : "var(--border)" }}
+                    className={errors.email ? "error" : ""}
+                    placeholder="coach@example.com"
                   />
-                  {errors.email && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.email}</span>}
-                </label>
-                <label>
-                  Contact number <small style={{ color: "var(--muted)", fontWeight: 400 }}>(optional)</small>
+                  {errors.email && <span className="error-text">{errors.email}</span>}
+                </div>
+                <div className="field-group">
+                  <label htmlFor="contactNumber">Contact Number <span className="optional">(optional)</span></label>
                   <input
+                    id="contactNumber"
                     name="contactNumber"
                     type="tel"
                     value={formData.contactNumber}
                     onChange={(e) => handleChange("contactNumber", e.target.value)}
                     maxLength="30"
                     placeholder="e.g. 0917 000 0000"
-                    style={{ borderColor: errors.contactNumber ? "var(--danger)" : "var(--border)" }}
+                    className={errors.contactNumber ? "error" : ""}
                   />
-                  {errors.contactNumber && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.contactNumber}</span>}
-                </label>
+                  {errors.contactNumber && <span className="error-text">{errors.contactNumber}</span>}
+                </div>
               </div>
-            </fieldset>
+            </div>
 
-            {/* Section: Credentials */}
-            <fieldset style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "var(--space-5)", marginBottom: "var(--space-5)", background: "rgba(6,38,30,.35)" }}>
-              <legend style={{ fontSize: "13px", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--accent)", padding: "0 var(--space-3)" }}>Credentials</legend>
-              <div className="span-2">
+            {/* Credentials */}
+            <div className="form-section">
+              <h3 className="section-title">Credentials</h3>
+              <div className="field-group full-width">
+                <label htmlFor="password">Password <span className="required">*</span></label>
                 <PasswordInput
                   name="password"
-                  label="Password *"
+                  label=""
                   value={formData.password}
                   onChange={handleChange}
                   required
@@ -428,32 +440,37 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
                   placeholder="At least 12 characters"
                   error={errors.password}
                 />
+                {errors.password && <span className="error-text">{errors.password}</span>}
               </div>
-            </fieldset>
+            </div>
 
-            {/* Section: Professional Information */}
-            <fieldset style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "var(--space-5)", marginBottom: "var(--space-5)", background: "rgba(6,38,30,.35)" }}>
-              <legend style={{ fontSize: "13px", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--accent)", padding: "0 var(--space-3)" }}>Professional Information</legend>
-              <label>
-                School *
-                <input
-                  name="school"
-                  value={formData.school}
-                  onChange={(e) => handleChange("school", e.target.value)}
-                  required
-                  maxLength="191"
-                  placeholder="Enter your school name"
-                  style={{ borderColor: errors.school ? "var(--danger)" : "var(--border)" }}
-                />
-                {errors.school && <span style={{ color: "var(--danger)", fontSize: "12px" }}>{errors.school}</span>}
-              </label>
-              <fieldset className="register-sports">
-                <legend>Sports coached *</legend>
-                <div className="register-sports-grid">
+            {/* Professional Information */}
+            <div className="form-section">
+              <h3 className="section-title">Professional Information</h3>
+              <div className="field-row">
+                <div className="field-group">
+                  <label htmlFor="school">School <span className="required">*</span></label>
+                  <input
+                    id="school"
+                    name="school"
+                    value={formData.school}
+                    onChange={(e) => handleChange("school", e.target.value)}
+                    required
+                    maxLength="191"
+                    placeholder="Enter your school name"
+                    className={errors.school ? "error" : ""}
+                  />
+                  {errors.school && <span className="error-text">{errors.school}</span>}
+                </div>
+              </div>
+
+              <div className="field-group">
+                <label>Sports Coached <span className="required">*</span></label>
+                <div className="sports-grid">
                   {sports.map((sport) => {
                     const checked = formData.sportIds.includes(sport.id);
                     return (
-                      <label key={sport.id} className={`register-sports-option${checked ? " is-checked" : ""}`}>
+                      <label key={sport.id} className={`sport-option ${checked ? "checked" : ""}`}>
                         <input
                           type="checkbox"
                           name="sportIds"
@@ -466,18 +483,18 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
                     );
                   })}
                 </div>
-                {errors.sports && <span style={{ color: "var(--danger)", fontSize: "12px", marginTop: "4px", display: "block" }}>{errors.sports}</span>}
-              </fieldset>
-            </fieldset>
+                {errors.sports && <span className="error-text">{errors.sports}</span>}
+              </div>
+            </div>
 
-            {/* Section: Optional — 2x2 ID Picture */}
-            <fieldset style={{ border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", padding: "var(--space-5)", marginBottom: "var(--space-5)", background: "rgba(6,38,30,.35)" }}>
-              <legend style={{ fontSize: "13px", fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: "var(--accent)", padding: "0 var(--space-3)" }}>Optional — 2×2 ID Picture</legend>
-              <p style={{ color: "var(--muted)", fontSize: "14px", margin: "0 0 var(--space-4)" }}>Upload a 2×2 ID photo for your coach profile. This is optional and can be added later.</p>
+            {/* Optional ID Photo */}
+            <div className="form-section">
+              <h3 className="section-title">Optional — 2×2 ID Picture</h3>
+              <p className="section-hint">Upload a 2×2 ID photo for your coach profile. This is optional and can be added later.</p>
               <IdPhotoUpload value={formData.pictureUrl} onChange={(url) => handleChange("pictureUrl", url)} label="ID photo" />
-            </fieldset>
+            </div>
 
-            <button type="submit" disabled={busy} className={`${styles.primary} span-2`} style={{ marginTop: "var(--space-3)" }}>
+            <button type="submit" disabled={busy} className={`${styles.primary} form-submit`}>
               Review registration
             </button>
           </form>

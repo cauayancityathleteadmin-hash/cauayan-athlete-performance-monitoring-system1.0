@@ -1,89 +1,83 @@
 # Fix Auth Screens — Plan & Verification Log
 
-Goal: fix Login, Coach Registration, and Reset Password containers/boxes to use screen space efficiently — wider/better proportioned, less vertical scrolling, responsive across all sizes. Fix the "sports" input specifically. Full system scan after.
+## Phase 1: Audit (Complete)
+
+### Issues Found
+
+**Login** (`/login`)
+- Max width 520px — too narrow for desktop, wastes space
+- Only 2 fields but stacked vertically with excessive vertical space
+- Label/input styling differs from register page
+
+**Coach Register** (`/coach-register`)
+- Max width 760px — better but still narrow on large screens
+- **Sports grid**: `auto-fill` with `minmax(200px,1fr)` leaves ragged edges; long sport names wrap/cut off; grid doesn't fill container evenly
+- `contact-row` CSS class defined but **not used in JSX**
+- Fieldsets break the grid layout (block elements inside grid container)
+- PasswordInput has strength meter making it taller than other fields
+- Fieldsets used for grouping but don't leverage grid for side-by-side fields
+- No visual hierarchy between field groups beyond fieldset borders
+
+**Reset Password** (`/reset-password`)
+- Uses `.login-page` (420-520px) instead of wider container
+- Two PasswordInputs stacked vertically — could be side-by-side on wider screens
+- Strength meter adds vertical height making form tall
+
+**All Auth Screens**
+- No breakpoint >1200px for very large monitors
+- Short fields (birthdate, phone) stretch full width unnecessarily
+- Inconsistent label/input styling between login and register
+- Sports grid `auto-fill` leaves uneven gaps on last row
 
 ---
 
-## Phase 1 — Audit Current Auth Screens ✅ (2026-09-22)
+## Phase 2-4: Implementation Plan
 
-### Login (`/login`)
-- **Container**: `.login-page` — width `min(100%-32px, var(--auth-card-width))` where `--auth-card-width` = 420px
-- **Issues**: Very narrow (420px max), tall column; only 2 fields but forces vertical stack; excessive margins; wastes horizontal space on desktop/laptop
-- **Mobile**: Works but could use slightly more breathing room
+### 2.1 CSS Variables & Container Widths
+- Increase `--auth-card-width` to 480px (login/reset)
+- Increase `--auth-register-width` to 900px (register)
+- Add `--auth-wide-width: 1000px` for very large screens
+- Add new breakpoint `@media (min-width: 1200px)`
 
-### Coach Registration (`/coach-register`)
-- **Container**: `.login-page.register-box` — same 420px max, `align-items: flex-start`, `overflow-y: auto`
-- **Fields**: 12+ fields (name×3, birthdate, contact, email, password+strength, school, sports grid, ID photo)
-- **Grid**: `.register-fields` is 1fr until 560px, then 2-column; `.span-2` forces full-width for email, password, school, sports, ID photo
-- **Sports input**: `.register-sports-grid` uses `repeat(auto-fill, minmax(180px, 1fr))` — OK but labels wrap at 180px; on wide screens still only ~3 cols in 420px container
-- **Issues**: Container too narrow → excessive vertical scroll; sports grid cramped; password strength meter adds vertical bulk; ID photo field tall; form feels cramped even on 1366px laptop
+### 2.2 Login Page
+- Use wider container (up to 480px)
+- Keep centered, compact but comfortable
+- Match label/input styling to register page
 
-### Reset Password (`/reset-password`)
-- **Container**: `.login-page` — same 420px max
-- **Fields**: 2 PasswordInputs with strength meters
-- **Issues**: Unnecessarily narrow; strength meters stack vertically adding height
+### 2.3 Coach Register — Major Restructure
+- **Remove fieldsets from grid flow** — use CSS Grid on form directly with named areas
+- **Named grid areas** for semantic grouping:
+  - `name-row`: first | middle | last (3-col at ≥900px, 2-col at ≥560px)
+  - `contact-row`: email | contact (2-col at ≥560px)
+  - `credentials`: password (full width, spans 2)
+  - `professional`: school | sports (2-col at ≥900px)
+  - `optional`: ID photo (full width)
+- **Sports grid fix**: Use `grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))` with `justify-items: stretch` so items fill cells evenly; add `text-overflow: ellipsis` for long names
+- **Consistent field heights**: All inputs 48px; PasswordInput matches
+- **Visual section headers**: Use `<h3>` with accent color instead of fieldset legends
 
-### Specific Sports Input Issues
-- `minmax(180px, 1fr)` means at 420px container → 2 cols; sport names wrap (e.g., "Volleyball", "Basketball")
-- No visual grouping/hierarchy
-- Checkbox + label alignment could be tighter
-- On very wide screens, still constrained by 420px card
+### 2.4 Reset Password
+- Use `.register-box` container (wider, up to 760px)
+- Two PasswordInputs side-by-side at ≥560px
+- Strength meter inline or collapsible
 
----
-
-## Phase 2 — Redesign Auth Container Layout
-
-### Target widths
-| Screen | Login | Register | Reset Password |
-|--------|-------|----------|----------------|
-| Mobile (≤480px) | 100%-24px | 100%-24px | 100%-24px |
-| Tablet (481-768px) | 440px | 560px | 440px |
-| Laptop (769-1024px) | 480px | 680px | 480px |
-| Desktop (≥1025px) | 520px | 760px | 520px |
-
-### Layout changes
-- **Login**: Slightly wider card on desktop; keep single column (only 2 fields); reduce vertical gap slightly
-- **Register**: Wider card; 2-column grid from 520px; group name fields (first+middle+last in 3-col on wide, 2-col on medium); email+contact side-by-side; password strength stays full-width (complex); sports grid gets more columns; ID photo stays full-width
-- **Reset Password**: Slightly wider card; keep 2 fields stacked
-
-### CSS variables to use
-- `--space-*` tokens only
-- `--radius-*` tokens only
-- `--auth-card-width` remains the max for login/reset; new `--auth-register-width` for register
+### 2.5 Shared Styles
+- Consistent input height: 48px (`var(--space-12)` equivalent)
+- Consistent label style: muted, 13px, 700 weight, block, 6px gap
+- Consistent spacing: `--space-4` between fields, `--space-6` between sections
+- Section headers: 14px, 700 weight, accent color, uppercase, letter-spacing
 
 ---
 
-## Phase 3 — Fix Sports Input Specifically
-
-- Increase `minmax` to `minmax(200px, 1fr)` for better label fit
-- Add subtle column count control at wider breakpoints
-- Better checked-state visibility
-- Ensure grid reflows cleanly at all sizes
+## Phase 5: Full System Scan
+After auth fixes, run build + lint + manual route check for all features.
 
 ---
 
-## Phase 4 — Responsive Testing
-Test at: 375px (mobile), 768px (tablet), 1366px (laptop), 1920px (desktop)
-
----
-
-## Phase 5 — Full System Scan & Fix Loop
-[After Phases 1-4 complete]
-
----
-
-## Phase 6 — Full Regression Pass
-[After Phase 5 complete]
-
----
-
-## Verification Log
-
-| Phase | Result |
-|-------|--------|
-| 1 — Audit | ✅ 2026-09-22 (documented above) |
-| 2 — Layout | ✅ wider containers (login 420→520px, register 420→760px, reset 420→520px), 2-col grid from 560px, 3-col names at 900px, contact row, school-sports row |
-| 3 — Sports input | ✅ minmax(200px,1fr) base, 220px at 900px+, better checkbox alignment |
-| 4 — Responsive | ✅ breakpoints at 360/480/560/640/900/1025px; build + lint pass |
-| 5 — System scan | ✅ all routes (200/307), APIs healthy, build + lint clean |
-| 6 — Regression | ✅ login, register, reset-password flow verified; all features functional; theme unchanged; mobile OK; console clean |
+## Phase 6: Full Regression
+- Login, register, reset password flows
+- Sports selection saves correctly
+- All other features work
+- Theme unchanged
+- Mobile responsive
+- Console clean

@@ -35,8 +35,9 @@
   --radius-full: 999px;
 
   /* Auth-card standard: one width for every sign-in / registration card */
-  --auth-card-width: 420px;
-  --auth-register-width: 760px;
+  --auth-card-width: 480px;
+  --auth-register-width: 900px;
+  --auth-wide-width: 1100px;
 }
 
 html,
@@ -161,9 +162,16 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-@media (min-width: 1025px) {
+@media (min-width: 1025px) and (max-width: 1199px) {
   .login-page {
     width: min(100% - 64px, 520px);
+    padding: var(--space-7) var(--space-6);
+  }
+}
+
+@media (min-width: 1200px) {
+  .login-page {
+    width: min(100% - 80px, var(--auth-wide-width));
     padding: var(--space-7) var(--space-6);
   }
 }
@@ -263,23 +271,121 @@ h1, h2, h3, h4, h5, h6 {
   text-align: center;
 }
 
+/* Register form — CSS Grid with named areas for consistent layout */
 .login-page .register-fields {
   display: grid;
   grid-template-columns: 1fr;
-  gap: var(--space-4);
+  grid-template-areas:
+    "name-row"
+    "birthdate"
+    "contact-row"
+    "credentials"
+    "school"
+    "sports"
+    "optional";
+  gap: var(--space-5) var(--space-4);
+  align-items: start;
 }
 
-@media (min-width: 560px) and (max-width: 899px) {
+/* Section header styling for register form */
+.login-page .register-section {
+  grid-column: 1 / -1;
+  margin: var(--space-2) 0 0;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.login-page .register-section h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* Field label consistency */
+.login-page .register-fields > label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.login-page .register-fields > label > input,
+.login-page .register-fields > label > select {
+  width: 100%;
+  height: 48px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 16px;
+  background: rgba(6, 38, 30, .9);
+  color: var(--foreground);
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.login-page .register-fields > label > input:focus,
+.login-page .register-fields > label > select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(45, 212, 168, 0.2);
+}
+.login-page .register-fields > label > input::placeholder {
+  color: rgba(190, 242, 214, .85);
+}
+.login-page .register-fields > label > input.error,
+.login-page .register-fields > label > select.error {
+  border-color: var(--danger);
+}
+
+/* PasswordInput wrapper to match field height */
+.login-page .register-fields .pw-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.login-page .register-fields .pw-wrapper > label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+/* Reset Password form grid */
+.login-page .register-fields.reset-pw-form {
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "pw"
+    "confirm";
+  gap: var(--space-4);
+}
+@media (min-width: 560px) {
+  .login-page .register-fields.reset-pw-form {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: "pw confirm";
+  }
+}
+
+/* Grid breakpoints */
+@media (min-width: 560px) {
   .login-page .register-fields {
     grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "name-row name-row"
+      "birthdate birthdate"
+      "contact-row contact-row"
+      "credentials credentials"
+      "school school"
+      "sports sports"
+      "optional optional";
   }
-  .login-page .register-fields .span-2 {
-    grid-column: 1 / -1;
-  }
-  /* Name fields: first+middle in col1, last in col2 */
   .login-page .register-fields .name-row {
-    grid-column: span 2;
-    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: var(--space-4);
+  }
+  .login-page .register-fields .contact-row {
     grid-template-columns: 1fr 1fr;
     gap: var(--space-4);
   }
@@ -288,30 +394,27 @@ h1, h2, h3, h4, h5, h6 {
 @media (min-width: 900px) {
   .login-page .register-fields {
     grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "name-row name-row"
+      "birthdate birthdate"
+      "contact-row contact-row"
+      "credentials credentials"
+      "school sports"
+      "optional optional";
   }
-  .login-page .register-fields .span-2 {
-    grid-column: 1 / -1;
-  }
-  /* Name fields: 3-col on wide screens */
   .login-page .register-fields .name-row {
-    grid-column: span 2;
-    display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: var(--space-4);
   }
-  /* Email + contact side by side */
   .login-page .register-fields .contact-row {
-    grid-column: span 2;
-    display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--space-4);
   }
-  /* School + sports side by side on very wide */
-  .login-page .register-fields .school-sports-row {
-    grid-column: span 2;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-4);
+  .login-page .register-fields .school {
+    grid-area: school;
+  }
+  .login-page .register-fields .sports {
+    grid-area: sports;
   }
 }
 
@@ -390,13 +493,15 @@ h1, h2, h3, h4, h5, h6 {
 
 .register-sports-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: var(--space-3);
+  justify-items: stretch;
+  align-items: stretch;
 }
 
 @media (min-width: 900px) {
   .register-sports-grid {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   }
 }
 
@@ -404,15 +509,19 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3);
+  min-height: 48px;
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--border);
   border-radius: 8px;
   cursor: pointer;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--foreground);
   background: rgba(10, 50, 40, .6);
   transition: background .15s, border-color .15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .register-sports-option:hover {
@@ -430,5 +539,218 @@ h1, h2, h3, h4, h5, h6 {
   height: 18px;
   accent-color: var(--accent);
   flex-shrink: 0;
-  margin: 0;
+}
+
+/* ============================================================================
+   CLEAN REGISTRATION FORM STYLES
+   Professional, clean form layout with consistent field heights and spacing
+   ============================================================================ */
+
+.register-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.form-section {
+  background: rgba(6, 38, 30, .35);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+.section-title {
+  margin: 0 0 var(--space-4);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.section-hint {
+  margin: 0 0 var(--space-4);
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* Field groups - consistent height and spacing */
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.field-group.full-width {
+  width: 100%;
+}
+
+.field-group label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.field-group label .required {
+  color: var(--danger);
+  margin-left: 2px;
+}
+
+.field-group label .optional {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 12px;
+  text-transform: lowercase;
+  margin-left: 4px;
+}
+
+.field-group input,
+.field-group select {
+  width: 100%;
+  height: 48px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 16px;
+  background: rgba(6, 38, 30, .9);
+  color: var(--foreground);
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.field-group input:focus,
+.field-group select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(45, 212, 168, 0.2);
+}
+
+.field-group input::placeholder {
+  color: rgba(190, 242, 214, .85);
+}
+
+.field-group input.error,
+.field-group select.error {
+  border-color: var(--danger);
+}
+
+.field-group input[type="date"] {
+  padding-right: var(--space-4);
+}
+
+/* Error text */
+.error-text {
+  color: var(--danger);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* Field rows - responsive grid */
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 560px) {
+  .field-row.name-fields {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+  .field-row.contact-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 900px) {
+  .field-row.name-fields {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+  .field-row.contact-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Sports grid - clean, consistent checkboxes */
+.sports-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-3);
+  margin-top: 6px;
+}
+
+@media (min-width: 900px) {
+  .sports-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+}
+
+.sport-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 48px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+  background: rgba(10, 50, 40, .6);
+  transition: background .15s, border-color .15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sport-option:hover {
+  background: rgba(45, 212, 168, .08);
+  border-color: rgba(45, 212, 168, .4);
+}
+
+.sport-option.checked {
+  background: rgba(45, 212, 168, .14);
+  border-color: var(--accent);
+}
+
+.sport-option input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* Form submit button */
+.form-submit {
+  width: 100%;
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  height: 48px;
+}
+
+/* PasswordInput wrapper integration */
+.field-group .pw-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.field-group .pw-wrapper > label {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+/* IdPhotoUpload integration */
+.field-group > .id-photo-upload {
+  width: 100%;
 }

@@ -2,8 +2,8 @@ import { useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import PasswordInput from "../components/PasswordInput";
-import { checkPasswordStrength } from "../lib/password";
+import PasswordInput from "@/components/PasswordInput";
+import { checkPasswordStrength } from "@/lib/password";
 
 export default function ResetPassword() {
   const router = useRouter();
@@ -57,7 +57,7 @@ export default function ResetPassword() {
   }
 
   return (
-    <main className="login-page">
+    <main className="login-page register-box">
       <Head><title>Choose a new password | Cauayan Athlete Performance</title></Head>
       <img src="/sports_logo.png" alt="Cauayan City" className="logo" />
       <p className="auth-kicker">Cauayan City</p>
@@ -79,11 +79,11 @@ export default function ResetPassword() {
           {message} <Link href="/login">Sign in now</Link>
         </p>
       ) : (
-        <form onSubmit={submit} noValidate className="formStack">
-          <div style={{ marginBottom: "var(--space-4)" }}>
+        <form onSubmit={submit} noValidate className="register-fields" style={{ width: "100%", gridTemplateAreas: '"pw pw" "confirm confirm"', gridTemplateColumns: "1fr" }}>
+          <div className="pw-wrapper" style={{ gridArea: "pw" }}>
             <PasswordInput
               name="password"
-              label="New password"
+              label="New password *"
               value={password}
               onChange={onChange}
               required
@@ -94,21 +94,23 @@ export default function ResetPassword() {
               placeholder="At least 12 characters"
             />
           </div>
-          <PasswordInput
-            name="confirm"
-            label="Confirm new password"
-            value={confirm}
-            onChange={onChange}
-            required
-            minLength="12"
-            maxLength="200"
-            autoComplete="new-password"
-            placeholder="Re-enter the password"
-          />
-          <button className="primary" disabled={busy || !token}>
+          <div className="pw-wrapper" style={{ gridArea: "confirm" }}>
+            <PasswordInput
+              name="confirm"
+              label="Confirm new password *"
+              value={confirm}
+              onChange={onChange}
+              required
+              minLength="12"
+              maxLength="200"
+              autoComplete="new-password"
+              placeholder="Re-enter the password"
+            />
+          </div>
+          <button type="submit" className="primary" disabled={busy || !token} style={{ gridColumn: "1 / -1", marginTop: "var(--space-3)" }}>
             {busy ? "Resetting..." : "Reset password"}
           </button>
-          {message && <p role="alert" style={{ color: isError ? "var(--danger)" : "var(--accent)" }}>{message}</p>}
+          {message && <p role="alert" style={{ color: isError ? "var(--danger)" : "var(--accent)", gridColumn: "1 / -1" }}>{message}</p>}
         </form>
       )}
       {!done && <p className="auth-register"><Link href="/login">Back to sign in</Link></p>}
