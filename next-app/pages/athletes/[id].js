@@ -72,6 +72,7 @@ if (!athlete) return { notFound: true };
       canManage,
       athlete: JSON.parse(JSON.stringify(athlete)),
       catalog: JSON.parse(JSON.stringify(catalog)),
+      progressHref: athlete.trainingPlans?.[0]?.plan ? `/training-plans/${athlete.trainingPlans[0].plan.id}/athletes/${athlete.id}` : "/training-plans",
     },
   };
 }
@@ -203,7 +204,7 @@ function trendBadge(betterDirection, first, last) {
     : { text: "Declining", cls: styles.badgeMuted };
 }
 
-export default function AthleteProfile({ session, athlete, catalog, canManage }) {
+export default function AthleteProfile({ session, athlete, catalog, canManage, progressHref }) {
   const isAdmin = session?.user?.role === "admin";
   const router = useRouter();
   const [editOpen, setEditOpen] = React.useState(false);
@@ -243,7 +244,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage })
           </div>
           <div className={styles.actions}>
             <StatusBadge status={athlete.status} />
-            <Link className={styles.primary} href={`/athletes/${athlete.id}/progress`}>View progress</Link>
+            <Link className={styles.primary} href={progressHref}>View progress</Link>
             <Link className={styles.secondary} href="/athletes">Back to athletes</Link>
           </div>
         </div>

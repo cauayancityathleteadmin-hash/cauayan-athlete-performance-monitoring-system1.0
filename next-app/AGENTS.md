@@ -41,7 +41,7 @@ These are standing, always-on rules for this project. Follow them on every chang
 - Exclude: Dashboard, Athletes (list), Coaches (list) — these don't need tabs.
 - Tabs live inside the page component only; sidebar is never modified for sub-feature navigation.
 - Sections must have stable `id` anchors; the tabs component handles URL hash deep-linking (`#sectionId`).
-- Current pages with tabs: `/analytics`, `/athletes/[id]/progress`, `/training-plans/[id]`, `/training-plans/[id]/athletes/[athleteId]`, `/admin/catalog`.
+- Current pages with tabs: `/analytics`, `/training-plans/[id]`, `/training-plans/[id]/athletes/[athleteId]`, `/admin/catalog`. (The old standalone `/athletes/[id]/progress` page was merged into Training — `/training-plans/[id]/athletes/[athleteId]` — and now redirects there.)
 
 ## Layout, spacing & copy standard (standing convention)
 Only ONE value per use case; all values come from the token scale (`--space-1..8`, `--radius-*`, defined in globals.css AND Dashboard.module.css `:root`). NEVER hardcode off-token px (18/20/22/26/28px…).

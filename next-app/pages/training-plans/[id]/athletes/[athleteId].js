@@ -305,9 +305,9 @@ export async function getServerSideProps(context) {
   // Fetch additional data for merged progress features
   const [trainingAssessments, performances, attendances, achievements, healthLogs] = await Promise.all([
     prisma.trainingAssessment.findMany({
-      where: { planId, athleteId },
+      where: { athleteId },
       orderBy: { assessmentDate: "asc" },
-      select: { id: true, assessmentDate: true, rating: true, fitnessDimension: true, comments: true },
+      select: { id: true, assessmentDate: true, rating: true, fitnessDimension: true, comments: true, plan: { select: { planName: true } } },
     }),
     prisma.exercisePerformance.findMany({
       where: { athleteId },
@@ -418,6 +418,8 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
 
   const activities = React.useMemo(() => data?.activities || [], [data]);
   const summary = data?.summary || { total: 0, completed: 0, partial: 0, missed: 0, completionPercent: 0, rating: null, ratingDate: null };
+  const perfSummary = React.useMemo(() => performanceSummary(performances), [performances]);
+  const attSummary = React.useMemo(() => effortSummary(attendances), [attendances]);
 
   const logsByActivity = React.useMemo(() => {
     const map = new Map();
@@ -521,6 +523,9 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
           <div className={styles.detailPanel}><h4>Completion</h4><div style={{ fontSize: 26, fontWeight: 800, color: completionColor(summary.completionPercent) }}>{summary.completionPercent}%</div><small style={{ color: "var(--muted)" }}>{summary.completed} done · {summary.partial} partial</small></div>
           <div className={styles.detailPanel}><h4>Missed</h4><div style={{ fontSize: 26, fontWeight: 800, color: summary.missed > 0 ? "#f87171" : "var(--muted)" }}>{summary.missed}</div></div>
           <div className={styles.detailPanel}><h4>Coach rating</h4><div style={{ fontSize: 26, fontWeight: 800, color: summary.rating != null ? (summary.rating >= 7 ? "var(--accent)" : summary.rating >= 5 ? "#fbbf24" : "#f87171") : "var(--muted)" }}>{summary.rating != null ? `${summary.rating}/10` : "—"}</div>{summary.rating != null && summary.ratingDate ? <small style={{ color: "var(--muted)" }}>{fmtDate(summary.ratingDate)}</small> : <small style={{ color: "var(--muted)" }}>No assessment yet</small>}</div>
+          <div className={styles.detailPanel}><h4>Best performance score</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{perfSummary.best != null ? fmtNum(perfSummary.best) : "—"}</div><small style={{ color: "var(--muted)" }}>{perfSummary.count ? `${perfSummary.count} performance${perfSummary.count === 1 ? "" : "s"} recorded` : "No performances yet"}</small></div>
+          <div className={styles.detailPanel}><h4>Average performance score</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{perfSummary.avg != null ? fmtNum(perfSummary.avg) : "—"}</div><small style={{ color: "var(--muted)" }}>Across all recorded exercises</small></div>
+          <div className={styles.detailPanel}><h4>Sessions present</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{attSummary.att.present} / {attSummary.totalAtt || 0}</div><small style={{ color: "var(--muted)" }}>{attSummary.attendanceRate != null ? `Attendance rate ${attSummary.attendanceRate}%` : "No sessions logged"}</small></div>
         </div>
 
         {error && <p role="status" className={styles.empty}>{error}</p>}
@@ -735,13 +740,14 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
                     <MiniTrend points={trainingTrend(trainingAssessments)} />
                     <div className={styles.tableWrap} style={{ marginTop: "var(--space-4)" }}>
                       <table>
-                        <thead><tr><th>Date</th><th>Rating</th><th>Fitness</th><th>Comments</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Rating</th><th>Fitness</th><th>Plan</th><th>Comments</th></tr></thead>
                         <tbody>
                           {[...trainingAssessments].reverse().slice(0, 10).map((a) => (
                             <tr key={a.id}>
                               <td data-label="Date">{fmtDate(a.assessmentDate)}</td>
                               <td data-label="Rating"><RatingChip rating={a.rating} /></td>
                               <td data-label="Fitness">{FITNESS_META_FULL[a.fitnessDimension] || "General"}</td>
+                              <td data-label="Plan">{a.plan?.planName || "—"}</td>
                               <td data-label="Comments">{a.comments || "—"}</td>
                             </tr>
                           ))}

@@ -127,7 +127,7 @@ export default function Standings({ session, isAdmin, standings, sports, coachSc
                       <td data-label="Rank">
                         <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, borderRadius: "50%", fontWeight: 800, fontSize: 13, background: medal ? medal : "rgba(127,199,175,.12)", color: medal ? "#041f18" : "var(--muted)" }}>{i + 1}</span>
                       </td>
-                      <td data-label="Athlete"><Link href={`/athletes/${a.id}/progress`} style={{ fontWeight: 700 }}>{a.name}</Link><small>{a.athleteCode}</small></td>
+                      <td data-label="Athlete"><Link href={`/athletes/${a.id}`} style={{ fontWeight: 700 }}>{a.name}</Link><small>{a.athleteCode}</small></td>
                       <td data-label="Sport">{a.sport}</td>
                       <td data-label="Coach">{a.coach}</td>
                       <td data-label="School">{a.school}</td>
