@@ -96,6 +96,12 @@ enum ExerciseCategory {
   recovery
 }
 
+enum EventCategory {
+  individual
+  smallTeam
+  largeTeam
+}
+
 enum AttendanceStatus {
   present
   late
@@ -274,16 +280,17 @@ model Sport {
 }
 
 model Event {
-  id           Int                 @id @default(autoincrement())
-  sportId      Int                 @map("sport_id")
-  eventName    String              @map("event_name")
-  description  String?
-  status       ActiveStatus        @default(active)
-  createdAt    DateTime            @default(now()) @map("created_at")
-  sport        Sport               @relation(fields: [sportId], references: [id], onDelete: Cascade)
-  metrics      PerformanceMetric[]
-  athletes     Athlete[]
-  achievements Achievement[]
+  id            Int                 @id @default(autoincrement())
+  sportId       Int                 @map("sport_id")
+  eventName     String              @map("event_name")
+  description   String?
+  status        ActiveStatus        @default(active)
+  eventCategory EventCategory       @default(individual) @map("event_category")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  sport         Sport               @relation(fields: [sportId], references: [id], onDelete: Cascade)
+  metrics       PerformanceMetric[]
+  athletes      Athlete[]
+  achievements  Achievement[]
 
   @@unique([sportId, eventName])
   @@index([sportId, status])
@@ -495,6 +502,7 @@ model Achievement {
   description      String?
   medal            String?   @map("medal")
   level            String?   @map("level")
+  isRecord         Boolean   @default(false) @map("is_record")
   sportId          Int?      @map("sport_id")
   eventId          Int?      @map("event_id")
   certificateUrl   String?   @map("certificate_url")

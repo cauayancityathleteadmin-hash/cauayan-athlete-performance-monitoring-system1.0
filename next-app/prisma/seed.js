@@ -44,24 +44,24 @@ async function seedReferenceData() {
   }
 
   const eventData = [
-    ["Athletics", "100m Sprint", "Track sprint assessment"],
-    ["Athletics", "200m Sprint", "Track double-lap sprint assessment"],
-    ["Athletics", "Long Jump", "Jump distance assessment"],
-    ["Athletics", "Shot Put", "Throw distance assessment"],
-    ["Swimming", "50m Freestyle", "Pool sprint assessment"],
-    ["Swimming", "100m Butterfly", "Pool butterfly stroke assessment"],
-    ["Swimming", "200m Breaststroke", "Pool breaststroke endurance assessment"],
-    ["Basketball", "5x5 Basketball", "Team basketball assessment"],
-    ["Volleyball", "Indoor Volleyball", "Indoor volleyball assessment"],
-    ["Badminton", "Singles", "Badminton singles assessment"],
-    ["Baseball", "9-Inning Game", "Baseball full game assessment"],
+    ["Athletics", "100m Sprint", "Track sprint assessment", "individual"],
+    ["Athletics", "200m Sprint", "Track double-lap sprint assessment", "individual"],
+    ["Athletics", "Long Jump", "Jump distance assessment", "individual"],
+    ["Athletics", "Shot Put", "Throw distance assessment", "individual"],
+    ["Swimming", "50m Freestyle", "Pool sprint assessment", "individual"],
+    ["Swimming", "100m Butterfly", "Pool butterfly stroke assessment", "individual"],
+    ["Swimming", "200m Breaststroke", "Pool breaststroke endurance assessment", "individual"],
+    ["Basketball", "5x5 Basketball", "Team basketball assessment", "largeTeam"],
+    ["Volleyball", "Indoor Volleyball", "Indoor volleyball assessment", "largeTeam"],
+    ["Badminton", "Singles", "Badminton singles assessment", "individual"],
+    ["Baseball", "9-Inning Game", "Baseball full game assessment", "largeTeam"],
   ];
   const events = {};
-  for (const [sport, eventName, description] of eventData) {
+  for (const [sport, eventName, description, eventCategory] of eventData) {
     events[eventName] = await prisma.event.upsert({
       where: { sportId_eventName: { sportId: sports[sport].id, eventName } },
-      update: {},
-      create: { sportId: sports[sport].id, eventName, description },
+      update: { eventCategory },
+      create: { sportId: sports[sport].id, eventName, description, eventCategory },
     });
   }
 
@@ -535,19 +535,19 @@ async function seedTestData(ref) {
 
   // --- Achievements --------------------------------------------------------
   const achievementsSeed = [
-    [0, "City Meet Gold Medal", "Medal", "2026-02-20", "Cauayan City Sports Office", "Gold medal in the 100m sprint final.", "gold", "district", "Athletics", "100m Sprint"],
+    [0, "City Meet Gold Medal", "Medal", "2026-02-20", "Cauayan City Sports Office", "Gold medal in the 100m sprint final.", "gold", "city", "Athletics", "100m Sprint", true],
     [0, "Regional Qualifier", "Qualification", "2026-06-10", "PRISAA Regional", "Qualified for the regional qualifying meet.", "participation", "regional", "Athletics", "100m Sprint"],
-    [1, "District Silver - 50m Free", "Medal", "2026-03-15", "DepEd Cauayan", "Silver medal in the 50m freestyle.", "silver", "district", "Swimming", "50m Freestyle"],
-    [2, "Long Jump Bronze", "Medal", "2026-02-20", "Cauayan City Sports Office", "Bronze medal, long jump.", "bronze", "district", "Athletics", "Long Jump"],
+    [1, "City Silver - 50m Free", "Medal", "2026-03-15", "DepEd Cauayan", "Silver medal in the 50m freestyle.", "silver", "city", "Swimming", "50m Freestyle"],
+    [2, "Long Jump Bronze", "Medal", "2026-02-20", "Cauayan City Sports Office", "Bronze medal, long jump.", "bronze", "city", "Athletics", "Long Jump"],
     [3, "Most Valuable Player", "MVP", "2026-07-05", "City Basketball League", "Named MVP of the city youth basketball circuit.", "gold", "intramural", "Basketball", "5x5 Basketball"],
     [6, "100m National Qualifier", "Qualification", "2026-06-12", "Palarong Pambansa", "Qualified for national-level competition.", "participation", "national", "Athletics", "100m Sprint"],
     [7, "Championship Ring", "Champion", "2026-07-06", "City Basketball League", "Championship in the youth division.", "gold", "intramural", "Basketball", "5x5 Basketball"],
-    [12, "200m Gold - District", "Medal", "2026-03-15", "DepEd Cauayan", "Gold medal in the 200m sprint.", "gold", "district", "Athletics", "200m Sprint"],
-    [15, "50m Freestyle Gold", "Medal", "2026-03-16", "DepEd Cauayan", "Gold in the 50m freestyle, district meet.", "gold", "district", "Swimming", "50m Freestyle"],
+    [12, "200m Gold - City Meet", "Medal", "2026-03-15", "DepEd Cauayan", "Gold medal in the 200m sprint.", "gold", "city", "Athletics", "200m Sprint"],
+    [15, "50m Freestyle Gold", "Medal", "2026-03-16", "DepEd Cauayan", "Gold in the 50m freestyle, city meet.", "gold", "city", "Swimming", "50m Freestyle"],
     [26, "Badminton Singles Champion", "Champion", "2026-04-02", "City Badminton Association", "U-18 singles champion.", "gold", "intramural", "Badminton", "Singles"],
-    [30, "Breaststroke Bronze", "Medal", "2026-03-17", "DepEd Cauayan", "Bronze medal in 200m breaststroke.", "bronze", "district", "Swimming", "200m Breaststroke"],
+    [30, "Breaststroke Bronze", "Medal", "2026-03-17", "DepEd Cauayan", "Bronze medal in 200m breaststroke.", "bronze", "city", "Swimming", "200m Breaststroke"],
   ];
-  for (const [athIdx, title, type, date, org, desc, medal, level, sportName, eventName] of achievementsSeed) {
+  for (const [athIdx, title, type, date, org, desc, medal, level, sportName, eventName, isRecord] of achievementsSeed) {
     const athlete = athletes[athIdx].athlete;
     const sport = sports[sportName];
     const event = events[eventName];
@@ -558,6 +558,7 @@ async function seedTestData(ref) {
         athleteId: athlete.id, achievementTitle: title, achievementType: type,
         achievementDate: new Date(date), organization: org, description: desc,
         medal, level, sportId: sport.id, eventId: event.id,
+        isRecord: isRecord || false,
         certificateUrl: null,
       }
     );

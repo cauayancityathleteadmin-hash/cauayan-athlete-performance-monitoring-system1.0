@@ -22,7 +22,7 @@ export async function getServerSideProps(context) {
   const where = coachId ? { status: "active", coachId } : { status: "active" };
 
   const payload = await gsspData(`standings:${isAdmin ? "a" : (coachId ? `c:${coachId}` : "none")}`, 30000, async () => {
-    const [athletes, pointsConfig, sports] = await Promise.all([
+    const [athletes, sports] = await Promise.all([
       prisma.athlete.findMany({
         where,
         select: {
@@ -35,16 +35,15 @@ export async function getServerSideProps(context) {
           sport: { select: { sportName: true } },
           coach: { select: { firstName: true, lastName: true } },
           school: { select: { schoolName: true } },
-          achievements: { select: { medal: true, level: true, achievementTitle: true } },
+          achievements: { select: { medal: true, level: true, isRecord: true, achievementTitle: true, achievementDate: true, event: { select: { eventCategory: true } } } },
         },
         orderBy: { lastName: "asc" },
       }),
-      prisma.pointsConfig.findMany(),
       prisma.sport.findMany({ where: { status: "active" }, select: { id: true, sportName: true }, orderBy: { sportName: "asc" } }),
     ]);
 
     const standings = athletes.map((athlete) => {
-      const points = computeTotalPoints(athlete.achievements, pointsConfig);
+      const points = computeTotalPoints(athlete.achievements);
       const medals = medalCounts(athlete.achievements);
       return {
         id: athlete.id,

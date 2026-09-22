@@ -53,7 +53,7 @@ export default function Catalog({ session, sports, events, schools }) {
     setBusy(true);
     setEventMessage("");
     const form = new FormData(event.currentTarget);
-    const { ok, result } = await post("/api/catalog", { kind: "event", sportId: Number(form.get("sportId")), eventName: form.get("eventName"), description: form.get("description") });
+    const { ok, result } = await post("/api/catalog", { kind: "event", sportId: Number(form.get("sportId")), eventName: form.get("eventName"), eventCategory: form.get("eventCategory"), description: form.get("description") });
     setEventMessage(ok ? "Event added. Refresh to see it." : (result.error || "Could not add event."));
     if (ok) event.currentTarget.reset();
     setBusy(false);
@@ -75,7 +75,7 @@ export default function Catalog({ session, sports, events, schools }) {
     setBusy(true);
     setEventMessage("");
     const form = new FormData(event.currentTarget);
-    const { ok, result } = await post("/api/catalog", { kind: "event", id: Number(editingEvent.id), eventName: form.get("eventName"), sportId: Number(form.get("sportId")), description: form.get("description"), status: form.get("status") }, "PUT");
+    const { ok, result } = await post("/api/catalog", { kind: "event", id: Number(editingEvent.id), eventName: form.get("eventName"), sportId: Number(form.get("sportId")), eventCategory: form.get("eventCategory"), description: form.get("description"), status: form.get("status") }, "PUT");
     if (ok) { setEventMessage(`Updated ${form.get("eventName")}.`); setEditingEvent(null); router.replace("/admin/catalog"); }
     else setEventMessage(result.error || "Could not update event.");
     setBusy(false);
@@ -156,6 +156,11 @@ const statusBadge = (status) => (status === "active" ? <span className={`${style
             <form onSubmit={addEvent} className={styles.formStack}>
               <label>Sport *<select name="sportId" required defaultValue="">{sports.map((sport) => <option value={sport.id} key={sport.id}>{sport.sportName}</option>)}</select></label>
               <label>Event name *<input name="eventName" required maxLength="150" placeholder="e.g. 100m sprint" /></label>
+              <label>Event type<select name="eventCategory" defaultValue="individual">
+                <option value="individual">Individual</option>
+                <option value="smallTeam">Small team (2–3 players)</option>
+                <option value="largeTeam">Large team (4+ players)</option>
+              </select></label>
               <label>Description<textarea name="description" maxLength="2000" rows="3" /></label>
               <div className={styles.stackedActions}>
                 <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Add event"}</button>
@@ -189,6 +194,7 @@ const statusBadge = (status) => (status === "active" ? <span className={`${style
     <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", alignItems: "flex-end" }}>
       <label style={{ flex: "1 1 160px" }}>Name *<input name="eventName" className={styles.fieldControl} required maxLength="150" defaultValue={event.eventName} /></label>
       <label style={{ flex: "1 1 140px" }}>Sport<select name="sportId" className={styles.fieldControl} defaultValue={event.sportId}>{sports.map((s) => <option value={s.id} key={s.id}>{s.sportName}</option>)}</select></label>
+      <label style={{ flex: "1 1 150px" }}>Type<select name="eventCategory" className={styles.fieldControl} defaultValue={event.eventCategory}><option value="individual">Individual</option><option value="smallTeam">Small team (2–3)</option><option value="largeTeam">Large team (4+)</option></select></label>
       <label style={{ flex: "1 1 120px" }}>Status<select name="status" className={styles.fieldControl} defaultValue={event.status}><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
       <button className={styles.primary} disabled={busy}>Save event</button>
       <button type="button" className={styles.secondary} onClick={() => setEditingEvent(null)}>Cancel</button>

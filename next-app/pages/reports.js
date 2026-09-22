@@ -6,6 +6,7 @@ import {
   LineChart, Line, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend,
 } from "recharts";
 import { prisma } from "../lib/prisma";
+import { computeAchievementPoints } from "../lib/points";
 import { gsspData } from "../lib/gssp-cache";
 import AppShell from "../components/AppShell";
 import PageSectionTabs from "../components/PageSectionTabs";
@@ -30,7 +31,7 @@ export async function getServerSideProps(context) {
       sport: true,
       event: true,
       coach: { select: { firstName: true, lastName: true, coachCode: true } },
-      achievements: { orderBy: { achievementDate: "desc" }, take: 500 },
+      achievements: { orderBy: { achievementDate: "desc" }, include: { event: { select: { eventCategory: true } } }, take: 500 },
       notes: { orderBy: { createdAt: "desc" }, take: 20 },
       trainingAssessments: { orderBy: { assessmentDate: "desc" }, include: { plan: { select: { planName: true } } }, take: 20 },
       healthLogs: { orderBy: { reportedAt: "desc" }, include: { reporter: { select: { email: true } }, resolver: { select: { email: true } } }, take: 50 },
@@ -73,11 +74,10 @@ export async function getServerSideProps(context) {
     }
 
     const athleteIds = athletes.map((a) => a.id);
-    const [activityCounts, logCounts, attendanceCounts, pointsConfig] = await Promise.all([
+    const [activityCounts, logCounts, attendanceCounts] = await Promise.all([
       athleteIds.length ? prisma.planActivity.groupBy({ by: ["athleteId"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
       athleteIds.length ? prisma.planActivityLog.groupBy({ by: ["athleteId", "status"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
       athleteIds.length ? prisma.trainingAttendance.groupBy({ by: ["athleteId", "status"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
-      prisma.pointsConfig.findMany(),
     ]);
     const activityCountMap = new Map(activityCounts.map((x) => [x.athleteId, x._count._all]));
     const logCountMap = new Map();
@@ -92,8 +92,7 @@ export async function getServerSideProps(context) {
       const entry = attendanceMap.get(row.athleteId);
       if (["present", "late", "excused", "absent"].includes(row.status)) entry[row.status] += row._count._all;
     }
-    const pointsMap = new Map(pointsConfig.map((pc) => [`${(pc.medal || "").toLowerCase().trim()}|${(pc.level || "").toLowerCase().trim()}`, pc.points]));
-    const achievementPoints = (a) => (a.medal && a.level ? pointsMap.get(`${a.medal.toLowerCase()}|${a.level.toLowerCase()}`) || 0 : 0);
+    const achievementPoints = (a) => computeAchievementPoints(a);
 
     const serializeAthlete = (athlete) => {
       const achievements = athlete.achievements.map((a) => ({

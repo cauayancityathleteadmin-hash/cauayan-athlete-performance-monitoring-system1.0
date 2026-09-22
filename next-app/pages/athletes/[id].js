@@ -637,6 +637,7 @@ function AchievementForm({ athleteId, catalog, onComplete }) {
         description: form.get("description"),
         medal: form.get("medal"),
         level: form.get("level"),
+        isRecord: form.get("isRecord") === "on",
         sportId: Number(form.get("sportId")) || null,
         eventId: Number(form.get("eventId")) || null,
         certificateUrl: form.get("certificateUrl"),
@@ -663,6 +664,7 @@ function AchievementForm({ athleteId, catalog, onComplete }) {
             <option value="gold">Gold (1st)</option>
             <option value="silver">Silver (2nd)</option>
             <option value="bronze">Bronze (3rd)</option>
+            <option value="fourth">4th place</option>
             <option value="participation">Participation</option>
           </select>
         </label>
@@ -670,7 +672,9 @@ function AchievementForm({ athleteId, catalog, onComplete }) {
           <select name="level" className={styles.fieldControl} defaultValue="">
             <option value="">None</option>
             <option value="intramural">Intramural</option>
-            <option value="district">District</option>
+            <option value="barangay">Barangay</option>
+            <option value="city">City / Municipal</option>
+            <option value="provincial">Provincial</option>
             <option value="regional">Regional</option>
             <option value="national">National</option>
             <option value="international">International</option>
@@ -678,6 +682,12 @@ function AchievementForm({ athleteId, catalog, onComplete }) {
         </label>
         <label style={{ flex: "1 1 160px" }}>Date
           <input name="achievementDate" className={styles.fieldControl} type="date" defaultValue={today} />
+        </label>
+      </div>
+      <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
+        <label style={{ flex: "1 1 140px", display: "flex", alignItems: "center", gap: 6 }}>
+          <input name="isRecord" type="checkbox" style={{ accentColor: "var(--accent)" }} />
+          Record-breaking performance
         </label>
       </div>
       <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>

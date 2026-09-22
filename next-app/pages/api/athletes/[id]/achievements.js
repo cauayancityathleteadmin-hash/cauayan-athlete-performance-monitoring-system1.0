@@ -41,6 +41,7 @@ export default async function handler(req, res) {
     const description = text(req.body?.description, 2000);
     const medal = text(req.body?.medal, 50);
     const level = text(req.body?.level, 50);
+    const isRecord = req.body?.isRecord === true || req.body?.isRecord === "true";
     const certificateUrl = text(req.body?.certificateUrl, 500);
     const sportId = validId(req.body?.sportId);
     const eventId = validId(req.body?.eventId);
@@ -62,6 +63,7 @@ export default async function handler(req, res) {
           achievementDate,
           medal: medal || null,
           level: level || null,
+          isRecord,
           sportId: sportId || null,
           eventId: eventId || null,
           certificateUrl: certificateUrl || null,

@@ -28,7 +28,8 @@ export default async function handler(req, res) {
       const sportId = validId(req.body?.sportId);
       if (!eventName) return res.status(400).json({ error: "Event name is required." });
       const status = ["active", "inactive"].includes(req.body?.status) ? req.body.status : undefined;
-      const data = { eventName, description: text(req.body?.description, 2000) || null, status: status ?? undefined };
+      const eventCategory = ["individual", "smallTeam", "largeTeam"].includes(req.body?.eventCategory) ? req.body.eventCategory : undefined;
+      const data = { eventName, description: text(req.body?.description, 2000) || null, status: status ?? undefined, eventCategory: eventCategory ?? undefined };
       if (sportId) {
         const sport = await prisma.sport.findUnique({ where: { id: sportId }, select: { id: true } });
         if (!sport) return res.status(400).json({ error: "The selected sport is invalid." });
@@ -103,8 +104,9 @@ export default async function handler(req, res) {
     const sportId = validId(req.body?.sportId);
     const eventName = text(req.body?.eventName, 150, true);
     if (!sportId || !eventName) return res.status(400).json({ error: "Sport and event name are required." });
+    const eventCategory = ["individual", "smallTeam", "largeTeam"].includes(req.body?.eventCategory) ? req.body.eventCategory : undefined;
     try {
-      const event = await prisma.event.create({ data: { sportId, eventName, description: text(req.body?.description, 2000) || null } });
+      const event = await prisma.event.create({ data: { sportId, eventName, description: text(req.body?.description, 2000) || null, eventCategory } });
       await prisma.auditLog.create({ data: { userId: Number(session.user.id), action: "create", entityType: "event", entityId: event.id, description: `Created event ${event.eventName}` } });
       return res.status(201).json(event);
     } catch (error) {

@@ -14,6 +14,15 @@ const EVENTS = {
   "Badminton": ["Singles", "Doubles"],
 };
 
+// Event category by event name (individual default; largeTeam = 4+ players, smallTeam = 2-3).
+const LARGE_TEAM_EVENTS = new Set(["5x5 Basketball", "Indoor Volleyball", "Beach Volleyball"]);
+const SMALL_TEAM_EVENTS = new Set(["3x3 Basketball", "Doubles"]);
+function eventCategoryFor(eventName) {
+  if (LARGE_TEAM_EVENTS.has(eventName)) return "largeTeam";
+  if (SMALL_TEAM_EVENTS.has(eventName)) return "smallTeam";
+  return "individual";
+}
+
 // (event, metricName, unit, dataType, betterDirection, min, max, required)
 const METRICS = {
   "100m Sprint": [["Finish Time", "seconds", "decimal", "lower", 10, 15, true]],
@@ -242,8 +251,8 @@ export async function runProvisionStep(step) {
       for (const evt of eventNames) {
         const row = await prisma.event.upsert({
           where: { sportId_eventName: { sportId: sid, eventName: evt } },
-          update: { status: "active" },
-          create: { sportId: sid, eventName: evt, status: "active" },
+          update: { status: "active", eventCategory: eventCategoryFor(evt) },
+          create: { sportId: sid, eventName: evt, status: "active", eventCategory: eventCategoryFor(evt) },
           select: { id: true },
         });
         report.events += 1;
@@ -413,8 +422,8 @@ export async function runProvisionStep(step) {
       }
       // Achievement for ~3/4 of athletes (single create), plus an extra for some.
       if (rng() > 0.25) {
-        const medals = ["gold", "silver", "bronze", "participation"];
-        const levels = ["intramural", "district", "regional", "national", "international"];
+        const medals = ["gold", "silver", "bronze", "fourth", "participation"];
+        const levels = ["intramural", "barangay", "city", "provincial", "regional", "national", "international"];
         const medal = medals[aIndex % medals.length];
         const level = levels[(aIndex * 2) % levels.length];
         await prisma.achievement.create({
