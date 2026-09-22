@@ -33,6 +33,12 @@ function fmtDate(value) {
   return isNaN(d) ? "—" : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
+function fmtNum(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  const n = Number(value);
+  return isNaN(n) ? String(value) : n.toLocaleString("en-US", { maximumFractionDigits: 1 });
+}
+
 function trendBucketFor(activity, granularity) {
   const week = activity.weekNumber == null ? 1 : Number(activity.weekNumber);
   const day = activity.dayIndex == null ? 1 : Number(activity.dayIndex);
@@ -298,7 +304,7 @@ export async function getServerSideProps(context) {
 
   const onPlan = await prisma.trainingPlanAthlete.findFirst({
     where: { planId, athleteId },
-    select: { athlete: { select: { id: true, firstName: true, lastName: true, athleteCode: true, sport: { select: { sportName: true } } } } },
+    select: { athlete: { select: { id: true, firstName: true, lastName: true, athleteCode: true, healthStatus: true, sport: { select: { sportName: true } } } } },
   });
   if (!onPlan) return { redirect: { destination: `/training-plans/${planId}`, permanent: false } };
 
@@ -316,8 +322,8 @@ export async function getServerSideProps(context) {
     }),
     prisma.trainingAttendance.findMany({
       where: { athleteId },
-      orderBy: { sessionDate: "asc" },
-      select: { id: true, sessionDate: true, status: true, session: { select: { sessionName: true } } },
+      orderBy: { session: { startTime: "asc" } },
+      select: { id: true, status: true, session: { select: { startTime: true, sessionType: true } } },
     }),
     prisma.achievement.findMany({
       where: { athleteId },
@@ -874,8 +880,8 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
                   <tbody>
                     {attendances.map((a) => (
                       <tr key={a.id}>
-                        <td data-label="Date">{fmtDate(a.sessionDate)}</td>
-                        <td data-label="Session">{a.session?.sessionName || "—"}</td>
+                        <td data-label="Date">{fmtDate(a.session?.startTime)}</td>
+                        <td data-label="Session">{a.session?.sessionType || "—"}</td>
                         <td data-label="Status"><span className={`${styles.badge} ${a.status === "present" ? styles.badgeActive : a.status === "late" ? styles.badgePending : styles.badgeRejected}`}>{a.status}</span></td>
                       </tr>
                     ))}
