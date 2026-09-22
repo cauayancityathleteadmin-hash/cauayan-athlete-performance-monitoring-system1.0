@@ -84,6 +84,6 @@ Test at: 375px (mobile), 768px (tablet), 1366px (laptop), 1920px (desktop)
 | 1 — Audit | ✅ 2026-09-22 (documented above) |
 | 2 — Layout | ✅ wider containers (login 420→520px, register 420→760px, reset 420→520px), 2-col grid from 560px, 3-col names at 900px, contact row, school-sports row |
 | 3 — Sports input | ✅ minmax(200px,1fr) base, 220px at 900px+, better checkbox alignment |
-| 4 — Responsive | ⏳ pending |
-| 5 — System scan | ⏳ pending |
-| 6 — Regression | ⏳ pending |
+| 4 — Responsive | ✅ breakpoints at 360/480/560/640/900/1025px; build + lint pass |
+| 5 — System scan | ✅ all routes (200/307), APIs healthy, build + lint clean |
+| 6 — Regression | ✅ login, register, reset-password flow verified; all features functional; theme unchanged; mobile OK; console clean |
