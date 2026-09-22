@@ -134,6 +134,7 @@ Everything needed for ranking + detail view exists (title, level, medal, date, s
 |---|---|
 | 1 — Ranking method | ✅ locked 2026-09-22 (decisions above; research complete) |
 | 2 — Data audit | ✅ audit complete (11 live achievements; POINTS_CONFIG read sites mapped) |
+| 2 — Data model + engine | ✅ schema (EventCategory enum, eventCategory, isRecord); migration (district→city, team categories); points engine (lib/points.js); consumers updated (standings, reports, API, form, catalog); seeds updated; lint 0, build OK; live /api/health 200; mirrors synced |
 | 3 — Standing list | ⏳ pending |
 | 4 — Detail view | ⏳ pending |
 | 5 — Migration/removal | ⏳ pending |
