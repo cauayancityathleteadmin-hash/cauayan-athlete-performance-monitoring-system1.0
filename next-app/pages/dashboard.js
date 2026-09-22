@@ -246,7 +246,7 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
         <FeatureCard eyebrow="Training &amp; assessment" title="Training" href="/training-plans">{plural(stats.trainingPlans, "training plan")} in the system. Track activities, assess athletes, and review the monitoring grid.</FeatureCard>
         <FeatureCard eyebrow="Assessments" title="Physical assessments" href="/assessments">{plural(stats.assessments, "assessment")} recorded across the program.</FeatureCard>
         <FeatureCard eyebrow="Events &amp; program" title="Event plans" href="/event-plans">{plural(stats.plans, "open plan")}{stats.myApprovedPlans > 0 && !isAdmin ? `, ${plural(stats.myApprovedPlans, "approved application")}` : ""}. Apply, add participants, and track competition slots.</FeatureCard>
-        <FeatureCard eyebrow="Standings" title="Standings" href="/standings">{plural(achievementsCount, "achievement")} recorded and ranked on the standings board.</FeatureCard>
+        <FeatureCard eyebrow="Standing" title="Standing" href="/standings">{plural(achievementsCount, "achievement")} recorded and ranked on the standing board.</FeatureCard>
         <FeatureCard eyebrow="Records" title="Reports" href="/reports">Generate official records — personnel, performance summaries, and coach files.</FeatureCard>
       </section>
       {isAdmin && (
