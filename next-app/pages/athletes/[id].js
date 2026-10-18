@@ -31,7 +31,8 @@ export async function getServerSideProps(context) {
       },
       statusHistory: { orderBy: { changedAt: "asc" }, include: { changer: { select: { email: true } } } },
       coachHistory: { orderBy: { startedAt: "asc" }, include: { coach: { select: { firstName: true, lastName: true, coachCode: true } } } },
-achievements: { orderBy: { achievementDate: "asc" } },
+      achievements: { orderBy: { achievementDate: "asc" } },
+      notes: { orderBy: { createdAt: "desc" }, include: { author: { select: { username: true, email: true, coach: { select: { firstName: true, lastName: true } } } } } },
       healthLogs: { orderBy: { reportedAt: "desc" }, include: { reporter: { select: { username: true, email: true, coach: { select: { firstName: true, lastName: true } } } } } },
 participants: {
         where: { status: "active" },

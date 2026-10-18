@@ -207,6 +207,7 @@ model PasswordResetToken {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([expiresAt])
   @@map("password_reset_tokens")
 }
 
@@ -395,6 +396,7 @@ model AthleteDocument {
   uploader       User?        @relation("AthleteDocumentUploader", fields: [uploadedBy], references: [id], onDelete: SetNull)
 
   @@index([athleteId, documentTypeId])
+  @@index([expiresAt])
   @@map("athlete_documents")
 }
 
@@ -540,6 +542,8 @@ model AuditLog {
   user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([entityType, entityId])
   @@map("audit_logs")
 }
 
@@ -596,6 +600,7 @@ model EventApplication {
 
   @@unique([eventPlanId, coachId])
   @@index([eventPlanId, status])
+  @@index([coachId, status])
   @@map("event_applications")
 }
 
@@ -725,6 +730,7 @@ model TrainingAttendance {
   performances ExercisePerformance[]
 
   @@unique([sessionId, athleteId])
+  @@index([athleteId, sessionId])
   @@map("training_attendances")
 }
 

@@ -8,13 +8,22 @@ export default async function handler(req, res) {
   setSecurityHeaders(res);
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed." });
 
+  // CR-01 fix: the x-vercel-cron header is client-spoofable and must never
+  // grant access on its own. Vercel cron sends Authorization: Bearer <CRON_SECRET>;
+  // require that bearer whenever the cron path is used. Without CRON_SECRET the
+  // only way in is the timing-safe BACKUP_SECRET key below.
   const expected = process.env.BACKUP_SECRET;
-  const isVercelCron = String(req.headers["x-vercel-cron"] || "") === "1";
-  if (!expected && !isVercelCron) return res.status(503).json({ error: "Automatic backup is not configured (BACKUP_SECRET missing)." });
-  const provided = req.query?.key || "";
-  let authorized = isVercelCron;
-  if (!authorized && expected) {
-    const a = Buffer.from(String(provided));
+  const cronSecret = (process.env.CRON_SECRET || "").trim();
+  const authHeader = String(req.headers.authorization || "");
+  const isCronRequest = String(req.headers["x-vercel-cron"] || "") === "1";
+  const cronAuthorized = isCronRequest && Boolean(cronSecret) && authHeader === `Bearer ${cronSecret}`;
+
+  if (!expected && !cronAuthorized) return res.status(503).json({ error: "Automatic backup is not configured (BACKUP_SECRET missing)." });
+
+  const provided = String(req.query?.key || "");
+  let authorized = cronAuthorized;
+  if (!authorized && expected && provided) {
+    const a = Buffer.from(provided);
     const b = Buffer.from(expected);
     authorized = a.length === b.length && crypto.timingSafeEqual(a, b);
   }

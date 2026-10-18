@@ -22,7 +22,9 @@ export async function verifyTurnstile(token) {
     const data = await resp.json();
     return Boolean(data?.success);
   } catch (error) {
+    // H-03 fix: fail closed on verification errors. If CAPTCHA is configured
+    // but the check cannot be completed, reject rather than silently bypass.
     console.error("Turnstile verification failed:", error.message);
-    return true;
+    return false;
   }
 }

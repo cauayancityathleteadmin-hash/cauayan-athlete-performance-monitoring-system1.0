@@ -1,10 +1,12 @@
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 export const APPROVAL_CODE_MINUTES = 24 * 60;
 export const APPROVAL_CODE_EXPIRY_MS = APPROVAL_CODE_MINUTES * 60 * 1000;
 
 export function generateApprovalCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  // Use a CSPRNG instead of Math.random for security-sensitive codes.
+  return String(crypto.randomInt(100000, 1000000));
 }
 
 export function hashApprovalCode(code) {

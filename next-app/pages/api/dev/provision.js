@@ -12,6 +12,12 @@ export const config = {
 
 export default async function handler(req, res) {
   setSecurityHeaders(res);
+  // H-01 fix: this route can (re)create a known-password admin. It is a
+  // development/testing tool only — hard-disable it in production regardless
+  // of whether SEED_PROVISION_KEY happens to be set.
+  if (process.env.NODE_ENV === "production") {
+    return res.status(404).json({ error: "Not found." });
+  }
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
 
   if (!PROVISION_KEY) return res.status(404).json({ error: "Not found.", keyConfigured: false });

@@ -1,4 +1,4 @@
-import { put, list, del } from "@vercel/blob";
+import { put, list, del, get } from "@vercel/blob";
 
 const PREFIX = "db-backups/";
 const MAX_SYSTEM_BACKUPS = 20;
@@ -14,7 +14,10 @@ function stamp() {
 export async function saveBackupBlob({ kind, id, payload }) {
   if (!blobEnabled()) return null;
   const name = `${PREFIX}${kind}-${id ? `${id}-` : ""}${stamp()}.json`;
-  const { url } = await put(name, payload, { access: "public", contentType: "application/json", addRandomSuffix: false });
+  // CR-02 fix: backups contain password hashes, reset tokens and athlete PII.
+  // Private blobs require the BLOB_READ_WRITE_TOKEN to read, so a leaked URL
+  // is no longer an open download.
+  const { url } = await put(name, payload, { access: "private", contentType: "application/json", addRandomSuffix: true });
   if (kind === "system") await pruneSystemBackups(MAX_SYSTEM_BACKUPS);
   return { url, name };
 }
@@ -45,7 +48,10 @@ async function pruneSystemBackups(keep) {
 }
 
 export async function fetchBackupBlob(url) {
-  const response = await fetch(url);
+  // Private blobs require the token; @vercel/blob's get() attaches it.
+  const blob = await get(url);
+  if (!blob) throw new Error("The stored backup could not be downloaded.");
+  const response = await fetch(blob.downloadUrl);
   if (!response.ok) throw new Error("The stored backup could not be downloaded.");
   return response.json();
 }
