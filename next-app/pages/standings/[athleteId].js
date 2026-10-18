@@ -1,11 +1,13 @@
 import Head from "next/head";
 import Link from "next/link";
 import React from "react";
+import { useRouter } from "next/router";
 import { getSession } from "next-auth/react";
 import { prisma } from "@/lib/prisma";
 import { gsspData } from "@/lib/gssp-cache";
 import { computeAchievementPoints, computeTotalPoints, medalCounts } from "@/lib/points";
 import AppShell from "@/components/AppShell";
+import AchievementForm from "@/components/AchievementForm";
 import styles from "@/styles/Dashboard.module.css";
 
 export async function getServerSideProps(context) {
@@ -37,6 +39,14 @@ export async function getServerSideProps(context) {
     return { redirect: { destination: "/standings", permanent: false } };
   }
 
+  const canManage = isAdmin || (coachId !== null && athlete.coachId === coachId);
+
+  // Catalog for the add-achievement form (same source the Athlete Profile used)
+  const catalog = {
+    sports: await prisma.sport.findMany({ where: { status: "active" }, orderBy: { sportName: "asc" }, select: { id: true, sportName: true } }),
+    events: await prisma.event.findMany({ where: { status: "active" }, orderBy: { eventName: "asc" }, select: { id: true, eventName: true, sportId: true } }),
+  };
+
   // Fetch achievements with event category for points calculation
   const achievements = await prisma.achievement.findMany({
     where: { athleteId },
@@ -63,8 +73,10 @@ export async function getServerSideProps(context) {
     props: {
       session,
       isAdmin,
+      canManage,
       athlete: JSON.parse(JSON.stringify(athlete)),
       achievements: JSON.parse(JSON.stringify(achievements)),
+      catalog: JSON.parse(JSON.stringify(catalog)),
     },
   };
 }
@@ -87,7 +99,8 @@ function levelChip(level) {
   return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: "var(--radius-xl)", background: "rgba(6,38,30,.35)", border: "1px solid var(--border)", fontSize: 11, fontWeight: 700 }}>{labels[level] || level}</span>;
 }
 
-export default function StandingDetail({ session, isAdmin, athlete, achievements }) {
+export default function StandingDetail({ session, isAdmin, canManage, athlete, achievements, catalog }) {
+  const router = useRouter();
   const athleteName = `${athlete.firstName} ${athlete.middleName ? athlete.middleName + " " : ""}${athlete.lastName}`;
 
   // Compute per-achievement points
@@ -168,6 +181,13 @@ export default function StandingDetail({ session, isAdmin, athlete, achievements
             <p className={styles.empty}>No achievements recorded for this athlete yet.</p>
           )}
         </section>
+
+        {canManage && (
+          <section className={styles.panel}>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Recognition</p><h2>Add achievement</h2></div></div>
+            <AchievementForm athleteId={athlete.id} catalog={catalog} onComplete={() => router.reload()} />
+          </section>
+        )}
       </AppShell>
     </>
   );

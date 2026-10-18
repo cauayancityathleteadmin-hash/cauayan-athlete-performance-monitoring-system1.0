@@ -31,7 +31,6 @@ export async function getServerSideProps(context) {
       },
       statusHistory: { orderBy: { changedAt: "asc" }, include: { changer: { select: { email: true } } } },
       coachHistory: { orderBy: { startedAt: "asc" }, include: { coach: { select: { firstName: true, lastName: true, coachCode: true } } } },
-      achievements: { orderBy: { achievementDate: "asc" } },
       notes: { orderBy: { createdAt: "desc" }, include: { author: { select: { username: true, email: true, coach: { select: { firstName: true, lastName: true } } } } } },
       healthLogs: { orderBy: { reportedAt: "desc" }, include: { reporter: { select: { username: true, email: true, coach: { select: { firstName: true, lastName: true } } } } } },
 participants: {
@@ -441,34 +440,6 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
               </div>
             ) : <p className={styles.empty}>No status changes recorded.</p>}
           </section>
-
-          {/* Achievements */}
-          <section className={styles.panel}>
-<div className={styles.panelHeader}><div><p className={styles.eyebrow}>Recognition</p><h2>Achievements</h2></div></div>
-            {canManage && <AchievementForm athleteId={athlete.id} catalog={catalog} onComplete={() => router.reload()} />}
-            {athlete.achievements?.length ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-                {athlete.achievements.map((a) => (
-                  <div key={a.id} className={styles.detailPanel}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
-                      <strong style={{ fontSize: 13 }}>{a.achievementTitle}</strong>
-                      <small style={{ color: "var(--muted)", fontSize: 12 }}>{fmtDate(a.achievementDate)}</small>
-                    </div>
-                    {(a.medal || a.level) && (
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-                        {a.medal && <span className={`${styles.badge} ${a.medal === "gold" ? styles.badgeActive : a.medal === "participation" ? styles.badgeMuted : styles.badgePending}`} style={{ textTransform: "capitalize" }}>{a.medal}</span>}
-                        {a.level && <span className={`${styles.badge} ${styles.badgePending}`} style={{ textTransform: "capitalize" }}>{a.level}</span>}
-                      </div>
-                    )}
-                    {a.achievementType && <small style={{ display: "block", color: "var(--accent)", fontSize: 12, textTransform: "capitalize", marginTop: 4 }}>{a.achievementType}</small>}
-                    {a.organization && <small style={{ display: "block", color: "var(--muted)", fontSize: 12 }}>{a.organization}</small>}
-                    {a.description && <small style={{ display: "block", color: "var(--muted)", fontSize: 12 }}>{a.description}</small>}
-                    {a.certificateUrl && <small style={{ display: "block", marginTop: 2 }}><a href={a.certificateUrl} target="_blank" rel="noreferrer" style={{ color: "var(--accent)" }}>View certificate</a></small>}
-                  </div>
-                ))}
-              </div>
-            ) : <p className={styles.empty}>No achievements recorded.</p>}
-          </section>
         </div>
 
         {/* Coaching notes */}
@@ -608,108 +579,6 @@ function StatusForm({ athleteId, currentStatus, onComplete }) {
         </label>
         <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Update status"}</button>
       </div>
-      {message && <p role="status" className={styles.formHint}>{message}</p>}
-    </form>
-  );
-}
-
-function AchievementForm({ athleteId, catalog, onComplete }) {
-  const [busy, setBusy] = React.useState(false);
-  const [message, setMessage] = React.useState("");
-  const [today] = React.useState(() => { const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000); return d.toISOString().slice(0, 10); });
-  const [sportId, setSportId] = React.useState(athleteId ? "" : "");
-  const eventsForSport = catalog?.events?.filter((e) => e.sportId === Number(sportId)) || [];
-  const currentSport = Number(sportId);
-
-  async function submit(event) {
-    event.preventDefault();
-    setBusy(true);
-    setMessage("");
-    const form = new FormData(event.currentTarget);
-    const csrf = await fetch("/api/csrf").then((r) => r.json());
-    const response = await fetch(`/api/athletes/${athleteId}/achievements`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
-      body: JSON.stringify({
-        title: form.get("title"),
-        achievementType: form.get("achievementType"),
-        organization: form.get("organization"),
-        achievementDate: form.get("achievementDate"),
-        description: form.get("description"),
-        medal: form.get("medal"),
-        level: form.get("level"),
-        isRecord: form.get("isRecord") === "on",
-        sportId: Number(form.get("sportId")) || null,
-        eventId: Number(form.get("eventId")) || null,
-        certificateUrl: form.get("certificateUrl"),
-      }),
-    }).catch(() => null);
-    const result = response ? await response.json().catch(() => ({})) : {};
-    if (response && response.ok && !result.error) {
-      setMessage("Achievement added.");
-      event.currentTarget.reset();
-      onComplete();
-    } else {
-      setMessage(result.error || "Could not add achievement.");
-    }
-    setBusy(false);
-  }
-
-  return (
-    <form onSubmit={submit} className={styles.formStack} style={{ marginBottom: "var(--space-4)" }}>
-      <label>Title *<input name="title" className={styles.fieldControl} required maxLength="150" placeholder="e.g. Gold medal, 100m sprint" /></label>
-      <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
-        <label style={{ flex: "1 1 140px" }}>Medal / result
-          <select name="medal" className={styles.fieldControl} defaultValue="">
-            <option value="">None</option>
-            <option value="gold">Gold (1st)</option>
-            <option value="silver">Silver (2nd)</option>
-            <option value="bronze">Bronze (3rd)</option>
-            <option value="fourth">4th place</option>
-            <option value="participation">Participation</option>
-          </select>
-        </label>
-        <label style={{ flex: "1 1 160px" }}>Level
-          <select name="level" className={styles.fieldControl} defaultValue="">
-            <option value="">None</option>
-            <option value="intramural">Intramural</option>
-            <option value="barangay">Barangay</option>
-            <option value="city">City / Municipal</option>
-            <option value="provincial">Provincial</option>
-            <option value="regional">Regional</option>
-            <option value="national">National</option>
-            <option value="international">International</option>
-          </select>
-        </label>
-        <label style={{ flex: "1 1 160px" }}>Date
-          <input name="achievementDate" className={styles.fieldControl} type="date" defaultValue={today} />
-        </label>
-      </div>
-      <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
-        <label style={{ flex: "1 1 140px", display: "flex", alignItems: "center", gap: 6 }}>
-          <input name="isRecord" type="checkbox" style={{ accentColor: "var(--accent)" }} />
-          Record-breaking performance
-        </label>
-      </div>
-      <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap" }}>
-        <label style={{ flex: "1 1 160px" }}>Sport
-          <select name="sportId" className={styles.fieldControl} defaultValue="" onChange={(e) => setSportId(e.target.value)}>
-            <option value="">None</option>
-            {(catalog?.sports || []).map((s) => <option value={s.id} key={s.id}>{s.sportName}</option>)}
-          </select>
-        </label>
-        <label style={{ flex: "1 1 160px" }}>Event / discipline
-          <select name="eventId" className={styles.fieldControl} defaultValue="">
-            <option value="">None</option>
-            {eventsForSport.map((e) => <option value={e.id} key={e.id}>{e.eventName}</option>)}
-          </select>
-        </label>
-      </div>
-      <label>Type<input name="achievementType" className={styles.fieldControl} maxLength="100" placeholder="e.g. Medal, Record, Cert" /></label>
-      <label>Organization<input name="organization" className={styles.fieldControl} maxLength="191" placeholder="e.g. PRISAA" /></label>
-      <label>Certificate / photo link<input name="certificateUrl" className={styles.fieldControl} maxLength="500" placeholder="https://... (optional proof)" /></label>
-      <label>Description<textarea name="description" className={styles.fieldControl} rows="2" maxLength="2000" /></label>
-      <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Add achievement"}</button>
       {message && <p role="status" className={styles.formHint}>{message}</p>}
     </form>
   );
