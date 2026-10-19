@@ -29,15 +29,26 @@ export default async function handler(req, res) {
   const scopeWhere = isAdmin ? {} : { coach: { userId: Number(session.user.id) } };
   const dateWhere = hasPeriod ? { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } : undefined;
 
-  const [athletes, achievements, meets, assessmentCount] = await Promise.all([
+  // True when a date falls inside the selected [from, to] window (all-time when no period).
+  const inRange = (value) => {
+    if (!hasPeriod) return true;
+    const t = new Date(value).getTime();
+    if (isNaN(t)) return false;
+    if (from && t < from.getTime()) return false;
+    if (to && t > to.getTime()) return false;
+    return true;
+  };
+
+  const [athletes, achievements, allMeets, assessmentCount] = await Promise.all([
     prisma.athlete.findMany({
       where: scopeWhere,
       select: { id: true, sportId: true, schoolId: true, coachId: true, dateRegistered: true },
     }),
+    // Fetched all-time (coach-scoped) so the Yearly accomplishments breakdown can
+    // span every year; the selected period is applied in JS below.
     prisma.achievement.findMany({
       where: {
         ...(scopeWhere.coach ? { athlete: scopeWhere } : {}),
-        ...(dateWhere ? { achievementDate: dateWhere } : {}),
       },
       orderBy: { achievementDate: "desc" },
       select: {
@@ -54,9 +65,8 @@ export default async function handler(req, res) {
       },
     }),
     prisma.eventPlan.findMany({
-      where: dateWhere ? { startDate: dateWhere } : {},
       orderBy: { startDate: "desc" },
-      take: 100,
+      take: 500,
       select: { id: true, eventName: true, startDate: true, venue: true, status: true },
     }),
     prisma.assessment.count({
@@ -68,7 +78,9 @@ export default async function handler(req, res) {
   ]);
 
   const athleteIds = new Set(athletes.map((a) => a.id));
-  const scoped = achievements.filter((a) => athleteIds.has(a.athlete.id));
+  const allScoped = achievements.filter((a) => athleteIds.has(a.athlete.id));
+  const scoped = allScoped.filter((a) => inRange(a.achievementDate));
+  const meets = allMeets.filter((m) => inRange(m.startDate));
 
   // Medal + level tallies, per-sport tally, top athletes — all server-computed
   const medalTally = medalCounts(scoped);
@@ -131,6 +143,30 @@ export default async function handler(req, res) {
       }).length
     : null;
 
+  // Yearly accomplishments — a per-year roll-up across ALL recorded years
+  // (ignores the selected period) so the office can see what was done each year.
+  const yearMap = new Map();
+  const yearRow = (y) => {
+    if (!yearMap.has(y)) yearMap.set(y, { year: y, achievements: 0, points: 0, athletes: new Set(), meets: 0 });
+    return yearMap.get(y);
+  };
+  for (const a of allScoped) {
+    const d = a.achievementDate ? new Date(a.achievementDate) : null;
+    if (!d || isNaN(d.getTime())) continue;
+    const row = yearRow(d.getFullYear());
+    row.achievements += 1;
+    row.points += computeAchievementPoints(a);
+    row.athletes.add(a.athlete.id);
+  }
+  for (const m of allMeets) {
+    const d = m.startDate ? new Date(m.startDate) : null;
+    if (!d || isNaN(d.getTime())) continue;
+    yearRow(d.getFullYear()).meets += 1;
+  }
+  const byYear = [...yearMap.values()]
+    .map((r) => ({ year: r.year, achievements: r.achievements, points: r.points, athletes: r.athletes.size, meets: r.meets }))
+    .sort((x, y) => y.year - x.year);
+
   return res.status(200).json({
     period: {
       from: (req.query.from || "").slice(0, 10) || null,
@@ -153,6 +189,7 @@ export default async function handler(req, res) {
     sportTally: Object.values(sportTally).sort((x, y) => y.points - x.points),
     topAthletes,
     records,
+    byYear,
     meets,
     medalOrder: MEDAL_ORDER,
     scope: isAdmin ? "all" : "coach",

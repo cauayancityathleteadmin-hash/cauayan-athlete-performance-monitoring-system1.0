@@ -247,6 +247,32 @@ export default function AccomplishmentsReport({ session, isAdmin }) {
               </table>
             </RdSection>
 
+            <RdSection num="VII." title="Yearly accomplishments" meta="all-time, by year">
+              <table className="rd-results">
+                <thead>
+                  <tr>
+                    <th scope="col">Year</th>
+                    <th scope="col" className="num">Achievements</th>
+                    <th scope="col" className="num">Points</th>
+                    <th scope="col" className="num">Athletes</th>
+                    <th scope="col" className="num">Meets held</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(data.byYear || []).map((y) => (
+                    <tr key={y.year}>
+                      <td>{y.year}</td>
+                      <td className="num">{y.achievements}</td>
+                      <td className="num">{y.points}</td>
+                      <td className="num">{y.athletes}</td>
+                      <td className="num">{y.meets}</td>
+                    </tr>
+                  ))}
+                  {!(data.byYear || []).length && <tr><td colSpan="5" className="rd-empty">No accomplishments recorded yet.</td></tr>}
+                </tbody>
+              </table>
+            </RdSection>
+
             <ReportSignatures
               session={session}
               certification="This is to certify that the athletic accomplishments, medal tallies, points, and records reported herein were computed from the official achievement records of the City Sports Development Office of the City Government of Cauayan, Isabela, using the office's standard points system, and are true and correct to the best of our knowledge."
