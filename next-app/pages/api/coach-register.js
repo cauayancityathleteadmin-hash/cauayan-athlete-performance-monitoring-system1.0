@@ -21,7 +21,7 @@ export default async function handler(req, res) {
   if (!rateLimiters.register(`register:${ip}`).allowed) {
     return res.status(429).json({ error: "Too many registration attempts. Please try again later." });
   }
-  const dbRate = await checkRateLimitDb({ scope: "register", key: `register:${ip}`, limit: 3, windowMs: 60 * 60 * 1000 });
+  const dbRate = await checkRateLimitDb({ scope: "register", key: `register:${ip}`, limit: 3, windowMs: 60 * 60 * 1000, failClosed: true });
   if (!dbRate.allowed) {
     return res.status(429).json({ error: "Too many registration attempts. Please try again later." });
   }

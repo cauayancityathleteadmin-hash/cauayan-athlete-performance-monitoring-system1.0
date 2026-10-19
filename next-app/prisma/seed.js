@@ -1,4 +1,5 @@
 require("dotenv/config");
+const crypto = require("node:crypto");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcryptjs");
@@ -142,8 +143,16 @@ async function seedReferenceData() {
 // Helpers for test data
 // ---------------------------------------------------------------------------
 
-const TEST_PASSWORD_COACH = "CoachTest2026!";
-const TEST_PASSWORD_ADMIN = "Admin.101!";
+// M-04: never commit reusable test passwords. Resolve them from the
+// environment when provided, otherwise generate a fresh random password for
+// this seed run. The resolved values are printed at the end so the operator
+// can record them.
+function randomPassword() {
+  return crypto.randomBytes(12).toString("base64url") + "!A1";
+}
+
+const TEST_PASSWORD_COACH = (process.env.SEED_COACH_PASSWORD || "").trim() || randomPassword();
+const TEST_PASSWORD_ADMIN = (process.env.SEED_ADMIN_PASSWORD || "").trim() || randomPassword();
 
 function hash(pw) {
   return bcrypt.hashSync(pw, 12);
@@ -1140,6 +1149,12 @@ async function main() {
 
   if (process.env.SEED_TEST_DATA !== "1") {
     console.log("[seed] SEED_TEST_DATA not set to 1 - skipping test accounts/data.");
+    return;
+  }
+  // M-04: sample/test accounts (with known usernames) must never be created
+  // against a production database. Require an explicit escape hatch.
+  if (process.env.NODE_ENV === "production" && process.env.SEED_ALLOW_PRODUCTION !== "1") {
+    console.log("[seed] Refusing to seed test accounts in production (set SEED_ALLOW_PRODUCTION=1 to override).");
     return;
   }
   await seedTestData(ref);

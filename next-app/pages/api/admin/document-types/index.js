@@ -41,7 +41,7 @@ export default async function handler(req, res) {
     } catch (error) {
       if (error && error.code === "P2002") return res.status(400).json({ error: "A document type with that name already exists." });
       console.error("Document type create failed", error);
-      return res.status(500).json({ error: "The document type could not be added.", detail: String((error && error.message) || error) });
+      return res.status(500).json({ error: "The document type could not be added." });
     }
   }
 
@@ -85,7 +85,7 @@ export default async function handler(req, res) {
     } catch (error) {
       if (error && error.code === "P2002") return res.status(400).json({ error: "A document type with that name already exists." });
       console.error("Document type update failed", error);
-      return res.status(500).json({ error: "The document type could not be updated.", detail: String((error && error.message) || error) });
+      return res.status(500).json({ error: "The document type could not be updated." });
     }
   }
 

@@ -56,7 +56,7 @@ export default async function handler(req, res) {
       });
     } catch (error) {
       console.error("Backup failed:", error);
-      return res.status(500).json({ error: "The backup could not be created.", detail: String((error && error.message) || error) });
+      return res.status(500).json({ error: "The backup could not be created." });
     }
   }
 

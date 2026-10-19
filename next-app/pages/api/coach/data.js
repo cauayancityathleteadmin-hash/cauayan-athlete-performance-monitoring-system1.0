@@ -60,6 +60,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, message: `Your data was restored (${summary.total} records). Only your own athletes, plans, logs, notes and sessions were affected.`, summary });
   } catch (error) {
     console.error("Coach restore failed:", error);
-    return res.status(400).json({ error: String((error && error.message) || error) });
+    return res.status(400).json({ error: "Your data could not be restored. No changes were applied." });
   }
 }

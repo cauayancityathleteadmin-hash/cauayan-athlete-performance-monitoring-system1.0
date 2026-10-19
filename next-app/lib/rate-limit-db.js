@@ -1,15 +1,13 @@
+import crypto from "node:crypto";
 import { prisma } from "./prisma";
 
+// SHA-256 (truncated) — deterministic across serverless instances and resistant
+// to the collision-forcing the old 32-bit rolling hash allowed.
 function hashKey(key) {
-  let hash = 0;
-  for (let i = 0; i < key.length; i += 1) {
-    hash = (hash << 5) - hash + key.charCodeAt(i);
-    hash |= 0;
-  }
-  return (hash >>> 0).toString(36);
+  return crypto.createHash("sha256").update(String(key)).digest("hex").slice(0, 32);
 }
 
-export async function checkRateLimitDb({ scope, key, limit, windowMs }) {
+export async function checkRateLimitDb({ scope, key, limit, windowMs, failClosed = false }) {
   try {
     const now = new Date();
     const bucketKey = hashKey(key);
@@ -52,9 +50,11 @@ export async function checkRateLimitDb({ scope, key, limit, windowMs }) {
     }
     return { allowed: true, retryAfter: 0, hits: result.hits, degraded: false };
   } catch (error) {
-    if (process.env.NODE_ENV !== "production") {
-      console.error("DB rate limiter unavailable, falling back to fail-open:", error.message);
-    }
+    console.error("DB rate limiter unavailable:", error.message);
+    // failClosed (auth endpoints): if we cannot count attempts, deny rather
+    // than let an unbounded stream through. Non-auth endpoints stay
+    // fail-open so a DB blip never blocks ordinary reads/writes.
+    if (failClosed) return { allowed: false, retryAfter: 60, hits: 0, degraded: true };
     return { allowed: true, retryAfter: 0, hits: 0, degraded: true };
   }
 }

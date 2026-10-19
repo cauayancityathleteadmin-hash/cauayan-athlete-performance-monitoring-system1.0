@@ -208,7 +208,12 @@ export async function buildCoachSnapshot(prisma, coachId) {
 async function insertRows(tx, typeMap, table, rows) {
   const cols = typeMap[table] || {};
   for (const row of rows) {
-    const used = Object.keys(row).filter((k) => row[k] !== undefined);
+    // H-02 column allowlist: only accept columns that actually exist on the
+    // target table. A crafted backup cannot introduce unknown column names
+    // (defense in depth against mass-assignment and mid-transaction SQL
+    // failures). Columns legitimately absent from an older backup simply
+    // keep their database defaults.
+    const used = Object.keys(row).filter((k) => row[k] !== undefined && cols[k]);
     if (used.length === 0) continue;
     const colList = used.map(quoteIdent).join(", ");
     const sql = `INSERT INTO ${quoteIdent(table)} (${colList}) VALUES (${used.map((k, i) => castSql(i + 1, cols[k])).join(", ")})`;

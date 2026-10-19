@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   if (!rateLimiters.passwordReset(`forgot:${ip}`).allowed) {
     return res.status(429).json({ error: "Too many requests. Please try again later." });
   }
-  const dbRate = await checkRateLimitDb({ scope: "forgot", key: `forgot:${ip}`, limit: 5, windowMs: 60 * 60 * 1000 });
+  const dbRate = await checkRateLimitDb({ scope: "forgot", key: `forgot:${ip}`, limit: 5, windowMs: 60 * 60 * 1000, failClosed: true });
   if (!dbRate.allowed) {
     return res.status(429).json({ error: "Too many requests. Please try again later." });
   }

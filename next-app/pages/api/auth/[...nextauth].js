@@ -40,7 +40,7 @@ export const authOptions = {
       const ip = String(forwarded).split(",")[0].trim();
       const rate = rateLimiters.login(`login:${ip}:${identifier}`);
       if (!rate.allowed) return null;
-      const dbRate = await checkRateLimitDb({ scope: "login", key: `login:${ip}`, limit: 30, windowMs: 15 * 60 * 1000 });
+      const dbRate = await checkRateLimitDb({ scope: "login", key: `login:${ip}`, limit: 30, windowMs: 15 * 60 * 1000, failClosed: true });
       if (!dbRate.allowed) return null;
       const lock = isLocked(identifier);
       if (lock.locked) return null;
@@ -61,14 +61,24 @@ export const authOptions = {
         await auditLogin(null, false, "Sign-in attempt failed (account not found).");
         return null;
       }
+      // M-05: verify the password BEFORE revealing account status. A wrong
+      // password always yields the same generic failure, so an attacker cannot
+      // probe usernames to learn which are pending. A legitimate coach who knows
+      // the correct password still sees the helpful "pending approval" notice.
+      const passwordOk = await bcrypt.compare(password, normalizeHash(user.passwordHash));
+      if (!passwordOk) {
+        recordFailure(identifier);
+        await auditLogin(user.id, false, "Sign-in attempt failed (wrong credentials).");
+        return null;
+      }
       if (user.status === "pending") {
         recordFailure(identifier);
         await auditLogin(user.id, false, "Sign-in attempt blocked: coach application pending approval.");
         throw new Error("PENDING_APPROVAL");
       }
-      if (user.status !== "active" || !(await bcrypt.compare(password, normalizeHash(user.passwordHash)))) {
+      if (user.status !== "active") {
         recordFailure(identifier);
-        await auditLogin(user.id, false, "Sign-in attempt failed (wrong credentials or inactive account).");
+        await auditLogin(user.id, false, "Sign-in attempt blocked: account not active.");
         return null;
       }
       recordSuccess(identifier);

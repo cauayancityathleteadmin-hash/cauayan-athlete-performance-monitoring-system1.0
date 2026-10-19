@@ -143,7 +143,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, document: doc });
     } catch (error) {
       console.error("Document upload failed", error);
-      return res.status(500).json({ error: "The document could not be saved.", detail: String((error && error.message) || error) });
+      return res.status(500).json({ error: "The document could not be saved." });
     }
   }
 
@@ -206,7 +206,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, document: doc });
     } catch (error) {
       console.error("Document update failed", error);
-      return res.status(500).json({ error: "The document could not be updated.", detail: String((error && error.message) || error) });
+      return res.status(500).json({ error: "The document could not be updated." });
     }
   }
 

@@ -117,7 +117,7 @@ export default async function handler(req, res) {
       rows = parseXlsx(buffer, ATHLETE_IMPORT_HEADERS.length);
     }
   } catch (err) {
-    return res.status(400).json({ error: err instanceof Error ? err.message : "The uploaded file could not be read." });
+    return res.status(400).json({ error: "The uploaded file could not be read." });
   }
 
   if (!rows.length) return res.status(400).json({ error: "The uploaded file is empty." });
@@ -127,7 +127,14 @@ export default async function handler(req, res) {
     headerRow = rows.shift();
     validateImportHeaders(headerRow, isAdmin);
   } catch (err) {
-    return res.status(400).json({ error: err instanceof Error ? err.message : "Invalid file format." });
+    return res.status(400).json({ error: "Invalid file format." });
+  }
+
+  // M-08: hard cap on data rows to bound memory/transaction size (a 16 MB
+  // body could otherwise fan out into an unbounded insert loop).
+  const MAX_IMPORT_ROWS = 2000;
+  if (rows.length > MAX_IMPORT_ROWS) {
+    return res.status(400).json({ error: `Too many rows: ${rows.length}. The import limit is ${MAX_IMPORT_ROWS} athletes per file. Please split the file and import in batches.` });
   }
 
   let currentCoachId = null;
@@ -224,6 +231,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, imported: stats.imported, message: `Successfully imported ${stats.imported} athlete${stats.imported === 1 ? "" : "s"}.` });
   } catch (error) {
     console.error("Athlete import error:", error);
-    return res.status(500).json({ error: error instanceof Error ? error.message : "An unexpected error occurred during import. The transaction was rolled back." });
+    return res.status(500).json({ error: "An unexpected error occurred during import. The transaction was rolled back." });
   }
 }

@@ -64,7 +64,6 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error("Provision failed", error);
-    // Test-only route: always surface detail so we can debug quickly.
-    return res.status(500).json({ error: "Provisioning failed.", detail: String((error && (error.message || error)) || error) });
+    return res.status(500).json({ error: "Provisioning failed." });
   }
 }

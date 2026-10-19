@@ -108,7 +108,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, id: row.id, url });
     } catch (error) {
       console.error("Plan evidence upload failed", error);
-      return res.status(500).json({ error: "The photo could not be uploaded.", detail: String((error && error.message) || error) });
+      return res.status(500).json({ error: "The photo could not be uploaded." });
     }
   }
 

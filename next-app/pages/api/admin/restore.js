@@ -32,7 +32,8 @@ export default async function handler(req, res) {
       if (!snapshot) return res.status(400).json({ error: "Attach a full-system backup file to restore." });
     }
   } catch (error) {
-    return res.status(400).json({ error: "The backup file could not be read.", detail: String((error && error.message) || error) });
+    console.error("Backup file could not be read:", error);
+    return res.status(400).json({ error: "The backup file could not be read." });
   }
 
   let preBackupUrl = null;
@@ -60,6 +61,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, message: `The database was restored from the backup (${summary.total} records). ${preBackupUrl ? "A safety backup was saved before restoring." : ""}`, summary, preBackupUrl });
   } catch (error) {
     console.error("Restore failed:", error);
-    return res.status(500).json({ error: "The restore could not be completed. No changes were applied.", detail: String((error && error.message) || error) });
+    return res.status(500).json({ error: "The restore could not be completed. No changes were applied." });
   }
 }
