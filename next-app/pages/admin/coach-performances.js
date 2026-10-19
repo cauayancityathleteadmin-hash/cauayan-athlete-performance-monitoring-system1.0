@@ -177,17 +177,17 @@ export default function CoachPerformances({ session, coaches }) {
               <table>
                 <thead>
                   <tr>
-                    <th>Coach</th>
-                    <th>Period</th>
-                    <th>Session planning</th>
-                    <th>Exercise selection</th>
-                    <th>Technical</th>
-                    <th>Athlete dev</th>
-                    <th>Communication</th>
-                    <th>Safety</th>
-                    <th>Training impl</th>
-                    <th>Overall</th>
-                    <th>Evaluator</th>
+                    <th scope="col">Coach</th>
+                    <th scope="col">Period</th>
+                    <th scope="col">Session planning</th>
+                    <th scope="col">Exercise selection</th>
+                    <th scope="col">Technical</th>
+                    <th scope="col">Athlete dev</th>
+                    <th scope="col">Communication</th>
+                    <th scope="col">Safety</th>
+                    <th scope="col">Training impl</th>
+                    <th scope="col">Overall</th>
+                    <th scope="col">Evaluator</th>
                   </tr>
                 </thead>
                 <tbody>

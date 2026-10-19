@@ -754,3 +754,33 @@ h1, h2, h3, h4, h5, h6 {
 .field-group > .id-photo-upload {
   width: 100%;
 }
+
+/* Route-change progress bar (components/RouteProgress.js) — immediate visual
+   feedback so a click on a slow route never looks frozen. */
+.apms-route-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 8%;
+  z-index: 3000;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+  box-shadow: 0 0 10px rgba(45, 212, 168, 0.7);
+  transition: width 0.18s ease, opacity 0.3s ease;
+  pointer-events: none;
+}
+.apms-route-progress.loading {
+  animation: apms-progress-grow 12s cubic-bezier(0.1, 0.6, 0.2, 1) forwards;
+}
+.apms-route-progress.done {
+  width: 100%;
+  opacity: 0;
+}
+@keyframes apms-progress-grow {
+  from { width: 8%; }
+  to { width: 92%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .apms-route-progress.loading { animation: none; width: 60%; }
+  .apms-route-progress { transition: opacity 0.3s ease; }
+}

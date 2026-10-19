@@ -238,7 +238,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
             </label>
             <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={toggleDir}>{dir === "asc" ? "Ascending" : "Descending"}</button>
           </div>
-            <div className={styles.tableWrap}><table><thead><tr><th>Code</th><th>Athlete</th><th>Sport / event</th><th>School</th><th>Coach</th><th>Health</th><th>Status</th><th></th></tr></thead><tbody>
+            <div className={styles.tableWrap}><table><thead><tr><th scope="col">Code</th><th scope="col">Athlete</th><th scope="col">Sport / event</th><th scope="col">School</th><th scope="col">Coach</th><th scope="col">Health</th><th scope="col">Status</th><th scope="col"></th></tr></thead><tbody>
               {clientPaginated.map((athlete) => (
                 <tr key={athlete.id}>
                   <td data-label="Code">{athlete.athleteCode}</td>
@@ -260,7 +260,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
                 <div key={sportName} style={{ marginBottom: "var(--space-5)" }}>
                   <h3 className={styles.sectionTitle}>{sportName} <span className={styles.formHint}>({roster.length})</span></h3>
                   <div className={styles.tableWrap}><table>
-                    <thead><tr><th>Code</th><th>Athlete</th><th>Event / discipline</th><th>School</th><th>Coach</th><th>Health</th><th>Status</th><th></th></tr></thead>
+                    <thead><tr><th scope="col">Code</th><th scope="col">Athlete</th><th scope="col">Event / discipline</th><th scope="col">School</th><th scope="col">Coach</th><th scope="col">Health</th><th scope="col">Status</th><th scope="col"></th></tr></thead>
                     <tbody>
                       {roster.map((athlete) => (
                         <tr key={athlete.id}>
@@ -303,10 +303,10 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
             {coachFilter ? (
               <div className={styles.tableWrap}><table>
                 <thead><tr>
-                  <th><button type="button" className={styles.sortLink} onClick={() => toggleDirSort("code")}>{dirSort === "code" && (dirDir === "asc" ? "↑ " : "↓ ")}Code</button></th>
-                  <th><button type="button" className={styles.sortLink} onClick={() => toggleDirSort("name")}>{dirSort === "name" && (dirDir === "asc" ? "↑ " : "↓ ")}Athlete</button></th>
-                  <th><button type="button" className={styles.sortLink} onClick={() => toggleDirSort("sport")}>{dirSort === "sport" && (dirDir === "asc" ? "↑ " : "↓ ")}Sport</button></th>
-                  <th>Coach</th><th>Status</th><th></th>
+                  <th scope="col"><button type="button" className={styles.sortLink} onClick={() => toggleDirSort("code")}>{dirSort === "code" && (dirDir === "asc" ? "↑ " : "↓ ")}Code</button></th>
+                  <th scope="col"><button type="button" className={styles.sortLink} onClick={() => toggleDirSort("name")}>{dirSort === "name" && (dirDir === "asc" ? "↑ " : "↓ ")}Athlete</button></th>
+                  <th scope="col"><button type="button" className={styles.sortLink} onClick={() => toggleDirSort("sport")}>{dirSort === "sport" && (dirDir === "asc" ? "↑ " : "↓ ")}Sport</button></th>
+                  <th scope="col">Coach</th><th scope="col">Status</th><th scope="col"></th>
                 </tr></thead>
                 <tbody>
                   {filteredAll.map((athlete) => (
@@ -326,7 +326,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
                 <h3 className={styles.sectionTitle}>{coachName} <span className={styles.formHint}>({roster.length})</span></h3>
                 {roster.length ? (
                   <div className={styles.tableWrap}><table>
-                    <thead><tr><th>Code</th><th>Athlete</th><th>Sport / event</th><th>School</th><th>Health</th><th>Status</th><th></th></tr></thead>
+                    <thead><tr><th scope="col">Code</th><th scope="col">Athlete</th><th scope="col">Sport / event</th><th scope="col">School</th><th scope="col">Health</th><th scope="col">Status</th><th scope="col"></th></tr></thead>
                     <tbody>
                       {roster.map((athlete) => (
                         <tr key={athlete.id}>
@@ -906,7 +906,7 @@ function CoachRequestsPanel({ athletes, uncoached = [], coaches, ownCoachId, onC
             </div>
           </div>
           <div className={styles.tableWrap}><table>
-            <thead><tr><th>Athlete</th><th>Sport / event</th><th>Reason</th><th>Requested</th><th>Actions</th></tr></thead>
+            <thead><tr><th scope="col">Athlete</th><th scope="col">Sport / event</th><th scope="col">Reason</th><th scope="col">Requested</th><th scope="col">Actions</th></tr></thead>
             <tbody>
               {group.rows.map((t) => (
                 <tr key={t.id}>
@@ -931,7 +931,7 @@ function CoachRequestsPanel({ athletes, uncoached = [], coaches, ownCoachId, onC
       <h3 className={styles.sectionTitle} style={{ marginTop: 24 }}>Requests I sent <span className={styles.formHint}>({sent.length})</span></h3>
       {sent.length === 0 ? <p className={styles.empty}>You have not sent any transfer requests.</p> : (
         <div className={styles.tableWrap}><table>
-          <thead><tr><th>Athlete</th><th>To</th><th>Reason</th><th>Status</th><th>Requested</th><th></th></tr></thead>
+          <thead><tr><th scope="col">Athlete</th><th scope="col">To</th><th scope="col">Reason</th><th scope="col">Status</th><th scope="col">Requested</th><th scope="col"></th></tr></thead>
           <tbody>
             {sent.map((t) => (
               <tr key={t.id}>
@@ -1051,7 +1051,7 @@ function AdminClaimsPanel({ onChanged }) {
             </div>
           </div>
           <div className={styles.tableWrap}><table>
-            <thead><tr><th>Athlete</th><th>Sport / event</th><th>Reason</th><th>Requested</th><th>Actions</th></tr></thead>
+            <thead><tr><th scope="col">Athlete</th><th scope="col">Sport / event</th><th scope="col">Reason</th><th scope="col">Requested</th><th scope="col">Actions</th></tr></thead>
             <tbody>
               {group.rows.map((c) => (
                 <tr key={c.id}>
@@ -1076,7 +1076,7 @@ function AdminClaimsPanel({ onChanged }) {
       <h3 className={styles.sectionTitle} style={{ marginTop: 24 }}>Recent decisions <span className={styles.formHint}>({history.length})</span></h3>
       {history.length === 0 ? <p className={styles.empty}>No requests have been decided yet.</p> : (
         <div className={styles.tableWrap}><table>
-          <thead><tr><th>Athlete</th><th>To coach</th><th>Status</th><th>Note</th><th>Decided</th></tr></thead>
+          <thead><tr><th scope="col">Athlete</th><th scope="col">To coach</th><th scope="col">Status</th><th scope="col">Note</th><th scope="col">Decided</th></tr></thead>
           <tbody>
             {history.map((h) => (
               <tr key={h.id}>

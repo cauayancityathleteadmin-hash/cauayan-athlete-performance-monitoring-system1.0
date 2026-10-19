@@ -197,7 +197,7 @@ export default function CoachProfile({ session, coach }) {
           </div>
           {coach.athletes.length ? (
             <div className={styles.tableWrap}><table>
-              <thead><tr><th>Code</th><th>Athlete</th><th>Sport</th><th>Event / discipline</th><th>Health</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th scope="col">Code</th><th scope="col">Athlete</th><th scope="col">Sport</th><th scope="col">Event / discipline</th><th scope="col">Health</th><th scope="col">Status</th><th scope="col"></th></tr></thead>
               <tbody>
                 {coach.athletes.map((athlete) => (
                   <tr key={athlete.id}>

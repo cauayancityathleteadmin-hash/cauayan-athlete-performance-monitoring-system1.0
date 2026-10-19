@@ -130,7 +130,7 @@ export default function Standings({ session, isAdmin, standings, sports, coachSc
           {filtered.length ? (
             <div className={styles.tableWrap}><table>
               <thead>
-                <tr><th>Rank</th><th>Athlete</th><th>Sport</th><th>Coach</th><th>School</th><th>Achievements</th><th>Medals</th><th>Points</th></tr>
+                <tr><th scope="col">Rank</th><th scope="col">Athlete</th><th scope="col">Sport</th><th scope="col">Coach</th><th scope="col">School</th><th scope="col">Achievements</th><th scope="col">Medals</th><th scope="col">Points</th></tr>
               </thead>
               <tbody>
                 {filtered.map((a) => {

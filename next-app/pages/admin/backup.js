@@ -173,7 +173,7 @@ export default function Backup({ session }) {
         <div className={styles.panel}>
           <h3 style={{ margin: "0 0 12px" }}>Stored off-site snapshots</h3>
           {!snapshots.length ? <p className={styles.empty}>No stored snapshots yet. Create one with the buttons above (or wait for the automatic monthly backup).</p> : (
-            <div className={styles.tableWrap}><table><thead><tr><th>Created (UTC)</th><th>Size</th><th>Restore</th></tr></thead><tbody>
+            <div className={styles.tableWrap}><table><thead><tr><th scope="col">Created (UTC)</th><th scope="col">Size</th><th scope="col">Restore</th></tr></thead><tbody>
               {snapshots.map((snap) => (
                 <tr key={snap.url}>
                   <td data-label="Created (UTC)">{new Date(snap.uploadedAt).toLocaleString()}</td>

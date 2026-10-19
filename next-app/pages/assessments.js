@@ -63,11 +63,11 @@ export default function Assessments({ assessments, catalog, session, page, total
               <table>
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Athlete</th>
-                    <th>Type</th>
-                    <th>Results</th>
-                    <th>Recorded by</th>
+                    <th scope="col">Date</th>
+                    <th scope="col">Athlete</th>
+                    <th scope="col">Type</th>
+                    <th scope="col">Results</th>
+                    <th scope="col">Recorded by</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -164,7 +164,7 @@ function AssessmentForm({ catalog, session }) {
     <form onSubmit={submit} className={styles.formGrid}>
       <div className={styles.fullField}>
         <div className={styles.athleteSearch}>
-          <input type="text" placeholder="Search athlete…" value={search} onChange={(event) => setSearch(event.target.value)} />
+          <input type="text" placeholder="Search athlete…" aria-label="Search athletes" value={search} onChange={(event) => setSearch(event.target.value)} />
           {search.trim() && (
             <div className={styles.matchList}>
               {matches.length ? matches.map((a) => (

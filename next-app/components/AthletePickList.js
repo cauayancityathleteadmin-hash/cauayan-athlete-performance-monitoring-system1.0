@@ -103,7 +103,7 @@ export default function AthletePickList({
           <table>
             <thead>
               <tr>
-                <th style={{ width: 40 }}>
+                <th scope="col" style={{ width: 40 }}>
                   <input
                     type="checkbox"
                     checked={allChecked}
@@ -111,10 +111,10 @@ export default function AthletePickList({
                     aria-label="Select all displayed athletes"
                   />
                 </th>
-                <th>Code</th>
-                <th>Athlete</th>
-                {showSport && <th>Sport / event</th>}
-                {showCoach && <th>Current coach</th>}
+                <th scope="col">Code</th>
+                <th scope="col">Athlete</th>
+                {showSport && <th scope="col">Sport / event</th>}
+                {showCoach && <th scope="col">Current coach</th>}
               </tr>
             </thead>
             <tbody>

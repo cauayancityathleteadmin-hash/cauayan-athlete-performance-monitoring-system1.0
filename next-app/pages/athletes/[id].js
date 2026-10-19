@@ -8,6 +8,8 @@ import AppShell from "../../components/AppShell";
 import IdPhotoUpload from "../../components/IdPhotoUpload";
 import ProfilePhoto from "../../components/ProfilePhoto";
 import AthleteDocuments from "../../components/AthleteDocuments";
+import FormMessage from "../../components/FormMessage";
+import { reloadSoon } from "../../lib/ui-feedback";
 import { CHART_COLORS, CHART_GRID } from "../../lib/chart-config";
 import styles from "../../styles/Dashboard.module.css";
 
@@ -283,7 +285,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
               <span className={`${styles.badge} ${styles.badgePending}`} style={{ alignSelf: "center" }}>Read only</span>
             )}
           </div>
-          {editOpen && <EditAthleteForm athlete={athlete} catalog={catalog} isAdmin={isAdmin} onDone={() => { setEditOpen(false); router.reload(); }} />}
+          {editOpen && <EditAthleteForm athlete={athlete} catalog={catalog} isAdmin={isAdmin} onDone={() => { reloadSoon(router); window.setTimeout(() => setEditOpen(false), 900); }} />}
           <div className={styles.grid}>
             <div className={styles.detailPanel}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-4)", flexWrap: "wrap" }}>
@@ -331,10 +333,10 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
         {/* Health tracking */}
         <section className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Wellness</p><h2>Health tracking</h2></div><span style={{ alignSelf: "center" }}><HealthBadge status={athlete.healthStatus} /></span></div>
-          {canManage && <HealthForm athleteId={athlete.id} onComplete={() => router.reload()} />}
+          {canManage && <HealthForm athleteId={athlete.id} onComplete={() => reloadSoon(router)} />}
           {athlete.healthLogs?.length ? (
             <div className={styles.tableWrap}><table>
-              <thead><tr><th>Status</th><th>Notes</th><th>Reported</th><th>By</th></tr></thead>
+              <thead><tr><th scope="col">Status</th><th scope="col">Notes</th><th scope="col">Reported</th><th scope="col">By</th></tr></thead>
               <tbody>
                 {athlete.healthLogs.map((h) => (
                   <tr key={h.id}>
@@ -406,7 +408,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>History</p><h2>Assessment history</h2></div></div>
           {athlete.assessments?.length ? (
             <div className={styles.tableWrap}><table>
-              <thead><tr><th>Date</th><th>Type</th><th>Metrics</th><th>Recorded by</th></tr></thead>
+              <thead><tr><th scope="col">Date</th><th scope="col">Type</th><th scope="col">Metrics</th><th scope="col">Recorded by</th></tr></thead>
               <tbody>
                 {[...athlete.assessments].reverse().map((a) => (
                   <tr key={a.id}>
@@ -425,7 +427,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
           {/* Status history */}
           <section className={styles.panel}>
 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Timeline</p><h2>Status history</h2></div></div>
-            {canManage && <StatusForm athleteId={athlete.id} currentStatus={athlete.status} onComplete={() => router.reload()} />}
+            {canManage && <StatusForm athleteId={athlete.id} currentStatus={athlete.status} onComplete={() => reloadSoon(router)} />}
             {athlete.statusHistory?.length ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
                 {athlete.statusHistory.map((s) => (
@@ -445,11 +447,11 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
         {/* Coaching notes */}
         <section className={styles.panel}>
 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Observations</p><h2>Coaching notes</h2></div></div>
-          {canManage && <NoteForm athleteId={athlete.id} onComplete={() => router.reload()} />}
+          {canManage && <NoteForm athleteId={athlete.id} onComplete={() => reloadSoon(router)} />}
           {athlete.notes?.length ? (
             <div className={styles.tableWrap}>
               <table>
-                <thead><tr><th>Note</th><th>Author</th><th>Date</th></tr></thead>
+                <thead><tr><th scope="col">Note</th><th scope="col">Author</th><th scope="col">Date</th></tr></thead>
                 <tbody>
                   {athlete.notes.map((n) => (
                     <tr key={n.id}>
@@ -469,7 +471,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Participation</p><h2>Events participated</h2></div></div>
           {athlete.participants?.length ? (
             <div className={styles.tableWrap}><table>
-              <thead><tr><th>Event</th><th>Sport</th><th>Status</th><th>Date</th></tr></thead>
+              <thead><tr><th scope="col">Event</th><th scope="col">Sport</th><th scope="col">Status</th><th scope="col">Date</th></tr></thead>
               <tbody>
                 {athlete.participants.map((p) => (
                   <tr key={p.id}>
@@ -490,7 +492,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
           documents={athlete.documents}
           documentTypes={documentTypes}
           canManage={canManage}
-          onComplete={() => router.reload()}
+          onComplete={() => reloadSoon(router)}
         />
 
         {/* Training plans & assessments */}
@@ -542,12 +544,12 @@ function StatusForm({ athleteId, currentStatus, onComplete }) {
   const [status, setStatus] = React.useState(currentStatus === "active" ? "inactive" : "active");
   const [reason, setReason] = React.useState("");
   const [busy, setBusy] = React.useState(false);
-  const [message, setMessage] = React.useState("");
+  const [message, setMessage] = React.useState(null);
 
   async function submit(event) {
     event.preventDefault();
     setBusy(true);
-    setMessage("");
+    setMessage(null);
     const csrf = await fetch("/api/csrf").then((r) => r.json());
     const response = await fetch(`/api/athletes/${athleteId}/status`, {
       method: "POST",
@@ -556,11 +558,11 @@ function StatusForm({ athleteId, currentStatus, onComplete }) {
     }).catch(() => null);
     const result = response ? await response.json().catch(() => ({})) : {};
     if (response && response.ok && !result.error) {
-      setMessage(result.message || "Updated.");
+      setMessage({ kind: "success", text: result.message || "Status updated." });
       setReason("");
       onComplete();
     } else {
-      setMessage(result.error || "Could not update status.");
+      setMessage({ kind: "error", text: result.error || "Could not update status." });
     }
     setBusy(false);
   }
@@ -579,7 +581,7 @@ function StatusForm({ athleteId, currentStatus, onComplete }) {
         </label>
         <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Update status"}</button>
       </div>
-      {message && <p role="status" className={styles.formHint}>{message}</p>}
+      <FormMessage message={message} />
     </form>
   );
 }
@@ -604,12 +606,12 @@ function HealthForm({ athleteId, onComplete }) {
   const [status, setStatus] = React.useState("healthy");
   const [description, setDescription] = React.useState("");
   const [busy, setBusy] = React.useState(false);
-  const [message, setMessage] = React.useState("");
+  const [message, setMessage] = React.useState(null);
 
   async function submit(event) {
     event.preventDefault();
     setBusy(true);
-    setMessage("");
+    setMessage(null);
     const csrf = await fetch("/api/csrf").then((r) => r.json());
     const response = await fetch(`/api/athletes/${athleteId}/health`, {
       method: "POST",
@@ -619,10 +621,10 @@ function HealthForm({ athleteId, onComplete }) {
     const result = response ? await response.json().catch(() => ({})) : {};
     if (response && response.ok && !result.error) {
       setDescription("");
-      setMessage(result.message || "Health status updated.");
+      setMessage({ kind: "success", text: result.message || "Health status updated." });
       onComplete();
     } else {
-      setMessage(result.error || "Could not update health status.");
+      setMessage({ kind: "error", text: result.error || "Could not update health status." });
     }
     setBusy(false);
   }
@@ -644,7 +646,7 @@ function HealthForm({ athleteId, onComplete }) {
         </label>
         <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Update health"}</button>
       </div>
-      {message && <p role="status" className={styles.formHint}>{message}</p>}
+      <FormMessage message={message} />
     </form>
   );
 }
@@ -652,13 +654,13 @@ function HealthForm({ athleteId, onComplete }) {
 function NoteForm({ athleteId, onComplete }) {
   const [note, setNote] = React.useState("");
   const [busy, setBusy] = React.useState(false);
-  const [message, setMessage] = React.useState("");
+  const [message, setMessage] = React.useState(null);
 
   async function submit(event) {
     event.preventDefault();
     if (!note.trim()) return;
     setBusy(true);
-    setMessage("");
+    setMessage(null);
     const csrf = await fetch("/api/csrf").then((r) => r.json());
     const response = await fetch(`/api/athletes/${athleteId}/notes`, {
       method: "POST",
@@ -668,10 +670,10 @@ function NoteForm({ athleteId, onComplete }) {
     const result = response ? await response.json().catch(() => ({})) : {};
     if (response && response.ok && !result.error) {
       setNote("");
-      setMessage("Coaching note added.");
+      setMessage({ kind: "success", text: "Coaching note added." });
       onComplete();
     } else {
-      setMessage(result.error || "Could not add note.");
+      setMessage({ kind: "error", text: result.error || "Could not add note." });
     }
     setBusy(false);
   }
@@ -681,7 +683,7 @@ function NoteForm({ athleteId, onComplete }) {
       <label>Add an observation about the athlete{String.fromCharCode(39)}s progress</label>
       <textarea className={styles.fieldControl} rows="3" maxLength="5000" placeholder="e.g. Showing consistent gains in sprint endurance; needs focus on starts." value={note} onChange={(e) => setNote(e.target.value)} />
       <button className={styles.primary} disabled={busy || !note.trim()}>{busy ? "Saving..." : "Add note"}</button>
-      {message && <p role="status" className={styles.formHint}>{message}</p>}
+      <FormMessage message={message} />
     </form>
   );
 }

@@ -173,7 +173,7 @@ const statusBadge = (status) => (status === "active" ? <span className={`${style
       <section id="sports">
         <section className={styles.panel}>
           <div className={styles.sectionHeading}><div><h2>Sports</h2><small className={styles.small}>Active sports and their event totals</small></div><span className={styles.countBadge}>{sports.length}</span></div>
-          <div className={styles.tableWrap}><table><thead><tr><th>Sport</th><th>Events</th><th>Status</th><th></th></tr></thead><tbody>{sports.map((sport) => editingSport && editingSport.id === sport.id ? (
+          <div className={styles.tableWrap}><table><thead><tr><th scope="col">Sport</th><th scope="col">Events</th><th scope="col">Status</th><th scope="col"></th></tr></thead><tbody>{sports.map((sport) => editingSport && editingSport.id === sport.id ? (
   <tr key={sport.id}><td colSpan="4"><form onSubmit={saveSport} className={styles.formStack}>
     <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", alignItems: "flex-end" }}>
       <label style={{ flex: "1 1 160px" }}>Name *<input name="sportName" className={styles.fieldControl} required maxLength="100" defaultValue={sport.sportName} /></label>
@@ -189,7 +189,7 @@ const statusBadge = (status) => (status === "active" ? <span className={`${style
       <section id="events">
         <section className={styles.panel}>
           <div className={styles.sectionHeading}><div><h2>Events / Disciplines</h2><small className={styles.small}>Events grouped under each sport</small></div><span className={styles.countBadge}>{events.length}</span></div>
-          <div className={styles.tableWrap}><table><thead><tr><th>Event</th><th>Sport</th><th>Status</th><th></th></tr></thead><tbody>{events.map((event) => editingEvent && editingEvent.id === event.id ? (
+          <div className={styles.tableWrap}><table><thead><tr><th scope="col">Event</th><th scope="col">Sport</th><th scope="col">Status</th><th scope="col"></th></tr></thead><tbody>{events.map((event) => editingEvent && editingEvent.id === event.id ? (
   <tr key={event.id}><td colSpan="4"><form onSubmit={saveEvent} className={styles.formStack}>
     <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", alignItems: "flex-end" }}>
       <label style={{ flex: "1 1 160px" }}>Name *<input name="eventName" className={styles.fieldControl} required maxLength="150" defaultValue={event.eventName} /></label>
@@ -214,7 +214,7 @@ const statusBadge = (status) => (status === "active" ? <span className={`${style
             </div>
             {schoolMessage && <p role="status" className={styles.formHint}>{schoolMessage}</p>}
           </form>
-          <div className={styles.tableWrap}><table><thead><tr><th>School</th><th>Athletes</th><th>Coaches</th><th>Status</th><th></th></tr></thead><tbody>{schools.map((school) => editingSchool && editingSchool.id === school.id ? (
+          <div className={styles.tableWrap}><table><thead><tr><th scope="col">School</th><th scope="col">Athletes</th><th scope="col">Coaches</th><th scope="col">Status</th><th scope="col"></th></tr></thead><tbody>{schools.map((school) => editingSchool && editingSchool.id === school.id ? (
             <tr key={school.id}><td colSpan="5"><form onSubmit={saveSchool} className={styles.formStack}>
               <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", alignItems: "flex-end" }}>
                 <label style={{ flex: "1 1 200px" }}>Name *<input name="schoolName" className={styles.fieldControl} required maxLength="191" defaultValue={school.schoolName} /></label>

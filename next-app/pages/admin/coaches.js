@@ -186,13 +186,13 @@ export default function AdminCoaches({ coaches, session }) {
               <table>
                 <thead>
                   <tr>
-                    <th>Coach</th>
-                    <th>ID</th>
-                    <th>School</th>
-                    <th>Sports</th>
-                    <th>Status</th>
-                    <th>Athletes</th>
-                    <th>Actions</th>
+                    <th scope="col">Coach</th>
+                    <th scope="col">ID</th>
+                    <th scope="col">School</th>
+                    <th scope="col">Sports</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Athletes</th>
+                    <th scope="col">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -254,13 +254,13 @@ export default function AdminCoaches({ coaches, session }) {
                   <table>
                     <thead>
                       <tr>
-                        <th>Coach</th>
-<th>Coach code</th>
-                        <th>School</th>
-                        <th>Sports</th>
-                        <th>Status</th>
-                        <th>Athletes</th>
-                        <th>Actions</th>
+                        <th scope="col">Coach</th>
+<th scope="col">Coach code</th>
+                        <th scope="col">School</th>
+                        <th scope="col">Sports</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Athletes</th>
+                        <th scope="col">Actions</th>
                       </tr>
                     </thead>
                     <tbody>

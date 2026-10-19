@@ -114,25 +114,25 @@ export default function ComplianceReport({ session, isAdmin }) {
               <table className="rd-info">
                 <tbody>
                   <tr>
-                    <th>Athletes covered</th>
+                    <th scope="col">Athletes covered</th>
                     <td>{data.summary.athletes}</td>
-                    <th>Required documents</th>
+                    <th scope="col">Required documents</th>
                     <td>{data.requiredTypes.length}</td>
                   </tr>
                   <tr>
-                    <th>School</th>
+                    <th scope="col">School</th>
                     <td>{schoolId ? data.filters.schools.find((s) => String(s.id) === schoolId)?.schoolName || "—" : "All schools"}</td>
-                    <th>Sport</th>
+                    <th scope="col">Sport</th>
                     <td>{sportId ? data.filters.sports.find((s) => String(s.id) === sportId)?.sportName || "—" : "All sports"}</td>
                   </tr>
                   <tr>
-                    <th>Fully compliant</th>
+                    <th scope="col">Fully compliant</th>
                     <td>{data.summary.complete} of {data.summary.athletes} ({data.summary.percentCompleteAthletes}%)</td>
-                    <th>Document slots valid</th>
+                    <th scope="col">Document slots valid</th>
                     <td>{data.summary.percent === null ? "—" : `${data.summary.percent}%`}</td>
                   </tr>
                   <tr>
-                    <th>Scope</th>
+                    <th scope="col">Scope</th>
                     <td colSpan="3">{isAdmin ? "All registered athletes" : "Athletes assigned to the reporting coach"}</td>
                   </tr>
                 </tbody>
@@ -141,7 +141,7 @@ export default function ComplianceReport({ session, isAdmin }) {
 
             <RdSection num="II." title="Required documents" meta={`${data.requiredTypes.length} type(s)`}>
               <table className="rd-results">
-                <thead><tr><th>#</th><th>Document</th><th>Expiry tracked</th></tr></thead>
+                <thead><tr><th scope="col">#</th><th scope="col">Document</th><th scope="col">Expiry tracked</th></tr></thead>
                 <tbody>
                   {data.requiredTypes.map((t, i) => (
                     <tr key={t.id}><td className="num">{i + 1}</td><td>{t.name}</td><td>{t.hasExpiry ? "Yes" : "No"}</td></tr>
@@ -154,7 +154,7 @@ export default function ComplianceReport({ session, isAdmin }) {
             {data.schoolSummaries.length > 0 && (
               <RdSection num="III." title="Compliance by school">
                 <table className="rd-results">
-                  <thead><tr><th>School</th><th className="num">Athletes</th><th className="num">Compliant</th><th className="num">Incomplete</th></tr></thead>
+                  <thead><tr><th scope="col">School</th><th scope="col" className="num">Athletes</th><th scope="col" className="num">Compliant</th><th scope="col" className="num">Incomplete</th></tr></thead>
                   <tbody>
                     {data.schoolSummaries.map((s) => (
                       <tr key={s.schoolId}><td>{s.name}</td><td className="num">{s.total}</td><td className="num">{s.complete}</td><td className="num">{s.incomplete}</td></tr>
@@ -168,9 +168,9 @@ export default function ComplianceReport({ session, isAdmin }) {
               <table className="rd-results">
                 <thead>
                   <tr>
-                    <th>Athlete</th><th>Code</th><th>School</th><th>Sport</th>
-                    <th className="num">Valid</th><th className="num">%</th>
-                    <th>Missing</th><th>Expiring (30d)</th><th>Expired</th>
+                    <th scope="col">Athlete</th><th scope="col">Code</th><th scope="col">School</th><th scope="col">Sport</th>
+                    <th scope="col" className="num">Valid</th><th scope="col" className="num">%</th>
+                    <th scope="col">Missing</th><th scope="col">Expiring (30d)</th><th scope="col">Expired</th>
                   </tr>
                 </thead>
                 <tbody>

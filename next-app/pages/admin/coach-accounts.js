@@ -158,13 +158,13 @@ export default function AdminCoachAccounts({ coaches, session }) {
             <table>
               <thead>
                 <tr>
-                  <th style={{ width: 40 }}><input type="checkbox" checked={activeCoaches.length > 0 && selectedActive.length === activeCoaches.length} onChange={toggleAll} disabled={activeCoaches.length === 0} style={{ accentColor: "var(--accent)", width: 18, height: 18, cursor: "pointer" }} /></th>
-                  <th>Coach</th>
-                  <th>Email</th>
-                  <th>School</th>
-                  <th>Sports</th>
-                  <th>Approves coaches</th>
-                  <th>Status</th>
+                  <th scope="col" style={{ width: 40 }}><input type="checkbox" checked={activeCoaches.length > 0 && selectedActive.length === activeCoaches.length} onChange={toggleAll} disabled={activeCoaches.length === 0} style={{ accentColor: "var(--accent)", width: 18, height: 18, cursor: "pointer" }} /></th>
+                  <th scope="col">Coach</th>
+                  <th scope="col">Email</th>
+                  <th scope="col">School</th>
+                  <th scope="col">Sports</th>
+                  <th scope="col">Approves coaches</th>
+                  <th scope="col">Status</th>
                 </tr>
               </thead>
               <tbody>

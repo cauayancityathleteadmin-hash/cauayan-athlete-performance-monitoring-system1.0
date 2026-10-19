@@ -547,13 +547,13 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
               <table>
                 <thead>
                   <tr>
-                    <th>Activity</th>
-                    <th>Fitness</th>
-                    <th>Target</th>
-                    <th>Latest status</th>
-                    <th>Completion</th>
-                    <th>Attempts</th>
-                    <th></th>
+                    <th scope="col">Activity</th>
+                    <th scope="col">Fitness</th>
+                    <th scope="col">Target</th>
+                    <th scope="col">Latest status</th>
+                    <th scope="col">Completion</th>
+                    <th scope="col">Attempts</th>
+                    <th scope="col"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -586,7 +586,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
                                     <div className={styles.tableWrap}>
                                       <table style={{ fontSize: 13 }}>
                                         <thead>
-                                          <tr><th style={{ textAlign: "center" }}>Date</th><th>Status</th><th>Measured result</th><th style={{ textAlign: "center" }}>Attempts</th><th>Notes</th></tr>
+                                          <tr><th scope="col" style={{ textAlign: "center" }}>Date</th><th scope="col">Status</th><th scope="col">Measured result</th><th scope="col" style={{ textAlign: "center" }}>Attempts</th><th scope="col">Notes</th></tr>
                                         </thead>
                                         <tbody>
                                           {historyLogs.map((l) => (
@@ -746,7 +746,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
                     <MiniTrend points={trainingTrend(trainingAssessments)} />
                     <div className={styles.tableWrap} style={{ marginTop: "var(--space-4)" }}>
                       <table>
-                        <thead><tr><th>Date</th><th>Rating</th><th>Fitness</th><th>Plan</th><th>Comments</th></tr></thead>
+                        <thead><tr><th scope="col">Date</th><th scope="col">Rating</th><th scope="col">Fitness</th><th scope="col">Plan</th><th scope="col">Comments</th></tr></thead>
                         <tbody>
                           {[...trainingAssessments].reverse().slice(0, 10).map((a) => (
                             <tr key={a.id}>
@@ -803,7 +803,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
                       <MiniTrend points={perf.trend} color={CHART_COLORS.secondary || CHART_COLORS.warning} />
                       <div className={styles.tableWrap} style={{ marginTop: "var(--space-4)" }}>
                         <table>
-                          <thead><tr><th>Date</th><th>Exercise</th><th>Score</th><th>RPE</th></tr></thead>
+                          <thead><tr><th scope="col">Date</th><th scope="col">Exercise</th><th scope="col">Score</th><th scope="col">RPE</th></tr></thead>
                           <tbody>
                             {[...performances].reverse().slice(0, 10).map((p) => (
                               <tr key={p.id}>
@@ -876,7 +876,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
               <section className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Sessions</p><h2>Session history</h2></div></div>
                 <div className={styles.tableWrap}><table>
-                  <thead><tr><th>Date</th><th>Session</th><th>Status</th></tr></thead>
+                  <thead><tr><th scope="col">Date</th><th scope="col">Session</th><th scope="col">Status</th></tr></thead>
                   <tbody>
                     {attendances.map((a) => (
                       <tr key={a.id}>
@@ -923,7 +923,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Wellness</p><h2>Recent health history</h2></div><HealthBadge status={athlete.healthStatus} /></div>
           {healthLogs.length ? (
             <div className={styles.tableWrap}><table>
-              <thead><tr><th>Status</th><th>Notes</th><th>Date</th></tr></thead>
+              <thead><tr><th scope="col">Status</th><th scope="col">Notes</th><th scope="col">Date</th></tr></thead>
               <tbody>
                 {healthLogs.map((h) => (
                   <tr key={h.id}>

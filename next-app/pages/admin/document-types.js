@@ -139,7 +139,7 @@ export default function DocumentTypesAdmin({ session, types: initialTypes = [] }
 
           <div className={styles.tableWrap}>
             <table>
-              <thead><tr><th>Type</th><th>Label</th><th>Required</th><th>Order</th><th>In use</th><th>Status</th><th>Actions</th></tr></thead>
+              <thead><tr><th scope="col">Type</th><th scope="col">Label</th><th scope="col">Required</th><th scope="col">Order</th><th scope="col">In use</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
               <tbody>
                 {types.map((t) => (
                   editingId === t.id ? (

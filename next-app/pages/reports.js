@@ -383,35 +383,35 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
         <table className="rd-info">
           <tbody>
             <tr>
-              <th>Full Name</th>
+              <th scope="col">Full Name</th>
               <td>{athlete.lastName}, {athlete.firstName}{athlete.middleName ? ` ${athlete.middleName}` : ""}{athlete.suffix ? ` ${athlete.suffix}` : ""}</td>
-              <th>Athlete Code</th>
+              <th scope="col">Athlete Code</th>
               <td>{athlete.athleteCode}</td>
             </tr>
             <tr>
-              <th>Date of Birth</th>
+              <th scope="col">Date of Birth</th>
               <td>{formatDate(athlete.birthdate)}</td>
-              <th>Age / Sex</th>
+              <th scope="col">Age / Sex</th>
               <td>{age != null ? `${age} years` : "—"} / {GENDER_LABEL[athlete.gender] || athlete.gender}</td>
             </tr>
             <tr>
-              <th>Civil Status</th>
+              <th scope="col">Civil Status</th>
               <td colSpan="3">—</td>
             </tr>
             <tr>
-              <th>Permanent Address</th>
+              <th scope="col">Permanent Address</th>
               <td colSpan="3">{athlete.address || "—"}</td>
             </tr>
             <tr>
-              <th>Contact No.</th>
+              <th scope="col">Contact No.</th>
               <td>{athlete.contactNumber || "—"}</td>
-              <th>Email Address</th>
+              <th scope="col">Email Address</th>
               <td>{athlete.email || "—"}</td>
             </tr>
             <tr>
-              <th>Record Status</th>
+              <th scope="col">Record Status</th>
               <td>{STATUS_LABEL[athlete.status] || athlete.status}</td>
-              <th>Date Registered</th>
+              <th scope="col">Date Registered</th>
               <td>{athlete.dateRegistered ? formatDate(athlete.dateRegistered) : "—"}</td>
             </tr>
           </tbody>
@@ -422,15 +422,15 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
         <table className="rd-info">
           <tbody>
             <tr>
-              <th>Sport</th>
+              <th scope="col">Sport</th>
               <td>{athlete.sport || "—"}</td>
-              <th>Event / Discipline</th>
+              <th scope="col">Event / Discipline</th>
               <td>{athlete.event || "—"}</td>
             </tr>
             <tr>
-              <th>School / Institution</th>
+              <th scope="col">School / Institution</th>
               <td>{athlete.school || "—"}</td>
-              <th>Head Coach</th>
+              <th scope="col">Head Coach</th>
               <td>{athlete.coach || "—"}</td>
             </tr>
           </tbody>
@@ -440,7 +440,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
           <>
             <div className="rd-sub-section">Coach Assignment History</div>
             <table className="rd-results">
-              <thead><tr><th>Coach</th><th>Code</th><th>From</th><th>To</th><th>Reason / Remarks</th></tr></thead>
+              <thead><tr><th scope="col">Coach</th><th scope="col">Code</th><th scope="col">From</th><th scope="col">To</th><th scope="col">Reason / Remarks</th></tr></thead>
               <tbody>{athlete.coachHistory.slice(0, 20).map((h, i) => <tr key={i}><td>{h.coachName || "—"}</td><td>{h.coachCode || "—"}</td><td>{formatDate(h.startedAt)}</td><td>{h.endedAt ? formatDate(h.endedAt) : "Current"}</td><td>{h.reason || "—"}</td></tr>)}</tbody>
             </table>
           </>
@@ -450,7 +450,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
           <>
             <div className="rd-sub-section">Status History</div>
             <table className="rd-results">
-              <thead><tr><th>Changed From</th><th>Changed To</th><th>Date</th><th>Reason / Remarks</th></tr></thead>
+              <thead><tr><th scope="col">Changed From</th><th scope="col">Changed To</th><th scope="col">Date</th><th scope="col">Reason / Remarks</th></tr></thead>
               <tbody>{athlete.statusHistory.slice(0, 20).map((s, i) => <tr key={i}><td>{s.from ? STATUS_LABEL[s.from] || s.from : "—"}</td><td>{STATUS_LABEL[s.to] || s.to}</td><td>{formatDate(s.changedAt)}</td><td>{s.reason || "—"}</td></tr>)}</tbody>
             </table>
           </>
@@ -461,19 +461,19 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
         <table className="rd-info">
           <tbody>
             <tr>
-              <th>Height</th>
+              <th scope="col">Height</th>
               <td>{heightM ? `${heightM} m` : "—"}</td>
-              <th>Weight</th>
+              <th scope="col">Weight</th>
               <td>{weightKg ? `${weightKg} kg` : "—"}</td>
             </tr>
             <tr>
-              <th>Body Mass Index</th>
+              <th scope="col">Body Mass Index</th>
               <td>{bmi != null ? `${bmi} (${bmiClass})` : "—"}</td>
-              <th>Health Status</th>
+              <th scope="col">Health Status</th>
               <td>{HEALTH_LABEL[athlete.healthStatus] || athlete.healthStatus}</td>
             </tr>
             <tr>
-              <th>Health Notes</th>
+              <th scope="col">Health Notes</th>
               <td colSpan="3">{athlete.healthNotes || "—"}</td>
             </tr>
           </tbody>
@@ -483,7 +483,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
           <>
             <div className="rd-sub-section">Health Log History</div>
             <table className="rd-results">
-              <thead><tr><th>Date Reported</th><th>Status</th><th>Description</th><th>Date Resolved</th></tr></thead>
+              <thead><tr><th scope="col">Date Reported</th><th scope="col">Status</th><th scope="col">Description</th><th scope="col">Date Resolved</th></tr></thead>
               <tbody>{athlete.healthLogs.slice(0, 30).map((h, i) => <tr key={i}><td>{formatDate(h.reportedAt)}</td><td>{HEALTH_LABEL[h.status] || h.status}</td><td>{h.description || "—"}</td><td>{h.resolvedAt ? formatDate(h.resolvedAt) : "Open"}</td></tr>)}</tbody>
             </table>
           </>
@@ -495,7 +495,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
           <div className="rd-assessment" key={assessment.id}>
             <div className="rd-assessment-head">{formatDate(assessment.assessmentDate)} &mdash; {assessment.assessmentType}{assessment.recorder ? <small> &middot; Recorded by {assessment.recorder}</small> : null}</div>
             <table className="rd-results">
-              <thead><tr><th>Metric</th><th>Result</th></tr></thead>
+              <thead><tr><th scope="col">Metric</th><th scope="col">Result</th></tr></thead>
               <tbody>{assessment.results.length ? assessment.results.map((result, i) => <tr key={i}><td>{result.metricName}</td><td className="num"><strong>{result.valueDecimal !== null && result.valueDecimal !== undefined ? Number(result.valueDecimal) + (result.unit ? ` ${result.unit}` : "") : (result.valueText || "—")}</strong>{result.notes ? <p className="rd-empty" style={{ margin: "2px 0 0" }}>{result.notes}</p> : null}</td></tr>) : <tr><td colSpan="2" className="rd-empty">No results recorded.</td></tr>}</tbody>
             </table>
             {assessment.remarks ? <p className="rd-empty" style={{ marginTop: 6 }}>Remarks: {assessment.remarks}</p> : null}
@@ -506,7 +506,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
       {windowedTraining.length > 0 && (
         <RdSection num="V." title="Training Assessments and Fitness Ratings" meta={`${windowedTraining.length} record(s) · ${periodLabel}`}>
           <table className="rd-results">
-            <thead><tr><th>Training Plan</th><th>Date Assessed</th><th>Fitness Dimension</th><th>Rating</th><th>Comments</th></tr></thead>
+            <thead><tr><th scope="col">Training Plan</th><th scope="col">Date Assessed</th><th scope="col">Fitness Dimension</th><th scope="col">Rating</th><th scope="col">Comments</th></tr></thead>
             <tbody>{windowedTraining.slice(0, 20).map((t, i) => <tr key={i}><td>{t.plan || "—"}</td><td>{formatDate(t.dates)}</td><td>{FITNESS_LABEL[t.fitness] || t.fitness}</td><td className="num">{t.rating}/10</td><td>{t.comments || "—"}</td></tr>)}</tbody>
           </table>
         </RdSection>
@@ -530,7 +530,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
           <>
             <div className="rd-sub-section">Assigned Training Plans {activePlans.length > 0 ? `(${activePlans.length} active)` : ""}</div>
             <table className="rd-results">
-              <thead><tr><th>Plan</th><th>Sport</th><th>Status</th><th>Start Date</th><th>End Date</th></tr></thead>
+              <thead><tr><th scope="col">Plan</th><th scope="col">Sport</th><th scope="col">Status</th><th scope="col">Start Date</th><th scope="col">End Date</th></tr></thead>
               <tbody>{athlete.plans.map((p, i) => <tr key={i}><td>{p.planName}</td><td>{p.sport}</td><td>{STATUS_LABEL[p.status] || p.status}</td><td>{p.startDate ? formatDate(p.startDate) : "—"}</td><td>{p.endDate ? formatDate(p.endDate) : "—"}</td></tr>)}</tbody>
             </table>
           </>
@@ -540,7 +540,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
           <>
             <div className="rd-sub-section">Recent Session Attendance <span style={{ fontWeight: 400, fontSize: 12 }}>({periodLabel})</span></div>
             <table className="rd-results">
-              <thead><tr><th>Date</th><th>Session Type</th><th>Sport</th></tr></thead>
+              <thead><tr><th scope="col">Date</th><th scope="col">Session Type</th><th scope="col">Sport</th></tr></thead>
               <tbody>{windowedAttendanceEntries.slice(0, 30).map((a, i) => <tr key={i}><td>{formatDate(a.date)}</td><td>{SESSION_TYPE_LABEL[a.type] || a.type}</td><td>{a.sport}</td></tr>)}</tbody>
             </table>
           </>
@@ -550,7 +550,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
       {windowedExercises.length > 0 && (
         <RdSection num="VII." title="Exercise Performance Log" meta={`${windowedExercises.length} record(s) · ${periodLabel}`}>
           <table className="rd-results">
-            <thead><tr><th>Exercise</th><th>Category</th><th>Score</th><th>Sets / Reps</th><th>Load / Distance</th><th>RPE</th><th>Date</th></tr></thead>
+            <thead><tr><th scope="col">Exercise</th><th scope="col">Category</th><th scope="col">Score</th><th scope="col">Sets / Reps</th><th scope="col">Load / Distance</th><th scope="col">RPE</th><th scope="col">Date</th></tr></thead>
             <tbody>{windowedExercises.slice(0, 30).map((p, i) => <tr key={i}><td>{p.exerciseName}</td><td>{EXERCISE_CATEGORY_LABEL[p.category] || p.category}</td><td className="num">{p.score ?? "—"}</td><td className="num">{p.sets != null ? `${p.sets} / ${p.reps ?? "—"}` : "—"}</td><td className="num">{p.load ? `${p.load} kg` : p.distance ? `${p.distance} m` : "—"}</td><td className="num">{p.rpe ?? "—"}</td><td>{formatDate(p.recordedAt)}</td></tr>)}</tbody>
           </table>
         </RdSection>
@@ -559,7 +559,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
       {windowedAchievements.length > 0 && (
         <RdSection num="VIII." title="Achievements and Awards" meta={`${windowedAchievements.length} in period · ${windowedAchievementPoints} points · ${periodLabel}`}>
           <table className="rd-results">
-            <thead><tr><th>Achievement</th><th>Type</th><th>Medal / Level</th><th>Points</th><th>Date</th><th>Organization</th></tr></thead>
+            <thead><tr><th scope="col">Achievement</th><th scope="col">Type</th><th scope="col">Medal / Level</th><th scope="col">Points</th><th scope="col">Date</th><th scope="col">Organization</th></tr></thead>
             <tbody>{windowedAchievements.map((a, i) => <tr key={i}><td>{a.title}</td><td>{a.type || "—"}</td><td>{(a.medal ? a.medal.toUpperCase() : "—")}{a.level ? ` / ${a.level}` : ""}</td><td className="num">{a.points || "—"}</td><td>{a.date ? formatDate(a.date) : "—"}</td><td>{a.organization || "—"}</td></tr>)}</tbody>
           </table>
         </RdSection>
@@ -568,7 +568,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
       {windowedParticipants.length > 0 && (
         <RdSection num="IX." title="Event Participation" meta={`${windowedParticipants.length} event(s) · ${periodLabel}`}>
           <table className="rd-results">
-            <thead><tr><th>Event</th><th>Sport</th><th>Venue</th><th>Start Date</th><th>Status</th></tr></thead>
+            <thead><tr><th scope="col">Event</th><th scope="col">Sport</th><th scope="col">Venue</th><th scope="col">Start Date</th><th scope="col">Status</th></tr></thead>
             <tbody>{windowedParticipants.map((p, i) => <tr key={i}><td>{p.eventName}</td><td>{p.sport}</td><td>{p.venue || "—"}</td><td>{p.startDate ? formatDate(p.startDate) : "—"}</td><td>{STATUS_LABEL[p.status] || p.status}</td></tr>)}</tbody>
           </table>
         </RdSection>
@@ -641,33 +641,33 @@ function CoachReportCard({ coach, session, prefix }) {
         <table className="rd-info">
           <tbody>
             <tr>
-              <th>Full Name</th>
+              <th scope="col">Full Name</th>
               <td>{coach.lastName}, {coach.firstName}{coach.middleName ? ` ${coach.middleName}` : ""}{coach.suffix ? ` ${coach.suffix}` : ""}</td>
-              <th>Coach Code</th>
+              <th scope="col">Coach Code</th>
               <td>{coach.coachCode}</td>
             </tr>
             <tr>
-              <th>Date of Birth</th>
+              <th scope="col">Date of Birth</th>
               <td>{formatDate(coach.birthdate)}</td>
-              <th>Age</th>
+              <th scope="col">Age</th>
               <td>{age != null ? `${age} years` : "—"}</td>
             </tr>
             <tr>
-              <th>Contact No.</th>
+              <th scope="col">Contact No.</th>
               <td>{coach.contactNumber || "—"}</td>
-              <th>Email Address</th>
+              <th scope="col">Email Address</th>
               <td>{coach.email}</td>
             </tr>
             <tr>
-              <th>School / Institution</th>
+              <th scope="col">School / Institution</th>
               <td>{coach.school || "—"}</td>
-              <th>Record Status</th>
+              <th scope="col">Record Status</th>
               <td>{STATUS_LABEL[coach.status] || coach.status}</td>
             </tr>
             <tr>
-              <th>Date Registered</th>
+              <th scope="col">Date Registered</th>
               <td>{formatDate(coach.dateRegistered)}</td>
-              <th>Sports Coached</th>
+              <th scope="col">Sports Coached</th>
               <td>{(coach.sports && coach.sports.length) ? coach.sports.join(", ") : "—"}</td>
             </tr>
           </tbody>
@@ -677,7 +677,7 @@ function CoachReportCard({ coach, session, prefix }) {
       <RdSection num="II." title="Assigned Athletes" meta={`${coach.athleteCount} total`}>
         {coach.athletes && coach.athletes.length ? (
           <table className="rd-results">
-            <thead><tr><th>Code</th><th>Athlete</th><th>Sport</th><th>Event</th><th>Age</th><th>Sex</th><th>Status</th></tr></thead>
+            <thead><tr><th scope="col">Code</th><th scope="col">Athlete</th><th scope="col">Sport</th><th scope="col">Event</th><th scope="col">Age</th><th scope="col">Sex</th><th scope="col">Status</th></tr></thead>
             <tbody>{coach.athletes.map((a, i) => <tr key={i}><td>{a.athleteCode}</td><td>{a.name}</td><td>{a.sport}</td><td>{a.event || "—"}</td><td>{computeAge(a.birthdate) != null ? computeAge(a.birthdate) : "—"}</td><td>{GENDER_LABEL[a.gender] || a.gender}</td><td>{STATUS_LABEL[a.status] || a.status}</td></tr>)}</tbody>
           </table>
         ) : <p className="rd-empty">No athletes currently assigned.</p>}
@@ -686,7 +686,7 @@ function CoachReportCard({ coach, session, prefix }) {
       <RdSection num="III." title="Training Sessions Conducted" meta={`${coach.sessionCount} session(s)`}>
         {coach.trainingSessions && coach.trainingSessions.length ? (
           <table className="rd-results">
-            <thead><tr><th>Date</th><th>Session Type</th><th>Sport</th><th>Venue</th><th>Attendees</th><th>Notes</th></tr></thead>
+            <thead><tr><th scope="col">Date</th><th scope="col">Session Type</th><th scope="col">Sport</th><th scope="col">Venue</th><th scope="col">Attendees</th><th scope="col">Notes</th></tr></thead>
             <tbody>{coach.trainingSessions.slice(0, 30).map((s, i) => <tr key={i}><td>{formatDate(s.sessionDate)}</td><td>{SESSION_TYPE_LABEL[s.sessionType] || s.sessionType}</td><td>{s.sport}</td><td>{s.venue || "—"}</td><td className="num">{s.attendance}</td><td>{s.notes || "—"}</td></tr>)}</tbody>
           </table>
         ) : <p className="rd-empty">No training sessions recorded.</p>}
@@ -695,7 +695,7 @@ function CoachReportCard({ coach, session, prefix }) {
       <RdSection num="IV." title="Training Plans" meta={`${coach.planCount} plan(s)`}>
         {coach.trainingPlans && coach.trainingPlans.length ? (
           <table className="rd-results">
-            <thead><tr><th>Plan</th><th>Sport</th><th>Status</th><th>Start Date</th><th>End Date</th><th>Athletes Enrolled</th></tr></thead>
+            <thead><tr><th scope="col">Plan</th><th scope="col">Sport</th><th scope="col">Status</th><th scope="col">Start Date</th><th scope="col">End Date</th><th scope="col">Athletes Enrolled</th></tr></thead>
             <tbody>{coach.trainingPlans.map((p, i) => <tr key={i}><td>{p.title}</td><td>{p.sport}</td><td>{STATUS_LABEL[p.status] || p.status}</td><td>{p.startDate ? formatDate(p.startDate) : "—"}</td><td>{p.endDate ? formatDate(p.endDate) : "—"}</td><td className="num">{p.athleteCount}</td></tr>)}</tbody>
           </table>
         ) : <p className="rd-empty">No training plans recorded.</p>}
@@ -706,7 +706,7 @@ function CoachReportCard({ coach, session, prefix }) {
           <div className="rd-assessment" key={i}>
             <div className="rd-assessment-head">{formatDate(p.periodStart)} – {formatDate(p.periodEnd)}{p.evaluator ? <small> &middot; Evaluated by {p.evaluator}</small> : null}</div>
             <table className="rd-results">
-              <thead><tr><th>Session Planning</th><th>Exercise Selection</th><th>Technical Instruction</th><th>Athlete Development</th><th>Communication</th><th>Safety Compliance</th><th>Training Implementation</th><th>Overall</th></tr></thead>
+              <thead><tr><th scope="col">Session Planning</th><th scope="col">Exercise Selection</th><th scope="col">Technical Instruction</th><th scope="col">Athlete Development</th><th scope="col">Communication</th><th scope="col">Safety Compliance</th><th scope="col">Training Implementation</th><th scope="col">Overall</th></tr></thead>
               <tbody><tr>{[p.sessionPlanning, p.exerciseSelection, p.technicalInstruction, p.athleteDevelopment, p.communication, p.safetyCompliance, p.trainingImplementation].map((v, j) => <td key={j} className="num">{v}/10</td>)}<td className="num"><strong>{Number(p.overallScore)}/10</strong></td></tr></tbody>
             </table>
             {p.strengths ? <p className="rd-empty" style={{ marginTop: 6 }}>Strengths: {p.strengths}</p> : null}
@@ -719,7 +719,7 @@ function CoachReportCard({ coach, session, prefix }) {
       {coach.applications.length > 0 && (
         <RdSection num="VI." title="Event Applications" meta={`${coach.applicationCount} application(s)`}>
           <table className="rd-results">
-            <thead><tr><th>Event</th><th>Venue</th><th>Applied At</th><th>Start Date</th><th>Status</th></tr></thead>
+            <thead><tr><th scope="col">Event</th><th scope="col">Venue</th><th scope="col">Applied At</th><th scope="col">Start Date</th><th scope="col">Status</th></tr></thead>
             <tbody>{coach.applications.map((a, i) => <tr key={i}><td>{a.eventName}</td><td>{a.venue || "—"}</td><td>{formatDate(a.appliedAt)}</td><td>{a.startDate ? formatDate(a.startDate) : "—"}</td><td>{STATUS_LABEL[a.status] || a.status}</td></tr>)}</tbody>
           </table>
         </RdSection>
@@ -728,7 +728,7 @@ function CoachReportCard({ coach, session, prefix }) {
       {coach.participants.length > 0 && (
         <RdSection num="VII." title="Event Participation" meta={`${coach.participantCount} participant record(s)`}>
           <table className="rd-results">
-            <thead><tr><th>Event</th><th>Sport</th><th>Venue</th><th>Start Date</th><th>Athlete / Group</th><th>Status</th></tr></thead>
+            <thead><tr><th scope="col">Event</th><th scope="col">Sport</th><th scope="col">Venue</th><th scope="col">Start Date</th><th scope="col">Athlete / Group</th><th scope="col">Status</th></tr></thead>
             <tbody>{coach.participants.map((p, i) => <tr key={i}><td>{p.eventName}</td><td>{p.sport}</td><td>{p.venue || "—"}</td><td>{p.startDate ? formatDate(p.startDate) : "—"}</td><td>{p.athlete || "Coach delegation"}</td><td>{STATUS_LABEL[p.status] || p.status}</td></tr>)}</tbody>
           </table>
         </RdSection>
@@ -1020,7 +1020,7 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
   function sortedHeader(key, label) {
     const active = sortKeyRef === key;
     return (
-      <th key={key}>
+      <th scope="col" key={key}>
         <button type="button" className={`${styles.thBtn} ${active ? styles.thBtnActive : ""}`} onClick={() => setSort(key)}>
           {label}
           <span className={styles.thDir}>{active ? (sortDirRef === "asc" ? "▲" : "▼") : "↕"}</span>
@@ -1093,7 +1093,7 @@ const REPORTS_SECTIONS = [
               <table>
                 <thead>
                   <tr>
-                    <th className={styles.checkCell}><input type="checkbox" style={{ width: 16, height: 16, accentColor: "var(--accent)" }} checked={allVisibleSelected} onChange={toggleVisible} disabled={!visible.length} /></th>
+                    <th scope="col" className={styles.checkCell}><input type="checkbox" style={{ width: 16, height: 16, accentColor: "var(--accent)" }} checked={allVisibleSelected} onChange={toggleVisible} disabled={!visible.length} /></th>
                     {type === "athlete" ? (
                       <>
                         {sortedHeader("name", "Athlete")}

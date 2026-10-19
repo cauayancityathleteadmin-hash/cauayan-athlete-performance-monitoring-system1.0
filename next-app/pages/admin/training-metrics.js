@@ -110,11 +110,11 @@ export default function TrainingMetricsAdmin({ session, usageMap = {} }) {
             <table className={styles.tableWrap} style={{ width: "100%" }}>
               <thead>
                 <tr>
-                  <th style={{ position: "sticky", left: 0, zIndex: 1 }}>Sex / Age Group</th>
+                  <th scope="col" style={{ position: "sticky", left: 0, zIndex: 1 }}>Sex / Age Group</th>
                   {CLASSIFICATION_TIERS.map((tier) => (
-                    <th key={tier}>{TIER_LABELS[tier]}</th>
+                    <th scope="col" key={tier}>{TIER_LABELS[tier]}</th>
                   ))}
-                  <th>Actions</th>
+                  <th scope="col">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -195,7 +195,7 @@ export default function TrainingMetricsAdmin({ session, usageMap = {} }) {
             Unused types can be fully removed.
           </p>
           <div className={styles.tableWrap}><table>
-            <thead><tr><th>Fitness Type</th><th>Primary Metric</th><th>Activities Using</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr><th scope="col">Fitness Type</th><th scope="col">Primary Metric</th><th scope="col">Activities Using</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
             <tbody>
               {FITNESS_TYPES.map((ft) => {
                 const used = getUsage(ft);

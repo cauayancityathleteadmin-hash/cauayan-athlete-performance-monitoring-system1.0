@@ -227,7 +227,7 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
       ) : (
         <div className={styles.tableWrap} style={{ marginTop: 12 }}>
           <table>
-            <thead><tr><th>Fitness Type</th><th>Target</th><th>Latest status</th>{!readOnly && <th></th>}</tr></thead>
+            <thead><tr><th scope="col">Fitness Type</th><th scope="col">Target</th><th scope="col">Latest status</th>{!readOnly && <th scope="col"></th>}</tr></thead>
             <tbody>
               {(() => {
                 const grouped = activities.reduce((acc, act) => {

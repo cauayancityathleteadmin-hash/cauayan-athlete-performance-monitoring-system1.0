@@ -107,27 +107,27 @@ export default function AccomplishmentsReport({ session, isAdmin }) {
               <table className="rd-info">
                 <tbody>
                   <tr>
-                    <th>Period</th>
+                    <th scope="col">Period</th>
                     <td>{periodLabel(data.period.from, data.period.to)}</td>
-                    <th>Scope</th>
+                    <th scope="col">Scope</th>
                     <td>{data.scope === "all" ? "All registered athletes" : "Athletes assigned to the reporting coach"}</td>
                   </tr>
                   <tr>
-                    <th>Achievements</th>
+                    <th scope="col">Achievements</th>
                     <td>{data.counts.achievements} ({data.counts.points} points)</td>
-                    <th>Athletes scoring</th>
+                    <th scope="col">Athletes scoring</th>
                     <td>{data.counts.athletesWithAchievements} of {data.counts.athletesInScope}</td>
                   </tr>
                   <tr>
-                    <th>Schools / Sports</th>
+                    <th scope="col">Schools / Sports</th>
                     <td>{data.counts.schools} / {data.counts.sports}</td>
-                    <th>Meets held</th>
+                    <th scope="col">Meets held</th>
                     <td>{data.counts.meetsHeld}</td>
                   </tr>
                   <tr>
-                    <th>Athletes registered</th>
+                    <th scope="col">Athletes registered</th>
                     <td>{data.counts.athletesRegistered === null ? "All-time (no period filter)" : data.counts.athletesRegistered}</td>
-                    <th>Assessments logged</th>
+                    <th scope="col">Assessments logged</th>
                     <td>{data.counts.assessments}</td>
                   </tr>
                 </tbody>
@@ -138,9 +138,9 @@ export default function AccomplishmentsReport({ session, isAdmin }) {
               <table className="rd-results">
                 <thead>
                   <tr>
-                    <th>Tally</th>
-                    {MEDAL_ORDER.map((m) => <th key={m} className="num">{MEDAL_LABEL[m]}</th>)}
-                    <th className="num">Total</th>
+                    <th scope="col">Tally</th>
+                    {MEDAL_ORDER.map((m) => <th scope="col" key={m} className="num">{MEDAL_LABEL[m]}</th>)}
+                    <th scope="col" className="num">Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -152,7 +152,7 @@ export default function AccomplishmentsReport({ session, isAdmin }) {
                 </tbody>
               </table>
               <table className="rd-results" style={{ marginTop: "12px" }}>
-                <thead><tr><th>Level</th><th className="num">Achievements</th></tr></thead>
+                <thead><tr><th scope="col">Level</th><th scope="col" className="num">Achievements</th></tr></thead>
                 <tbody>
                   {Object.keys(LEVEL_LABEL).filter((l) => data.levelTally[l]).map((l) => (
                     <tr key={l}><td>{LEVEL_LABEL[l]}</td><td className="num">{data.levelTally[l]}</td></tr>
@@ -166,9 +166,9 @@ export default function AccomplishmentsReport({ session, isAdmin }) {
               <table className="rd-results">
                 <thead>
                   <tr>
-                    <th>Sport</th><th className="num">Achievements</th>
-                    <th className="num">Gold</th><th className="num">Silver</th><th className="num">Bronze</th>
-                    <th className="num">Points</th>
+                    <th scope="col">Sport</th><th scope="col" className="num">Achievements</th>
+                    <th scope="col" className="num">Gold</th><th scope="col" className="num">Silver</th><th scope="col" className="num">Bronze</th>
+                    <th scope="col" className="num">Points</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -191,9 +191,9 @@ export default function AccomplishmentsReport({ session, isAdmin }) {
               <table className="rd-results">
                 <thead>
                   <tr>
-                    <th className="num">Rank</th><th>Athlete</th><th>Code</th><th>School</th>
-                    <th className="num">G</th><th className="num">S</th><th className="num">B</th>
-                    <th className="num">Achv.</th><th className="num">Points</th>
+                    <th scope="col" className="num">Rank</th><th scope="col">Athlete</th><th scope="col">Code</th><th scope="col">School</th>
+                    <th scope="col" className="num">G</th><th scope="col" className="num">S</th><th scope="col" className="num">B</th>
+                    <th scope="col" className="num">Achv.</th><th scope="col" className="num">Points</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -217,7 +217,7 @@ export default function AccomplishmentsReport({ session, isAdmin }) {
 
             <RdSection num="V." title="Records set in period" meta={`${data.records.length} record(s)`}>
               <table className="rd-results">
-                <thead><tr><th>Record</th><th>Athlete</th><th>Code</th><th>Sport</th><th>Level</th><th>Date</th></tr></thead>
+                <thead><tr><th scope="col">Record</th><th scope="col">Athlete</th><th scope="col">Code</th><th scope="col">Sport</th><th scope="col">Level</th><th scope="col">Date</th></tr></thead>
                 <tbody>
                   {data.records.map((r, i) => (
                     <tr key={i}>
@@ -232,7 +232,7 @@ export default function AccomplishmentsReport({ session, isAdmin }) {
 
             <RdSection num="VI." title="Meets in period" meta={`${data.meets.length} meet(s)`}>
               <table className="rd-results">
-                <thead><tr><th>Event</th><th>Date</th><th>Venue</th><th>Status</th></tr></thead>
+                <thead><tr><th scope="col">Event</th><th scope="col">Date</th><th scope="col">Venue</th><th scope="col">Status</th></tr></thead>
                 <tbody>
                   {data.meets.slice(0, 40).map((m) => (
                     <tr key={m.id}>

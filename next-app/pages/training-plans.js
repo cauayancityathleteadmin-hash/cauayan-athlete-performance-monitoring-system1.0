@@ -271,7 +271,7 @@ function toDateInput(date) {
 function PlanTable({ plans, progressMap, isAdmin, onEdit, onDelete }) {
   return (
     <div className={styles.tableWrap}><table>
-      <thead><tr><th>Plan</th><th>Frequency</th><th>Sport</th><th>Coach</th><th>Period</th><th>Athletes</th><th>Progress</th><th>Rating</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th scope="col">Plan</th><th scope="col">Frequency</th><th scope="col">Sport</th><th scope="col">Coach</th><th scope="col">Period</th><th scope="col">Athletes</th><th scope="col">Progress</th><th scope="col">Rating</th><th scope="col">Status</th><th scope="col"></th></tr></thead>
       <tbody>
         {plans.map((p) => {
           const prog = progressMap[p.id];

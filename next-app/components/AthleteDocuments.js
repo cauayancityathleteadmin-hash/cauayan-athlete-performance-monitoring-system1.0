@@ -294,7 +294,7 @@ export default function AthleteDocuments({ athleteId, documents = [], documentTy
       {documents.length ? (
         <div className={styles.tableWrap}>
           <table>
-            <thead><tr><th>Document</th><th>Type</th><th>Size</th><th>Uploaded</th><th>Expires</th><th>Actions</th></tr></thead>
+            <thead><tr><th scope="col">Document</th><th scope="col">Type</th><th scope="col">Size</th><th scope="col">Uploaded</th><th scope="col">Expires</th><th scope="col">Actions</th></tr></thead>
             <tbody>
               {documents.map((d) => {
                 const type = d.documentType;

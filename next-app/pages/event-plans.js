@@ -79,12 +79,12 @@ export default function EventPlans({ plans, session, page, totalPages, sports, a
               <table>
                 <thead>
                   <tr>
-                    <th>Event</th>
-                    <th>Schedule</th>
-                    <th>Venue</th>
-                    <th>Sports</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+                    <th scope="col">Event</th>
+                    <th scope="col">Schedule</th>
+                    <th scope="col">Venue</th>
+                    <th scope="col">Sports</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Actions</th>
                   </tr>
                 </thead>
                 <tbody>

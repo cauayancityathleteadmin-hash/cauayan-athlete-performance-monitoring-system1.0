@@ -1,5 +1,5 @@
 import React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
@@ -179,8 +179,11 @@ export default function AppShell({
   children,
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [open, setOpen] = useState(false); // mobile drawer only
+  const [collapsed, setCollapsed] = useState(false); // desktop sidebar only
+  const [isMobile, setIsMobile] = useState(false);
+  const toggleRef = useRef(null);
+  const mobileNavRef = useRef(null);
   const person = session?.user?.name || session?.user?.email || "Account";
   const currentPath = active || router.pathname;
 
@@ -189,6 +192,21 @@ export default function AppShell({
   }
   const isActive = (href) => (isActiveHref(href) ? styles.navLinkActive : undefined);
 
+  // Track the mobile breakpoint so the hamburger means the right thing:
+  // a temporary drawer on phones, a persisted collapse on desktop.
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(max-width: 768px)");
+    const apply = () => {
+      setIsMobile(mq.matches);
+      if (!mq.matches) setOpen(false);
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  // Restore the saved desktop collapse preference once, on mount.
   useEffect(() => {
     if (typeof window === "undefined") return;
     let stored;
@@ -203,17 +221,53 @@ export default function AppShell({
     }
   }, []);
 
+  // Real dialog behaviour while the mobile drawer is open: scroll lock, focus
+  // trap, Escape to close, and focus restored to the toggle on close.
   useEffect(() => {
-    if (!open) return;
+    if (!isMobile || !open) return;
+    const previouslyFocused = document.activeElement;
+    const node = mobileNavRef.current;
+    const focusables = () =>
+      node ? Array.from(node.querySelectorAll('a[href], button:not([disabled])')) : [];
+    const first = focusables()[0];
+    if (first) first.focus();
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
     function onKey(event) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        setOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = focusables();
+      if (!items.length) return;
+      const firstEl = items[0];
+      const lastEl = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === firstEl) {
+        event.preventDefault();
+        lastEl.focus();
+      } else if (!event.shiftKey && document.activeElement === lastEl) {
+        event.preventDefault();
+        firstEl.focus();
+      }
     }
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open]);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+      if (previouslyFocused && typeof previouslyFocused.focus === "function") {
+        previouslyFocused.focus();
+      }
+    };
+  }, [isMobile, open]);
 
   const toggleNav = () => {
-    setOpen((v) => !v);
+    if (isMobile) {
+      setOpen((v) => !v);
+      return;
+    }
     setCollapsed((v) => {
       const next = !v;
       try {
@@ -222,6 +276,16 @@ export default function AppShell({
       return next;
     });
   };
+
+  const toggleIcon = isMobile ? (open ? "✕" : "☰") : collapsed ? "☰" : "✕";
+  const toggleLabel = isMobile
+    ? open
+      ? "Close main menu"
+      : "Open main menu"
+    : collapsed
+    ? "Show menu"
+    : "Hide menu";
+  const toggleExpanded = isMobile ? open : !collapsed;
 
   const nav = (
     <nav className={styles.sidebar} aria-label="Primary navigation">
@@ -252,12 +316,14 @@ export default function AppShell({
           <button
             type="button"
             className={styles.menuToggle}
-            aria-label={collapsed ? "Open main menu" : "Close main menu"}
-            aria-expanded={collapsed ? false : open}
+            ref={toggleRef}
+            aria-label={toggleLabel}
+            aria-expanded={toggleExpanded}
+            aria-controls="apms-mobile-nav"
             onClick={toggleNav}
-            title={collapsed ? "Show menu" : "Hide menu"}
+            title={toggleLabel}
           >
-            {open && !collapsed ? "✕" : "☰"}
+            {toggleIcon}
           </button>
           <div className={styles.brand}>
             <Link href="/dashboard" onClick={() => setOpen(false)}>
@@ -277,7 +343,22 @@ export default function AppShell({
           </button>
         </div>
       </header>
-      {open && <div className={styles.mobileNav}><button type="button" className={styles.menuClose} onClick={() => setOpen(false)}>✕ Close menu</button>{nav}</div>}
+      {open && isMobile && (
+        <>
+          <div className={styles.mobileNavBackdrop} onClick={() => setOpen(false)} aria-hidden="true" />
+          <div
+            className={styles.mobileNav}
+            id="apms-mobile-nav"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Main menu"
+            ref={mobileNavRef}
+          >
+            <button type="button" className={styles.menuClose} onClick={() => setOpen(false)}>✕ Close menu</button>
+            {nav}
+          </div>
+        </>
+      )}
       <div className={styles.layout}>
         {!collapsed && nav}
         <main id="apms-main" className={styles.content} tabIndex={-1}>{children}</main>

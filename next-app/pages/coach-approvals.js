@@ -178,13 +178,13 @@ export default function CoachApprovals({ session }) {
               <table>
                 <thead>
                   <tr>
-                    <th>Applicant</th>
-                    <th>Coach code</th>
-                    <th>Email &amp; contact</th>
-                    <th>School</th>
-                    <th>Sports</th>
-                    <th>Applied</th>
-                    <th>Action</th>
+                    <th scope="col">Applicant</th>
+                    <th scope="col">Coach code</th>
+                    <th scope="col">Email &amp; contact</th>
+                    <th scope="col">School</th>
+                    <th scope="col">Sports</th>
+                    <th scope="col">Applied</th>
+                    <th scope="col">Action</th>
                   </tr>
                 </thead>
                 <tbody>

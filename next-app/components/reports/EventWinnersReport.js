@@ -149,25 +149,25 @@ export default function EventWinnersReport({ session, isAdmin }) {
               <table className="rd-info">
                 <tbody>
                   <tr>
-                    <th>Event</th>
+                    <th scope="col">Event</th>
                     <td colSpan="3">{results.plan.eventName}</td>
                   </tr>
                   <tr>
-                    <th>Venue</th>
+                    <th scope="col">Venue</th>
                     <td>{results.plan.venue || "—"}</td>
-                    <th>Status</th>
+                    <th scope="col">Status</th>
                     <td style={{ textTransform: "capitalize" }}>{STATUS_LABEL[results.plan.status] || results.plan.status}</td>
                   </tr>
                   <tr>
-                    <th>Schedule</th>
+                    <th scope="col">Schedule</th>
                     <td>{fmtDay(results.plan.startDate)}{results.plan.endDate && results.plan.endDate !== results.plan.startDate ? ` — ${fmtDay(results.plan.endDate)}` : ""}</td>
-                    <th>Total entries</th>
+                    <th scope="col">Total entries</th>
                     <td>{results.summary.entries} across {results.summary.sports} sport(s)</td>
                   </tr>
                   <tr>
-                    <th>Records set</th>
+                    <th scope="col">Records set</th>
                     <td>{results.summary.records}</td>
-                    <th>Schools represented</th>
+                    <th scope="col">Schools represented</th>
                     <td>{results.summary.delegations}</td>
                   </tr>
                 </tbody>
@@ -179,9 +179,9 @@ export default function EventWinnersReport({ session, isAdmin }) {
                 <table className="rd-results">
                   <thead>
                     <tr>
-                      <th className="num">#</th><th>Athlete</th><th>Code</th><th>School</th>
-                      <th>Discipline</th><th>Medal</th><th>Level</th>
-                      <th className="num">Points</th><th>Remark</th>
+                      <th scope="col" className="num">#</th><th scope="col">Athlete</th><th scope="col">Code</th><th scope="col">School</th>
+                      <th scope="col">Discipline</th><th scope="col">Medal</th><th scope="col">Level</th>
+                      <th scope="col" className="num">Points</th><th scope="col">Remark</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -213,9 +213,9 @@ export default function EventWinnersReport({ session, isAdmin }) {
               <table className="rd-results">
                 <thead>
                   <tr>
-                    <th>School</th>
-                    {MEDAL_ORDER.map((m) => <th key={m} className="num">{MEDAL_LABEL[m]}</th>)}
-                    <th className="num">Total</th><th className="num">Points</th>
+                    <th scope="col">School</th>
+                    {MEDAL_ORDER.map((m) => <th scope="col" key={m} className="num">{MEDAL_LABEL[m]}</th>)}
+                    <th scope="col" className="num">Total</th><th scope="col" className="num">Points</th>
                   </tr>
                 </thead>
                 <tbody>

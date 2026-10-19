@@ -940,19 +940,19 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
         <table className="mkTable">
           <thead>
             <tr className="mkTypeRow">
-              <th />
+              <th scope="col" />
               {fitnessGroups.map((g) => (
-                <th key={g.fitness} colSpan={g.columns.length}>
+                <th scope="col" key={g.fitness} colSpan={g.columns.length}>
                   <span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)" }}>{FITNESS_META[g.fitness] || g.fitness}</span>
                 </th>
               ))}
             </tr>
 <tr>
-              <th className="fix">Athlete</th>
+              <th scope="col" className="fix">Athlete</th>
               {columns.map((column) => {
                 const withPhoto = column.members.filter((m) => evFor(m.athleteId)).length;
                 return (
-                  <th key={column.gkey} style={{ minWidth: 170 }}>
+                  <th scope="col" key={column.gkey} style={{ minWidth: 170 }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                       <strong>{column.activityName}</strong>
                       <small style={{ color: "var(--muted)", fontWeight: 400 }}>{FITNESS_META[column.fitnessType] || column.fitnessType}{column.dayIndex ? ` · Day ${column.dayIndex}` : ""}</small>
@@ -1168,8 +1168,8 @@ function MonitoringGrid({ data, athletes, maxWeek, currentWeek, onWeekChange }) 
         <table>
           <thead>
             <tr>
-              <th style={{ minWidth: 180 }}>Athlete</th>
-              {days.map((d, i) => <th key={i} style={{ textAlign: "center" }}>{d}</th>)}
+              <th scope="col" style={{ minWidth: 180 }}>Athlete</th>
+              {days.map((d, i) => <th scope="col" key={i} style={{ textAlign: "center" }}>{d}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -1337,13 +1337,13 @@ function AthleteRosterTable({ plan, athletes, activities, logs, isAdmin, latestR
       <table>
         <thead>
           <tr>
-            <th>Athlete</th>
-            <th>Sport</th>
-            <th>Health</th>
-            <th>Completion</th>
-            <th>Rating</th>
-            <th>Last session</th>
-            <th style={{ textAlign: "right" }}></th>
+            <th scope="col">Athlete</th>
+            <th scope="col">Sport</th>
+            <th scope="col">Health</th>
+            <th scope="col">Completion</th>
+            <th scope="col">Rating</th>
+            <th scope="col">Last session</th>
+            <th scope="col" style={{ textAlign: "right" }}></th>
           </tr>
         </thead>
         <tbody>
