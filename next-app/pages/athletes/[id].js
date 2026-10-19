@@ -8,6 +8,7 @@ import AppShell from "../../components/AppShell";
 import IdPhotoUpload from "../../components/IdPhotoUpload";
 import ProfilePhoto from "../../components/ProfilePhoto";
 import AthleteDocuments from "../../components/AthleteDocuments";
+import PageSectionTabs from "../../components/PageSectionTabs";
 import FormMessage from "../../components/FormMessage";
 import { reloadSoon } from "../../lib/ui-feedback";
 import { CHART_COLORS, CHART_GRID } from "../../lib/chart-config";
@@ -259,6 +260,22 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
   const latestAssessment = athlete.assessments?.[athlete.assessments.length - 1];
   const firstAssessment = athlete.assessments?.[0];
 
+  // In-page section tabs (AGENTS: long feature pages get PageSectionTabs, not
+  // sidebar nesting). Each id matches a section below; the component handles
+  // scroll-spy + URL hash deep-linking (#overview, #health, …).
+  const sectionTabs = [
+    { sectionId: "overview", label: "Overview" },
+    { sectionId: "health", label: "Health" },
+    { sectionId: "progress", label: "Progress" },
+    { sectionId: "trends", label: "Trends" },
+    { sectionId: "assessments", label: "Assessments" },
+    { sectionId: "training", label: "Training" },
+    { sectionId: "events", label: "Events" },
+    { sectionId: "documents", label: "Documents" },
+    { sectionId: "status", label: "Status" },
+    { sectionId: "notes", label: "Notes" },
+  ];
+
   return (
     <>
       <Head><title>{athlete.firstName} {athlete.lastName} | Athlete Profile</title></Head>
@@ -275,8 +292,9 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
           </div>
         </div>
 
+        <PageSectionTabs sections={sectionTabs}>
         {/* Overview */}
-        <section className={styles.panel}>
+        <section id="overview" className={styles.panel}>
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Information</p><h2>Overview</h2></div>
             {canManage ? (
@@ -331,7 +349,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
         </section>
 
         {/* Health tracking */}
-        <section className={styles.panel}>
+        <section id="health" className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Wellness</p><h2>Health tracking</h2></div><span style={{ alignSelf: "center" }}><HealthBadge status={athlete.healthStatus} /></span></div>
           {canManage && <HealthForm athleteId={athlete.id} onComplete={() => reloadSoon(router)} />}
           {athlete.healthLogs?.length ? (
@@ -352,7 +370,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
         </section>
 
         {/* Progress summary */}
-        <section className={styles.panel}>
+        <section id="progress" className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Progress</p><h2>Summary</h2></div></div>
           <div className={styles.grid}>
             <div className={styles.detailPanel}>
@@ -389,7 +407,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
         </section>
 
         {/* Timeline charts */}
-        <section className={styles.panel}>
+        <section id="trends" className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Trends</p><h2>Performance timeline</h2></div></div>
           {series.length ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -404,7 +422,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
         </section>
 
         {/* Assessment history */}
-        <section className={styles.panel}>
+        <section id="assessments" className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>History</p><h2>Assessment history</h2></div></div>
           {athlete.assessments?.length ? (
             <div className={styles.tableWrap}><table>
@@ -425,7 +443,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
 
         <div className={styles.grid}>
           {/* Status history */}
-          <section className={styles.panel}>
+          <section id="status" className={styles.panel}>
 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Timeline</p><h2>Status history</h2></div></div>
             {canManage && <StatusForm athleteId={athlete.id} currentStatus={athlete.status} onComplete={() => reloadSoon(router)} />}
             {athlete.statusHistory?.length ? (
@@ -445,7 +463,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
         </div>
 
         {/* Coaching notes */}
-        <section className={styles.panel}>
+        <section id="notes" className={styles.panel}>
 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Observations</p><h2>Coaching notes</h2></div></div>
           {canManage && <NoteForm athleteId={athlete.id} onComplete={() => reloadSoon(router)} />}
           {athlete.notes?.length ? (
@@ -467,7 +485,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
         </section>
 
 {/* Participation: events by the athlete */}
-        <section className={styles.panel}>
+        <section id="events" className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Participation</p><h2>Events participated</h2></div></div>
           {athlete.participants?.length ? (
             <div className={styles.tableWrap}><table>
@@ -487,16 +505,18 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
         </section>
 
         {/* Documents */}
-        <AthleteDocuments
-          athleteId={athlete.id}
-          documents={athlete.documents}
-          documentTypes={documentTypes}
-          canManage={canManage}
-          onComplete={() => reloadSoon(router)}
-        />
+        <div id="documents">
+          <AthleteDocuments
+            athleteId={athlete.id}
+            documents={athlete.documents}
+            documentTypes={documentTypes}
+            canManage={canManage}
+            onComplete={() => reloadSoon(router)}
+          />
+        </div>
 
         {/* Training plans & assessments */}
-        <section className={styles.panel}>
+        <section id="training" className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Training plan &amp; assessments</h2></div><Link href="/training-plans">Open training</Link></div>
           <div className={styles.grid}>
             <div className={styles.detailPanel}>
@@ -535,6 +555,7 @@ export default function AthleteProfile({ session, athlete, catalog, canManage, p
             </div>
           </div>
         </section>
+        </PageSectionTabs>
       </AppShell>
     </>
   );
