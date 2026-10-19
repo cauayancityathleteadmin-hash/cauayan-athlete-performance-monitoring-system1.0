@@ -33,6 +33,24 @@ export default async function handler(req, res) {
   const recorder = Number(session.user.id);
   const drafts = [];
 
+  // Batch-fetch every referenced athlete and metric up front: 2 queries total
+  // instead of 2 per entry (audit Q-M12 — the old loop issued up to 60 serial
+  // round-trips). Validation below is unchanged, just done against the maps.
+  const athleteIds = [...new Set(entries.map((entry) => Number(entry?.athleteId)).filter(Number.isInteger))];
+  const metricIds = [
+    ...new Set(
+      entries
+        .flatMap((entry) => (Array.isArray(entry?.results) ? entry.results.map((result) => Number(result.metricId)) : []))
+        .filter(Number.isInteger)
+    ),
+  ];
+  const [athleteRows, metricRows] = await Promise.all([
+    prisma.athlete.findMany({ where: { id: { in: athleteIds } }, include: { sport: true, coach: true } }),
+    prisma.performanceMetric.findMany({ where: { id: { in: metricIds }, status: "active" }, include: { event: true } }),
+  ]);
+  const athleteById = new Map(athleteRows.map((athlete) => [athlete.id, athlete]));
+  const metricById = new Map(metricRows.map((metric) => [metric.id, metric]));
+
   for (const entry of entries) {
     const athleteId = Number(entry?.athleteId);
     const assessmentType = text(entry?.assessmentType, 100) || "Regular Assessment";
@@ -42,19 +60,19 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Each assessment needs an athlete and at least one metric result." });
     }
 
-    const athlete = await prisma.athlete.findUnique({ where: { id: athleteId }, include: { sport: true, coach: true } });
+    const athlete = athleteById.get(athleteId);
     if (!athlete) return res.status(404).json({ error: `Athlete #${athleteId} not found.` });
     if (session.user.role === "coach" && (!athlete.coach || athlete.coach.userId !== recorder)) {
       return res.status(403).json({ error: `Coaches may assess only athletes assigned to them (${athlete.athleteCode}).` });
     }
 
-    const metricIds = results.map((result) => Number(result.metricId));
-    if (metricIds.some((id) => !Number.isInteger(id)) || new Set(metricIds).size !== metricIds.length) {
+    const entryMetricIds = results.map((result) => Number(result.metricId));
+    if (entryMetricIds.some((id) => !Number.isInteger(id)) || new Set(entryMetricIds).size !== entryMetricIds.length) {
       return res.status(400).json({ error: `Metric results are invalid or duplicated for ${athlete.athleteCode}.` });
     }
 
-    const metrics = await prisma.performanceMetric.findMany({ where: { id: { in: metricIds }, status: "active" }, include: { event: true } });
-    if (metrics.length !== metricIds.length || metrics.some((metric) => metric.event.sportId !== athlete.sportId)) {
+    const metrics = entryMetricIds.map((id) => metricById.get(id)).filter(Boolean);
+    if (metrics.length !== entryMetricIds.length || metrics.some((metric) => metric.event.sportId !== athlete.sportId)) {
       return res.status(400).json({ error: `One or more metrics do not belong to ${athlete.athleteCode}'s sport.` });
     }
 
