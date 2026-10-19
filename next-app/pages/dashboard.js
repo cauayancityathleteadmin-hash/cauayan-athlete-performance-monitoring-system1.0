@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/router";
 import { getSession, useSession } from "next-auth/react";
 import { prisma } from "../lib/prisma";
+import { evaluateCompliance } from "../lib/compliance";
 import styles from "../styles/Dashboard.module.css";
 import AppShell from "../components/AppShell";
 
@@ -106,6 +107,64 @@ export async function getServerSideProps(context) {
     return [...map.values()].map((r) => ({ name: r.name, avg: r.count ? Math.round((r.total / r.count) * 10) / 10 : 0 })).sort((a, b) => b.avg - a.avg);
   })();
 
+  // Triage: who needs attention, and what competition is coming up next.
+  const healthAttention = await prisma.athlete.findMany({
+    where: { ...(coachScope || {}), healthStatus: { in: ["sick", "injured", "recovering", "inactive"] } },
+    orderBy: { updatedAt: "desc" },
+    take: 6,
+    select: { id: true, firstName: true, lastName: true, healthStatus: true },
+  });
+
+  const requiredDocTypes = await prisma.documentType.findMany({
+    where: { isRequired: true, status: "active" },
+    select: { id: true, name: true, hasExpiry: true },
+  });
+  const docAttention = [];
+  if (requiredDocTypes.length) {
+    const docRows = await prisma.athleteDocument.findMany({
+      where: { ...(coachScope ? { athlete: coachScope } : {}), expiresAt: { not: null } },
+      select: {
+        athleteId: true,
+        documentTypeId: true,
+        expiresAt: true,
+        athlete: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+    const byAthlete = new Map();
+    for (const row of docRows) {
+      if (!byAthlete.has(row.athleteId)) byAthlete.set(row.athleteId, { athlete: row.athlete, docs: [] });
+      byAthlete.get(row.athleteId).docs.push({ documentTypeId: row.documentTypeId, expiresAt: row.expiresAt });
+    }
+    for (const entry of byAthlete.values()) {
+      const c = evaluateCompliance(entry.docs, requiredDocTypes, now);
+      if (c.expired.length || c.expiring.length) {
+        docAttention.push({
+          id: entry.athlete.id,
+          name: `${entry.athlete.firstName} ${entry.athlete.lastName}`,
+          expired: c.expired.length,
+          expiring: c.expiring.length,
+        });
+      }
+    }
+    docAttention.sort((a, b) => b.expired - a.expired || b.expiring - a.expiring || a.name.localeCompare(b.name));
+  }
+
+  const nextEventRow = await prisma.eventPlan.findFirst({
+    where: { status: "open", startDate: { gte: fromToday } },
+    orderBy: { startDate: "asc" },
+    select: { id: true, eventName: true, venue: true, startDate: true, _count: { select: { participants: true } } },
+  });
+  const nextEvent = nextEventRow
+    ? {
+        id: nextEventRow.id,
+        eventName: nextEventRow.eventName,
+        venue: nextEventRow.venue,
+        startDate: nextEventRow.startDate.toISOString(),
+        participants: nextEventRow._count.participants,
+        daysUntil: Math.max(0, Math.ceil((nextEventRow.startDate.getTime() - now.getTime()) / 86400000)),
+      }
+    : null;
+
   return {
     props: {
       session,
@@ -117,6 +176,9 @@ export async function getServerSideProps(context) {
       coachEvalAverages: JSON.parse(JSON.stringify(coachEvalAverages)),
       achievementsCount,
       upcomingSessions: upcomingSessions.map((item) => ({ ...item, sessionDate: item.sessionDate.toISOString() })),
+      healthAttention: JSON.parse(JSON.stringify(healthAttention)),
+      docAttention: JSON.parse(JSON.stringify(docAttention.slice(0, 6))),
+      nextEvent,
     },
   };
 }
@@ -142,7 +204,7 @@ function FeatureCard({ eyebrow, title, href, children }) {
   );
 }
 
-export default function Dashboard({ stats, completion = [], ratingSeries = [], upcomingSessions = [], healthDist = [], coachEvalAverages = [], achievementsCount, greetingName }) {
+export default function Dashboard({ stats, completion = [], ratingSeries = [], upcomingSessions = [], healthDist = [], coachEvalAverages = [], achievementsCount, greetingName, healthAttention = [], docAttention = [], nextEvent = null }) {
   const router = useRouter();
   const { data: session } = useSession();
   useEffect(() => {
@@ -191,6 +253,63 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
           {stats.healthIssues > 0 && <Link className={`${styles.alertItem} ${styles.alertDanger}`} href="/athletes?health=flagged"><span className={`${styles.dot} ${styles.dotDanger}`} aria-hidden="true" /><span><strong>{stats.healthIssues} athlete{stats.healthIssues === 1 ? "" : "s"} flagged for health</strong><small>Family doctor and manager notes need attention.</small></span></Link>}
         </section>
       ) : null}
+      {(healthAttention.length > 0 || docAttention.length > 0 || nextEvent) && (
+        <section className={styles.grid} aria-label="Needs attention and next event">
+          <div className={styles.panel}>
+            <div className={styles.panelHeader}>
+              <div><p className={styles.eyebrow}>Triage</p><h2>Needs attention</h2></div>
+              <Link href="/athletes?health=flagged">Athletes</Link>
+            </div>
+            {healthAttention.length === 0 && docAttention.length === 0 ? (
+              <p className={styles.empty}>No athletes need attention right now.</p>
+            ) : (
+              <div className={styles.alertList} style={{ marginTop: 0 }}>
+                {healthAttention.map((a) => (
+                  <Link key={`h-${a.id}`} className={`${styles.alertItem} ${styles.alertDanger}`} href={`/athletes/${a.id}`}>
+                    <span className={`${styles.dot} ${styles.dotDanger}`} aria-hidden="true" />
+                    <span><strong>{a.firstName} {a.lastName}</strong><small>Health: {a.healthStatus}</small></span>
+                  </Link>
+                ))}
+                {docAttention.map((a) => (
+                  <Link key={`d-${a.id}`} className={`${styles.alertItem} ${styles.alertWarn}`} href={`/athletes/${a.id}`}>
+                    <span className={`${styles.dot} ${styles.dotWarn}`} aria-hidden="true" />
+                    <span>
+                      <strong>{a.name}</strong>
+                      <small>
+                        {a.expired ? `${a.expired} expired` : ""}
+                        {a.expired && a.expiring ? " · " : ""}
+                        {a.expiring ? `${a.expiring} expiring soon` : ""} document{a.expired + a.expiring === 1 ? "" : "s"}
+                      </small>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className={styles.panel}>
+            <div className={styles.panelHeader}>
+              <div><p className={styles.eyebrow}>Competition</p><h2>Next event</h2></div>
+              <Link href="/event-plans">Events</Link>
+            </div>
+            {nextEvent ? (
+              <div className={styles.scheduleItem} style={{ marginTop: 0 }}>
+                <div className={styles.dateChip}>
+                  <strong>{nextEvent.daysUntil}</strong>
+                  <small>{nextEvent.daysUntil === 1 ? "day" : "days"}</small>
+                </div>
+                <div className={styles.scheduleMeta}>
+                  <strong>{nextEvent.eventName}</strong>
+                  <small>
+                    {nextEvent.venue} · {new Date(nextEvent.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} · {nextEvent.participants} participant{nextEvent.participants === 1 ? "" : "s"}
+                  </small>
+                </div>
+              </div>
+            ) : (
+              <p className={styles.empty}>No upcoming open event plans.</p>
+            )}
+          </div>
+        </section>
+      )}
       {upcomingSessions && upcomingSessions.length > 0 && (
         <section className={styles.scheduleList} aria-label="Upcoming training sessions">
           {upcomingSessions?.map((item) => {
