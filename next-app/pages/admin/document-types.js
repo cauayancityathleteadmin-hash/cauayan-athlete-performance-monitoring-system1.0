@@ -139,7 +139,7 @@ export default function DocumentTypesAdmin({ session, types: initialTypes = [] }
 
           <div className={styles.tableWrap}>
             <table>
-              <thead><tr><th scope="col">Type</th><th scope="col">Label</th><th scope="col">Required</th><th scope="col">Order</th><th scope="col">In use</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+              <thead><tr><th scope="col">Type</th><th scope="col">Label</th><th scope="col">Required</th><th scope="col">Validity</th><th scope="col">Order</th><th scope="col">In use</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
               <tbody>
                 {types.map((t) => (
                   editingId === t.id ? (
@@ -166,6 +166,7 @@ export default function DocumentTypesAdmin({ session, types: initialTypes = [] }
                       <td data-label="Type"><strong>{t.name}</strong></td>
                       <td data-label="Label">{t.isOther ? <span className={`${styles.badge} ${styles.badgePending}`}>Other · free label</span> : <span className={`${styles.badge} ${styles.badgeMuted}`}>Fixed</span>}</td>
                       <td data-label="Required">{t.isRequired ? <span className={`${styles.badge} ${styles.badgeActive}`}>Required</span> : <span className={`${styles.badge} ${styles.badgeMuted}`}>Optional</span>}</td>
+                      <td data-label="Validity">{t.hasExpiry ? `${t.expiryMonths ? t.expiryMonths : ""}${t.expiryMonths ? " months" : "Expires"}` : "No expiry"}</td>
                       <td data-label="Order">{t.sortOrder}</td>
                       <td data-label="In use">{t._count?.documents || 0}</td>
                       <td data-label="Status">{t.status === "active" ? <span className={`${styles.badge} ${styles.badgeActive}`}>Active</span> : <span className={`${styles.badge} ${styles.badgeMuted}`}>Inactive</span>}</td>
