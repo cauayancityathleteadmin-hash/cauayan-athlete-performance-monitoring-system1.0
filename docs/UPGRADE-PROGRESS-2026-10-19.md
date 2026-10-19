@@ -43,3 +43,19 @@ the athlete profile (no duplicate).
 ## Health
 `main` HEAD `dac76f8` → live `https://cauayan-athlete-performance-monitor-indol.vercel.app`
 `/api/health` = 200 `{"status":"ok","db":"up"}`; regression 46/46.
+
+## Session 2 - 2026-10-19 (events results -> auto-achievements)
+
+- **7 + 15 Events results -> auto achievements** (commit `df2c499`): DONE and
+  live-verified. Migration `20261019120000_add_event_results` applied to the live
+  Neon DB: `event_plans.event_level` (TEXT, nullable) + `event_participants.result_medal`
+  and `result_recorded_at` (nullable). New admin-only API
+  `POST /api/admin/event-plans/results` records or clears a participant's medal; saving
+  a medal creates/updates the linked `Achievement` (level taken from the plan, date from
+  the meet, sport from the participant), so Standing, the athlete profile, and the
+  `/api/reports/event-winners` report all update automatically - no double entry.
+  Clearing a result deletes the linked achievement. UI: event plans gained a Level field
+  (create/edit + detail) and a "Results" section per plan with a medal picker per athlete.
+  Single source: `MEDALS` now exported from `lib/points.js` (shared with AchievementForm).
+  Live round-trip test: 8/8 checks pass (record -> winners report +1 -> clear -> restored;
+  invalid medal 400; coach 403). Zero net data change.
