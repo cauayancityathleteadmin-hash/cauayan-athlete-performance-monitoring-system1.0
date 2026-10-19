@@ -47,6 +47,14 @@ export async function getServerSideProps(context) {
     events: await prisma.event.findMany({ where: { status: "active" }, orderBy: { eventName: "asc" }, select: { id: true, eventName: true, sportId: true } }),
   };
 
+  // Recent meets for the achievement form's meet picker (open/closed only — drafts & cancelled are not real results sources)
+  const meets = await prisma.eventPlan.findMany({
+    where: { status: { in: ["open", "closed"] } },
+    orderBy: { startDate: "desc" },
+    take: 30,
+    select: { id: true, eventName: true, startDate: true, venue: true, status: true },
+  });
+
   // Fetch achievements with event category for points calculation
   const achievements = await prisma.achievement.findMany({
     where: { athleteId },
@@ -65,6 +73,8 @@ export async function getServerSideProps(context) {
       sport: { select: { sportName: true } },
       eventId: true,
       event: { select: { eventName: true, eventCategory: true } },
+      eventPlanId: true,
+      eventPlan: { select: { eventName: true, startDate: true } },
       certificateUrl: true,
     },
   });
@@ -77,6 +87,7 @@ export async function getServerSideProps(context) {
       athlete: JSON.parse(JSON.stringify(athlete)),
       achievements: JSON.parse(JSON.stringify(achievements)),
       catalog: JSON.parse(JSON.stringify(catalog)),
+      meets: JSON.parse(JSON.stringify(meets)),
     },
   };
 }
@@ -99,8 +110,9 @@ function levelChip(level) {
   return <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: "var(--radius-xl)", background: "rgba(6,38,30,.35)", border: "1px solid var(--border)", fontSize: 11, fontWeight: 700 }}>{labels[level] || level}</span>;
 }
 
-export default function StandingDetail({ session, isAdmin, canManage, athlete, achievements, catalog }) {
+export default function StandingDetail({ session, isAdmin, canManage, athlete, achievements, catalog, meets = [] }) {
   const router = useRouter();
+  const [editId, setEditId] = React.useState(null);
   const athleteName = `${athlete.firstName} ${athlete.middleName ? athlete.middleName + " " : ""}${athlete.lastName}`;
 
   // Compute per-achievement points
@@ -152,12 +164,24 @@ export default function StandingDetail({ session, isAdmin, canManage, athlete, a
                       <span style={{ marginLeft: 8, color: "var(--accent)", fontWeight: 700 }}>{a.points} pts</span>
                       {a.isRecord && <span style={{ marginLeft: 8, color: "#fbbf24", fontSize: 11, fontWeight: 700, background: "rgba(251,191,36,.12)", padding: "1px 6px", borderRadius: "var(--radius-md)" }}>RECORD</span>}
                     </div>
-                    <small style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>{fmtDate(a.achievementDate)}</small>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      {canManage && (
+                        <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setEditId(editId === a.id ? null : a.id)}>
+                          {editId === a.id ? "Close" : "Edit"}
+                        </button>
+                      )}
+                      <small style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>{fmtDate(a.achievementDate)}</small>
+                    </div>
                   </div>
 
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
                     {a.medal && medalBadge(a.medal)}
                     {a.level && levelChip(a.level)}
+                    {a.eventPlan && (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: "var(--radius-xl)", background: "rgba(45,212,168,.1)", border: "1px solid rgba(45,212,168,.35)", fontSize: 11, fontWeight: 700, color: "var(--accent)" }}>
+                        🏅 {a.eventPlan.eventName}{a.eventPlan.startDate ? ` · ${fmtDate(a.eventPlan.startDate)}` : ""}
+                      </span>
+                    )}
                   </div>
 
                   {a.achievementType && (
@@ -184,8 +208,20 @@ export default function StandingDetail({ session, isAdmin, canManage, athlete, a
 
         {canManage && (
           <section className={styles.panel}>
-            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Recognition</p><h2>Add achievement</h2></div></div>
-            <AchievementForm athleteId={athlete.id} catalog={catalog} onComplete={() => router.reload()} />
+            <div className={styles.panelHeader}>
+              <div>
+                <p className={styles.eyebrow}>Recognition</p>
+                <h2>{editId ? "Edit achievement" : "Add achievement"}</h2>
+              </div>
+            </div>
+            <AchievementForm
+              athleteId={athlete.id}
+              catalog={catalog}
+              meets={meets}
+              initial={editId ? achievementsWithPoints.find((a) => a.id === editId) || null : null}
+              onComplete={() => router.reload()}
+              onCancel={() => setEditId(null)}
+            />
           </section>
         )}
       </AppShell>

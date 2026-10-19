@@ -25,6 +25,32 @@ export default async function handler(req, res) {
     }
   }
 
+  function parseAchievementBody(body) {
+    const title = text(body?.title, 150, true);
+    const achievementType = text(body?.achievementType, 100);
+    const organization = text(body?.organization, 191);
+    const description = text(body?.description, 2000);
+    const medal = text(body?.medal, 50);
+    const level = text(body?.level, 50);
+    const isRecord = body?.isRecord === true || body?.isRecord === "true";
+    const certificateUrl = text(body?.certificateUrl, 500);
+    const sportId = validId(body?.sportId);
+    const eventId = validId(body?.eventId);
+    const eventPlanId = validId(body?.eventPlanId);
+    let achievementDate = null;
+    if (body?.achievementDate) {
+      const parsed = new Date(`${String(body.achievementDate).slice(0, 10)}T00:00:00Z`);
+      if (!isNaN(parsed.getTime())) achievementDate = parsed;
+    }
+    return { title, achievementType, organization, description, medal, level, isRecord, certificateUrl, sportId, eventId, eventPlanId, achievementDate };
+  }
+
+  async function eventPlanExists(eventPlanId) {
+    if (!eventPlanId) return true;
+    const plan = await prisma.eventPlan.findUnique({ where: { id: eventPlanId }, select: { id: true } });
+    return !!plan;
+  }
+
   if (req.method === "GET") {
     const achievements = await prisma.achievement.findMany({
       where: { athleteId },
@@ -35,38 +61,26 @@ export default async function handler(req, res) {
 
   if (req.method === "POST") {
     if (!requireCsrf(req, res)) return;
-    const title = text(req.body?.title, 150, true);
-    const achievementType = text(req.body?.achievementType, 100);
-    const organization = text(req.body?.organization, 191);
-    const description = text(req.body?.description, 2000);
-    const medal = text(req.body?.medal, 50);
-    const level = text(req.body?.level, 50);
-    const isRecord = req.body?.isRecord === true || req.body?.isRecord === "true";
-    const certificateUrl = text(req.body?.certificateUrl, 500);
-    const sportId = validId(req.body?.sportId);
-    const eventId = validId(req.body?.eventId);
-    let achievementDate = null;
-    if (req.body?.achievementDate) {
-      const parsed = new Date(`${String(req.body.achievementDate).slice(0, 10)}T00:00:00Z`);
-      if (!isNaN(parsed.getTime())) achievementDate = parsed;
-    }
-    if (!title) return res.status(400).json({ error: "Achievement title is required." });
+    const fields = parseAchievementBody(req.body);
+    if (!fields.title) return res.status(400).json({ error: "Achievement title is required." });
+    if (!(await eventPlanExists(fields.eventPlanId))) return res.status(400).json({ error: "Selected meet was not found." });
 
     const achievement = await prisma.$transaction([
       prisma.achievement.create({
         data: {
           athleteId,
-          achievementTitle: title,
-          achievementType: achievementType || null,
-          organization: organization || null,
-          description: description || null,
-          achievementDate,
-          medal: medal || null,
-          level: level || null,
-          isRecord,
-          sportId: sportId || null,
-          eventId: eventId || null,
-          certificateUrl: certificateUrl || null,
+          achievementTitle: fields.title,
+          achievementType: fields.achievementType || null,
+          organization: fields.organization || null,
+          description: fields.description || null,
+          achievementDate: fields.achievementDate,
+          medal: fields.medal || null,
+          level: fields.level || null,
+          isRecord: fields.isRecord,
+          sportId: fields.sportId || null,
+          eventId: fields.eventId || null,
+          eventPlanId: fields.eventPlanId || null,
+          certificateUrl: fields.certificateUrl || null,
         },
       }),
       prisma.auditLog.create({
@@ -74,12 +88,55 @@ export default async function handler(req, res) {
           action: "create",
           entityType: "achievement",
           entityId: 0,
-          description: `Added achievement "${title}" for athlete #${athleteId}`,
+          description: `Added achievement "${fields.title}" for athlete #${athleteId}`,
         },
       }),
     ]);
 
     return res.status(201).json({ success: true, achievement: JSON.parse(JSON.stringify(achievement[0])) });
+  }
+
+  if (req.method === "PUT") {
+    if (!requireCsrf(req, res)) return;
+    const id = validId(req.body?.id);
+    if (!id) return res.status(400).json({ error: "Invalid achievement ID." });
+
+    const existing = await prisma.achievement.findFirst({ where: { id, athleteId }, select: { id: true } });
+    if (!existing) return res.status(404).json({ error: "Achievement not found." });
+
+    const fields = parseAchievementBody(req.body);
+    if (!fields.title) return res.status(400).json({ error: "Achievement title is required." });
+    if (!(await eventPlanExists(fields.eventPlanId))) return res.status(400).json({ error: "Selected meet was not found." });
+
+    const achievement = await prisma.$transaction([
+      prisma.achievement.update({
+        where: { id },
+        data: {
+          achievementTitle: fields.title,
+          achievementType: fields.achievementType || null,
+          organization: fields.organization || null,
+          description: fields.description || null,
+          achievementDate: fields.achievementDate,
+          medal: fields.medal || null,
+          level: fields.level || null,
+          isRecord: fields.isRecord,
+          sportId: fields.sportId || null,
+          eventId: fields.eventId || null,
+          eventPlanId: fields.eventPlanId || null,
+          certificateUrl: fields.certificateUrl || null,
+        },
+      }),
+      prisma.auditLog.create({
+        data: {
+          action: "update",
+          entityType: "achievement",
+          entityId: id,
+          description: `Updated achievement "${fields.title}" for athlete #${athleteId}`,
+        },
+      }),
+    ]);
+
+    return res.status(200).json({ success: true, achievement: JSON.parse(JSON.stringify(achievement[0])) });
   }
 
   return res.status(405).json({ error: "Method not allowed." });

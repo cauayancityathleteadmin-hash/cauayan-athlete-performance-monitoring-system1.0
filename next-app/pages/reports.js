@@ -10,6 +10,11 @@ import { computeAchievementPoints } from "../lib/points";
 import { gsspData } from "../lib/gssp-cache";
 import AppShell from "../components/AppShell";
 import PageSectionTabs from "../components/PageSectionTabs";
+import ComplianceReport from "../components/reports/ComplianceReport";
+import AccomplishmentsReport from "../components/reports/AccomplishmentsReport";
+import EventWinnersReport from "../components/reports/EventWinnersReport";
+import { printScope } from "../lib/report-doc";
+import { PERIOD_PRESETS, presetRange, periodText, inPeriod } from "../lib/period-presets";
 import styles from "../styles/Dashboard.module.css";
 import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_LEGEND, CHART_COLORS } from "../lib/chart-config";
 
@@ -334,6 +339,15 @@ function RdSection({ num, title, meta, children }) {
 
 function AthleteReportCard({ athlete, session, from, to, prefix }) {
   const windowed = athlete.assessments.filter((assessment) => (!from || assessment.assessmentDate >= new Date(from).toISOString()) && (!to || assessment.assessmentDate <= new Date(new Date(to).getTime() + 86400000).toISOString()));
+  // Period-scoped time-based lists (Step 8: the From/To period now filters every
+  // dated list in the personnel record, not just assessment records).
+  const windowedAchievements = athlete.achievements.filter((a) => inPeriod(a.date, from, to));
+  const windowedParticipants = athlete.participants.filter((p) => inPeriod(p.startDate, from, to));
+  const windowedNotes = athlete.notes.filter((n) => inPeriod(n.date, from, to));
+  const windowedTraining = athlete.trainingAssessments.filter((t) => inPeriod(t.dates, from, to));
+  const windowedAttendanceEntries = athlete.attendanceEntries.filter((a) => inPeriod(a.date, from, to));
+  const windowedExercises = athlete.exercisePerformances.filter((p) => inPeriod(p.recordedAt, from, to));
+  const windowedAchievementPoints = windowedAchievements.reduce((sum, a) => sum + (Number(a.points) || 0), 0);
   const last = athlete.assessments[0];
   const reportRef = `${prefix}${athlete.athleteCode}-${from || "all"}${to ? `-${to}` : ""}`;
   const issued = formatDate(new Date().toISOString());
@@ -489,11 +503,11 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
         )) : <p className="rd-empty">No assessments were found within the selected date window.</p>}
       </RdSection>
 
-      {athlete.trainingAssessments.length > 0 && (
-        <RdSection num="V." title="Training Assessments and Fitness Ratings" meta={`${athlete.trainingAssessments.length} record(s)`}>
+      {windowedTraining.length > 0 && (
+        <RdSection num="V." title="Training Assessments and Fitness Ratings" meta={`${windowedTraining.length} record(s) · ${periodLabel}`}>
           <table className="rd-results">
             <thead><tr><th>Training Plan</th><th>Date Assessed</th><th>Fitness Dimension</th><th>Rating</th><th>Comments</th></tr></thead>
-            <tbody>{athlete.trainingAssessments.slice(0, 20).map((t, i) => <tr key={i}><td>{t.plan || "—"}</td><td>{formatDate(t.dates)}</td><td>{FITNESS_LABEL[t.fitness] || t.fitness}</td><td className="num">{t.rating}/10</td><td>{t.comments || "—"}</td></tr>)}</tbody>
+            <tbody>{windowedTraining.slice(0, 20).map((t, i) => <tr key={i}><td>{t.plan || "—"}</td><td>{formatDate(t.dates)}</td><td>{FITNESS_LABEL[t.fitness] || t.fitness}</td><td className="num">{t.rating}/10</td><td>{t.comments || "—"}</td></tr>)}</tbody>
           </table>
         </RdSection>
       )}
@@ -522,47 +536,47 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
           </>
         )}
 
-        {athlete.attendanceEntries.length > 0 && (
+        {windowedAttendanceEntries.length > 0 && (
           <>
-            <div className="rd-sub-section">Recent Session Attendance</div>
+            <div className="rd-sub-section">Recent Session Attendance <span style={{ fontWeight: 400, fontSize: 12 }}>({periodLabel})</span></div>
             <table className="rd-results">
               <thead><tr><th>Date</th><th>Session Type</th><th>Sport</th></tr></thead>
-              <tbody>{athlete.attendanceEntries.slice(0, 30).map((a, i) => <tr key={i}><td>{formatDate(a.date)}</td><td>{SESSION_TYPE_LABEL[a.type] || a.type}</td><td>{a.sport}</td></tr>)}</tbody>
+              <tbody>{windowedAttendanceEntries.slice(0, 30).map((a, i) => <tr key={i}><td>{formatDate(a.date)}</td><td>{SESSION_TYPE_LABEL[a.type] || a.type}</td><td>{a.sport}</td></tr>)}</tbody>
             </table>
           </>
         )}
       </RdSection>
 
-      {athlete.exercisePerformances.length > 0 && (
-        <RdSection num="VII." title="Exercise Performance Log" meta={`${athlete.exercisePerformances.length} recent record(s)`}>
+      {windowedExercises.length > 0 && (
+        <RdSection num="VII." title="Exercise Performance Log" meta={`${windowedExercises.length} record(s) · ${periodLabel}`}>
           <table className="rd-results">
             <thead><tr><th>Exercise</th><th>Category</th><th>Score</th><th>Sets / Reps</th><th>Load / Distance</th><th>RPE</th><th>Date</th></tr></thead>
-            <tbody>{athlete.exercisePerformances.slice(0, 30).map((p, i) => <tr key={i}><td>{p.exerciseName}</td><td>{EXERCISE_CATEGORY_LABEL[p.category] || p.category}</td><td className="num">{p.score ?? "—"}</td><td className="num">{p.sets != null ? `${p.sets} / ${p.reps ?? "—"}` : "—"}</td><td className="num">{p.load ? `${p.load} kg` : p.distance ? `${p.distance} m` : "—"}</td><td className="num">{p.rpe ?? "—"}</td><td>{formatDate(p.recordedAt)}</td></tr>)}</tbody>
+            <tbody>{windowedExercises.slice(0, 30).map((p, i) => <tr key={i}><td>{p.exerciseName}</td><td>{EXERCISE_CATEGORY_LABEL[p.category] || p.category}</td><td className="num">{p.score ?? "—"}</td><td className="num">{p.sets != null ? `${p.sets} / ${p.reps ?? "—"}` : "—"}</td><td className="num">{p.load ? `${p.load} kg` : p.distance ? `${p.distance} m` : "—"}</td><td className="num">{p.rpe ?? "—"}</td><td>{formatDate(p.recordedAt)}</td></tr>)}</tbody>
           </table>
         </RdSection>
       )}
 
-      {athlete.achievements.length > 0 && (
-        <RdSection num="VIII." title="Achievements and Awards" meta={`${athlete.achievementCount} total · ${athlete.pointsTotal} total points`}>
+      {windowedAchievements.length > 0 && (
+        <RdSection num="VIII." title="Achievements and Awards" meta={`${windowedAchievements.length} in period · ${windowedAchievementPoints} points · ${periodLabel}`}>
           <table className="rd-results">
             <thead><tr><th>Achievement</th><th>Type</th><th>Medal / Level</th><th>Points</th><th>Date</th><th>Organization</th></tr></thead>
-            <tbody>{athlete.achievements.map((a, i) => <tr key={i}><td>{a.title}</td><td>{a.type || "—"}</td><td>{(a.medal ? a.medal.toUpperCase() : "—")}{a.level ? ` / ${a.level}` : ""}</td><td className="num">{a.points || "—"}</td><td>{a.date ? formatDate(a.date) : "—"}</td><td>{a.organization || "—"}</td></tr>)}</tbody>
+            <tbody>{windowedAchievements.map((a, i) => <tr key={i}><td>{a.title}</td><td>{a.type || "—"}</td><td>{(a.medal ? a.medal.toUpperCase() : "—")}{a.level ? ` / ${a.level}` : ""}</td><td className="num">{a.points || "—"}</td><td>{a.date ? formatDate(a.date) : "—"}</td><td>{a.organization || "—"}</td></tr>)}</tbody>
           </table>
         </RdSection>
       )}
 
-      {athlete.participants.length > 0 && (
-        <RdSection num="IX." title="Event Participation" meta={`${athlete.participants.length} event(s)`}>
+      {windowedParticipants.length > 0 && (
+        <RdSection num="IX." title="Event Participation" meta={`${windowedParticipants.length} event(s) · ${periodLabel}`}>
           <table className="rd-results">
             <thead><tr><th>Event</th><th>Sport</th><th>Venue</th><th>Start Date</th><th>Status</th></tr></thead>
-            <tbody>{athlete.participants.map((p, i) => <tr key={i}><td>{p.eventName}</td><td>{p.sport}</td><td>{p.venue || "—"}</td><td>{p.startDate ? formatDate(p.startDate) : "—"}</td><td>{STATUS_LABEL[p.status] || p.status}</td></tr>)}</tbody>
+            <tbody>{windowedParticipants.map((p, i) => <tr key={i}><td>{p.eventName}</td><td>{p.sport}</td><td>{p.venue || "—"}</td><td>{p.startDate ? formatDate(p.startDate) : "—"}</td><td>{STATUS_LABEL[p.status] || p.status}</td></tr>)}</tbody>
           </table>
         </RdSection>
       )}
 
-      {athlete.notes.length > 0 && (
-        <RdSection num="X." title="Coaching Notes" meta={`${athlete.notes.length} note(s)`}>
-          {athlete.notes.slice(0, 20).map((n, i) => (
+      {windowedNotes.length > 0 && (
+        <RdSection num="X." title="Coaching Notes" meta={`${windowedNotes.length} note(s) · ${periodLabel}`}>
+          {windowedNotes.slice(0, 20).map((n, i) => (
             <div className="rd-assessment" key={i}>
               <div className="rd-assessment-head">{formatDate(n.date)}{n.author ? <small> &middot; {n.author}</small> : null}</div>
               <p className="rd-empty" style={{ margin: 0 }}>{n.note}</p>
@@ -925,6 +939,7 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
   const [selected, setSelected] = React.useState([]);
   const [from, setFrom] = React.useState("");
   const [to, setTo] = React.useState("");
+  const [periodPreset, setPeriodPreset] = React.useState("all");
   const [search, setSearch] = React.useState("");
 
   const [sortKey, setSortKey] = React.useState("name");
@@ -967,6 +982,15 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
     setCSearch("");
   }
 
+  // Period presets (Step 8): the preset sets From/To; editing a date is "custom".
+  function applyPeriod(preset) {
+    setPeriodPreset(preset);
+    if (preset === "custom") return;
+    const range = presetRange(preset);
+    setFrom(range.from);
+    setTo(range.to);
+  }
+
   const query = (type === "athlete" ? search : cSearch).trim().toLowerCase();
   const visible = list
     .filter((item) => {
@@ -1006,17 +1030,24 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
   }
 
 const REPORTS_SECTIONS = [
-    { label: "Selection", sectionId: "selection" },
-    { label: "Table", sectionId: "table" },
-    { label: "Reports", sectionId: "reports" },
+    { label: "Records", sectionId: "records" },
+    { label: "Accomplishments", sectionId: "accomplishments" },
+    { label: "Event winners", sectionId: "winners" },
+    { label: "Compliance", sectionId: "compliance" },
   ];
+
+  // Print scoping (see lib/report-doc.js + styles/report-print.css): the
+  // default workspace printed by Ctrl+P is the personnel Records workspace.
+  React.useEffect(() => {
+    if (typeof document !== "undefined") document.body.dataset.printScope = "records";
+  }, []);
 
   return (
     <>
       <Head><title>Official Reports | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Official & performance records" title="Official Reports" active="/reports">
-        <PageSectionTabs sections={REPORTS_SECTIONS} defaultSection="selection">
-          <section id="selection">
+        <PageSectionTabs sections={REPORTS_SECTIONS} defaultSection="records">
+          <section id="records">
             <section className={styles.intro}><div><p className={styles.eyebrow}>Generate</p><h2>Official personnel records</h2><p>Select one or more records to produce a complete official personnel record covering registration, physical and health profile, performance records, training, attendance, achievements, and event participation. {isAdmin ? "Generate reports for any athlete or coach." : "You can generate reports for the athletes assigned to you."}</p></div></section>
 
             <section className={styles.panel}>
@@ -1029,14 +1060,29 @@ const REPORTS_SECTIONS = [
 
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Selection</p><h2>{type === "athlete" ? "Athletes" : "Coaches"}</h2></div></div>
 
+          {type === "athlete" && (
+            <div style={{ marginTop: "var(--space-4)" }}>
+              <span style={{ display: "block", fontSize: "var(--text-sm)", color: "var(--muted)", marginBottom: 6 }}>
+                Report period — {periodText(from, to)}
+              </span>
+              <div className={styles.segmented} style={{ flexWrap: "wrap" }}>
+                {PERIOD_PRESETS.map((p) => (
+                  <button key={p.id} type="button" aria-pressed={periodPreset === p.id} className={periodPreset === p.id ? styles.active : ""} onClick={() => applyPeriod(p.id)}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className={styles.toolbar} style={{ marginTop: "var(--space-4)" }}>
             <label>Search {type === "athlete" ? "athletes" : "coaches"}<input type="text" placeholder={type === "athlete" ? "Name, code, sport, event, coach, school…" : "Name, code, email, sport, school…"} value={type === "athlete" ? search : cSearch} onChange={(event) => (type === "athlete" ? setSearch(event.target.value) : setCSearch(event.target.value))} /></label>
-            {type === "athlete" && <label>From date<input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></label>}
-            {type === "athlete" && <label>To date<input type="date" value={to} onChange={(event) => setTo(event.target.value)} /></label>}
+            {type === "athlete" && <label>From<input type="date" value={from} onChange={(event) => { setFrom(event.target.value); setPeriodPreset("custom"); }} /></label>}
+            {type === "athlete" && <label>To<input type="date" value={to} onChange={(event) => { setTo(event.target.value); setPeriodPreset("custom"); }} /></label>}
             {count > 0 && <p className={styles.selectionSummary}>{count > 1 ? `${count} selected` : "1 selected"}<button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setSelected([])}>Clear</button></p>}
 <div className={styles.stackedActions}>
               <button className={styles.primary} disabled={!count} onClick={() => scrollRef.current?.scrollIntoView({ behavior: "smooth" })}>Show {count ? `${count} report${count > 1 ? "s" : ""}` : "reports"}</button>
-              <button className={styles.secondary} disabled={!count} onClick={() => window.print()}>Print</button>
+              <button className={styles.secondary} disabled={!count} onClick={() => printScope("records")}>Print</button>
             </div>
           </div>
         </section>
@@ -1116,8 +1162,11 @@ const REPORTS_SECTIONS = [
                 ))
               : filtered.map((coach) => <CoachReportCard key={coach.id} coach={coach} session={session} prefix={prefix} />)}
           </div>
-          {filtered.length > 0 && <div className={styles.stackedActions}><button className={styles.secondary} onClick={() => window.print()}>Print all reports</button></div>}
+          {filtered.length > 0 && <div className={styles.stackedActions}><button className={styles.secondary} onClick={() => printScope("records")}>Print all reports</button></div>}
         </section>
+        <AccomplishmentsReport session={session} isAdmin={isAdmin} />
+        <EventWinnersReport session={session} isAdmin={isAdmin} />
+        <ComplianceReport session={session} isAdmin={isAdmin} />
       </PageSectionTabs>
       </AppShell>
     </>

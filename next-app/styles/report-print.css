@@ -372,4 +372,45 @@
   .rd-assessment {
     page-break-inside: avoid;
   }
+
+  /* ---- Workspace scoping (see lib/report-doc.js printScope) ------------
+     Each report type renders into its own .print-workspace container.
+     body[data-print-scope] selects which ONE prints; the others are hidden
+     so multiple absolutely-positioned workspaces can never overlap on paper.
+     Default scope ("records") is set by pages/reports.js on mount, keeping
+     plain Ctrl+P behavior identical to the original personnel reports. */
+  .print-workspace,
+  .print-workspace * {
+    visibility: visible;
+  }
+
+  .print-workspace {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body[data-print-scope] #report-workspace,
+  body[data-print-scope] .print-workspace {
+    display: none !important;
+  }
+
+  body[data-print-scope="records"] #report-workspace {
+    display: block !important;
+  }
+
+  body[data-print-scope="accomplishments"] #ws-accomplishments {
+    display: block !important;
+  }
+
+  body[data-print-scope="winners"] #ws-winners {
+    display: block !important;
+  }
+
+  body[data-print-scope="compliance"] #ws-compliance {
+    display: block !important;
+  }
 }

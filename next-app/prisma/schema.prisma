@@ -509,13 +509,16 @@ model Achievement {
   isRecord         Boolean   @default(false) @map("is_record")
   sportId          Int?      @map("sport_id")
   eventId          Int?      @map("event_id")
+  eventPlanId      Int?      @map("event_plan_id")
   certificateUrl   String?   @map("certificate_url")
   createdAt        DateTime  @default(now()) @map("created_at")
   athlete          Athlete   @relation(fields: [athleteId], references: [id], onDelete: Cascade)
   sport            Sport?    @relation(fields: [sportId], references: [id], onDelete: SetNull)
   event            Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  eventPlan        EventPlan? @relation(fields: [eventPlanId], references: [id], onDelete: SetNull)
 
   @@index([athleteId, achievementDate])
+  @@index([eventPlanId])
   @@map("achievements")
 }
 
@@ -570,6 +573,7 @@ model EventPlan {
   sports             EventPlanSport[]
   applications       EventApplication[]
   participants       EventParticipant[]
+  achievements       Achievement[]
 
   @@index([status, startDate])
   @@map("event_plans")

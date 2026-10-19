@@ -1,5 +1,6 @@
 import React from "react";
 import styles from "../styles/Dashboard.module.css";
+import { evaluateCompliance, EXPIRING_SOON_DAYS } from "../lib/compliance";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
@@ -178,6 +179,39 @@ export default function AthleteDocuments({ athleteId, documents = [], documentTy
   );
   const editingDoc = documents.find((d) => d.id === editingId) || null;
 
+  // Compliance summary (shared single-source logic with the city-wide
+  // Compliance report — see lib/compliance.js). Recomputes when the clock
+  // ticks so "expiring" flips to "expired" without a reload.
+  const requiredTypes = React.useMemo(
+    () => documentTypes.filter((t) => t.isRequired).map((t) => ({ id: t.id, name: t.name, hasExpiry: !!t.hasExpiry })),
+    [documentTypes]
+  );
+  const compliance = React.useMemo(
+    () => evaluateCompliance(
+      documents.map((d) => ({ documentTypeId: d.documentTypeId, expiresAt: d.expiresAt })),
+      requiredTypes,
+      new Date(nowMs)
+    ),
+    [documents, requiredTypes, nowMs]
+  );
+
+  // Per-type state for the checklist badges (missing / uploaded / expiring / expired).
+  function typeState(t) {
+    const typeDocs = byType[t.id] || [];
+    if (!typeDocs.length) return { state: "missing" };
+    let latestExpiry = null;
+    for (const d of typeDocs) {
+      if (!d.expiresAt) continue;
+      const ms = new Date(d.expiresAt).getTime();
+      if (!isNaN(ms) && (latestExpiry === null || ms > latestExpiry)) latestExpiry = ms;
+    }
+    if (t.hasExpiry && latestExpiry !== null) {
+      if (latestExpiry < nowMs) return { state: "expired", expiry: latestExpiry };
+      if (latestExpiry - nowMs <= EXPIRING_SOON_DAYS * 86400000) return { state: "expiring", expiry: latestExpiry };
+    }
+    return { state: "ok" };
+  }
+
   async function removeDocument(doc) {
     const name = doc.documentType?.isOther && doc.customLabel ? doc.customLabel : doc.documentType?.name || doc.fileName;
     if (!window.confirm(`Delete "${name}"? This permanently removes the document file and its record.`)) return;
@@ -201,6 +235,26 @@ export default function AthleteDocuments({ athleteId, documents = [], documentTy
         <div><p className={styles.eyebrow}>Records</p><h2>Documents</h2></div>
       </div>
 
+      {requiredTypes.length > 0 && (
+        <div className={styles.statRow} style={{ marginBottom: "var(--space-5)" }}>
+          <div className={styles.stat}><strong>{compliance.validUploaded}/{compliance.required}</strong><small>Required on file</small></div>
+          <div className={styles.stat}><strong>{compliance.missing.length}</strong><small>Missing</small></div>
+          <div className={styles.stat}><strong>{compliance.expiring.length}</strong><small>Expiring &le; {EXPIRING_SOON_DAYS}d</small></div>
+          <div className={styles.stat}><strong>{compliance.expired.length}</strong><small>Expired</small></div>
+          <div className={styles.stat}>
+            <strong style={{ color: compliance.complete ? "var(--accent)" : "var(--warning)" }}>
+              {compliance.percent === null ? "—" : `${compliance.percent}%`}
+            </strong>
+            <small>{compliance.complete ? "Complete" : "Incomplete"}</small>
+          </div>
+        </div>
+      )}
+      {compliance.missing.length > 0 && (
+        <p className={styles.formHint} style={{ marginBottom: "var(--space-4)" }}>
+          Missing: {compliance.missing.join(", ")}
+        </p>
+      )}
+
       {canManage && <DocumentForm athleteId={athleteId} documentTypes={documentTypes} onDone={onComplete} />}
       {canManage && editingDoc && (
         <DocumentForm
@@ -217,6 +271,7 @@ export default function AthleteDocuments({ athleteId, documents = [], documentTy
         {orderedTypes.map((t) => {
           const typeDocs = byType[t.id] || [];
           const latest = typeDocs[0];
+          const st = typeState(t);
           return (
             <div key={t.id} className={styles.detailPanel}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
@@ -224,11 +279,10 @@ export default function AthleteDocuments({ athleteId, documents = [], documentTy
                 {t.isRequired && <span className={`${styles.badge} ${styles.badgePending}`}>Required</span>}
               </div>
               <div style={{ marginTop: 6 }}>
-                {typeDocs.length ? (
-                  <span className={`${styles.badge} ${styles.badgeActive}`}>Uploaded · {fmtDate(latest.createdAt)}</span>
-                ) : (
-                  <span className={`${styles.badge} ${styles.badgeMuted}`}>Missing</span>
-                )}
+                {st.state === "missing" && <span className={`${styles.badge} ${styles.badgeMuted}`}>Missing</span>}
+                {st.state === "expired" && <span className={`${styles.badge} ${styles.badgeRejected}`}>Expired · {fmtDate(st.expiry)}</span>}
+                {st.state === "expiring" && <span className={`${styles.badge} ${styles.badgePending}`}>Expiring · {fmtDate(st.expiry)}</span>}
+                {st.state === "ok" && <span className={`${styles.badge} ${styles.badgeActive}`}>Uploaded · {fmtDate(latest.createdAt)}</span>}
               </div>
             </div>
           );
