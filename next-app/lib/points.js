@@ -27,6 +27,29 @@ export const BASE_POINTS = {
 
 export const MEDAL_ORDER = ["gold", "silver", "bronze", "fourth", "participation"];
 
+// Human labels for competition levels (kept here so every surface — Standing,
+// reports, profile — shows the same wording). "city" covers District/City meets.
+export const LEVEL_LABELS = {
+  intramural: "Intramural",
+  barangay: "Barangay / School",
+  city: "District / City",
+  provincial: "Provincial",
+  regional: "Regional",
+  national: "National",
+  international: "International",
+};
+
+/** Highest competition level present among achievements (by LEVEL_ORDER), or null. */
+export function bestLevel(achievements = []) {
+  let bestIndex = -1;
+  for (const a of achievements) {
+    if (!a || !a.level) continue;
+    const index = LEVEL_ORDER.indexOf(a.level);
+    if (index > bestIndex) bestIndex = index;
+  }
+  return bestIndex < 0 ? null : LEVEL_ORDER[bestIndex];
+}
+
 function basePoints(achievement = {}) {
   return BASE_POINTS[achievement.level]?.[achievement.medal] ?? 0;
 }
@@ -86,6 +109,31 @@ export function rankStandings(standings = []) {
   let previousRank = 0;
   return sorted.map((row, index) => {
     const key = `${row.points ?? 0}|${row.gold ?? 0}|${row.silver ?? 0}|${row.bronze ?? 0}|${row.fourth ?? 0}|${row.mostRecentDate ?? ""}|${row.name ?? ""}`;
+    const rank = key === previousKey ? previousRank : index + 1;
+    previousKey = key;
+    previousRank = rank;
+    return { ...row, rank };
+  });
+}
+
+/**
+ * Rank with the OLYMPIC medal system (gold-first) — the way Palarong Pambansa
+ * ranks delegations. Ties break silver -> bronze -> fourth -> total points ->
+ * name; equal keys share the same rank. Returns sorted rows each with `rank`.
+ */
+export function rankByMedals(standings = []) {
+  const sorted = [...standings].sort((a, b) => {
+    if ((b.gold ?? 0) !== (a.gold ?? 0)) return (b.gold ?? 0) - (a.gold ?? 0);
+    if ((b.silver ?? 0) !== (a.silver ?? 0)) return (b.silver ?? 0) - (a.silver ?? 0);
+    if ((b.bronze ?? 0) !== (a.bronze ?? 0)) return (b.bronze ?? 0) - (a.bronze ?? 0);
+    if ((b.fourth ?? 0) !== (a.fourth ?? 0)) return (b.fourth ?? 0) - (a.fourth ?? 0);
+    if ((b.points ?? 0) !== (a.points ?? 0)) return (b.points ?? 0) - (a.points ?? 0);
+    return String(a.name || "").localeCompare(String(b.name || ""));
+  });
+  let previousKey = null;
+  let previousRank = 0;
+  return sorted.map((row, index) => {
+    const key = `${row.gold ?? 0}|${row.silver ?? 0}|${row.bronze ?? 0}|${row.fourth ?? 0}|${row.points ?? 0}|${row.name ?? ""}`;
     const rank = key === previousKey ? previousRank : index + 1;
     previousKey = key;
     previousRank = rank;
