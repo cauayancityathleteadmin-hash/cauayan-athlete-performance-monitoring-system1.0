@@ -13,6 +13,7 @@ Vercel, and confirmed via live `GET /api/health` 200 + the 46-check live regress
 | `3f7606a` | §3 Athlete Profile | In-page section tabs via `PageSectionTabs` (Overview, Health, Progress, Trends, Assessments, Training, Events, Documents, Status, Notes) with scroll-spy + `#hash` deep links. AGENTS.md tab list updated. |
 | `8c4997f` | §12 Eligibility | New `GET /api/athletes/:id/eligibility` returning `{required, validUploaded, missing[], expiring[], expired[], complete, percent}` from the shared `lib/compliance.js` rule. Athletes roster now shows an **Eligibility** column per athlete (Clear / missing / expired / expiring). |
 | `dac76f8` | §11 Small wins | Retired the orphan `/admin/training-metrics` (in-memory editor that never persisted) → redirects to `/admin/metrics`. Document types now display their default validity period. |
+| `4c83fe8` | §4 Assessments | Batch endpoint now batch-fetches athletes + metrics in 2 queries instead of up to 60 serial round-trips (audit Q-M12). Behaviour/validation unchanged. |
 
 Phase 5 of §6 was confirmed already complete: achievements live only under Standing;
 `/standings/[athleteId]` lists every achievement; the old Achievements panel is gone from
@@ -23,7 +24,7 @@ the athlete profile (no duplicate).
 - §2 Athletes: full server-side pagination/sort via URL (partly present), `schoolYear`
   season field + Season filter (needs migration).
 - §4 Assessments: standard test batteries, per-metric trend + target line, admin
-  classification bands, Personal bests board, N+1 batch fix (Q-M12), A4 export.
+  classification bands, Personal bests board, A4 export. (N+1 batch fix ✅ done.)
 - §5 Training: plan phase (Preparation/Competition/Transition), Session RPE + weekly load
   chart + spike warning, completion rate, split the 1,291-line plan page (Q-H4). Needs migration.
 - §6 remaining: Season filter (needs `schoolYear`), CSV/print medal-tally export.
