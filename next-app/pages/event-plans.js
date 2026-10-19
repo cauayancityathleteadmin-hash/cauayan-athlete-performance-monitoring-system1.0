@@ -7,6 +7,12 @@ import { paginatePrisma } from "../lib/pagination";
 import Pagination from "../components/Pagination";
 import AppShell from "../components/AppShell";
 import styles from "../styles/Dashboard.module.css";
+import { LEVEL_ORDER, LEVEL_LABELS, MEDALS } from "../lib/points";
+
+// Competition levels for a meet (single source: lib/points.js). "city" is the
+// Division/Cluster meet tier; matches the achievement + Standing level wording.
+const LEVEL_OPTIONS = LEVEL_ORDER.map((value) => ({ value, label: LEVEL_LABELS[value] }));
+const MEDAL_LABELS = Object.fromEntries(MEDALS.map((m) => [m.value, m.label]));
 
 export async function getServerSideProps(context) {
   const session = await getSession(context);
@@ -121,6 +127,7 @@ export default function EventPlans({ plans, session, page, totalPages, sports, a
                                   <div><dt>Status</dt><dd><StatusChip status={plan.status} /></dd></div>
                                   <div><dt>Schedule</dt><dd>{formatRange(plan.startDate, plan.endDate)}</dd></div>
                                   <div><dt>Venue</dt><dd>{plan.venue || "—"}</dd></div>
+                                  <div><dt>Level</dt><dd>{plan.eventLevel ? (LEVEL_LABELS[plan.eventLevel] || plan.eventLevel) : "—"}</dd></div>
                                   <div><dt>Sports</dt><dd>{plan.sports.length ? plan.sports.map((item) => item.sport.sportName).join(", ") : "—"}</dd></div>
                                   <div><dt>Description</dt><dd>{plan.description || "No description provided."}</dd></div>
                                   <div><dt>Purpose</dt><dd>{plan.purpose || "—"}</dd></div>
@@ -266,6 +273,78 @@ function ParticipantRoster({ participants, myCoachId, onRemove, busyRemove }) {
           </div>
         ) : <div className={styles.detailEmpty}>{myCoachId ? "No other coaches participating yet." : "No participating coaches yet."}</div>}
       </div>
+    </div>
+  );
+}
+
+/* §7 Results: athletes enrolled in this event plan whose result can be recorded. */
+function resultAthletes(participants) {
+  return (participants || []).filter((p) => p.participantType === "athlete" && p.athlete && p.status === "active");
+}
+
+function ResultsEntry({ plan }) {
+  const router = useRouter();
+  const athletes = React.useMemo(() => resultAthletes(plan.participants), [plan.participants]);
+  const [values, setValues] = React.useState(() => Object.fromEntries(athletes.map((p) => [p.id, p.resultMedal || ""])));
+  const [busyId, setBusyId] = React.useState(null);
+  const [message, setMessage] = React.useState("");
+
+  if (!athletes.length) return <div className={styles.detailEmpty}>No athletes enrolled yet. Results can be recorded once athletes are added.</div>;
+
+  const recorded = athletes.filter((p) => p.resultMedal).length;
+
+  async function save(participant) {
+    const medal = values[participant.id] || "";
+    setBusyId(participant.id);
+    setMessage("");
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/admin/event-plans/results", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify({ participantId: participant.id, medal: medal || null }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.error) {
+        setMessage(result.error || "Could not save result.");
+        setBusyId(null);
+        return;
+      }
+      setMessage(medal ? "Result saved. Achievement and Standing points updated." : "Result cleared.");
+      router.replace(router.asPath);
+    } catch {
+      setMessage("Unable to reach the server.");
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+      <p className={styles.formHint} style={{ margin: 0 }}>
+        Record each athlete&apos;s placement. Saving a medal creates or updates their achievement (level taken from the event plan) so Standing stays automatic.
+        {plan.eventLevel ? "" : " Tip: set a Level on the event plan so recorded achievements score correctly."}
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+        {athletes.map((p) => (
+          <div key={p.id} style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexWrap: "wrap", padding: "var(--space-3) var(--space-4)", border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", background: "rgba(6, 38, 30, 0.4)" }}>
+            <div style={{ flex: "1 1 180px", minWidth: 0 }}>
+              <strong style={{ fontSize: 14 }}>{p.athlete.firstName} {p.athlete.lastName}</strong>
+              <small style={{ display: "block", color: "var(--muted)", fontSize: 12 }}>{p.athlete.athleteCode} · {p.sport?.sportName || "—"}</small>
+            </div>
+            {p.resultMedal && (
+              <span style={{ display: "inline-block", background: "rgba(214,178,110,.14)", color: "var(--warning-dark)", padding: "3px 10px", borderRadius: "12px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em" }}>{MEDAL_LABELS[p.resultMedal] || p.resultMedal}</span>
+            )}
+            <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
+              <select aria-label={`Result for ${p.athlete.firstName} ${p.athlete.lastName}`} className={styles.fieldControl} value={values[p.id] ?? ""} onChange={(event) => setValues((current) => ({ ...current, [p.id]: event.target.value }))} disabled={busyId === p.id}>
+                <option value="">No result</option>
+                {MEDALS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+              <button type="button" className={`${styles.secondary} ${styles.btnSm}`} disabled={busyId === p.id || (values[p.id] ?? "") === (p.resultMedal || "")} onClick={() => save(p)}>{busyId === p.id ? "Saving…" : "Save"}</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p role="status" className={styles.formHint} style={{ margin: 0 }}>{recorded} of {athletes.length} result{athletes.length === 1 ? "" : "s"} recorded{message ? ` — ${message}` : ""}</p>
     </div>
   );
 }
@@ -462,6 +541,9 @@ const pending = plan.applications.filter((application) => application.status ===
       <ParticipationToggle label="participants" count={participationCount(plan.participants)} open={false}>
         <ParticipantRoster participants={plan.participants || []} />
       </ParticipationToggle>
+      <ParticipationToggle label="results" count={resultAthletes(plan.participants).length} open={false}>
+        <ResultsEntry plan={plan} />
+      </ParticipationToggle>
     </div>
   );
 }
@@ -476,7 +558,7 @@ function CreatePlan({ sports }) {
     setBusy(true); setMessage("");
     const form = new FormData(event.currentTarget);
     const sportIds = form.getAll("sportIds").map(Number);
-    const body = { eventName: form.get("eventName"), startDate: form.get("startDate"), endDate: form.get("endDate"), venue: form.get("venue"), description: form.get("description"), programFlow: form.get("programFlow"), status: form.get("status"), purpose: form.get("purpose"), targetParticipants: form.get("targetParticipants"), targetAgeMin: form.get("targetAgeMin"), targetAgeMax: form.get("targetAgeMax"), targetGender: form.get("targetGender") || null, sportIds };
+    const body = { eventName: form.get("eventName"), startDate: form.get("startDate"), endDate: form.get("endDate"), venue: form.get("venue"), description: form.get("description"), programFlow: form.get("programFlow"), status: form.get("status"), purpose: form.get("purpose"), targetParticipants: form.get("targetParticipants"), targetAgeMin: form.get("targetAgeMin"), targetAgeMax: form.get("targetAgeMax"), targetGender: form.get("targetGender") || null, eventLevel: form.get("eventLevel") || null, sportIds };
     const csrf = await fetch("/api/csrf").then((r) => r.json());
     try {
       const response = await fetch("/api/event-plans", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify(body) });
@@ -492,6 +574,7 @@ function CreatePlan({ sports }) {
       <form onSubmit={submit} className={styles.formGrid}>
         <label>Event name *<input name="eventName" required maxLength="191" placeholder="e.g. City Sports Festival" /></label>
         <label>Status<select name="status" defaultValue="open"><option value="draft">Draft</option><option value="open">Open</option><option value="closed">Closed</option></select></label>
+        <label>Level<select name="eventLevel" defaultValue=""><option value="">Not set</option>{LEVEL_OPTIONS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}</select></label>
         <label>Start date *<input name="startDate" type="date" required defaultValue={today} /></label>
         <label>End date<input name="endDate" type="date" /></label>
         <label>Venue *<input name="venue" required maxLength="191" placeholder="e.g. City Sports Complex" /></label>
@@ -521,7 +604,7 @@ function EditPlan({ plan, sports }) {
     setBusy(true); setMessage("");
     const form = new FormData(event.currentTarget);
     const sportIds = form.getAll("sportIds").map(Number);
-    const body = { id: plan.id, eventName: form.get("eventName"), startDate: form.get("startDate"), endDate: form.get("endDate"), venue: form.get("venue"), description: form.get("description"), programFlow: form.get("programFlow"), status: form.get("status"), purpose: form.get("purpose"), targetParticipants: form.get("targetParticipants"), targetAgeMin: form.get("targetAgeMin"), targetAgeMax: form.get("targetAgeMax"), targetGender: form.get("targetGender") || null, sportIds };
+    const body = { id: plan.id, eventName: form.get("eventName"), startDate: form.get("startDate"), endDate: form.get("endDate"), venue: form.get("venue"), description: form.get("description"), programFlow: form.get("programFlow"), status: form.get("status"), purpose: form.get("purpose"), targetParticipants: form.get("targetParticipants"), targetAgeMin: form.get("targetAgeMin"), targetAgeMax: form.get("targetAgeMax"), targetGender: form.get("targetGender") || null, eventLevel: form.get("eventLevel") || null, sportIds };
     const csrf = await fetch("/api/csrf").then((r) => r.json());
     try {
       const response = await fetch("/api/event-plans", { method: "PUT", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify(body) });
@@ -537,6 +620,7 @@ function EditPlan({ plan, sports }) {
       <form onSubmit={submit} className={styles.formGrid}>
         <label>Event name *<input name="eventName" className={styles.fieldControl} required maxLength="191" defaultValue={plan.eventName} /></label>
         <label>Status<select name="status" className={styles.fieldControl} defaultValue={plan.status}><option value="draft">Draft</option><option value="open">Open</option><option value="closed">Closed</option><option value="cancelled">Cancelled</option></select></label>
+        <label>Level<select name="eventLevel" className={styles.fieldControl} defaultValue={plan.eventLevel || ""}><option value="">Not set</option>{LEVEL_OPTIONS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}</select></label>
         <label>Start date *<input name="startDate" className={styles.fieldControl} type="date" required defaultValue={fmtDateInput(plan.startDate)} /></label>
         <label>End date<input name="endDate" className={styles.fieldControl} type="date" defaultValue={fmtDateInput(plan.endDate)} /></label>
         <label>Venue *<input name="venue" className={styles.fieldControl} required maxLength="191" defaultValue={plan.venue} /></label>

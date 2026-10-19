@@ -1,13 +1,6 @@
 import React from "react";
 import styles from "@/styles/Dashboard.module.css";
-
-const MEDALS = [
-  { value: "gold", label: "Gold", color: "#facc15" },
-  { value: "silver", label: "Silver", color: "#cbd5e1" },
-  { value: "bronze", label: "Bronze", color: "#d97706" },
-  { value: "fourth", label: "4th", color: "#a3a3a3" },
-  { value: "participation", label: "Participation", color: "var(--muted)" },
-];
+import { MEDALS } from "@/lib/points";
 
 const LEVELS = [
   { value: "intramural", label: "Intramural" },

@@ -1,6 +1,13 @@
 import { prisma } from "../../../lib/prisma";
 import { requireCsrf, requireRole, requireSession, text, validId, setSecurityHeaders } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
+import { LEVEL_ORDER } from "../../../lib/points";
+
+// Only accept a known competition level; anything else is stored as null.
+function parseLevel(value) {
+  const clean = text(value, 50);
+  return LEVEL_ORDER.includes(clean) ? clean : null;
+}
 
 export default async function handler(req, res) {
   setSecurityHeaders(res);
@@ -58,6 +65,7 @@ export default async function handler(req, res) {
           targetAgeMin: body.targetAgeMin !== undefined && body.targetAgeMin !== "" ? Number(body.targetAgeMin) : null,
           targetAgeMax: body.targetAgeMax !== undefined && body.targetAgeMax !== "" ? Number(body.targetAgeMax) : null,
           targetGender: text(body.targetGender, 50) || null,
+          eventLevel: parseLevel(body.eventLevel),
           status: ["draft", "open", "closed", "cancelled"].includes(body.status) ? body.status : existing.status,
           programFlow: text(body.programFlow, 10000) || null,
         },
@@ -110,6 +118,7 @@ export default async function handler(req, res) {
         targetAgeMin: body.targetAgeMin !== undefined && body.targetAgeMin !== "" ? Number(body.targetAgeMin) : null,
         targetAgeMax: body.targetAgeMax !== undefined && body.targetAgeMax !== "" ? Number(body.targetAgeMax) : null,
         targetGender: text(body.targetGender, 50) || null,
+        eventLevel: parseLevel(body.eventLevel),
         status: ["draft", "open", "closed", "cancelled"].includes(body.status) ? body.status : "draft",
         programFlow: text(body.programFlow, 10000) || null,
         createdBy: Number(session.user.id),

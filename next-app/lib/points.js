@@ -27,6 +27,16 @@ export const BASE_POINTS = {
 
 export const MEDAL_ORDER = ["gold", "silver", "bronze", "fourth", "participation"];
 
+// Medal options with display label + dot color — SINGLE SOURCE for every medal
+// picker (achievement form, event results entry). Keep in sync with MEDAL_ORDER.
+export const MEDALS = [
+  { value: "gold", label: "Gold", color: "#facc15" },
+  { value: "silver", label: "Silver", color: "#cbd5e1" },
+  { value: "bronze", label: "Bronze", color: "#d97706" },
+  { value: "fourth", label: "4th", color: "#a3a3a3" },
+  { value: "participation", label: "Participation", color: "var(--muted)" },
+];
+
 // Human labels for competition levels (kept here so every surface — Standing,
 // reports, profile — shows the same wording). "city" covers District/City meets.
 export const LEVEL_LABELS = {
