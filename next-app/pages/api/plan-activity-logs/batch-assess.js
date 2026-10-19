@@ -16,6 +16,11 @@ function toInt(v) {
   const n = Number(v);
   return Number.isSafeInteger(n) && n >= 0 ? n : null;
 }
+// Session RPE is 1-10 (Borg-like CR10 scale); anything else is ignored.
+function toRpe(v) {
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 1 && n <= 10 ? n : null;
+}
 
 async function canAccessPlan(prismaClient, session, planId) {
   const plan = await prismaClient.trainingPlan.findUnique({ where: { id: planId }, select: { id: true, coachId: true } });
@@ -82,6 +87,7 @@ export default async function handler(req, res) {
       distanceDone: toDecimal(row.distanceDone),
       loadUsed: toDecimal(row.loadUsed),
       attempts: toInt(row.attempts),
+      rpe: toRpe(row.rpe),
       notes: text(row.notes, 2000) || null,
     });
     athleteIds.add(athleteId);
@@ -125,6 +131,7 @@ export default async function handler(req, res) {
           distanceDone: r.distanceDone,
           loadUsed: r.loadUsed,
           attempts: r.attempts,
+          rpe: r.rpe,
           notes: r.notes,
           loggedBy: Number(session.user.id),
         })),

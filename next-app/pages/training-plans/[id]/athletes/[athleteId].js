@@ -57,6 +57,7 @@ function logResultText(log) {
   if (log.setsDone != null) parts.push(`${log.setsDone} sets`);
   if (log.repsDone != null) parts.push(`${log.repsDone} reps`);
   if (log.attempts != null) parts.push(`${log.attempts} attempts`);
+  if (log.rpe != null) parts.push(`RPE ${log.rpe}`);
   return parts.join(" · ");
 }
 
@@ -475,6 +476,38 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
       .sort((x, y) => y.percent - x.percent);
   }, [activities]);
 
+  // §5 Weekly training load = sum of session RPE (1-10) logged as done/partial,
+  // grouped into Monday-start weeks. Plus an acute:chronic style spike warning
+  // comparing the latest week to the average of the 3 weeks before it.
+  const weeklyLoad = React.useMemo(() => {
+    const byWeek = new Map();
+    for (const log of allLogs) {
+      if (log.rpe == null) continue;
+      if (log.status !== "done" && log.status !== "partial") continue;
+      const d = new Date(log.performedAt);
+      if (isNaN(d)) continue;
+      const ws = new Date(d);
+      ws.setHours(0, 0, 0, 0);
+      ws.setDate(ws.getDate() - ((ws.getDay() + 6) % 7));
+      const key = ws.toISOString().slice(0, 10);
+      const row = byWeek.get(key) || { key, label: ws.toLocaleDateString("en-US", { month: "short", day: "numeric" }), load: 0, sessions: 0 };
+      row.load += Number(log.rpe);
+      row.sessions += 1;
+      byWeek.set(key, row);
+    }
+    return [...byWeek.values()].sort((a, b) => (a.key < b.key ? -1 : 1));
+  }, [allLogs]);
+
+  const loadSpike = React.useMemo(() => {
+    if (weeklyLoad.length < 4) return null;
+    const current = weeklyLoad[weeklyLoad.length - 1];
+    const prior = weeklyLoad.slice(-4, -1);
+    const avg = prior.reduce((sum, r) => sum + r.load, 0) / prior.length;
+    if (avg <= 0) return null;
+    const ratio = Math.round((current.load / avg) * 100) / 100;
+    return { current: current.load, avg: Math.round(avg * 10) / 10, ratio, spike: ratio >= 1.5 };
+  }, [weeklyLoad]);
+
   const measurableActivities = React.useMemo(() => activities.filter((a) => a.metricType && a.metricType !== "none"), [activities]);
 
   const selectedMetric = measurableActivities.find((a) => a.id === metricActivityId) || measurableActivities[0] || null;
@@ -630,6 +663,32 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
           <section className={styles.panel} id="trends">
             <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Trends</p><h2>Progress over time</h2></div></div>
             <div className={styles.chartGrid}>
+              <div className={styles.detailPanel}>
+                <h4>Training load <small style={{ color: "var(--muted)", fontWeight: 400 }}>(sum of session RPE per week)</small></h4>
+                {weeklyLoad.length > 0 ? (
+                  <>
+                    <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barVertical}>
+                      <BarChart data={weeklyLoad} margin={CHART_MARGINS.barVertical}>
+                        <CartesianGrid {...CHART_GRID.cartesian} />
+                        <XAxis dataKey="label" tick={CHART_AXIS.x} />
+                        <YAxis tick={CHART_AXIS.y} />
+                        <Tooltip {...CHART_TOOLTIP} formatter={(v, n, p) => [`${v} (${p?.payload?.sessions ?? 0} session${(p?.payload?.sessions ?? 0) === 1 ? "" : "s"})`, "Load"]} />
+                        <Bar dataKey="load" radius={[4, 4, 0, 0]}>{weeklyLoad.map((w, i) => <Cell key={w.key} fill={loadSpike && loadSpike.spike && i === weeklyLoad.length - 1 ? CHART_COLORS.danger : CHART_COLORS.primary} />)}</Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                    {loadSpike ? (
+                      loadSpike.spike ? (
+                        <p role="alert" style={{ margin: "var(--space-2) 0 0", color: "var(--danger)", fontSize: 13 }}>Load spike: latest week ({loadSpike.current}) is {loadSpike.ratio}× the prior 3-week average ({loadSpike.avg}). Ease intensity to avoid overtraining.</p>
+                      ) : (
+                        <p style={{ margin: "var(--space-2) 0 0", color: "var(--muted)", fontSize: 13 }}>Latest week {loadSpike.current} vs prior 3-week average {loadSpike.avg} — within a safe range.</p>
+                      )
+                    ) : (
+                      <p style={{ margin: "var(--space-2) 0 0", color: "var(--muted)", fontSize: 13 }}>Log RPE across 4+ weeks to flag load spikes.</p>
+                    )}
+                  </>
+                ) : <p className={styles.empty}>No session RPE logged yet. Coaches can enter RPE (1–10) on each activity when saving a training day.</p>}
+              </div>
+
               <div className={styles.detailPanel}>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-3)", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-2)" }}>
                   <h4 style={{ margin: 0 }}>Completion trend</h4>

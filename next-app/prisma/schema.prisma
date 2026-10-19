@@ -827,6 +827,7 @@ model PlanActivityLog {
   distanceDone Decimal?       @map("distance_done")
   loadUsed     Decimal?       @map("load_used")
   attempts     Int?           @map("attempts")
+  rpe          Int?           @map("rpe")
   notes        String?
   loggedBy     Int            @map("logged_by")
   createdAt    DateTime       @default(now()) @map("created_at")

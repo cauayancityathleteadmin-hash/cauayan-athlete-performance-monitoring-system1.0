@@ -160,7 +160,7 @@ export default async function handler(req, res) {
         orderBy: [{ activityId: "asc" }, { performedAt: "desc" }],
         select: {
           id: true, activityId: true, athleteId: true, performedAt: true, status: true,
-          quantityDone: true, setsDone: true, repsDone: true, timeSec: true, distanceDone: true, loadUsed: true, attempts: true, notes: true,
+          quantityDone: true, setsDone: true, repsDone: true, timeSec: true, distanceDone: true, loadUsed: true, attempts: true, rpe: true, notes: true,
         },
       })
     : [];

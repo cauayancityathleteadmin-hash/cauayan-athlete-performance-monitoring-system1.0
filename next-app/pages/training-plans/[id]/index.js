@@ -490,7 +490,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
           const hasSavedForDate = logs.some((l) => l.athleteId === athlete.id && l.activityId === activity.id && l.performedAt && l.performedAt.slice(0, 10) === date);
           if (hasSavedForDate) continue;
           const target = targetOf(activity);
-          const cell = { touched: true, status: "done", qty: "", sets: "", reps: "", time: "", dist: "", load: "", attempts: "", note: "" };
+          const cell = { touched: true, status: "done", qty: "", sets: "", reps: "", time: "", dist: "", load: "", attempts: "", rpe: "", note: "" };
           if (target) {
             if (target.kind === "qty") cell.qty = target.n;
             else if (target.kind === "sets") cell.sets = target.n;
@@ -661,6 +661,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
     if (field === "dist") return l.distanceDone != null ? Number(l.distanceDone) : null;
     if (field === "load") return l.loadUsed != null ? Number(l.loadUsed) : null;
     if (field === "attempts") return l.attempts != null ? Number(l.attempts) : null;
+    if (field === "rpe") return l.rpe != null ? Number(l.rpe) : null;
     if (field === "note") return l.notes || null;
     return null;
   }
@@ -685,7 +686,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
 
   function setCell(athleteId, activityId, patch) {
     const k = key(athleteId, activityId);
-    setCells((cur) => ({ ...cur, [k]: { touched: true, status: null, qty: "", sets: "", reps: "", time: "", dist: "", load: "", attempts: "", note: "", ...cur[k], ...patch } }));
+    setCells((cur) => ({ ...cur, [k]: { touched: true, status: null, qty: "", sets: "", reps: "", time: "", dist: "", load: "", attempts: "", rpe: "", note: "", ...cur[k], ...patch } }));
   }
 
   function cycleStatus(athleteId, activityId, activity) {
@@ -717,7 +718,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
       const n = { ...cur };
       for (const a of acts) {
         const t = targetOf(a);
-        const cell = { touched: true, status: preset === "full" ? "done" : preset === "light" ? "partial" : "missed", qty: "", sets: "", reps: "", note: "" };
+        const cell = { touched: true, status: preset === "full" ? "done" : preset === "light" ? "partial" : "missed", qty: "", sets: "", reps: "", rpe: "", note: "" };
         if (preset === "full" && t) {
           if (t.kind === "qty") cell.qty = t.n;
           else if (t.kind === "sets") cell.sets = t.n;
@@ -759,7 +760,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
     const rows = Object.keys(cells).map((k) => {
       const [aid, actId] = k.split(":");
       const c = cells[k];
-      return { athleteId: Number(aid), activityId: Number(actId), status: c.status, quantityDone: c.qty !== "" ? c.qty : null, setsDone: c.sets !== "" ? c.sets : null, repsDone: c.reps !== "" ? c.reps : null, timeSec: c.time !== "" ? c.time : null, distanceDone: c.dist !== "" ? c.dist : null, loadUsed: c.load !== "" ? c.load : null, attempts: c.attempts !== "" ? c.attempts : null, notes: c.note || null };
+      return { athleteId: Number(aid), activityId: Number(actId), status: c.status, quantityDone: c.qty !== "" ? c.qty : null, setsDone: c.sets !== "" ? c.sets : null, repsDone: c.reps !== "" ? c.reps : null, timeSec: c.time !== "" ? c.time : null, distanceDone: c.dist !== "" ? c.dist : null, loadUsed: c.load !== "" ? c.load : null, attempts: c.attempts !== "" ? c.attempts : null, rpe: c.rpe !== "" ? c.rpe : null, notes: c.note || null };
     });
     const assessments = Object.keys(ratings).filter((aid) => ratings[aid].rating).map((aid) => ({ athleteId: Number(aid), rating: ratings[aid].rating, comments: ratings[aid].comments || null }));
     return { rows, assessments };
@@ -777,7 +778,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
     undoRef.current = { date, rows: {}, hasRatings: payload.assessments.length > 0 };
     for (const k of Object.keys(cells)) {
       const prevLog = latestByKey[k];
-      undoRef.current.rows[k] = prevLog ? { status: prevLog.status, qty: prevLog.quantityDone != null ? Number(prevLog.quantityDone) : null, sets: prevLog.setsDone != null ? Number(prevLog.setsDone) : null, reps: prevLog.repsDone != null ? Number(prevLog.repsDone) : null, time: prevLog.timeSec != null ? Number(prevLog.timeSec) : null, dist: prevLog.distanceDone != null ? Number(prevLog.distanceDone) : null, load: prevLog.loadUsed != null ? Number(prevLog.loadUsed) : null, attempts: prevLog.attempts != null ? Number(prevLog.attempts) : null, note: prevLog.notes || null } : null;
+      undoRef.current.rows[k] = prevLog ? { status: prevLog.status, qty: prevLog.quantityDone != null ? Number(prevLog.quantityDone) : null, sets: prevLog.setsDone != null ? Number(prevLog.setsDone) : null, reps: prevLog.repsDone != null ? Number(prevLog.repsDone) : null, time: prevLog.timeSec != null ? Number(prevLog.timeSec) : null, dist: prevLog.distanceDone != null ? Number(prevLog.distanceDone) : null, load: prevLog.loadUsed != null ? Number(prevLog.loadUsed) : null, attempts: prevLog.attempts != null ? Number(prevLog.attempts) : null, rpe: prevLog.rpe != null ? Number(prevLog.rpe) : null, note: prevLog.notes || null } : null;
     }
     const csrf = await fetch("/api/csrf").then((r) => r.json());
     try {
@@ -798,7 +799,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
       .map((k) => {
         const [aid, actId] = k.split(":");
         const prev = snap.rows[k];
-        return prev ? { athleteId: Number(aid), activityId: Number(actId), status: prev.status, quantityDone: prev.qty != null ? prev.qty : null, setsDone: prev.sets != null ? prev.sets : null, repsDone: prev.reps != null ? prev.reps : null, timeSec: prev.time != null ? prev.time : null, distanceDone: prev.dist != null ? prev.dist : null, loadUsed: prev.load != null ? prev.load : null, attempts: prev.attempts != null ? prev.attempts : null, notes: prev.note || null } : { athleteId: Number(aid), activityId: Number(actId), status: null };
+        return prev ? { athleteId: Number(aid), activityId: Number(actId), status: prev.status, quantityDone: prev.qty != null ? prev.qty : null, setsDone: prev.sets != null ? prev.sets : null, repsDone: prev.reps != null ? prev.reps : null, timeSec: prev.time != null ? prev.time : null, distanceDone: prev.dist != null ? prev.dist : null, loadUsed: prev.load != null ? prev.load : null, attempts: prev.attempts != null ? prev.attempts : null, rpe: prev.rpe != null ? prev.rpe : null, notes: prev.note || null } : { athleteId: Number(aid), activityId: Number(actId), status: null };
       })
       .filter((r) => r);
     setCells((cur) => {
@@ -806,7 +807,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
       for (const k of Object.keys(snap.rows)) {
         const prev = snap.rows[k];
         if (!prev) { delete n[k]; continue; }
-        n[k] = { touched: true, status: prev.status, qty: prev.qty != null ? prev.qty : "", sets: prev.sets != null ? prev.sets : "", reps: prev.reps != null ? prev.reps : "", time: prev.time != null ? prev.time : "", dist: prev.dist != null ? prev.dist : "", load: prev.load != null ? prev.load : "", attempts: prev.attempts != null ? prev.attempts : "", note: prev.note || "" };
+        n[k] = { touched: true, status: prev.status, qty: prev.qty != null ? prev.qty : "", sets: prev.sets != null ? prev.sets : "", reps: prev.reps != null ? prev.reps : "", time: prev.time != null ? prev.time : "", dist: prev.dist != null ? prev.dist : "", load: prev.load != null ? prev.load : "", attempts: prev.attempts != null ? prev.attempts : "", rpe: prev.rpe != null ? prev.rpe : "", note: prev.note || "" };
       }
       return n;
     });
@@ -1009,12 +1010,14 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                         else setCell(athlete.id, activityId, { [resultField]: value });
                       };
                       const effAttempts = effective(athlete.id, activityId, "attempts");
+                      const effRpe = effective(athlete.id, activityId, "rpe");
                       return (
                         <td key={column.gkey}>
                           <span className="mkCell">
                             <button className={`dotBtn ${status === "done" ? "on" : status === "partial" ? "part" : status === "missed" ? "miss" : ""} ${touched ? "touchedD" : ""}`} disabled={isCurrentViewLocked} title={status ? `Status: ${status === "done" ? "Done" : status === "partial" ? "Partial" : "Missed"}. Tap to change.` : "Open. Tap to mark Done."} onClick={() => cycleStatus(athlete.id, activityId, activity)}>{status === "done" ? "D" : status === "partial" ? "P" : status === "missed" ? "M" : "–"}</button>
                             <input className="qtyIn" disabled={isCurrentViewLocked} type="number" min="0" step="any" placeholder={resultPlaceholder} value={result != null ? result : ""} onChange={(e) => onResult(e.target.value)} title={metricType === "none" ? "Amount done" : `${METRIC_LABELS[metricType] || metricType} result`} />
                             <input className="qtyIn" disabled={isCurrentViewLocked} type="number" min="0" step="1" placeholder="#" value={effAttempts != null ? effAttempts : ""} onChange={(e) => setCell(athlete.id, activityId, { attempts: e.target.value })} style={{ width: 46 }} title="Attempts taken" />
+                            <input className="qtyIn" disabled={isCurrentViewLocked} type="number" min="1" max="10" step="1" placeholder="RPE" value={effRpe != null ? effRpe : ""} onChange={(e) => setCell(athlete.id, activityId, { rpe: e.target.value })} style={{ width: 54 }} title="Session RPE, 1-10 (perceived exertion)" />
                             {evFor(athlete.id) && <button type="button" className="evCellDot" title="View today's evidence photo" onClick={() => setShowLightbox(evFor(athlete.id))}>📷</button>}
                             {touched && <button className="miniBtn" disabled={isCurrentViewLocked} title="Clear this cell (not part of the save)" onClick={() => clearCell(athlete.id, activityId)}>✕</button>}
                           </span>
