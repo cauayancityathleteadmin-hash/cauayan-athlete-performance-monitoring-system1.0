@@ -10,6 +10,7 @@ import IdPhotoUpload from "../components/IdPhotoUpload";
 import ProfilePhoto from "../components/ProfilePhoto";
 import AppShell from "../components/AppShell";
 import styles from "../styles/Dashboard.module.css";
+import { evaluateCompliance } from "../lib/compliance";
 import { athleteImportHeaders, athleteImportExampleRow } from "../lib/athlete-import-headers";
 
 const SORT_KEYS = {
@@ -63,7 +64,30 @@ export async function getServerSideProps(context) {
     prisma.event.findMany({ where: { status: "active" }, include: { sport: true }, orderBy: { eventName: "asc" } }),
     prisma.coach.findMany({ where: { status: "active" }, orderBy: { lastName: "asc" }, select: { id: true, coachCode: true, firstName: true, lastName: true, schoolId: true, userId: true, school: { select: { schoolName: true } } } }),
   ]);
-  const athletes = athletesResult.map((athlete) => ({ ...athlete, birthdate: athlete.birthdate.toISOString(), dateRegistered: athlete.dateRegistered.toISOString() }));
+  // Document eligibility — single source of truth (lib/compliance.js), the same
+  // rule behind GET /api/athletes/:id/eligibility. Two queries cover the whole
+  // roster, then each athlete is evaluated in memory.
+  const [requiredDocTypes, rosterDocs] = await Promise.all([
+    prisma.documentType.findMany({
+      where: { status: "active", isRequired: true },
+      select: { id: true, name: true, hasExpiry: true },
+      orderBy: { sortOrder: "asc" },
+    }),
+    athletesResult.length
+      ? prisma.athleteDocument.findMany({
+          where: { athleteId: { in: athletesResult.map((a) => a.id) } },
+          select: { athleteId: true, documentTypeId: true, expiresAt: true },
+        })
+      : Promise.resolve([]),
+  ]);
+  const docsByAthlete = new Map();
+  for (const doc of rosterDocs) {
+    const list = docsByAthlete.get(doc.athleteId);
+    if (list) list.push(doc);
+    else docsByAthlete.set(doc.athleteId, [doc]);
+  }
+  const eligibilityFor = (id) => evaluateCompliance(docsByAthlete.get(id) || [], requiredDocTypes);
+  const athletes = athletesResult.map((athlete) => ({ ...athlete, birthdate: athlete.birthdate.toISOString(), dateRegistered: athlete.dateRegistered.toISOString(), eligibility: eligibilityFor(athlete.id) }));
   const allAthletes = isCoach
     ? allAthletesResult.map((athlete) => ({ ...athlete, birthdate: athlete.birthdate.toISOString(), dateRegistered: athlete.dateRegistered.toISOString() }))
     : athletesResult;
@@ -238,7 +262,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
             </label>
             <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={toggleDir}>{dir === "asc" ? "Ascending" : "Descending"}</button>
           </div>
-            <div className={styles.tableWrap}><table><thead><tr><th scope="col">Code</th><th scope="col">Athlete</th><th scope="col">Sport / event</th><th scope="col">School</th><th scope="col">Coach</th><th scope="col">Health</th><th scope="col">Status</th><th scope="col"></th></tr></thead><tbody>
+            <div className={styles.tableWrap}><table><thead><tr><th scope="col">Code</th><th scope="col">Athlete</th><th scope="col">Sport / event</th><th scope="col">School</th><th scope="col">Coach</th><th scope="col">Health</th><th scope="col">Eligibility</th><th scope="col">Status</th><th scope="col"></th></tr></thead><tbody>
               {clientPaginated.map((athlete) => (
                 <tr key={athlete.id}>
                   <td data-label="Code">{athlete.athleteCode}</td>
@@ -247,6 +271,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
                   <td data-label="School">{athlete.school?.schoolName || "Unassigned"}</td>
                   <td data-label="Coach">{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
                   <td data-label="Health"><HealthBadge status={athlete.healthStatus} /></td>
+                  <td data-label="Eligibility"><EligibilityBadge eligibility={athlete.eligibility} /></td>
                   <td data-label="Status"><StatusBadge status={athlete.status} /></td>
                   <td data-label="Profile"><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
                 </tr>
@@ -260,7 +285,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
                 <div key={sportName} style={{ marginBottom: "var(--space-5)" }}>
                   <h3 className={styles.sectionTitle}>{sportName} <span className={styles.formHint}>({roster.length})</span></h3>
                   <div className={styles.tableWrap}><table>
-                    <thead><tr><th scope="col">Code</th><th scope="col">Athlete</th><th scope="col">Event / discipline</th><th scope="col">School</th><th scope="col">Coach</th><th scope="col">Health</th><th scope="col">Status</th><th scope="col"></th></tr></thead>
+                    <thead><tr><th scope="col">Code</th><th scope="col">Athlete</th><th scope="col">Event / discipline</th><th scope="col">School</th><th scope="col">Coach</th><th scope="col">Health</th><th scope="col">Eligibility</th><th scope="col">Status</th><th scope="col"></th></tr></thead>
                     <tbody>
                       {roster.map((athlete) => (
                         <tr key={athlete.id}>
@@ -270,6 +295,7 @@ export default function Athletes({ session, athletes, paginated: serverPaginated
                           <td data-label="School">{athlete.school?.schoolName || "Unassigned"}</td>
                           <td data-label="Coach">{athlete.coach ? athlete.coach.firstName + " " + athlete.coach.lastName : "Unassigned"}</td>
                           <td data-label="Health"><HealthBadge status={athlete.healthStatus} /></td>
+                          <td data-label="Eligibility"><EligibilityBadge eligibility={athlete.eligibility} /></td>
                           <td data-label="Status"><StatusBadge status={athlete.status} /></td>
                           <td data-label="Profile"><Link className={styles.expandBtn} href={`/athletes/${athlete.id}`}>Profile</Link></td>
                         </tr>
@@ -387,6 +413,22 @@ function Avi({ name, url }) {
 function HealthBadge({ status }) {
   const meta = HEALTH_META[status] || { label: status || "—", cls: "badgeMuted" };
   return <span className={`${styles.badge} ${styles[meta.cls]}`}>{meta.label}</span>;
+}
+
+// Document eligibility from lib/compliance.js (via getServerSideProps).
+function EligibilityBadge({ eligibility }) {
+  if (!eligibility || !eligibility.required) {
+    return <span className={`${styles.badge} ${styles.badgeMuted}`}>No requirements</span>;
+  }
+  if (eligibility.complete) {
+    return <span className={`${styles.badge} ${styles.badgeActive}`}>Clear</span>;
+  }
+  const parts = [];
+  if (eligibility.missing.length) parts.push(`${eligibility.missing.length} missing`);
+  if (eligibility.expired.length) parts.push(`${eligibility.expired.length} expired`);
+  if (eligibility.expiring.length) parts.push(`${eligibility.expiring.length} expiring`);
+  const blocking = eligibility.missing.length > 0 || eligibility.expired.length > 0;
+  return <span className={`${styles.badge} ${blocking ? styles.badgeRejected : styles.badgePending}`}>{parts.join(" · ") || "Incomplete"}</span>;
 }
 
 function AthleteForm({ catalog, isAdmin, onDone }) {
