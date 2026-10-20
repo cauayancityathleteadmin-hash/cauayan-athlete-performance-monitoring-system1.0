@@ -44,11 +44,11 @@ export default function Login() {
 
   return (
     <main className="login-page">
-      <Head><title>Sign in | Cauayan Athlete Performance</title></Head>
+      <Head><title>Sign in | A Performance Monitoring System for Athletes in Cauayan City, Isabela</title></Head>
       <img src="/sports_logo.png" alt="Cauayan City Sports" className="logo" />
-      <p className="auth-kicker">Cauayan City</p>
-      <h1>Sign in</h1>
-      <p className="auth-subtitle">Secure monitoring platform</p>
+      <p className="auth-kicker">Sign in</p>
+      <h1 className="auth-system-title">A Performance Monitoring System for Athletes in Cauayan City, Isabela</h1>
+      <p className="auth-subtitle">Tracking development progress from initial to current performance with analytics</p>
       <form onSubmit={submit} noValidate>
         <label htmlFor="identifier">
           Username or email

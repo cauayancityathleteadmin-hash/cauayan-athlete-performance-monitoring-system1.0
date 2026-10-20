@@ -216,6 +216,14 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--foreground);
 }
 
+/* Full system name on the login page — wraps cleanly inside the auth card. */
+.login-page h1.auth-system-title {
+  font-size: 19px;
+  line-height: 1.4;
+  margin-bottom: 10px;
+  text-wrap: balance;
+}
+
 .login-page form {
   display: flex;
   flex-direction: column;
