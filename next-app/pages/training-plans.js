@@ -6,7 +6,14 @@ import { getSession } from "next-auth/react";
 import { prisma } from "../lib/prisma";
 import { PLAN_TYPE_OPTIONS, PLAN_TYPE_META } from "../lib/training-metrics";
 import AppShell from "../components/AppShell";
+import PageSectionTabs from "../components/PageSectionTabs";
 import styles from "../styles/Dashboard.module.css";
+
+const PLAN_SECTIONS = [
+  { label: "All plans", sectionId: "plans" },
+  { label: "Normal Training", sectionId: "normal" },
+  { label: "Pre-Conditioning", sectionId: "pre-conditioning" },
+];
 
 function planProgress(plan, totals) {
   const total = totals.activities || 0;
@@ -188,7 +195,8 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Training" title="Training plans" active="/training-plans">
         <div className={styles.pageTitle}><h1>Training plans</h1></div>
 
-        <section className={styles.panel}>
+        <PageSectionTabs sections={PLAN_SECTIONS} defaultSection="plans">
+        <section className={styles.panel} id="plans">
           <div className={styles.panelHeader}>
             <div><p className={styles.eyebrow}>Coaching</p><h2>Training plans</h2></div>
             <div className={styles.actions}>
@@ -235,7 +243,7 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
             <section className={styles.panel} style={{ marginTop: "var(--space-6)" }}><p className={styles.empty}>No training plans yet. Create the first plan to get started.</p></section>
           ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)", marginTop: "var(--space-6)" }}>
-                <section className={styles.panel}>
+                <section className={styles.panel} id="normal">
                   <div className={styles.panelHeader}>
                     <div><p className={styles.eyebrow}>Normal Training</p><h2>Normal Trainings ({normalPlans.length})</h2></div>
                   </div>
@@ -246,7 +254,7 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
                   )}
                 </section>
 
-                <section className={styles.panel}>
+                <section className={styles.panel} id="pre-conditioning">
                   <div className={styles.panelHeader}>
                     <div><p className={styles.eyebrow}>Pre-Conditioning</p><h2>Pre-Conditioning Trainings ({preConditioningPlans.length})</h2></div>
                   </div>
@@ -258,6 +266,7 @@ export default function TrainingPlans({ session, isAdmin, sports, coaches, athle
                 </section>
               </div>
             )}
+        </PageSectionTabs>
       </AppShell>
     </>
   );

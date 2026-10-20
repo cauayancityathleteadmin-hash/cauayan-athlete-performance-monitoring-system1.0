@@ -2,7 +2,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import React from "react";
 import { getSession } from "next-auth/react";
-import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, ReferenceLine, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, ReferenceLine, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Label } from "recharts";
 import { METRIC_LABELS, resultFieldFor, resultUnitFor, targetValueFor } from "../../../../lib/activity-score";
 import { prisma } from "../../../../lib/prisma";
 import AppShell from "../../../../components/AppShell";
@@ -670,8 +670,12 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
                     <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barVertical}>
                       <BarChart data={weeklyLoad} margin={CHART_MARGINS.barVertical}>
                         <CartesianGrid {...CHART_GRID.cartesian} />
-                        <XAxis dataKey="label" tick={CHART_AXIS.x} />
-                        <YAxis tick={CHART_AXIS.y} />
+                        <XAxis dataKey="label" tick={CHART_AXIS.x}>
+                          <Label value="Week of" position="insideBottom" dy={22} style={{ fill: CHART_AXIS.x.tick.fill, fontSize: 12 }} />
+                        </XAxis>
+                        <YAxis tick={CHART_AXIS.y} allowDecimals={false}>
+                          <Label value="Load (sum of RPE)" angle={-90} position="insideLeft" offset={8} style={{ fill: CHART_AXIS.y.tick.fill, fontSize: 12 }} />
+                        </YAxis>
                         <Tooltip {...CHART_TOOLTIP} formatter={(v, n, p) => [`${v} (${p?.payload?.sessions ?? 0} session${(p?.payload?.sessions ?? 0) === 1 ? "" : "s"})`, "Load"]} />
                         <Bar dataKey="load" radius={[4, 4, 0, 0]}>{weeklyLoad.map((w, i) => <Cell key={w.key} fill={loadSpike && loadSpike.spike && i === weeklyLoad.length - 1 ? CHART_COLORS.danger : CHART_COLORS.primary} />)}</Bar>
                       </BarChart>
@@ -704,8 +708,12 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
                   <ResponsiveContainer width="100%" height={CHART_HEIGHTS.line}>
                     <LineChart data={completionTrend} margin={CHART_MARGINS.line}>
                       <CartesianGrid {...CHART_GRID.cartesian} />
-                      <XAxis dataKey="label" tick={CHART_AXIS.x} />
-                      <YAxis domain={[0, 100]} tick={CHART_AXIS.y} tickFormatter={(v) => `${v}%`} />
+                      <XAxis dataKey="label" tick={CHART_AXIS.x}>
+                        <Label value={trendGranularity === "day" ? "Session date" : trendGranularity === "week" ? "Week of" : "Month"} position="insideBottom" dy={22} style={{ fill: CHART_AXIS.x.tick.fill, fontSize: 12 }} />
+                      </XAxis>
+                      <YAxis domain={[0, 100]} tick={CHART_AXIS.y} tickFormatter={(v) => `${v}%`}>
+                        <Label value="Completion" angle={-90} position="insideLeft" offset={8} style={{ fill: CHART_AXIS.y.tick.fill, fontSize: 12 }} />
+                      </YAxis>
                       <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l, p) => p?.[0]?.payload?.long || l} cursor={{ stroke: "rgba(45,212,168,0.4)" }} />
                       <Line type="monotone" dataKey="percent" name="Completion" stroke={CHART_COLORS.primary} strokeWidth={2} dot={{ fill: CHART_COLORS.primary, r: 3 }} activeDot={{ r: 5 }} />
                     </LineChart>
@@ -732,8 +740,12 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
                   <ResponsiveContainer width="100%" height={CHART_HEIGHTS.line}>
                     <LineChart data={metricSeries} margin={CHART_MARGINS.line}>
                       <CartesianGrid {...CHART_GRID.cartesian} />
-                      <XAxis dataKey="label" tick={CHART_AXIS.x} />
-                      <YAxis tick={CHART_AXIS.y} />
+                      <XAxis dataKey="label" tick={CHART_AXIS.x}>
+                        <Label value="Session date" position="insideBottom" dy={22} style={{ fill: CHART_AXIS.x.tick.fill, fontSize: 12 }} />
+                      </XAxis>
+                      <YAxis tick={CHART_AXIS.y}>
+                        <Label value={metricUnit ? `Result (${metricUnit})` : "Result"} angle={-90} position="insideLeft" offset={8} style={{ fill: CHART_AXIS.y.tick.fill, fontSize: 12 }} />
+                      </YAxis>
                       <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}${metricUnit ? ` ${metricUnit}` : ""}`, "Result"]} />
                       {metricTarget != null && <ReferenceLine y={metricTarget} stroke={CHART_COLORS.warning} strokeDasharray="4 4" label={{ value: `Target ${metricTarget}${metricUnit ? ` ${metricUnit}` : ""}`, fill: CHART_COLORS.warning, fontSize: 11, position: "insideTopRight" }} />}
                       <Line type="monotone" dataKey="value" name="Result" stroke={CHART_COLORS.primary} strokeWidth={2} dot={{ fill: CHART_COLORS.primary, r: 3 }} activeDot={{ r: 5 }} />
@@ -749,7 +761,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
                     <RadarChart data={radarData}>
                       <PolarGrid {...CHART_GRID.polar} />
                       <PolarAngleAxis dataKey="fitness" tick={CHART_AXIS.polarAngle} />
-                      <PolarRadiusAxis domain={[0, 100]} tick={CHART_AXIS.polarRadius} tickCount={5} />
+                      <PolarRadiusAxis domain={[0, 100]} tick={CHART_AXIS.polarRadius} tickCount={5} tickFormatter={(v) => `${v}%`} />
                       <Radar name="Completion" dataKey="value" stroke={CHART_COLORS.primary} fill={CHART_COLORS.primary} fillOpacity={0.35} />
                       <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}%`, "Completion"]} />
                     </RadarChart>
@@ -763,8 +775,12 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
                   <ResponsiveContainer width="100%" height={barChartHeight(activityCompletion.length)}>
                     <BarChart data={activityCompletion} layout="vertical" margin={CHART_MARGINS.barHorizontal}>
                       <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
-                      <XAxis type="number" domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tick={CHART_AXIS.x} tickFormatter={(v) => `${v}%`} />
-                      <YAxis type="category" dataKey="name" width={CHART_AXES.barCategory} tick={CHART_AXIS.y} tickFormatter={(v) => shortAxisLabel(v)} />
+                      <XAxis type="number" domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tick={CHART_AXIS.x} tickFormatter={(v) => `${v}%`}>
+                        <Label value="Completion" position="insideBottom" dy={22} style={{ fill: CHART_AXIS.x.tick.fill, fontSize: 12 }} />
+                      </XAxis>
+                      <YAxis type="category" dataKey="name" width={CHART_AXES.barCategory} tick={CHART_AXIS.y} tickFormatter={(v) => shortAxisLabel(v)}>
+                        <Label value="Activity" angle={-90} position="insideLeft" offset={8} style={{ fill: CHART_AXIS.y.tick.fill, fontSize: 12 }} />
+                      </YAxis>
                       <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}%`, "Completion"]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
                       <Bar dataKey="percent" radius={[0, 4, 4, 0]}>{activityCompletion.map((act) => <Cell key={act.id} fill={act.hasLog ? completionColor(act.percent) : CHART_COLORS.muted} />)}</Bar>
                     </BarChart>
@@ -782,8 +798,12 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
               <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barHorizontal}>
                 <BarChart data={fitnessDist} layout="vertical" margin={CHART_MARGINS.barHorizontal}>
                   <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
-                  <XAxis type="number" tick={CHART_AXIS.x} />
-                  <YAxis type="category" dataKey="name" width={CHART_AXES.barCategory} tick={CHART_AXIS.y} tickFormatter={(v) => shortAxisLabel(v)} />
+                  <XAxis type="number" tick={CHART_AXIS.x}>
+                    <Label value="Activities" position="insideBottom" dy={22} style={{ fill: CHART_AXIS.x.tick.fill, fontSize: 12 }} />
+                  </XAxis>
+                  <YAxis type="category" dataKey="name" width={CHART_AXES.barCategory} tick={CHART_AXIS.y} tickFormatter={(v) => shortAxisLabel(v)}>
+                    <Label value="Fitness dimension" angle={-90} position="insideLeft" offset={8} style={{ fill: CHART_AXIS.y.tick.fill, fontSize: 12 }} />
+                  </YAxis>
                   <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v} activities`, "Count"]} />
                   <Bar dataKey="count" radius={[0, 4, 4, 0]}>{fitnessDist.map((d) => <Cell key={d.name} fill={d.color} />)}</Bar>
                 </BarChart>

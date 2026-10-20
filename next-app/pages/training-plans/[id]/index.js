@@ -4,7 +4,7 @@ import React from "react";
 import { getSession } from "next-auth/react";
 import {
   ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid,
-  LineChart, Line, PieChart, Pie, Legend,
+  LineChart, Line, PieChart, Pie, Legend, Label,
 } from "recharts";
 import { prisma } from "../../../lib/prisma";
 import { buildMonitoringGrid } from "../../../lib/plan-monitoring";
@@ -13,7 +13,7 @@ import { METRIC_LABELS, resultUnitFor, targetValueFor } from "../../../lib/activ
 import { PLAN_TYPE_META } from "../../../lib/training-metrics";
 import AppShell from "../../../components/AppShell";
 import styles from "../../../styles/Dashboard.module.css";
-import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, CHART_LEGEND, CHART_COLORS, barChartHeight, completionColor } from "../../../lib/chart-config";
+import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, CHART_LEGEND, CHART_COLORS, barChartHeight, completionColor, shortAxisLabel } from "../../../lib/chart-config";
 
 export async function getServerSideProps(context) {
   const session = await getSession(context);
@@ -1257,8 +1257,12 @@ function TrainingCharts({ plan, athletes, activities, logs, perAthlete, barData,
             <ResponsiveContainer width="100%" height={barChartHeight(barData.length)}>
               <BarChart data={barData} layout="vertical" margin={CHART_MARGINS.barHorizontal}>
                 <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
-                <XAxis type="number" domain={[0, 100]} ticks={[0,20,40,60,80,100]} tick={CHART_AXIS.x} tickFormatter={(v) => `${v}%`} />
-                <YAxis type="category" dataKey="name" width={CHART_AXES.barCategory} tick={CHART_AXIS.y} />
+                <XAxis type="number" domain={[0, 100]} ticks={[0,20,40,60,80,100]} tick={CHART_AXIS.x} tickFormatter={(v) => `${v}%`}>
+                  <Label value="Completion" position="insideBottom" dy={22} style={{ fill: CHART_AXIS.x.tick.fill, fontSize: 12 }} />
+                </XAxis>
+                <YAxis type="category" dataKey="name" width={CHART_AXES.barCategory} tick={CHART_AXIS.y} tickFormatter={(v) => shortAxisLabel(v)}>
+                  <Label value="Athlete" angle={-90} position="insideLeft" offset={8} style={{ fill: CHART_AXIS.y.tick.fill, fontSize: 12 }} />
+                </YAxis>
                 <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l, p) => p?.[0]?.payload?.full || l} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
                 <Bar dataKey="percent" name="Completion" radius={[0, 4, 4, 0]}>{barData.map((d) => <Cell key={d.full} fill={completionColor(d.percent)} />)}</Bar>
               </BarChart>
@@ -1290,8 +1294,12 @@ function TrainingCharts({ plan, athletes, activities, logs, perAthlete, barData,
             <ResponsiveContainer width="100%" height={CHART_HEIGHTS.line}>
               <LineChart data={weekly} margin={CHART_MARGINS.line}>
                 <CartesianGrid {...CHART_GRID.cartesian} />
-                <XAxis dataKey="week" tick={CHART_AXIS.x} tickFormatter={(v) => `W${v}`} />
-                <YAxis domain={[0, 100]} ticks={[0,20,40,60,80,100]} tick={CHART_AXIS.y} tickFormatter={(v) => `${v}%`} />
+                <XAxis dataKey="week" tick={CHART_AXIS.x} tickFormatter={(v) => `W${v}`}>
+                  <Label value="Plan week" position="insideBottom" dy={22} style={{ fill: CHART_AXIS.x.tick.fill, fontSize: 12 }} />
+                </XAxis>
+                <YAxis domain={[0, 100]} ticks={[0,20,40,60,80,100]} tick={CHART_AXIS.y} tickFormatter={(v) => `${v}%`}>
+                  <Label value="Completion" angle={-90} position="insideLeft" offset={8} style={{ fill: CHART_AXIS.y.tick.fill, fontSize: 12 }} />
+                </YAxis>
                 <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}%`, "Completion"]} labelFormatter={(l) => `Week ${l}`} cursor={{ stroke: "rgba(45,212,168,0.4)" }} />
                 <Line type="monotone" dataKey="percent" name="Completion" stroke={CHART_COLORS.primary} strokeWidth={2} dot={{ fill: CHART_COLORS.primary, r: 3 }} activeDot={{ r: 5 }} />
               </LineChart>

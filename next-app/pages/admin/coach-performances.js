@@ -56,6 +56,8 @@ function CoachTrend({ points }) {
   const coords = points.map((p, i) => ({ x: padL + i * step, y: padT + plotH - ((p.value - min) / range) * plotH, p }));
   const path = coords.map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
   const area = `${path} L${coords[coords.length - 1].x.toFixed(1)},${h - padB} L${coords[0].x.toFixed(1)},${h - padB} Z`;
+  const mid = (min + max) / 2;
+  const labelVals = [max, mid, min].map((v) => v.toFixed(1));
   return (
     <svg viewBox={`0 0 ${w} ${h}`} style={{ width: "100%", height: "auto", display: "block" }} role="img" aria-label="Coach evaluation trend chart">
       <defs>
@@ -78,6 +80,10 @@ function CoachTrend({ points }) {
             {showLabel && <text x={c.x} y={h - 7} textAnchor="middle" fontSize="9" fill={CHART_COLORS.text}>{c.p.when}</text>}
           </g>
         );
+      })}
+      {labelVals.map((v, i) => {
+        const y = padT + (i * (plotH / 2));
+        return <text key={`v${i}`} x={w - padR} y={y + 3} textAnchor="end" fontSize="9" fill={CHART_COLORS.text}>{v}</text>;
       })}
     </svg>
   );

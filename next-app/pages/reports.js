@@ -3,7 +3,7 @@ import React from "react";
 import { getSession } from "next-auth/react";
 import {
   ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid,
-  LineChart, Line, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend,
+  LineChart, Line, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend, Label,
 } from "recharts";
 import { prisma } from "../lib/prisma";
 import { computeAchievementPoints } from "../lib/points";
@@ -864,8 +864,12 @@ function PerformanceSummary({ athlete }) {
             <ResponsiveContainer width="100%" height={CHART_HEIGHTS.line}>
               <LineChart data={trendData} margin={CHART_MARGINS.line}>
                 <CartesianGrid {...CHART_GRID.cartesian} />
-                <XAxis dataKey="when" tick={CHART_AXIS.x} />
-                <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} tick={CHART_AXIS.y} />
+                <XAxis dataKey="when" tick={CHART_AXIS.x}>
+                  <Label value="Assessment date" position="insideBottom" dy={22} style={{ fill: CHART_AXIS.x.tick.fill, fontSize: 12 }} />
+                </XAxis>
+                <YAxis domain={[0, 10]} ticks={[0, 2, 4, 6, 8, 10]} tick={CHART_AXIS.y}>
+                  <Label value="Rating (1–10)" angle={-90} position="insideLeft" offset={8} style={{ fill: CHART_AXIS.y.tick.fill, fontSize: 12 }} />
+                </YAxis>
                 <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}/10`, "Rating"]} />
                 <Line type="monotone" dataKey="rating" stroke={CHART_COLORS.primary} strokeWidth={2} dot={{ fill: CHART_COLORS.primary, r: 3 }} />
               </LineChart>
@@ -897,7 +901,7 @@ function PerformanceSummary({ athlete }) {
               <BarChart data={completionStack} layout="vertical" margin={CHART_MARGINS.barHorizontal}>
                 <XAxis type="number" hide />
                 <YAxis type="category" dataKey="name" hide />
-                <Tooltip {...CHART_TOOLTIP} formatter={(v, name) => [`${v}`, name]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
+                <Tooltip {...CHART_TOOLTIP} formatter={(v, name) => [`${v} activities`, name]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
                 <Bar dataKey="done" stackId="a" fill={CHART_COLORS.primary} name="Done" />
                 <Bar dataKey="partial" stackId="a" fill={CHART_COLORS.warning} name="Partial" />
                 <Bar dataKey="missed" stackId="a" fill={CHART_COLORS.danger} name="Missed" />

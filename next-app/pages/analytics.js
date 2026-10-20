@@ -14,8 +14,6 @@ import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CH
 const STATUS_COLORS = { active: CHART_COLORS.primary, inactive: CHART_COLORS.muted, pending: CHART_COLORS.warning, draft: CHART_COLORS.muted };
 const GENDER_COLORS = { male: CHART_COLORS.primary, female: CHART_COLORS.palette[2], other: CHART_COLORS.warning, prefer_not_to_say: CHART_COLORS.muted };
 const HEALTH_COLORS = { healthy: CHART_COLORS.primary, sick: CHART_COLORS.warning, injured: CHART_COLORS.danger, recovering: CHART_COLORS.muted, inactive: CHART_COLORS.muted };
-const PALETTE = CHART_COLORS.palette;
-
 const KPI = ({ label, value }) => (
   <div className={styles.kpi}>
     <span className={styles.kpiLabel}>{label}</span>
@@ -278,7 +276,14 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
   const statusSegments = statusDist.map((item) => ({ ...item, color: STATUS_COLORS[item.name] || CHART_COLORS.muted }));
   const genderSegments = genderDist.map((d) => ({ name: cap(d.label), value: d.value, color: GENDER_COLORS[d.label.toLowerCase()] || CHART_COLORS.muted }));
   const healthSegments = healthStatusDist.map((item) => ({ ...item, color: HEALTH_COLORS[item.name] || CHART_COLORS.muted }));
-  const healthFlags = healthStatusDist.filter((h) => ["sick", "injured", "recovering", "inactive"].includes(h.name)).map((h) => ({ name: cap(h.name), value: h.value }));
+  // Health flags in a fixed order with each flag's own semantic color
+  // (injured = danger, sick = warning, recovering/inactive = muted) — same
+  // mapping as HEALTH_COLORS, never positional colors.
+  const HEALTH_FLAG_ORDER = ["injured", "sick", "recovering", "inactive"];
+  const healthFlags = HEALTH_FLAG_ORDER
+    .map((name) => healthStatusDist.find((h) => h.name === name))
+    .filter(Boolean)
+    .map((h) => ({ name: cap(h.name), value: h.value, color: HEALTH_COLORS[h.name] || CHART_COLORS.muted }));
 
   const ANALYTICS_SECTIONS = [
     { label: "Athletes", sectionId: "athletes" },
@@ -377,7 +382,7 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
             </div>
             <div className={styles.panel}>
               <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Health flags</h2></div></div>
-              {healthFlags.length ? <HBars data={healthFlags} colors={[CHART_COLORS.warning, CHART_COLORS.danger, CHART_COLORS.accent, CHART_COLORS.muted]} axisLabel="Status" axisValue="Athletes" /> : <p className={styles.empty}>No athletes flagged.</p>}
+              {healthFlags.length ? <HBars data={healthFlags} colors={healthFlags.map((h) => h.color)} axisLabel="Status" axisValue="Athletes" /> : <p className={styles.empty}>No athletes flagged.</p>}
               </div>
             </section>
           </section>
@@ -390,7 +395,7 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
               </div>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Assessments recorded per month</h2></div></div>
-                {monthly.length ? <HBars data={monthly} colors={PALETTE} axisLabel="Month" axisValue="Assessments" /> : <p className={styles.empty}>No assessments yet.</p>}
+                {monthly.length ? <HBars data={monthly} axisLabel="Month" axisValue="Assessments" /> : <p className={styles.empty}>No assessments yet.</p>}
               </div>
             </section>
 
