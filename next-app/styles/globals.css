@@ -461,7 +461,7 @@ h1, h2, h3, h4, h5, h6 {
 .login-page button:disabled { opacity: .65; cursor: wait; }
 .login-page [role="alert"] { color: var(--danger); font-size: 15px; }
 .login-page [role="status"] { color: var(--accent); font-size: 15px; }
-.auth-kicker { margin: 0; color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.auth-kicker { margin: 0; color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; text-align: center; width: 100%; }
 .auth-subtitle { margin: 0 0 var(--space-5); color: var(--muted); font-size: 15px; text-align: center; }
 .auth-register { margin: var(--space-5) 0 0; text-align: center; font-size: 16px; }
 .login-page fieldset { display: grid; gap: var(--space-3); margin: var(--space-2) 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-lg); color: var(--muted); }
@@ -585,24 +585,22 @@ h1, h2, h3, h4, h5, h6 {
   width: 100%;
 }
 
+/* Labels: plain inline text with the asterisk kept on the SAME line, directly
+   after the label text. Block-level so the asterisk can never wrap to a second
+   line on its own and the label hugs exactly one line of text. */
 .field-group label {
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
-  display: flex;
-  align-items: baseline;
-  flex-wrap: nowrap;
-  gap: 4px;
+  display: block;
   min-width: 0;
-  white-space: nowrap;
   text-align: left;
+  line-height: 1.4;
 }
 
-/* Asterisk stays on the same line as the label text, right after it. */
 .field-group label .required {
   color: var(--danger);
-  margin-left: 0;
-  flex-shrink: 0;
+  margin-left: 2px;
 }
 
 .field-group label .optional {
@@ -610,8 +608,7 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 400;
   font-size: 12px;
   text-transform: lowercase;
-  margin-left: 2px;
-  flex-shrink: 0;
+  margin-left: 4px;
 }
 
 .field-group input,
