@@ -80,13 +80,18 @@ function loggedResultValue(activity, log) {
 }
 
 /* Classify a recorded log into a DepEd PFT tier for the athlete. Returns null
-   when the athlete's sex/age norm is unavailable or the value is unusable. */
-function classifyLog(athlete, activity, log) {
+   when the athlete's sex/age norm is unavailable or the value is unusable.
+   `overrides` carries admin-edited bands loaded from the DB (see
+   lib/fitness-norms.js); omitted → the built-in reference bands are used. */
+export function classifyLog(athlete, activity, log, overrides) {
   if (!athlete || !activity || !log) return null;
   const value = loggedResultValue(activity, log);
   if (value == null) return null;
-  return classifyFitnessValue(activity.fitnessType, athlete.gender, athlete.birthdate, value);
+  return classifyFitnessValue(activity.fitnessType, athlete.gender, athlete.birthdate, value, overrides);
 }
+
+/* Recorded result value for a log, mapped to the activity's primary metric. */
+export { loggedResultValue };
 
 function logResultText(log) {
   if (!log) return "";
@@ -158,7 +163,7 @@ function resetTargetsFor(next, fitnessType) {
   return next;
 }
 
-export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, onEdit, onChanged, readOnly = false, planType }) {
+export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRemove, onEdit, onChanged, readOnly = false, planType, normOverrides }) {
   const [adding, setAdding] = React.useState(false);
   const [showActivities, setShowActivities] = React.useState(true);
   const [editingId, setEditingId] = React.useState(null);
@@ -286,7 +291,7 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
                           {(() => {
                             if (!latest) return <span className={styles.badge} style={{ background: "rgba(26,92,74,.08)", color: "var(--muted)", border: "1px dashed rgba(66,135,99,.45)", fontSize: "11px" }}>Not started</span>;
                             const ts = targetStatus(firstActivity, latest);
-                            const cls = classifyLog(athlete, firstActivity, latest);
+                            const cls = classifyLog(athlete, firstActivity, latest, normOverrides);
                             return (
                               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-1)", alignItems: "center" }}>
                                 <span title={`${fmtDate(latest.performedAt)}${logResultText(latest) ? ` · ${logResultText(latest)}` : ""}`} className={`${styles.badge} ${styles[meta.cls]}`} style={{ fontSize: "11px" }}>

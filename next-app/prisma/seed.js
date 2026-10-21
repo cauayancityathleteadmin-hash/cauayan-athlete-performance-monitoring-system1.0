@@ -136,6 +136,31 @@ async function seedReferenceData() {
     });
   }
 
+  // --- Fitness reference bands (idempotent; seeds DB from lib/starter-metrics.js) ---
+  // The DB table lets admins edit the bands; missing rows fall back to the JS
+  // defaults at classification time, so seeding is a convenience, not a must.
+  const { STARTER_NORMS, CLASSIFICATION_TIERS } = await import("../lib/starter-metrics.js");
+  const normRows = [];
+  for (const [fitnessType, block] of Object.entries(STARTER_NORMS)) {
+    for (const sex of Object.keys(block.norms || {})) {
+      for (const [ageGroup, tiers] of Object.entries(block.norms[sex])) {
+        for (const tier of CLASSIFICATION_TIERS) {
+          const value = tiers[tier];
+          if (!Number.isFinite(value)) continue;
+          normRows.push({
+            fitnessType, sex, ageGroup, tier,
+            value,
+            verified: block.verified === true,
+            sourceNote: block.sourceNote || null,
+          });
+        }
+      }
+    }
+  }
+  if (normRows.length) {
+    await prisma.fitnessNorm.createMany({ data: normRows, skipDuplicates: true });
+  }
+
   return { schools, sports, events, metrics };
 }
 

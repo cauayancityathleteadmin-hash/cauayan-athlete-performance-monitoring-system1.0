@@ -277,11 +277,34 @@ export function sexFor(gender) {
 }
 
 /**
+ * Resolve the effective norm block for a fitness type, applying any admin
+ * overrides loaded from the DB.
+ *
+ * `overrides` is the shape returned by lib/fitness-norms.js
+ * (loadNormOverrides): { [fitnessType]: { verified, sourceNote, norms } }.
+ * When an override exists its bands replace the JS defaults; the tier framework
+ * and metadata (test/unit/direction) stay from STARTER_NORMS so the DB only ever
+ * carries the numeric bands. Falls back to the JS defaults when absent.
+ */
+export function resolveNorm(fitnessType, overrides) {
+  const base = STARTER_NORMS[fitnessType];
+  if (!base) return null;
+  const ov = overrides && overrides[fitnessType];
+  if (!ov || !ov.norms) return base;
+  return {
+    ...base,
+    norms: ov.norms,
+    verified: ov.verified !== undefined ? ov.verified : base.verified,
+    sourceNote: ov.sourceNote || base.sourceNote,
+  };
+}
+
+/**
  * Get the starter norm value for a fitness type, athlete gender, and birthdate.
  * Returns the DEFAULT_STARTER_TIER (good) band value with metadata.
  */
-export function getStarterNorm(fitnessType, gender, birthdate) {
-  const norm = STARTER_NORMS[fitnessType];
+export function getStarterNorm(fitnessType, gender, birthdate, overrides) {
+  const norm = resolveNorm(fitnessType, overrides);
   if (!norm) return null;
 
   const ageGroup = ageGroupFor(birthdate);
@@ -314,6 +337,7 @@ export function getStarterNorm(fitnessType, gender, birthdate) {
  * @param {string} gender       AthleteGender
  * @param {string} birthdate    ISO date
  * @param {number} value        the recorded result (sec, reps, cm, bpm…)
+ * @param {object} [overrides]  optional DB norm overrides (see resolveNorm)
  * @returns {null | {
  *   tier, label, rank, color, value, unit, direction, ageGroup, sex,
  *   test, primaryMetric, band, nextTier, nextTierLabel, nextValue, gapToNext,
@@ -325,8 +349,8 @@ export function getStarterNorm(fitnessType, gender, birthdate) {
  * value is BELOW the excellent cut-off; for "higher is better" it is ABOVE.
  * Returns null when the norm or the value is unusable.
  */
-export function classifyFitnessValue(fitnessType, gender, birthdate, value) {
-  const norm = STARTER_NORMS[fitnessType];
+export function classifyFitnessValue(fitnessType, gender, birthdate, value, overrides) {
+  const norm = resolveNorm(fitnessType, overrides);
   const v = Number(value);
   if (!norm || !norm.norms || !Number.isFinite(v)) return null;
 

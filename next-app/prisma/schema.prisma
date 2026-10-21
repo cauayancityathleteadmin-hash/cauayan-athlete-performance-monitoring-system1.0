@@ -949,3 +949,24 @@ model AthleteTransfer {
   @@index([requestedBy, status])
   @@map("athlete_transfers")
 }
+
+// Editable reference bands for fitness tier classification.
+// The numbers default to the Cauayan City reference bands in lib/starter-metrics.js
+// (which are NOT DepEd-published values — see that file's header). Admins can
+// override any band here so Cauayan can lock in its own validated norms.
+model FitnessNorm {
+  id              Int              @id @default(autoincrement())
+  fitnessType     FitnessDimension
+  sex             String           // "male" | "female"
+  ageGroup        String           @map("age_group") // "10-11" | "12-13" | ...
+  tier            String           // excellent | veryGood | good | fair | needsImprovement
+  value           Decimal
+  verified        Boolean          @default(false)
+  sourceNote      String?          @map("source_note")
+  updatedBy       Int?             @map("updated_by")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  createdAt       DateTime         @default(now()) @map("created_at")
+
+  @@unique([fitnessType, sex, ageGroup, tier])
+  @@map("fitness_norms")
+}

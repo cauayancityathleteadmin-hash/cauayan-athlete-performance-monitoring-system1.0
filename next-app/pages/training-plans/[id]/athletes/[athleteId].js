@@ -6,10 +6,12 @@ import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, Cartes
 import { METRIC_LABELS, resultFieldFor, resultUnitFor, targetValueFor } from "../../../../lib/activity-score";
 import { prisma } from "../../../../lib/prisma";
 import AppShell from "../../../../components/AppShell";
-import { AthleteActivitiesBlock } from "../../../../components/AthleteActivityManager";
+import { AthleteActivitiesBlock, loggedResultValue } from "../../../../components/AthleteActivityManager";
 import PageSectionTabs from "../../../../components/PageSectionTabs";
 import styles from "../../../../styles/Dashboard.module.css";
 import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, CHART_COLORS, barChartHeight, completionColor, shortAxisLabel } from "../../../../lib/chart-config";
+import { loadNormOverrides } from "../../../../lib/fitness-norms";
+import { classifyFitnessValue } from "../../../../lib/starter-metrics";
 
 const FITNESS_META = {
   endurance: "Endurance", strength: "Strength", power: "Power",
@@ -18,6 +20,7 @@ const FITNESS_META = {
 
 const ATHLETE_SECTIONS = [
   { label: "Overview", sectionId: "overview" },
+  { label: "Fitness profile", sectionId: "fitness" },
   { label: "Activities", sectionId: "activities" },
   { label: "Trends & charts", sectionId: "trends" },
   { label: "Distribution", sectionId: "distribution" },
@@ -310,13 +313,12 @@ export async function getServerSideProps(context) {
   if (!onPlan) return { redirect: { destination: `/training-plans/${planId}`, permanent: false } };
 
   // Fetch additional data for merged progress features
-  const [trainingAssessments, performances, attendances, achievements, healthLogs] = await Promise.all([
+  const [trainingAssessments, performances, attendances, achievements, healthLogs, normOverrides] = await Promise.all([
     prisma.trainingAssessment.findMany({
       where: { athleteId },
       orderBy: { assessmentDate: "asc" },
       select: { id: true, assessmentDate: true, rating: true, fitnessDimension: true, comments: true, plan: { select: { planName: true } } },
-    }),
-    prisma.exercisePerformance.findMany({
+    }),    prisma.exercisePerformance.findMany({
       where: { athleteId },
       orderBy: { recordedAt: "asc" },
       select: { id: true, recordedAt: true, score: true, rpe: true, exercise: { select: { exerciseName: true, category: true } } },
@@ -337,6 +339,7 @@ export async function getServerSideProps(context) {
       take: 10,
       select: { id: true, status: true, description: true, reportedAt: true },
     }),
+    loadNormOverrides(),
   ]);
 
   return {
@@ -350,11 +353,12 @@ export async function getServerSideProps(context) {
       attendances: JSON.parse(JSON.stringify(attendances)),
       achievements: JSON.parse(JSON.stringify(achievements)),
       healthLogs: JSON.parse(JSON.stringify(healthLogs)),
+      normOverrides: JSON.parse(JSON.stringify(normOverrides)),
     },
   };
 }
 
-export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trainingAssessments = [], performances = [], attendances = [], achievements = [], healthLogs = [] }) {
+export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trainingAssessments = [], performances = [], attendances = [], achievements = [], healthLogs = [], normOverrides = {} }) {
   const router = useRouter();
   const [data, setData] = React.useState(null);
   const [allLogs, setAllLogs] = React.useState([]);
@@ -476,6 +480,51 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
       .sort((x, y) => y.percent - x.percent);
   }, [activities]);
 
+  // Part C: effective fitness profile — the latest classified tier per fitness
+  // quality, plus the trend (rank delta) across that quality's logged history.
+  const fitnessProfile = React.useMemo(() => {
+    const byType = new Map();
+    for (const a of activities) {
+      if (!a.fitnessType) continue;
+      const history = (logsByActivity.get(a.id) || [])
+        .map((log) => ({ log, cls: classifyFitnessValue(a.fitnessType, athlete.gender, athlete.birthdate, loggedResultValue(a, log), normOverrides) }))
+        .filter((x) => x.cls)
+        .sort((x, y) => new Date(x.log.performedAt) - new Date(y.log.performedAt));
+      if (history.length === 0) continue;
+      const best = history[history.length - 1];
+      if (!byType.has(a.fitnessType)) byType.set(a.fitnessType, { fitnessType: a.fitnessType, latest: best, first: history[0], count: history.length });
+      else {
+        const row = byType.get(a.fitnessType);
+        row.count += history.length;
+        if (new Date(best.log.performedAt) > new Date(row.latest.log.performedAt)) row.latest = best;
+        if (new Date(history[0].log.performedAt) < new Date(row.first.log.performedAt)) row.first = history[0];
+      }
+    }
+    return [...byType.values()].map((row) => ({
+      fitnessType: row.fitnessType,
+      label: FITNESS_META_FULL[row.fitnessType] || row.fitnessType,
+      tierLabel: row.latest.cls.label,
+      rank: row.latest.cls.rank,
+      color: row.latest.cls.color,
+      test: row.latest.cls.test,
+      unit: row.latest.cls.unit,
+      value: row.latest.cls.value,
+      date: row.latest.log.performedAt,
+      nextTierLabel: row.latest.cls.nextTierLabel,
+      nextValue: row.latest.cls.nextValue,
+      gapToNext: row.latest.cls.gapToNext,
+      unverified: row.latest.cls.unverified,
+      sourceNote: row.latest.cls.sourceNote,
+      delta: row.latest.cls.rank - row.first.cls.rank,
+      count: row.count,
+    })).sort((x, y) => y.rank - x.rank);
+  }, [activities, logsByActivity, athlete.gender, athlete.birthdate, normOverrides]);
+
+  const fitnessRadar = React.useMemo(
+    () => fitnessProfile.map((p) => ({ fitness: p.label, value: p.rank, tier: p.tierLabel })),
+    [fitnessProfile]
+  );
+
   // §5 Weekly training load = sum of session RPE (1-10) logged as done/partial,
   // grouped into Monday-start weeks. Plus an acute:chronic style spike warning
   // comparing the latest week to the average of the 3 weeks before it.
@@ -553,6 +602,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
               onRemove={removeActivity}
               onEdit={editActivity}
               onChanged={onActivitiesChanged}
+              normOverrides={normOverrides}
             />
           </section>
         )}
@@ -566,6 +616,58 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
           <div className={styles.detailPanel}><h4>Average performance score</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{perfSummary.avg != null ? fmtNum(perfSummary.avg) : "—"}</div><small style={{ color: "var(--muted)" }}>Across all recorded exercises</small></div>
           <div className={styles.detailPanel}><h4>Sessions present</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{attSummary.att.present} / {attSummary.totalAtt || 0}</div><small style={{ color: "var(--muted)" }}>{attSummary.attendanceRate != null ? `Attendance rate ${attSummary.attendanceRate}%` : "No sessions logged"}</small></div>
         </div>
+
+        <section className={styles.panel} id="fitness">
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Fitness profile</p><h2>How {athlete.firstName} rates by quality</h2></div></div>
+          {fitnessProfile.length === 0 ? (
+            <p className={styles.empty}>No classified results yet. A quality appears here once {athlete.firstName} has a logged result for an activity in that quality.</p>
+          ) : (
+            <>
+              <div className={styles.chartGrid}>
+                <div className={styles.detailPanel}>
+                  <h4>Fitness balance <small style={{ color: "var(--muted)", fontWeight: 400 }}>(latest tier per quality)</small></h4>
+                  {fitnessRadar.length > 2 ? (
+                    <ResponsiveContainer width="100%" height={CHART_HEIGHTS.radar}>
+                      <RadarChart data={fitnessRadar}>
+                        <PolarGrid {...CHART_GRID.polar} />
+                        <PolarAngleAxis dataKey="fitness" tick={CHART_AXIS.polarAngle} />
+                        <PolarRadiusAxis domain={[0, 5]} tickCount={6} tick={CHART_AXIS.polarRadius} allowDecimals={false} />
+                        <Radar name="Tier" dataKey="value" stroke={CHART_COLORS.primary} fill={CHART_COLORS.primary} fillOpacity={0.35} />
+                        <Tooltip {...CHART_TOOLTIP} formatter={(v, n, p) => [p?.payload?.tier || v, "Tier"]} />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  ) : <p className={styles.empty}>Log results in more than two fitness qualities to see the balance chart.</p>}
+                </div>
+
+                <div className={styles.detailPanel}>
+                  <h4>Tier by quality</h4>
+                  <div className={styles.tableWrap}>
+                    <table style={{ fontSize: 13 }}>
+                      <thead>
+                        <tr><th scope="col">Quality</th><th scope="col">Latest tier</th><th scope="col">Trend</th><th scope="col">Next tier</th></tr>
+                      </thead>
+                      <tbody>
+                        {fitnessProfile.map((p) => (
+                          <tr key={p.fitnessType}>
+                            <td data-label="Quality"><strong>{p.label}</strong><small> · {p.count} result{p.count === 1 ? "" : "s"}</small></td>
+                            <td data-label="Latest tier">
+                              <span className={styles.badge} style={{ background: "rgba(45,212,168,.14)", color: p.color, fontSize: 11 }} title={`${p.test} · ${fmtNum(p.value)} ${p.unit} · ${p.unverified ? "Reference band (not a DepEd-published norm)" : "Published norm"}. Source: ${p.sourceNote}`}>{p.tierLabel}{p.unverified ? " (ref.)" : ""}</span>
+                            </td>
+                            <td data-label="Trend" style={{ color: p.delta > 0 ? "var(--accent)" : p.delta < 0 ? "var(--danger)" : "var(--muted)" }}>{p.delta > 0 ? `▲ +${p.delta}` : p.delta < 0 ? `▼ ${p.delta}` : "—"}</td>
+                            <td data-label="Next tier">{p.nextTierLabel ? <span>{p.nextTierLabel} at {fmtNum(p.nextValue)} {p.unit}</span> : <span style={{ color: "var(--muted)" }}>Top tier</span>}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              <p style={{ margin: "var(--space-3) 0 0", color: "var(--muted)", fontSize: 13 }}>
+                Tiers follow DepEd PFT wording (Excellent → Needs Improvement). Bands are Cauayan City reference values, not DepEd-published norms — tiers marked <strong>(ref.)</strong> use unverified bands.
+              </p>
+            </>
+          )}
+        </section>
 
         {error && <p role="status" className={styles.empty}>{error}</p>}
 
