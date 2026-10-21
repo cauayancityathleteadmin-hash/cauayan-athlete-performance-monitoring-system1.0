@@ -1,11 +1,30 @@
 /* ============================================================================
-   STARTER NORMS — DepEd PFT-based normative reference values for target suggestions.
+   STARTER NORMS — reference bands for fitness target suggestions + classification.
 
-   Source: DepEd Order No. 34, s. 2019 — "Revised Physical Fitness Tests Manual"
-   Classification: Excellent (5) / Very Good (4) / Good (3) / Fair (2) / Needs Improvement (1)
+   FRAMEWORK: DepEd Order No. 34, s. 2019 — "Revised Physical Fitness Tests
+   Manual" defines the test battery (health- and skill-related) and the
+   Excellent / Very Good / Good / Fair / Needs Improvement tier wording.
+
+   IMPORTANT — provenance of the NUMBERS (verified 2026-10-21):
+   The DepEd PFT Manual does NOT publish a numeric 5-tier norm table by sex and
+   age group. The manual itself states that PFT results "shall be recorded,
+   summarized, and submitted to the Bureau of Curriculum Development – Special
+   Curricular Programs Division for evaluation, in coming up with the Philippine
+   Physical Fitness Norms" — i.e. the national norms were to be built from
+   collected data and are not fixed in the order.
+
+   Therefore the numbers below are NOT DepEd-published values. They are
+   LOCALLY-SET Cauayan City reference bands, aligned to the DepEd PFT tier
+   wording, for use as target suggestions and tier classification. Every block
+   is marked `verified: false` so the UI shows "ref." and never presents them as
+   official. Admins can replace them with validated local norms (see the
+   `verified` flag + `sourceNote`). For a real published international
+   cross-reference of the same tests, see the Cooper Institute FitnessGram
+   Healthy Fitness Zone standards (age/sex); that source is noted per block
+   where relevant.
 
    These are DEFAULT SUGGESTIONS only — coaches override per activity.
-   Admins can edit/update via the Metrics Management screen.
+   Description: Excellent (5) / Very Good (4) / Good (3) / Fair (2) / Needs Improvement (1)
    ========================================================================== */
 
 // Age group labels matching DepEd PFT manual groupings
@@ -44,7 +63,8 @@ export const STARTER_NORMS = {
     unit: "bpm",
     betterDirection: "lower",
     description: "Heart rate (bpm) 1 minute after 3-minute step test. Lower = better recovery.",
-    verified: false, // placeholder values — reference only until transcribed from the DepEd PFT Manual
+    verified: false, // Locally-set Cauayan reference band — not a DepEd-published value
+    sourceNote: "Cauayan City reference band aligned to the DepEd PFT tier wording (3-Minute Step Test, recovery HR). Not a DepEd-published norm — the DepEd PFT Manual defers national norms to future data collection. Editable by admins.",
     norms: {
       male: {
         "10-11": { excellent: 80, veryGood: 88, good: 96, fair: 105, needsImprovement: 115 },
@@ -71,7 +91,8 @@ export const STARTER_NORMS = {
     unit: "reps",
     betterDirection: "higher",
     description: "Maximum push-ups in 30 seconds. Higher = stronger.",
-    verified: false, // placeholder values — reference only
+    verified: false, // Locally-set Cauayan reference band — not a DepEd-published value
+    sourceNote: "Cauayan City reference band (Push-Up, 30 s), aligned to the DepEd PFT tier wording. Cross-reference: Cooper Institute FitnessGram HFZ push-up minimums (age/sex). Not a DepEd-published norm.",
     norms: {
       male: {
         "10-11": { excellent: 25, veryGood: 20, good: 15, fair: 10, needsImprovement: 5 },
@@ -98,7 +119,8 @@ export const STARTER_NORMS = {
     unit: "cm",
     betterDirection: "higher",
     description: "Best of 3 attempts, measured in centimeters. Higher = more explosive power.",
-    verified: false, // placeholder values — reference only
+    verified: false, // Locally-set Cauayan reference band — not a DepEd-published value
+    sourceNote: "Cauayan City reference band (Standing Long Jump), aligned to the DepEd PFT tier wording. The DepEd PFT Manual does not publish a numeric norm for this test. Not a DepEd-published norm.",
     norms: {
       male: {
         "10-11": { excellent: 180, veryGood: 160, good: 140, fair: 120, needsImprovement: 100 },
@@ -125,7 +147,8 @@ export const STARTER_NORMS = {
     unit: "sec",
     betterDirection: "lower",
     description: "Time in seconds for 40m sprint. Lower = faster.",
-    verified: false, // placeholder values — reference only
+    verified: false, // Locally-set Cauayan reference band — not a DepEd-published value
+    sourceNote: "Cauayan City reference band (40-Meter Sprint), aligned to the DepEd PFT tier wording. The DepEd PFT Manual does not publish a numeric norm for this test. Not a DepEd-published norm.",
     norms: {
       male: {
         "10-11": { excellent: 6.2, veryGood: 6.6, good: 7.0, fair: 7.5, needsImprovement: 8.0 },
@@ -153,7 +176,8 @@ export const STARTER_NORMS = {
     unit: "reps",
     betterDirection: "higher",
     description: "Coordination repetitions (e.g., paper juggling cycles). Higher = better coordination.",
-    verified: false, // placeholder values — reference only
+    verified: false, // Locally-set Cauayan reference band — not a DepEd-published value
+    sourceNote: "Cauayan City reference band (coordination subtest), aligned to the DepEd PFT tier wording. No exact sport-specific standard in the general PFT — check the National Sports Association for sport-specific norms. Not a DepEd-published norm.",
     norms: {
       male: {
         "10-11": { excellent: 50, veryGood: 40, good: 30, fair: 20, needsImprovement: 10 },
@@ -170,7 +194,6 @@ export const STARTER_NORMS = {
         "18+":   { excellent: 64, veryGood: 51, good: 38, fair: 25, needsImprovement: 13 },
       },
     },
-    sourceNote: "Based on DepEd PFT coordination subtest; no exact sport-specific standard in general PFT. Check NSA for sport-specific norms.",
   },
 
   // mobility → Sit and Reach (cm)
@@ -181,7 +204,8 @@ export const STARTER_NORMS = {
     unit: "cm",
     betterDirection: "higher",
     description: "Sit-and-reach distance in cm. Higher = better hamstring/lower back flexibility.",
-    verified: false, // placeholder values — reference only
+    verified: false, // Locally-set Cauayan reference band — not a DepEd-published value
+    sourceNote: "Cauayan City reference band (Sit-and-Reach), aligned to the DepEd PFT tier wording. Cross-reference: Cooper Institute FitnessGram HFZ Back-Saver Sit & Reach minimums (age/sex). Not a DepEd-published norm.",
     norms: {
       male: {
         "10-11": { excellent: 30, veryGood: 25, good: 20, fair: 15, needsImprovement: 10 },
@@ -208,7 +232,8 @@ export const STARTER_NORMS = {
     unit: "bpm",
     betterDirection: "higher",      // larger drop = better recovery
     description: "Heart rate drop (bpm) from peak to 1 min post-exercise. Higher = better autonomic recovery.",
-    verified: false, // placeholder values — reference only
+    verified: false, // Locally-set Cauayan reference band — not a DepEd-published value
+    sourceNote: "Cauayan City reference band (HR recovery after the 3-Minute Step Test), aligned to the DepEd PFT tier wording. The DepEd PFT Manual does not publish a numeric norm for this test. Not a DepEd-published norm.",
     norms: {
       male: {
         "10-11": { excellent: 40, veryGood: 35, good: 30, fair: 25, needsImprovement: 20 },
@@ -278,7 +303,7 @@ export function getStarterNorm(fitnessType, gender, birthdate) {
     betterDirection: norm.betterDirection,
     primaryMetric: norm.primaryMetric,
     description: norm.description,
-    sourceNote: norm.sourceNote || "DepEd Order No. 34, s. 2019 — PFT Manual",
+    sourceNote: norm.sourceNote || "Cauayan City reference band — not a DepEd-published norm.",
   };
 }
 
@@ -356,7 +381,7 @@ export function classifyFitnessValue(fitnessType, gender, birthdate, value) {
     nextTierLabel: betterTier ? (TIER_META[betterTier]?.label || betterTier) : null,
     nextValue: Number.isFinite(betterCut) ? betterCut : null,
     gapToNext,
-    sourceNote: norm.sourceNote || "DepEd Order No. 34, s. 2019 — PFT Manual",
+    sourceNote: norm.sourceNote || "Cauayan City reference band — not a DepEd-published norm.",
     unverified: norm.verified === false,
   };
 }

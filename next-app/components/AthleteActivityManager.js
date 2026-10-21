@@ -299,7 +299,7 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
                                   <span
                                     className={styles.badge}
                                     style={{ background: "rgba(26,92,74,.12)", color: cls.color, fontSize: "11px" }}
-                                    title={`DepEd PFT classification — ${cls.test} · ${cls.value} ${cls.unit} (${cls.sex}, age ${cls.ageGroup})${cls.unverified ? " · reference bands (unverified)" : ""}${cls.nextTierLabel ? ` · next tier ${cls.nextTierLabel} at ${cls.nextValue} ${cls.unit}` : ""}`}
+                                    title={`Fitness classification — ${cls.test} · ${cls.value} ${cls.unit} (${cls.sex}, age ${cls.ageGroup}). ${cls.unverified ? "Reference band (not a DepEd-published norm)" : "Published norm"}${cls.nextTierLabel ? `. Next tier ${cls.nextTierLabel} at ${cls.nextValue} ${cls.unit}` : ""}. Source: ${cls.sourceNote}`}
                                   >
                                     {cls.label}
                                     {cls.unverified ? <small style={{ marginLeft: 6, opacity: 0.7 }}>ref.</small> : null}
