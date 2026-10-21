@@ -1,7 +1,28 @@
 # Plan — Athlete Fitness Assessment Metrics for Training-Plan Activities
 
 Date: 2026-10-21
-Status: PROPOSED (awaiting go-ahead)
+Status: PART A DONE (2026-10-21) — B, C, D pending
+
+## Progress log
+
+### Part A — DONE (`fd5b7d2`, deployed, live-verified)
+- Added `TIER_META` (label + rank + colour per tier) to `lib/starter-metrics.js`.
+- Added `classifyFitnessValue(fitnessType, gender, birthdate, value)`:
+  walks the DepEd tiers best→worst, honours direction (lower-is-better for
+  times/recovery HR, higher-is-better for reps/cm), returns the tier, the band
+  value, the next-better tier + the gap to it, and an `unverified` flag.
+- Marked every norm block `verified: false` so the UI honestly shows "ref."
+  (placeholder DepEd values — reference only until transcribed from the manual).
+- Wire-up in `components/AthleteActivityManager.js`: every logged activity row
+  now shows a tier badge (Excellent → Needs Improvement) under "Meets/Below
+  target", plus a hint line "Very Good at 6.2 sec (−0.3 sec)".
+- `pages/training-plans/[id]/athletes/[athleteId].js`: the athlete select now
+  includes `gender` + `birthdate` (needed for sex/age norm lookup).
+- Verified: node unit checks (both directions, all 7 fitness types, edge cases
+  null/non-numeric), eslint 0 errors, `next build` OK, live health fresh,
+  and the live athlete-page chunk (`2xgb76xkf2d8x.js`) contains the new tier
+  strings (`nextTierLabel`, `Needs Improvement`, `Meets target`).
+
 
 ## The goal, in plain words
 
