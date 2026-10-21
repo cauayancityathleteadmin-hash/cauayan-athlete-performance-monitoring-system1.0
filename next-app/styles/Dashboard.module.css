@@ -101,6 +101,13 @@
   border-radius: 8px;
 }
 
+/* Two seals in the brand: city seal + sports logo, slightly smaller so the
+   brand line stays compact on the top bar. */
+.brand img.brandLogo {
+  width: 38px;
+  height: 38px;
+}
+
 .brand .eyebrow {
   margin: 0;
   font-size: 10px;

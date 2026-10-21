@@ -49,13 +49,14 @@ export default function PasswordInput({
           style={{
             width: "100%",
             height: "48px",
-            padding: "0 var(--space-4) 0 calc(var(--space-4) + 50px)",
+            padding: "0 52px 0 var(--space-4)",
             border: error ? "1px solid var(--danger)" : "1px solid var(--border)",
             borderRadius: "8px",
             background: "rgba(6, 38, 30, .9)",
             color: "var(--foreground)",
             font: "inherit",
             fontSize: "16px",
+            textAlign: "left",
             transition: "border-color 0.2s, box-shadow 0.2s",
             boxSizing: "border-box",
           }}

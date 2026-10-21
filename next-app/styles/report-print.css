@@ -27,16 +27,25 @@
 .rd-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 18px;
   padding-bottom: 14px;
   border-bottom: 3px double #1a5c4a;
   margin-bottom: 20px;
 }
 
+/* Both seals share one size so the header is balanced: city seal on the left,
+   sports development office logo on the right, centered text between them. */
 .rd-logo {
   height: 84px;
   width: auto;
   flex-shrink: 0;
+  object-fit: contain;
+}
+
+.rd-logo-left,
+.rd-logo-right {
+  height: 84px;
 }
 
 .rd-header-text {
@@ -365,7 +374,9 @@
     page-break-after: auto;
   }
 
-  .rd-logo {
+  .rd-logo,
+  .rd-logo-left,
+  .rd-logo-right {
     height: 64px;
   }
 

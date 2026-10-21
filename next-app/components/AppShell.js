@@ -327,7 +327,8 @@ export default function AppShell({
           </button>
           <div className={styles.brand}>
             <Link href="/dashboard" onClick={() => setOpen(false)}>
-              <img src="/sports_logo.png" alt="Cauayan City Sports" />
+              <img src="/cauayan logo.png" alt="Official Seal of the City Government of Cauayan" className={styles.brandLogo} />
+              <img src="/sports_logo.png" alt="Cauayan City Sports" className={styles.brandLogo} />
               <div>
                 <p className={styles.eyebrow}>{eyebrow}</p>
                 <span className={styles.brandTitle}>{title}</span>

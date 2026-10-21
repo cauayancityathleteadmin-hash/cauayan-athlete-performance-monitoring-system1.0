@@ -21,7 +21,7 @@ export function ReportHeader({ title, reference }) {
   return (
     <>
       <header className="rd-header">
-        <img src="/cauayan logo.png" alt="Official Seal of the City Government of Cauayan" className="rd-logo" />
+        <img src="/cauayan logo.png" alt="Official Seal of the City Government of Cauayan" className="rd-logo rd-logo-left" />
         <div className="rd-header-text">
           <p className="rd-republic">Republic of the Philippines</p>
           <p className="rd-province">Province of Isabela</p>
@@ -29,6 +29,7 @@ export function ReportHeader({ title, reference }) {
           <p className="rd-office">City Sports Development Office</p>
           <p className="rd-address">Cauayan City, Isabela, Philippines</p>
         </div>
+        <img src="/sports_logo.png" alt="Cauayan City Sports Development Office" className="rd-logo rd-logo-right" />
       </header>
       <h2 className="rd-title">{title}</h2>
       <p className="rd-ref">Report No.: <span>{reference}</span></p>

@@ -40,7 +40,10 @@ export default function ForgotPassword() {
   return (
     <main className="login-page">
       <Head><title>Reset password | Cauayan Athlete Performance</title></Head>
-      <img src="/sports_logo.png" alt="Cauayan City" className="logo" />
+      <div className="auth-logos">
+        <img src="/cauayan logo.png" alt="Official Seal of the City Government of Cauayan" className="logo" />
+        <img src="/sports_logo.png" alt="Cauayan City Sports" className="logo" />
+      </div>
       <p className="auth-kicker">Cauayan City</p>
       <h1>Reset password</h1>
       <p className="auth-subtitle">We&apos;ll email you a link to set a new password</p>

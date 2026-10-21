@@ -39,7 +39,10 @@ export default function ErrorState({ statusCode, title, message }) {
         <title>{statusCode ? `${statusCode} | ` : ""}Cauayan Athlete Performance</title>
         <meta name="robots" content="noindex" />
       </Head>
-      <img src="/sports_logo.png" alt="Cauayan City Sports" className="logo" />
+      <div className="auth-logos">
+        <img src="/cauayan logo.png" alt="Official Seal of the City Government of Cauayan" className="logo" />
+        <img src="/sports_logo.png" alt="Cauayan City Sports" className="logo" />
+      </div>
       <p className="auth-kicker">Cauayan City</p>
       <h1>
         {statusCode ? `${statusCode} — ` : ""}

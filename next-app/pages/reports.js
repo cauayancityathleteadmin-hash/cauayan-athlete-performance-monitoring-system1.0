@@ -366,7 +366,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
   return (
     <article className="report-doc" key={athlete.id}>
       <header className="rd-header">
-        <img src="/cauayan logo.png" alt="Official Seal of the City Government of Cauayan" className="rd-logo" />
+        <img src="/cauayan logo.png" alt="Official Seal of the City Government of Cauayan" className="rd-logo rd-logo-left" />
         <div className="rd-header-text">
           <p className="rd-republic">Republic of the Philippines</p>
           <p className="rd-province">Province of Isabela</p>
@@ -374,6 +374,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
           <p className="rd-office">City Sports Development Office</p>
           <p className="rd-address">Cauayan City, Isabela, Philippines</p>
         </div>
+        <img src="/sports_logo.png" alt="Cauayan City Sports Development Office" className="rd-logo rd-logo-right" />
       </header>
 
       <h2 className="rd-title">Athlete Official Personnel Record</h2>
@@ -624,7 +625,7 @@ function CoachReportCard({ coach, session, prefix }) {
   return (
     <article className="report-doc" key={coach.id}>
       <header className="rd-header">
-        <img src="/cauayan logo.png" alt="Official Seal of the City Government of Cauayan" className="rd-logo" />
+        <img src="/cauayan logo.png" alt="Official Seal of the City Government of Cauayan" className="rd-logo rd-logo-left" />
         <div className="rd-header-text">
           <p className="rd-republic">Republic of the Philippines</p>
           <p className="rd-province">Province of Isabela</p>
@@ -632,6 +633,7 @@ function CoachReportCard({ coach, session, prefix }) {
           <p className="rd-office">City Sports Development Office</p>
           <p className="rd-address">Cauayan City, Isabela, Philippines</p>
         </div>
+        <img src="/sports_logo.png" alt="Cauayan City Sports Development Office" className="rd-logo rd-logo-right" />
       </header>
 
       <h2 className="rd-title">Coach Official Personnel Record</h2>

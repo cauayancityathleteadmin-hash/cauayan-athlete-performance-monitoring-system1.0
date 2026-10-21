@@ -218,7 +218,10 @@ export default function CoachRegister({ sports, captchaEnabled, captchaSiteKey }
         <title>Coach registration | Cauayan Athlete Performance</title>
       </Head>
       <main className="login-page register-box">
-        <img src="/sports_logo.png" alt="Cauayan City" className="logo" />
+        <div className="auth-logos">
+          <img src="/cauayan logo.png" alt="Official Seal of the City Government of Cauayan" className="logo" />
+          <img src="/sports_logo.png" alt="Cauayan City Sports" className="logo" />
+        </div>
         <p className="auth-kicker">Cauayan City</p>
         <h1>Coach registration</h1>
         <p className="auth-subtitle">Request access to the athlete performance system</p>

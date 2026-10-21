@@ -179,6 +179,12 @@ h1, h2, h3, h4, h5, h6 {
   .login-page .logo {
     height: 56px;
   }
+  .login-page .auth-logos {
+    gap: var(--space-2);
+  }
+  .login-page .auth-logos .logo {
+    height: 52px;
+  }
 }
 
 .login-page .logo {
@@ -190,9 +196,31 @@ h1, h2, h3, h4, h5, h6 {
   filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
 }
 
+/* Dual-logo lockup for the auth pages: the Cauayan City seal alongside the
+   City Sports logo, both the same height, centred above the page title. */
+.login-page .auth-logos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  margin: 0 auto var(--space-4);
+  max-width: 100%;
+}
+
+.login-page .auth-logos .logo {
+  margin: 0;
+  height: 84px;
+}
+
 @media (max-width: 480px) {
   .login-page .logo {
     height: 64px;
+  }
+  .login-page .auth-logos {
+    gap: var(--space-3);
+  }
+  .login-page .auth-logos .logo {
+    height: 60px;
   }
 }
 
@@ -562,13 +590,19 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 13px;
   font-weight: 700;
   display: flex;
-  align-items: center;
-  gap: 6px;
+  align-items: baseline;
+  flex-wrap: nowrap;
+  gap: 4px;
+  min-width: 0;
+  white-space: nowrap;
+  text-align: left;
 }
 
+/* Asterisk stays on the same line as the label text, right after it. */
 .field-group label .required {
   color: var(--danger);
-  margin-left: 2px;
+  margin-left: 0;
+  flex-shrink: 0;
 }
 
 .field-group label .optional {
@@ -576,7 +610,8 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 400;
   font-size: 12px;
   text-transform: lowercase;
-  margin-left: 4px;
+  margin-left: 2px;
+  flex-shrink: 0;
 }
 
 .field-group input,
