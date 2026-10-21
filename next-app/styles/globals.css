@@ -139,21 +139,23 @@ h1, h2, h3, h4, h5, h6 {
    ONE responsive card recipe for every auth screen:
    - Width: capped per variant (460px login / 760px wide forms) and never wider
      than the viewport minus a safe gutter. No more 1100px cards on big screens.
-   - Height: never stretches to fill a tall screen — the card hugs its content;
-     when content is taller than the viewport the page scrolls, and
-     `.login-page.register-box` caps its own height so the form scrolls inside
-     the card on short screens.
-   - Vertical rhythm adapts: padding uses clamp() so short viewports get a
-     tighter gutter instead of a cut-off card.
+   - Height: never stretches to fill a tall screen — the card hugs its content,
+     and is additionally capped to the viewport so it always fits on screen.
+     When content exceeds that cap the card scrolls internally (page never
+     scrolls horizontally, header/logo stay reachable at the top).
+   - Vertical rhythm adapts: padding + margins use clamp()/vh so short viewports
+     get a tighter gutter instead of a cut-off card.
    ========================================================================== */
 .login-page {
   display: flex;
   flex-direction: column;
   width: min(calc(100% - (var(--auth-gutter) * 2)), var(--auth-card-width));
-  max-height: none;
-  margin-block: clamp(var(--space-5), 6vh, var(--space-8));
+  max-height: calc(100vh - (var(--auth-gutter) * 2));
+  margin-block: clamp(var(--space-4), 4vh, var(--space-6));
   margin-inline: auto;
-  padding: clamp(var(--space-5), 4vh, var(--space-7)) var(--space-6);
+  padding: clamp(var(--space-4), 3vh, var(--space-6)) var(--space-6);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: rgba(10, 50, 40, .93);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
@@ -248,16 +250,13 @@ h1, h2, h3, h4, h5, h6 {
   color: rgba(190, 242, 214, .85);
 }
 
-/* Registration / reset-password: wider card, still bounded so it never fills a
-   tall screen. Header stays put; the long form scrolls inside the card when it
-   is taller than the viewport (short screens / landscape phones). */
+/* Registration / reset-password: wider card variant. Inherits the base height
+   cap + internal scrolling from `.login-page`; only the width and header
+   alignment differ. */
 .login-page.register-box {
   width: min(calc(100% - (var(--auth-gutter) * 2)), var(--auth-register-width));
-  max-height: min(92vh, 900px);
   align-items: flex-start;
   padding: var(--space-6);
-  overflow-y: auto;
-  overscroll-behavior: contain;
 }
 
 .login-page.register-box .auth-kicker,
@@ -391,13 +390,6 @@ h1, h2, h3, h4, h5, h6 {
   }
   .login-page .register-fields .sports {
     grid-area: sports;
-  }
-}
-
-@media (max-width: 559px) {
-  .login-page.register-box {
-    width: min(calc(100% - (var(--auth-gutter) * 2)), var(--auth-register-width));
-    max-height: none;
   }
 }
 
