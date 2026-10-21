@@ -1,7 +1,7 @@
 import React from "react";
 import { resultFieldFor, resultUnitFor, targetValueFor } from "../lib/activity-score";
 import { FITNESS_OPTIONS, allowedTargetKeysFor, defaultUnitFor, metricFieldsFor, fitnessTypesForPlanType, primaryTargetKeyFor, betterDirectionFor, metricProfileFor } from "../lib/training-metrics";
-import { getStarterNorm } from "../lib/starter-metrics";
+import { getStarterNorm, classifyFitnessValue } from "../lib/starter-metrics";
 import styles from "../styles/Dashboard.module.css";
 
 const ROW_TARGET_KEYS = ["targetTimeSec", "targetDistance", "targetLoad", "targetReps", "targetSets", "targetQuantity"];
@@ -58,6 +58,34 @@ function targetStatus(activity, log) {
   const direction = betterDirectionFor(activity.metricType);
   const ok = direction === "lower" ? done <= target : done >= target;
   return ok ? "met" : "below";
+}
+
+/* Recorded result value for a log, mapped to the activity's primary metric.
+   Used for DepEd PFT classification. Time → seconds, distance → m, load → kg,
+   reps/sets/quantity → counts. Returns null when there is nothing to classify. */
+function loggedResultValue(activity, log) {
+  if (!activity || !log) return null;
+  const toNum = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
+  switch (activity.metricType) {
+    case "time": return toNum(log.timeSec);
+    case "distance": return toNum(log.distanceDone);
+    case "load": return toNum(log.loadUsed);
+    case "reps": return toNum(log.repsDone);
+    case "sets": return toNum(log.setsDone);
+    case "quantity": return toNum(log.quantityDone);
+    default:
+      // "none" activities can still carry a quantity result (e.g. sessions).
+      return toNum(log.quantityDone);
+  }
+}
+
+/* Classify a recorded log into a DepEd PFT tier for the athlete. Returns null
+   when the athlete's sex/age norm is unavailable or the value is unusable. */
+function classifyLog(athlete, activity, log) {
+  if (!athlete || !activity || !log) return null;
+  const value = loggedResultValue(activity, log);
+  if (value == null) return null;
+  return classifyFitnessValue(activity.fitnessType, athlete.gender, athlete.birthdate, value);
 }
 
 function logResultText(log) {
@@ -258,6 +286,7 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
                           {(() => {
                             if (!latest) return <span className={styles.badge} style={{ background: "rgba(26,92,74,.08)", color: "var(--muted)", border: "1px dashed rgba(66,135,99,.45)", fontSize: "11px" }}>Not started</span>;
                             const ts = targetStatus(firstActivity, latest);
+                            const cls = classifyLog(athlete, firstActivity, latest);
                             return (
                               <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-1)", alignItems: "center" }}>
                                 <span title={`${fmtDate(latest.performedAt)}${logResultText(latest) ? ` · ${logResultText(latest)}` : ""}`} className={`${styles.badge} ${styles[meta.cls]}`} style={{ fontSize: "11px" }}>
@@ -266,6 +295,21 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
                                 </span>
                                 {ts === "met" ? <span className={styles.badge} style={{ background: "rgba(45,212,168,.16)", color: "var(--accent)", fontSize: "11px" }}>Meets target</span> : null}
                                 {ts === "below" ? <span className={styles.badge} style={{ background: "rgba(251,191,36,.16)", color: "var(--warning)", fontSize: "11px" }}>Below target</span> : null}
+                                {cls ? (
+                                  <span
+                                    className={styles.badge}
+                                    style={{ background: "rgba(26,92,74,.12)", color: cls.color, fontSize: "11px" }}
+                                    title={`DepEd PFT classification — ${cls.test} · ${cls.value} ${cls.unit} (${cls.sex}, age ${cls.ageGroup})${cls.unverified ? " · reference bands (unverified)" : ""}${cls.nextTierLabel ? ` · next tier ${cls.nextTierLabel} at ${cls.nextValue} ${cls.unit}` : ""}`}
+                                  >
+                                    {cls.label}
+                                    {cls.unverified ? <small style={{ marginLeft: 6, opacity: 0.7 }}>ref.</small> : null}
+                                  </span>
+                                ) : null}
+                                {cls && cls.nextTierLabel && cls.tier !== "excellent" ? (
+                                  <small style={{ color: "var(--muted)", fontSize: "10px" }}>
+                                    {cls.nextTierLabel} at {cls.nextValue} {cls.unit} ({cls.direction === "lower" ? "−" : "+"}{Math.abs(Number(cls.gapToNext.toFixed(2)))} {cls.unit})
+                                  </small>
+                                ) : null}
                               </div>
                             );
                           })()}

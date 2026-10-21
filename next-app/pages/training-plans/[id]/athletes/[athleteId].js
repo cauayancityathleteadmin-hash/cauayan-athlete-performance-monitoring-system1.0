@@ -305,7 +305,7 @@ export async function getServerSideProps(context) {
 
   const onPlan = await prisma.trainingPlanAthlete.findFirst({
     where: { planId, athleteId },
-    select: { athlete: { select: { id: true, firstName: true, lastName: true, athleteCode: true, healthStatus: true, sport: { select: { sportName: true } } } } },
+    select: { athlete: { select: { id: true, firstName: true, lastName: true, athleteCode: true, gender: true, birthdate: true, healthStatus: true, sport: { select: { sportName: true } } } } },
   });
   if (!onPlan) return { redirect: { destination: `/training-plans/${planId}`, permanent: false } };
 

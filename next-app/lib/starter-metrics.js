@@ -14,6 +14,16 @@ export const AGE_GROUPS = ["10-11", "12-13", "14-15", "16-17", "18+"];
 // Classification tiers (DepEd 1-5 scale, but we use the descriptive labels)
 export const CLASSIFICATION_TIERS = ["excellent", "veryGood", "good", "fair", "needsImprovement"];
 
+// Display metadata for the tiers — used by the activity classification badge so
+// every screen shows the same wording and colour meaning.
+export const TIER_META = {
+  excellent: { label: "Excellent", rank: 5, color: "var(--accent)" },
+  veryGood: { label: "Very Good", rank: 4, color: "var(--accent)" },
+  good: { label: "Good", rank: 3, color: "var(--muted)" },
+  fair: { label: "Fair", rank: 2, color: "var(--warning)" },
+  needsImprovement: { label: "Needs Improvement", rank: 1, color: "var(--danger)" },
+};
+
 // Default classification to use as starter target (middle = "good")
 export const DEFAULT_STARTER_TIER = "good";
 
@@ -34,6 +44,7 @@ export const STARTER_NORMS = {
     unit: "bpm",
     betterDirection: "lower",
     description: "Heart rate (bpm) 1 minute after 3-minute step test. Lower = better recovery.",
+    verified: false, // placeholder values — reference only until transcribed from the DepEd PFT Manual
     norms: {
       male: {
         "10-11": { excellent: 80, veryGood: 88, good: 96, fair: 105, needsImprovement: 115 },
@@ -60,6 +71,7 @@ export const STARTER_NORMS = {
     unit: "reps",
     betterDirection: "higher",
     description: "Maximum push-ups in 30 seconds. Higher = stronger.",
+    verified: false, // placeholder values — reference only
     norms: {
       male: {
         "10-11": { excellent: 25, veryGood: 20, good: 15, fair: 10, needsImprovement: 5 },
@@ -86,6 +98,7 @@ export const STARTER_NORMS = {
     unit: "cm",
     betterDirection: "higher",
     description: "Best of 3 attempts, measured in centimeters. Higher = more explosive power.",
+    verified: false, // placeholder values — reference only
     norms: {
       male: {
         "10-11": { excellent: 180, veryGood: 160, good: 140, fair: 120, needsImprovement: 100 },
@@ -112,6 +125,7 @@ export const STARTER_NORMS = {
     unit: "sec",
     betterDirection: "lower",
     description: "Time in seconds for 40m sprint. Lower = faster.",
+    verified: false, // placeholder values — reference only
     norms: {
       male: {
         "10-11": { excellent: 6.2, veryGood: 6.6, good: 7.0, fair: 7.5, needsImprovement: 8.0 },
@@ -139,6 +153,7 @@ export const STARTER_NORMS = {
     unit: "reps",
     betterDirection: "higher",
     description: "Coordination repetitions (e.g., paper juggling cycles). Higher = better coordination.",
+    verified: false, // placeholder values — reference only
     norms: {
       male: {
         "10-11": { excellent: 50, veryGood: 40, good: 30, fair: 20, needsImprovement: 10 },
@@ -166,6 +181,7 @@ export const STARTER_NORMS = {
     unit: "cm",
     betterDirection: "higher",
     description: "Sit-and-reach distance in cm. Higher = better hamstring/lower back flexibility.",
+    verified: false, // placeholder values — reference only
     norms: {
       male: {
         "10-11": { excellent: 30, veryGood: 25, good: 20, fair: 15, needsImprovement: 10 },
@@ -192,6 +208,7 @@ export const STARTER_NORMS = {
     unit: "bpm",
     betterDirection: "higher",      // larger drop = better recovery
     description: "Heart rate drop (bpm) from peak to 1 min post-exercise. Higher = better autonomic recovery.",
+    verified: false, // placeholder values — reference only
     norms: {
       male: {
         "10-11": { excellent: 40, veryGood: 35, good: 30, fair: 25, needsImprovement: 20 },
@@ -262,6 +279,85 @@ export function getStarterNorm(fitnessType, gender, birthdate) {
     primaryMetric: norm.primaryMetric,
     description: norm.description,
     sourceNote: norm.sourceNote || "DepEd Order No. 34, s. 2019 — PFT Manual",
+  };
+}
+
+/**
+ * Classify a recorded value into a DepEd PFT tier for a fitness type.
+ *
+ * @param {string} fitnessType  e.g. "speed_agility"
+ * @param {string} gender       AthleteGender
+ * @param {string} birthdate    ISO date
+ * @param {number} value        the recorded result (sec, reps, cm, bpm…)
+ * @returns {null | {
+ *   tier, label, rank, color, value, unit, direction, ageGroup, sex,
+ *   test, primaryMetric, band, nextTier, nextTierLabel, nextValue, gapToNext,
+ *   verified, sourceNote, unverified
+ * }}
+ *
+ * Tiers run Excellent → Very Good → Good → Fair → Needs Improvement.
+ * Direction matters: for "lower is better" (times, recovery HR) an Excellent
+ * value is BELOW the excellent cut-off; for "higher is better" it is ABOVE.
+ * Returns null when the norm or the value is unusable.
+ */
+export function classifyFitnessValue(fitnessType, gender, birthdate, value) {
+  const norm = STARTER_NORMS[fitnessType];
+  const v = Number(value);
+  if (!norm || !norm.norms || !Number.isFinite(v)) return null;
+
+  const ageGroup = ageGroupFor(birthdate);
+  const sex = sexFor(gender);
+  const tiers = norm.norms?.[sex]?.[ageGroup];
+  if (!tiers) return null;
+
+  const direction = norm.betterDirection === "lower" ? "lower" : "higher";
+  // Ordered from best → worst, so we can walk and stop at the first match.
+  const ordered = CLASSIFICATION_TIERS
+    .map((tier) => ({ tier, cut: tiers[tier] }))
+    .filter((t) => Number.isFinite(t.cut));
+
+  let matched = null;
+  for (const t of ordered) {
+    const pass = direction === "lower" ? v <= t.cut : v >= t.cut;
+    if (pass) { matched = t; break; }
+  }
+  if (!matched) {
+    // Worse than the lowest cut-off → Needs Improvement (still a valid tier).
+    const last = ordered[ordered.length - 1];
+    matched = last ? { tier: "needsImprovement", cut: last.cut } : null;
+  }
+  if (!matched) return null;
+
+  const meta = TIER_META[matched.tier] || { label: matched.tier, rank: 0, color: "var(--muted)" };
+
+  // Distance to the next better tier (for "close to Very Good" hints).
+  const idx = CLASSIFICATION_TIERS.indexOf(matched.tier);
+  const betterTier = idx > 0 ? CLASSIFICATION_TIERS[idx - 1] : null;
+  const betterCut = betterTier ? tiers[betterTier] : null;
+  let gapToNext = null;
+  if (betterTier && Number.isFinite(betterCut)) {
+    gapToNext = direction === "lower" ? v - betterCut : betterCut - v;
+  }
+
+  return {
+    tier: matched.tier,
+    label: meta.label,
+    rank: meta.rank,
+    color: meta.color,
+    value: v,
+    unit: norm.unit,
+    direction,
+    ageGroup,
+    sex,
+    test: norm.test,
+    primaryMetric: norm.primaryMetric,
+    band: matched.cut,
+    nextTier: betterTier,
+    nextTierLabel: betterTier ? (TIER_META[betterTier]?.label || betterTier) : null,
+    nextValue: Number.isFinite(betterCut) ? betterCut : null,
+    gapToNext,
+    sourceNote: norm.sourceNote || "DepEd Order No. 34, s. 2019 — PFT Manual",
+    unverified: norm.verified === false,
   };
 }
 
