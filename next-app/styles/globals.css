@@ -35,9 +35,9 @@
   --radius-full: 999px;
 
   /* Auth-card standard: one width for every sign-in / registration card */
-  --auth-card-width: 480px;
-  --auth-register-width: 900px;
-  --auth-wide-width: 1100px;
+  --auth-card-width: 460px;
+  --auth-register-width: 760px;
+  --auth-gutter: 16px;
 }
 
 html,
@@ -133,60 +133,46 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--foreground);
 }
 
+/* ============================================================================
+   AUTH PAGES (login, coach registration, forgot/reset password)
+
+   ONE responsive card recipe for every auth screen:
+   - Width: capped per variant (460px login / 760px wide forms) and never wider
+     than the viewport minus a safe gutter. No more 1100px cards on big screens.
+   - Height: never stretches to fill a tall screen — the card hugs its content;
+     when content is taller than the viewport the page scrolls, and
+     `.login-page.register-box` caps its own height so the form scrolls inside
+     the card on short screens.
+   - Vertical rhythm adapts: padding uses clamp() so short viewports get a
+     tighter gutter instead of a cut-off card.
+   ========================================================================== */
 .login-page {
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  width: min(100% - 32px, 420px);
-  margin: clamp(2rem, 6vh, 4rem) auto;
-  padding: var(--space-6);
+  width: min(calc(100% - (var(--auth-gutter) * 2)), var(--auth-card-width));
+  max-height: none;
+  margin-block: clamp(var(--space-5), 6vh, var(--space-8));
+  margin-inline: auto;
+  padding: clamp(var(--space-5), 4vh, var(--space-7)) var(--space-6);
   background: rgba(10, 50, 40, .93);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   box-shadow: 0 20px 40px rgba(0, 0, 0, .5);
+  box-sizing: border-box;
 }
 
-@media (min-width: 481px) and (max-width: 639px) {
-  .login-page {
-    width: min(100% - 40px, 440px);
-    padding: var(--space-6) var(--space-5);
-  }
-}
-
-@media (min-width: 640px) and (max-width: 1024px) {
-  .login-page {
-    width: min(100% - 48px, 480px);
-    padding: var(--space-7) var(--space-6);
-  }
-}
-
-@media (min-width: 1025px) and (max-width: 1199px) {
-  .login-page {
-    width: min(100% - 64px, 520px);
-    padding: var(--space-7) var(--space-6);
-  }
-}
-
-@media (min-width: 1200px) {
-  .login-page {
-    width: min(100% - 80px, var(--auth-wide-width));
-    padding: var(--space-7) var(--space-6);
-  }
-}
-
+/* Slightly narrower gutter on small screens so the card keeps a comfortable
+   inner width; the card itself never exceeds the viewport. */
 @media (max-width: 480px) {
   .login-page {
     padding: var(--space-5) var(--space-4);
-    width: calc(100% - 24px);
+    margin-block: var(--space-5);
   }
 }
 
 @media (max-width: 360px) {
   .login-page {
-    padding: var(--space-5) var(--space-4);
-    width: calc(100% - 24px);
+    padding: var(--space-4) var(--space-3);
   }
   .login-page .logo {
     height: 56px;
@@ -262,13 +248,16 @@ h1, h2, h3, h4, h5, h6 {
   color: rgba(190, 242, 214, .85);
 }
 
+/* Registration / reset-password: wider card, still bounded so it never fills a
+   tall screen. Header stays put; the long form scrolls inside the card when it
+   is taller than the viewport (short screens / landscape phones). */
 .login-page.register-box {
-  width: min(100% - 32px, var(--auth-register-width));
-  background: rgba(10, 50, 40, .93);
+  width: min(calc(100% - (var(--auth-gutter) * 2)), var(--auth-register-width));
+  max-height: min(92vh, 900px);
   align-items: flex-start;
-  justify-content: flex-start;
   padding: var(--space-6);
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .login-page.register-box .auth-kicker,
@@ -376,30 +365,9 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* Grid breakpoints */
-@media (min-width: 560px) {
-  .login-page .register-fields {
-    grid-template-columns: 1fr 1fr;
-    grid-template-areas:
-      "name-row name-row"
-      "birthdate birthdate"
-      "contact-row contact-row"
-      "credentials credentials"
-      "school school"
-      "sports sports"
-      "optional optional";
-  }
-  .login-page .register-fields .name-row {
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: var(--space-4);
-  }
-  .login-page .register-fields .contact-row {
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-4);
-  }
-}
-
-@media (min-width: 900px) {
+/* Grid breakpoints — single switch to two columns while the card still has room
+   (the card is capped at --auth-register-width, so this must stay below it). */
+@media (min-width: 620px) {
   .login-page .register-fields {
     grid-template-columns: 1fr 1fr;
     grid-template-areas:
@@ -428,7 +396,8 @@ h1, h2, h3, h4, h5, h6 {
 
 @media (max-width: 559px) {
   .login-page.register-box {
-    width: min(100% - 24px, var(--auth-register-width));
+    width: min(calc(100% - (var(--auth-gutter) * 2)), var(--auth-register-width));
+    max-height: none;
   }
 }
 

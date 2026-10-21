@@ -79,7 +79,7 @@ export default function ResetPassword() {
           {message} <Link href="/login">Sign in now</Link>
         </p>
       ) : (
-        <form onSubmit={submit} noValidate className="register-fields" style={{ width: "100%", gridTemplateAreas: '"pw pw" "confirm confirm"', gridTemplateColumns: "1fr" }}>
+        <form onSubmit={submit} noValidate className="register-fields reset-pw-form" style={{ width: "100%" }}>
           <div className="pw-wrapper" style={{ gridArea: "pw" }}>
             <PasswordInput
               name="password"
