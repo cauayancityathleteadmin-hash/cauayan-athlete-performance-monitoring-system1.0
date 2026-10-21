@@ -112,3 +112,28 @@ Still using only the sports logo (need to ADD the city logo alongside it):
 - Do not change theme, colors, or the report's formal structure.
 - Do not touch the signature chain (Prepared by → Reviewed by → Certified Correct).
 - Keep everything working together; no other page may regress.
+
+## Status: DONE (2026-10-21)
+
+Commits: `a747331` (dual logos + login kicker + register padding), `7e9bfb9`
+(register single-line labels + centered kicker). Live verified.
+
+Done:
+- City seal added alongside the sports logo on: login, coach-register,
+  forgot-password, reset-password, error page, top-bar brand.
+- Login kicker = "Cauayan City", centered (`text-align: center`, measured centered).
+- Coach-register labels: single line (18px, was 46px), asterisk inline after the
+  text (`asteriskSameLine: true` on every required field), all left-aligned.
+- Password field left padding fixed 66px → 16px (was indented/"centered").
+- Report headers (lib/report-doc.js + both pages/reports.js headers): formal
+  three-column layout — city seal left, centered government text, sports logo right.
+- Sports logo kept everywhere (not removed).
+
+Verification (all green):
+- branding-check 13/13, live regression 46/46, pages-check 26/26,
+  panel-verify 12/12, event-results 8/8.
+- Login page a11y snapshot shows both logos + "CAUAYAN CITY" kicker.
+- Register measured at the live card: all labels one line, asterisks inline, left.
+
+Backup: `backups\city-logo-20261021-182229`.
+
