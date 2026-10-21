@@ -1,7 +1,7 @@
 # Plan — Athlete Fitness Assessment Metrics for Training-Plan Activities
 
 Date: 2026-10-21
-Status: PART A DONE (2026-10-21) — B, C, D pending
+Status: PARTS A + B DONE (2026-10-21) — C, D pending
 
 ## Progress log
 
@@ -23,6 +23,36 @@ Status: PART A DONE (2026-10-21) — B, C, D pending
   and the live athlete-page chunk (`2xgb76xkf2d8x.js`) contains the new tier
   strings (`nextTierLabel`, `Needs Improvement`, `Meets target`).
 
+### Part B — DONE (`2a7dc60`, deployed, live-verified)
+
+Research finding (verified 2026-10-21): **the DepEd PFT Manual (DO 034, s. 2019)
+does NOT publish a numeric 5-tier norm table by sex/age.** The manual states PFT
+results "shall be recorded, summarized, and submitted to the Bureau of Curriculum
+Development – Special Curricular Programs Division for evaluation, **in coming up
+with the Philippine Physical Fitness Norms**" — i.e. the national norms were to be
+built from collected data. The order contains procedures + a score card, not the
+numbers. (Confirmed via the DepEd order text, the Region VIII memo RM-s2020-013
+PDF, and news coverage of the order.)
+
+So Part B could not "transcribe official DepEd numbers" — none exist to
+transcribe. Per the user's decision, the bands stay as the classification basis
+but are now labelled honestly:
+
+- File header rewritten to state the provenance truth and the tier framework.
+- Every norm block now carries `verified: false` + an explicit `sourceNote`
+  ("Cauayan City reference band … Not a DepEd-published norm"), naming the exact
+  test and, where relevant, the real published cross-reference (Cooper Institute
+  FitnessGram Healthy Fitness Zone — push-up / curl-up / back-saver sit-and-reach,
+  age/sex; extracted from the California Dept. of Education Dec 2017 PDF).
+- Removed a stale duplicate/misleading source note; the two `sourceNote`
+  fallbacks no longer claim the DepEd order as the number source.
+- Activity badge tooltip now shows the honest provenance and the
+  "Reference band (not a DepEd-published norm)" wording.
+
+Verified: all 7 fitness types classify correctly from their own bands and report
+`unverified: true` with a source note; eslint 0 errors; `next build` OK; live
+health fresh; live project (`cauayan-athlete-performance-monitoring-system1-0`)
+deployment for `2a7dc60` = success.
 
 ## The goal, in plain words
 
@@ -40,7 +70,7 @@ compared across athletes, and eventually against Philippine school standards.
 | Piece | Where | Status |
 |---|---|---|
 | "Quality" categories (fast/strong/agile/flexible/endurance/power/skill/recovery) | `FitnessDimension` enum + `lib/training-metrics.js` | built |
-| DepEd-based normative norms per **sex × age group × 5 tiers** | `lib/starter-metrics.js` (cites **DepEd Order No. 34, s. 2019**) | built, but values are PLACEHOLDERS |
+| Reference bands per **sex × age group × 5 tiers** | `lib/starter-metrics.js` (tier wording from **DepEd Order No. 34, s. 2019**) | built — bands are locally-set Cauayan reference values (see Part B) |
 | Locked metric profile per fitness type (which columns/units) | `lib/training-metrics.js` | built |
 | Activity targets pre-filled from the "Good" norm | `AddAthleteActivitiesForm` | built |
 | Log a result → compare to target → met/below | `lib/activity-score.js`, `AthleteActivityManager.js` | built |
