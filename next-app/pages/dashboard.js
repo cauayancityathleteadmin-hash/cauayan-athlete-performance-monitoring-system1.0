@@ -3,10 +3,55 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { useRouter } from "next/router";
 import { getSession, useSession } from "next-auth/react";
+import {
+  ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid,
+  PieChart, Pie, Legend, Label,
+} from "recharts";
 import { prisma } from "../lib/prisma";
 import { evaluateCompliance } from "../lib/compliance";
 import styles from "../styles/Dashboard.module.css";
 import AppShell from "../components/AppShell";
+import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, CHART_LEGEND, CHART_COLORS, shortAxisLabel, barChartHeight } from "../lib/chart-config";
+
+const HEALTH_COLORS = { healthy: CHART_COLORS.primary, sick: CHART_COLORS.warning, injured: CHART_COLORS.danger, recovering: CHART_COLORS.warning, inactive: CHART_COLORS.muted };
+const STATUS_COLORS = { active: CHART_COLORS.primary, inactive: CHART_COLORS.muted, pending: CHART_COLORS.warning, draft: CHART_COLORS.muted };
+const cap = (value) => (value ? value.charAt(0).toUpperCase() + value.slice(1) : "—");
+
+// Dashboard chart helpers — same patterns + colors as Analytics (lib/chart-config.js),
+// so the same kind of data always looks the same across the two pages.
+const Donut = ({ segments, label, emptyMessage }) => {
+  const data = (segments || []).filter((s) => s.value > 0);
+  if (!data.length) return <p className={styles.empty}>{emptyMessage || "No data yet"}</p>;
+  return (
+    <ResponsiveContainer width="100%" height={CHART_HEIGHTS.pie}>
+      <PieChart>
+        <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={95} paddingAngle={2}>
+          {data.map((s, i) => <Cell key={i} fill={s.color || CHART_COLORS.palette[i % CHART_COLORS.palette.length]} />)}
+        </Pie>
+        <Tooltip {...CHART_TOOLTIP} formatter={(value, name) => [`${value}${label ? ` ${label}` : ""}`, name]} />
+        <Legend {...CHART_LEGEND} />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+};
+
+const HBars = ({ data, axisLabel, axisValue, colors, emptyMessage }) => {
+  if (!data || !data.length) return <p className={styles.empty}>{emptyMessage || "No data yet"}</p>;
+  const cells = colors ? data.map((d, i) => <Cell key={i} fill={colors[i % colors.length]} />) : null;
+  return (
+    <ResponsiveContainer width="100%" height={barChartHeight(data.length)}>
+      <BarChart data={data} layout="vertical" margin={CHART_MARGINS.barHorizontal}>
+        <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
+        <XAxis type="number" tick={CHART_AXIS.x} allowDecimals={false}>
+          <Label value={axisValue} position="insideBottom" dy={22} style={{ fill: CHART_AXIS.x.tick.fill, fontSize: 12 }} />
+        </XAxis>
+        <YAxis type="category" dataKey="name" width={CHART_AXES.barCategory} tick={CHART_AXIS.y} tickFormatter={(v) => shortAxisLabel(v)} />
+        <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v} ${axisValue}`, axisLabel]} />
+        <Bar dataKey="value" fill={CHART_COLORS.primary} radius={[0, 4, 4, 0]}>{cells}</Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};
 
 export async function getServerSideProps(context) {
   const session = await getSession(context);
@@ -148,6 +193,8 @@ export async function getServerSideProps(context) {
     }
     docAttention.sort((a, b) => b.expired - a.expired || b.expiring - a.expiring || a.name.localeCompare(b.name));
   }
+  const docAttentionTotal = docAttention.length;
+  const missedActivities = buckets.reduce((sum, w) => sum + (w.missed || 0), 0);
 
   const nextEventRow = await prisma.eventPlan.findFirst({
     where: { status: "open", startDate: { gte: fromToday } },
@@ -179,6 +226,7 @@ export async function getServerSideProps(context) {
       healthAttention: JSON.parse(JSON.stringify(healthAttention)),
       docAttention: JSON.parse(JSON.stringify(docAttention.slice(0, 6))),
       nextEvent,
+      docAttentionTotal,
     },
   };
 }
@@ -204,7 +252,7 @@ function FeatureCard({ eyebrow, title, href, children }) {
   );
 }
 
-export default function Dashboard({ stats, completion = [], ratingSeries = [], upcomingSessions = [], healthDist = [], coachEvalAverages = [], achievementsCount, greetingName, healthAttention = [], docAttention = [], nextEvent = null }) {
+export default function Dashboard({ stats, completion = [], ratingSeries = [], upcomingSessions = [], healthDist = [], coachEvalAverages = [], achievementsCount, greetingName, healthAttention = [], docAttention = [], nextEvent = null, docAttentionTotal = 0 }) {
   const router = useRouter();
   const { data: session } = useSession();
   useEffect(() => {
@@ -231,7 +279,7 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
   const healthNote = stats.healthIssues > 0 ? `${stats.healthIssues} athlete${stats.healthIssues === 1 ? "" : "s"} flagged for health` : "";
   const evalsData = (coachEvalAverages || []).map((c) => ({ label: c.name, value: c.avg }));
 
-  // Simple summary stats for quick glance (no charts on Dashboard)
+  // Summary stats for the glance panels below.
   const totalActivities = (completion || []).reduce((sum, w) => sum + (w.done || 0) + (w.partial || 0) + (w.missed || 0), 0);
   const totalDone = (completion || []).reduce((sum, w) => sum + (w.done || 0), 0);
   const completionRate = totalActivities ? Math.round((totalDone / totalActivities) * 100) : 0;
@@ -239,6 +287,16 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
   const healthHealthy = healthDist.find((h) => h.name === "healthy")?.value || 0;
   const healthFlagged = (healthDist || []).filter((h) => ["sick", "injured", "recovering", "inactive"].includes(h.name)).reduce((sum, h) => sum + h.value, 0);
   const coachAvgScore = evalsData.length ? (evalsData.reduce((sum, e) => sum + e.value, 0) / evalsData.length).toFixed(1) : "—";
+
+  // Attention charts — "what needs attention", summarized visually at the top.
+  const healthSegments = (healthDist || []).map((h) => ({ name: cap(h.name), value: h.value, color: HEALTH_COLORS[h.name] || CHART_COLORS.muted }));
+  const attentionBars = [
+    { name: "Health flags", value: stats.healthIssues || 0, color: CHART_COLORS.danger },
+    { name: "Documents due", value: docAttentionTotal || 0, color: CHART_COLORS.warning },
+    { name: "Missed activities", value: missedActivities || 0, color: CHART_COLORS.warning },
+    ...(canApprove ? [{ name: "Coach approvals", value: stats.pendingCoaches || 0, color: CHART_COLORS.warning }] : []),
+  ];
+  const hasAttention = attentionBars.some((b) => b.value > 0);
 
   return <>
     <Head><title>Dashboard | Cauayan Athlete Performance</title><meta name="description" content="Athlete performance monitoring dashboard" /></Head>
@@ -253,6 +311,24 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
           {stats.healthIssues > 0 && <Link className={`${styles.alertItem} ${styles.alertDanger}`} href="/athletes?health=flagged"><span className={`${styles.dot} ${styles.dotDanger}`} aria-hidden="true" /><span><strong>{stats.healthIssues} athlete{stats.healthIssues === 1 ? "" : "s"} flagged for health</strong><small>Family doctor and manager notes need attention.</small></span></Link>}
         </section>
       ) : null}
+      {hasAttention && (
+        <section className={styles.chartGrid} aria-label="Needs attention summary">
+          <div className={styles.panel}>
+            <div className={styles.panelHeader}>
+              <div><p className={styles.eyebrow}>Attention</p><h2>What needs attention</h2></div>
+            </div>
+            <p className={styles.formHint} style={{ marginTop: 0 }}>Open items across health, records, training and approvals.</p>
+            <HBars data={attentionBars} colors={attentionBars.map((b) => b.color)} axisLabel="Item" axisValue="Open" emptyMessage="Nothing needs attention right now." />
+          </div>
+          <div className={styles.panel}>
+            <div className={styles.panelHeader}>
+              <div><p className={styles.eyebrow}>Attention</p><h2>Health flags</h2></div>
+              <Link href="/athletes?health=flagged">Athletes</Link>
+            </div>
+            <Donut segments={healthSegments} label="athletes" emptyMessage="No athletes yet." />
+          </div>
+        </section>
+      )}
       {(healthAttention.length > 0 || docAttention.length > 0 || nextEvent) && (
         <section className={styles.grid} aria-label="Needs attention and next event">
           <div className={styles.panel}>
