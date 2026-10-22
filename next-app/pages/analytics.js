@@ -11,6 +11,7 @@ import { prisma } from "../lib/prisma";
 import styles from "../styles/Dashboard.module.css";
 import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, CHART_LEGEND, CHART_COLORS, shortAxisLabel, barChartHeight } from "../lib/chart-config";
 import { toCsvRows } from "../lib/performance-insights";
+import { computeAchievementPoints, medalCounts, MEDAL_ORDER } from "../lib/points";
 
 const STATUS_COLORS = { active: CHART_COLORS.primary, inactive: CHART_COLORS.muted, pending: CHART_COLORS.warning, draft: CHART_COLORS.muted };
 const GENDER_COLORS = { male: CHART_COLORS.primary, female: CHART_COLORS.palette[2], other: CHART_COLORS.warning, prefer_not_to_say: CHART_COLORS.muted };
@@ -156,7 +157,7 @@ export async function getServerSideProps(context) {
     prisma.planActivityLog.findMany({ where: { performedAt: { gte: firstBucket }, status: { in: ["done", "partial", "missed"] } }, select: { status: true, performedAt: true } }),
     prisma.trainingAssessment.findMany({ where: { assessmentDate: { gte: ninetyDayStart } }, select: { rating: true, assessmentDate: true }, orderBy: { assessmentDate: "desc" } }),
     prisma.athlete.groupBy({ by: ["healthStatus"], _count: { _all: true } }),
-    prisma.achievement.findMany({ select: { achievementType: true } }),
+    prisma.achievement.findMany({ select: { achievementType: true, medal: true, level: true, isRecord: true, achievementDate: true, sport: { select: { sportName: true, category: true } }, event: { select: { eventName: true, eventCategory: true } }, athlete: { select: { id: true, firstName: true, lastName: true, school: { select: { schoolName: true } } } } } }),
   ]);
 
   const kpi = {
@@ -282,6 +283,76 @@ export async function getServerSideProps(context) {
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {})).map(([name, value]) => ({ name: cap(name), value })).sort((a, b) => b.value - a.value);
+
+  // ---- Events & Sports + Winners analytics (B3/B4) -----------------------
+  // Athletes per sport (current roster).
+  const athletesBySport = (() => {
+    const map = new Map();
+    for (const a of athletes) {
+      const key = a.sport?.sportName || "Unassigned";
+      map.set(key, (map.get(key) || 0) + 1);
+    }
+    return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  })();
+
+  // Events per sport category (uses the Sport.category field added for panel item #6).
+  const eventsByCategory = (() => {
+    const map = new Map();
+    for (const s of sports) {
+      const key = cap(s.category || "individual");
+      map.set(key, (map.get(key) || 0) + (s._count?.events || 0));
+    }
+    return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  })();
+
+  // Winners: medal distribution, medals by sport, medals by level, records, top athletes.
+  const MEDAL_LABELS = { gold: "Gold", silver: "Silver", bronze: "Bronze", fourth: "4th", participation: "Participation" };
+  const medalDist = MEDAL_ORDER.map((m) => ({ name: MEDAL_LABELS[m], value: achievements.filter((a) => a.medal === m).length }));
+  const medalsBySport = (() => {
+    const map = new Map();
+    for (const a of achievements) {
+      if (!a.medal || a.medal === "participation") continue;
+      const key = a.sport?.sportName || "Unspecified";
+      if (!map.has(key)) map.set(key, { name: key, value: 0 });
+      map.get(key).value += 1;
+    }
+    return [...map.values()].sort((a, b) => b.value - a.value).slice(0, 12);
+  })();
+  const medalsByLevel = (() => {
+    const map = new Map();
+    for (const a of achievements) {
+      if (!a.medal || a.medal === "participation") continue;
+      const key = cap(a.level || "unspecified");
+      map.set(key, (map.get(key) || 0) + 1);
+    }
+    return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  })();
+  const winnersByAthlete = (() => {
+    const map = new Map();
+    for (const a of achievements) {
+      if (!a.medal) continue;
+      const key = a.athlete?.id ?? a.athleteId;
+      if (!map.has(key)) {
+        map.set(key, { name: a.athlete ? `${a.athlete.lastName}, ${a.athlete.firstName}` : "—", value: 0, points: 0 });
+      }
+      const row = map.get(key);
+      row.value += 1;
+      row.points += computeAchievementPoints(a);
+    }
+    return [...map.values()].sort((a, b) => b.points - a.points || b.value - a.value).slice(0, 10);
+  })();
+  const records = achievements.filter((a) => a.isRecord).length;
+  const medalTotals = medalCounts(achievements);
+  const achievementsByMonth = (() => {
+    const map = new Map();
+    for (const a of achievements) {
+      if (!a.achievementDate) continue;
+      const key = new Date(a.achievementDate).toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+      map.set(key, (map.get(key) || 0) + 1);
+    }
+    return [...map.entries()].map(([name, value]) => ({ name, value }));
+  })();
+
   const eventPlansAgg = { total: eventPlans.length, byStatus: Object.entries(eventPlans.reduce((acc, e) => { acc[e.status] = (acc[e.status] || 0) + 1; return acc; }, {})).map(([name, value]) => ({ name, value })) };
   const applicationsAgg = { total: applications.length, byStatus: Object.entries(applications.reduce((acc, a) => { acc[a.status] = (acc[a.status] || 0) + 1; return acc; }, {})).map(([name, value]) => ({ name, value })) };
   const participantsAgg = (() => {
@@ -320,12 +391,21 @@ export async function getServerSideProps(context) {
       progressSummary: JSON.parse(JSON.stringify(progressSummary)),
       movers: JSON.parse(JSON.stringify(movers)),
       coachSchoolDist, achievementTypeDist, eventPlans: eventPlansAgg, applications: applicationsAgg, participants: participantsAgg,
+      athletesBySport: JSON.parse(JSON.stringify(athletesBySport)),
+      eventsByCategory: JSON.parse(JSON.stringify(eventsByCategory)),
+      medalDist: JSON.parse(JSON.stringify(medalDist)),
+      medalsBySport: JSON.parse(JSON.stringify(medalsBySport)),
+      medalsByLevel: JSON.parse(JSON.stringify(medalsByLevel)),
+      winnersByAthlete: JSON.parse(JSON.stringify(winnersByAthlete)),
+      achievementsByMonth: JSON.parse(JSON.stringify(achievementsByMonth)),
+      records,
+      medalTotals,
       completionBuckets, ratingTrend, ratingDist, healthStatusDist,
     },
   };
 }
 
-export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist, genderDist, schoolDist, eventDist, coachDist, roster, assessmentTypeDist, monthly, assessmentsPerAthlete, recentAssessments, averages, metricRanges, insights, progressSummary = [], movers = [], coachSchoolDist, achievementTypeDist, eventPlans, applications, participants, completionBuckets, ratingTrend, ratingDist, healthStatusDist }) {
+export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist, genderDist, schoolDist, eventDist, coachDist, roster, assessmentTypeDist, monthly, assessmentsPerAthlete, recentAssessments, averages, metricRanges, insights, progressSummary = [], movers = [], coachSchoolDist, achievementTypeDist, eventPlans, applications, participants, athletesBySport = [], eventsByCategory = [], medalDist = [], medalsBySport = [], medalsByLevel = [], winnersByAthlete = [], achievementsByMonth = [], records = 0, medalTotals = {}, completionBuckets, ratingTrend, ratingDist, healthStatusDist }) {
   const [openStatus, setOpenStatus] = React.useState({});
 
   const statusSegments = statusDist.map((item) => ({ ...item, color: STATUS_COLORS[item.name] || CHART_COLORS.muted }));
@@ -366,6 +446,7 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
     { label: "Assessments", sectionId: "assessments" },
     { label: "Measurements", sectionId: "measurements" },
     { label: "Training", sectionId: "training" },
+    ...(isAdmin ? [{ label: "Competition", sectionId: "competition" }] : []),
     ...(isAdmin ? [{ label: "Program", sectionId: "program" }] : []),
   ];
 
@@ -404,6 +485,17 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by school</h2></div></div>
                 {schoolDist.length ? <HBars data={schoolDist} axisLabel="School" axisValue="Athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
+              </div>
+            </section>
+
+            <section className={styles.chartGrid}>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by sport</h2></div></div>
+                <HBars data={athletesBySport} axisLabel="Sport" axisValue="Athletes" emptyMessage="No athletes assigned to a sport yet." />
+              </div>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Events by sport category</h2></div></div>
+                <HBars data={eventsByCategory} axisLabel="Category" axisValue="Events" emptyMessage="No events yet." />
               </div>
             </section>
 
@@ -546,6 +638,50 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
               </div>
             </section>
           </section>
+
+          {isAdmin && (
+            <section id="competition">
+              <section className={styles.chartGrid}>
+                <div className={styles.panel}>
+                  <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Competition</p><h2>Medals by sport</h2></div></div>
+                  <p className={styles.formHint} style={{ marginTop: 0 }}>Gold, silver, bronze and 4th-place awards (top 12 sports).</p>
+                  <HBars data={medalsBySport} axisLabel="Sport" axisValue="Medals" emptyMessage="No medals recorded yet." />
+                </div>
+                <div className={styles.panel}>
+                  <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Competition</p><h2>Medal breakdown</h2></div></div>
+                  <Donut segments={medalDist.map((m) => ({ ...m, color: m.name === "Gold" ? "#facc15" : m.name === "Silver" ? "#cbd5e1" : m.name === "Bronze" ? "#d97706" : CHART_COLORS.muted }))} label="awards" emptyMessage="No awards recorded yet." />
+                </div>
+              </section>
+
+              <section className={styles.chartGrid}>
+                <div className={styles.panel}>
+                  <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Competition</p><h2>Top winners</h2></div></div>
+                  <p className={styles.formHint} style={{ marginTop: 0 }}>Athletes ranked by standing points (medal × level × event type).</p>
+                  <HBars data={winnersByAthlete.map((w) => ({ name: w.name, value: w.points }))} axisLabel="Athlete" axisValue="Points" emptyMessage="No winners recorded yet." />
+                </div>
+                <div className={styles.panel}>
+                  <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Competition</p><h2>Medals by level</h2></div></div>
+                  <HBars data={medalsByLevel} axisLabel="Level" axisValue="Medals" emptyMessage="No medals recorded yet." />
+                </div>
+              </section>
+
+              <section className={styles.chartGrid}>
+                <div className={styles.panel}>
+                  <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Competition</p><h2>Achievements over time</h2></div></div>
+                  <HBars data={achievementsByMonth} axisLabel="Month" axisValue="Achievements" emptyMessage="No dated achievements yet." />
+                </div>
+                <div className={styles.panel}>
+                  <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Competition</p><h2>Summary</h2></div></div>
+                  <div className={styles.statRow}>
+                    <div className={styles.stat}><strong>{medalTotals.gold || 0}</strong><small>Gold</small></div>
+                    <div className={styles.stat}><strong>{medalTotals.silver || 0}</strong><small>Silver</small></div>
+                    <div className={styles.stat}><strong>{medalTotals.bronze || 0}</strong><small>Bronze</small></div>
+                    <div className={styles.stat}><strong>{records}</strong><small>Records set</small></div>
+                  </div>
+                </div>
+              </section>
+            </section>
+          )}
 
           {isAdmin && (
             <section id="program">
