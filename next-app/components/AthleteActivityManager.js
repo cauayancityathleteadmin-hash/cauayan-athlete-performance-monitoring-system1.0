@@ -1,5 +1,6 @@
 import React from "react";
 import { resultFieldFor, resultUnitFor, targetValueFor } from "../lib/activity-score";
+import { scoreWord, activityScoreLabel } from "../lib/score-words";
 import { FITNESS_OPTIONS, allowedTargetKeysFor, defaultUnitFor, metricFieldsFor, fitnessTypesForPlanType, primaryTargetKeyFor, betterDirectionFor, metricProfileFor } from "../lib/training-metrics";
 import { getStarterNorm, classifyFitnessValue } from "../lib/starter-metrics";
 import styles from "../styles/Dashboard.module.css";
@@ -309,6 +310,21 @@ export function AthleteActivitiesBlock({ planId, athlete, activities, logs, onRe
                                     {cls.label}
                                     {cls.unverified ? <small style={{ marginLeft: 6, opacity: 0.7 }}>ref.</small> : null}
                                   </span>
+                                ) : null}
+                                {cls ? (
+                                  (() => {
+                                    const sw = scoreWord(fitnessType, cls.tier, cls.direction);
+                                    if (!sw) return null;
+                                    return (
+                                      <span
+                                        className={styles.badge}
+                                        style={{ background: "rgba(45,212,168,.14)", color: "var(--accent)", fontSize: "11px" }}
+                                        title="Plain-word score from the existing fitness bands (Admin → Metrics)."
+                                      >
+                                        {sw}
+                                      </span>
+                                    );
+                                  })()
                                 ) : null}
                                 {cls && cls.nextTierLabel && cls.tier !== "excellent" ? (
                                   <small style={{ color: "var(--muted)", fontSize: "10px" }}>

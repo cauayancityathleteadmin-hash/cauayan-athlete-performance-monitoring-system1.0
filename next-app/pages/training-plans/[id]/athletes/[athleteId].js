@@ -7,11 +7,12 @@ import { METRIC_LABELS, resultFieldFor, resultUnitFor, targetValueFor } from "..
 import { prisma } from "../../../../lib/prisma";
 import AppShell from "../../../../components/AppShell";
 import { AthleteActivitiesBlock, loggedResultValue } from "../../../../components/AthleteActivityManager";
+import { classifyLog } from "../../../../components/AthleteActivityManager";
 import PageSectionTabs from "../../../../components/PageSectionTabs";
+import { loadNormOverrides } from "../../../../lib/fitness-norms";
 import styles from "../../../../styles/Dashboard.module.css";
 import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, CHART_COLORS, barChartHeight, completionColor, shortAxisLabel } from "../../../../lib/chart-config";
-import { loadNormOverrides } from "../../../../lib/fitness-norms";
-import { classifyFitnessValue } from "../../../../lib/starter-metrics";
+import { scoreWord, activityScoreLabel } from "../../../../lib/score-words";
 import { buildTrainingDays, summarizeTrainingDays, trainingStatusLabel, excuseReasonLabel } from "../../../../lib/training-status";
 
 const FITNESS_META = {
