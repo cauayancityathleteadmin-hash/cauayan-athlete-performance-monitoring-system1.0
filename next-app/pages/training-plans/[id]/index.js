@@ -15,6 +15,10 @@ import AppShell from "../../../components/AppShell";
 import styles from "../../../styles/Dashboard.module.css";
 import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, CHART_LEGEND, CHART_COLORS, barChartHeight, completionColor, shortAxisLabel } from "../../../lib/chart-config";
 import { EXCUSE_REASONS, EXCUSE_REASON_META } from "../../../lib/training-status";
+import { classifyFitnessValue } from "../../../lib/starter-metrics";
+import { loggedResultValue } from "../../../components/AthleteActivityManager";
+import { loadNormOverrides } from "../../../lib/fitness-norms";
+import { scoreWord, activityScoreLabel } from "../../../lib/score-words";
 
 export async function getServerSideProps(context) {
   const session = await getSession(context);
@@ -44,7 +48,7 @@ export async function getServerSideProps(context) {
       where: { planId: id },
       orderBy: { orderIndex: "asc" },
       include: {
-        athlete: { select: { id: true, athleteCode: true, firstName: true, lastName: true } },
+        athlete: { select: { id: true, athleteCode: true, firstName: true, lastName: true, gender: true, birthdate: true } },
         logs: {
           orderBy: { performedAt: "desc" },
           include: { athlete: { select: { id: true, firstName: true, lastName: true } }, logger: { select: { email: true, username: true } } },
@@ -58,11 +62,11 @@ export async function getServerSideProps(context) {
     where: { activityId: { in: activityIds } },
     orderBy: [{ performedAt: "desc" }],
     include: {
-      athlete: { select: { id: true, athleteCode: true, firstName: true, lastName: true } },
+      athlete: { select: { id: true, athleteCode: true, firstName: true, lastName: true, gender: true, birthdate: true } },
       logger: { select: { id: true, email: true, username: true } },
-      activity: { select: { id: true, activityName: true, fitnessType: true } },
+      activity: { select: { id: true, activityName: true, fitnessType: true, metricType: true, targetTimeSec: true, targetQuantity: true, targetUnit: true, targetDistance: true, targetSets: true, targetReps: true } },
     },
-    take: 500,
+    take: 2000,
   });
 
   const monitoringActivities = allActivities.map((a) => {
@@ -81,6 +85,8 @@ export async function getServerSideProps(context) {
   for (const r of ratingRows) {
     if (latestRatings[r.athleteId] == null) latestRatings[r.athleteId] = r.rating;
   }
+
+  const normOverrides = await loadNormOverrides();
 
   return {
     props: {
@@ -103,6 +109,7 @@ export async function getServerSideProps(context) {
         })
       ),
       latestRatings: JSON.parse(JSON.stringify(latestRatings)),
+      normOverrides: JSON.parse(JSON.stringify(normOverrides)),
     },
   };
 }
@@ -123,6 +130,7 @@ const PLAN_SECTIONS = [
   { label: "Overview", sectionId: "overview" },
   { label: "Trends & Charts", sectionId: "trends" },
   { label: "Athletes", sectionId: "roster" },
+  { label: "Progress board", sectionId: "progress-board" },
 ];
 
 const normName = (s) => (s || "").trim().replace(/\s+/g, " ").toLowerCase();
@@ -167,7 +175,7 @@ function blobToBase64(blob) {
   });
 }
 
-export default function PlanDetail({ session, isAdmin, plan, athletes, initialActivities = [], initialLogs = [], initialMonitoringData = null, latestRatings = {} }) {
+export default function PlanDetail({ session, isAdmin, plan, athletes, initialActivities = [], initialLogs = [], initialMonitoringData = null, latestRatings = {}, normOverrides = {} }) {
   const router = useRouter();
   const [activities, setActivities] = React.useState(initialActivities);
   const [logs, setLogs] = React.useState(initialLogs);
@@ -393,6 +401,15 @@ export default function PlanDetail({ session, isAdmin, plan, athletes, initialAc
             ) : (
               <AthleteRosterTable plan={plan} athletes={athletes} activities={activities} logs={logs} isAdmin={isAdmin} latestRatings={latestRatings} />
             )}
+          </section>
+
+          <section id="progress-board">
+            <div className={styles.panelHeader}>
+              <div><p className={styles.eyebrow}>Progress board</p><h2>Coach progress board</h2></div>
+              <span className={styles.formHint} style={{ alignSelf: "center" }}>{athletes.length} athlete{athletes.length === 1 ? "" : "s"}</span>
+            </div>
+            <p className={styles.formHint} style={{ marginTop: 0 }}>Comparison across athletes: completion %, latest plain-word score per fitness type, and trend arrows.</p>
+            <ProgressBoard plan={plan} athletes={athletes} activities={activities} logs={logs} normOverrides={normOverrides} />
           </section>
         </PageSectionTabs>
       </AppShell>
@@ -1416,4 +1433,107 @@ function AthleteRosterRow({ plan, row, isAdmin }) {
     </React.Fragment>
   );
 }
+
+const FITNESS_ORDER_BOARD = ["endurance", "speed_agility", "power", "strength", "skill_technique", "mobility", "recovery"];
+const FITNESS_META_BOARD = {
+  endurance: "Endurance", strength: "Strength", power: "Power", speed_agility: "Speed/Agility", skill_technique: "Skill/Tech", mobility: "Mobility", recovery: "Recovery",
+};
+
+function ProgressBoard({ plan, athletes, activities, logs, normOverrides = {} }) {
+  const router = useRouter();
+  const [mounted] = React.useState(true);
+
+  const rows = React.useMemo(() => {
+    return athletes.map((a) => {
+      const acts = activities.filter((act) => act.athleteId === a.id);
+      let done = 0, partial = 0, missed = 0, open = 0;
+      for (const act of acts) {
+        const al = logs.filter((l) => l.activityId === act.id && l.athleteId === a.id);
+        const latest = al.length ? [...al].sort((x, y) => new Date(y.performedAt) - new Date(x.performedAt))[0] : null;
+        const status = latest ? latest.status : "open";
+        if (status === "done") done++;
+        else if (status === "partial") partial++;
+        else if (status === "missed") missed++;
+        else open++;
+      }
+      const total = acts.length;
+      const percent = total ? Math.round(((done + partial) / total) * 100) : 0;
+
+      // Build fitness profile like athlete page
+      const byType = new Map();
+      for (const act of acts) {
+        if (!act.fitnessType) continue;
+        const history = (logs.filter((l) => l.activityId === act.id && l.athleteId === a.id))
+          .map((log) => {
+            const cls = classifyFitnessValue(act.fitnessType, a.gender, a.birthdate, loggedResultValue(act, log), normOverrides);
+            return cls ? { log, cls } : null;
+          })
+          .filter(Boolean)
+          .sort((x, y) => new Date(x.log.performedAt) - new Date(y.log.performedAt));
+        if (history.length === 0) continue;
+        if (!byType.has(act.fitnessType)) {
+          byType.set(act.fitnessType, { first: history[0], last: history[history.length - 1], count: history.length });
+        } else {
+          const row = byType.get(act.fitnessType);
+          row.count += history.length;
+          if (new Date(history[0].log.performedAt) < new Date(row.first.log.performedAt)) row.first = history[0];
+          if (new Date(history[history.length - 1].log.performedAt) > new Date(row.last.log.performedAt)) row.last = history[history.length - 1];
+        }
+      }
+      const scores = [];
+      for (const f of FITNESS_ORDER_BOARD) {
+        if (!byType.has(f)) continue;
+        const b = byType.get(f);
+        const w = scoreWord(f, b.last.cls.tier, null);
+        const lbl = activityScoreLabel(f, b.last.cls.label, w);
+        const delta = (b.last.cls.rank || 0) - (b.first.cls.rank || 0);
+        let arrow = "—";
+        if (delta > 0) arrow = "▲";
+        else if (delta < 0) arrow = "▼";
+        scores.push({ fitness: f, label: FITNESS_META_BOARD[f] || f, word: lbl || b.last.cls.label, arrow, delta });
+      }
+      return { id: a.id, code: a.athleteCode, name: `${a.firstName} ${a.lastName}`, percent, done, partial, missed, total, scores };
+    }).sort((x, y) => y.percent - x.percent);
+  }, [athletes, activities, logs, normOverrides]);
+
+  if (!mounted) return <p className={styles.empty}>Loading...</p>;
+  if (rows.length === 0) return <p className={styles.empty}>No athletes on this plan.</p>;
+  const scoreCols = [];
+  const seen = new Set();
+  for (const r of rows) for (const s of r.scores) if (!seen.has(s.fitness)) { seen.add(s.fitness); scoreCols.push(s.fitness); }
+  scoreCols.sort((a,b) => FITNESS_ORDER_BOARD.indexOf(a) - FITNESS_ORDER_BOARD.indexOf(b));
+
+  return (
+    <div className={styles.tableWrap}>
+      <table style={{ fontSize: 13 }}>
+        <thead>
+          <tr>
+            <th scope="col">Athlete</th>
+            <th scope="col" style={{ textAlign: "center" }}>Completion</th>
+            {scoreCols.map((f) => <th key={f} scope="col">{FITNESS_META_BOARD[f] || f}</th>)}
+            <th scope="col" style={{ textAlign: "right" }}></th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.id}>
+              <td data-label="Athlete"><strong>{r.name}</strong>{r.code ? <small style={{ color: "var(--muted)", display: "block" }}>{r.code}</small> : null}</td>
+              <td data-label="Completion" style={{ textAlign: "center" }}>
+                {r.total === 0 ? <span style={{ color: "var(--muted)" }}>—</span> : <div><strong style={{ color: completionColor(r.percent) }}>{r.percent}%</strong><div style={{ fontSize: 11, color: "var(--muted)" }}>{r.done}D/{r.partial}P/{r.missed}M</div></div>}
+              </td>
+              {scoreCols.map((f) => {
+                const s = r.scores.find((x) => x.fitness === f);
+                if (!s) return <td key={f} data-label={FITNESS_META_BOARD[f]} style={{ color: "var(--muted)" }}>—</td>;
+                const col = s.arrow === "▲" ? "var(--accent)" : s.arrow === "▼" ? "var(--danger)" : "var(--muted)";
+                return <td key={f} data-label={FITNESS_META_BOARD[f]}><div style={{ display: "flex", alignItems: "center", gap: 6 }}><span>{s.word}</span><span style={{ color: col, fontSize: 11 }}>{s.arrow}</span></div></td>;
+              })}
+              <td style={{ textAlign: "right" }}><button className={styles.secondary} onClick={() => router.push(`/training-plans/${plan.id}/athletes/${r.id}`)}>See progress</button></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 

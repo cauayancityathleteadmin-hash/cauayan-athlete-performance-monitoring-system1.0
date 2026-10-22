@@ -655,6 +655,28 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
           )}
         </section>
 
+        {fitnessProfile.length > 0 && (
+          <section className={styles.panel}>
+            <div className={styles.panelHeader}>
+              <div><p className={styles.eyebrow}>Scores</p><h2>Score summary</h2></div>
+            </div>
+            <p className={styles.formHint} style={{ marginTop: 0 }}>Plain-word scores based on the latest classified result for each fitness type.</p>
+            <div className={styles.statGrid}>
+              {fitnessProfile.map((p) => {
+                const word = scoreWord(p.fitnessType, (p.tierLabel || "").toLowerCase().replace(/\s+/g, "") === "needsimprovement" ? "needsImprovement" : (p.tierLabel || "").toLowerCase().replace(/\s+/g, "") === "verygood" ? "veryGood" : (p.tierLabel || "").toLowerCase().replace(/\s+/g, "") === "excellent" ? "excellent" : (p.tierLabel || "").toLowerCase().replace(/\s+/g, "") === "good" ? "good" : "fair");
+                const label = activityScoreLabel(p.fitnessType, p.tierLabel, word);
+                return (
+                  <div className={styles.detailPanel} key={p.fitnessType}>
+                    <h4>{p.label}</h4>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: "var(--accent)", margin: "4px 0" }}>{label || p.tierLabel || "—"}</div>
+                    <small style={{ color: "var(--muted)" }}>{p.test ? `${p.test}${p.value != null ? ` · ${fmtNum(p.value)} ${p.unit || ""}` : ""}` : ""}</small>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {error && <p role="status" className={styles.empty}>{error}</p>}
 
         {activities.length > 0 && (
