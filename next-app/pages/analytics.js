@@ -97,6 +97,26 @@ const TrendLine = ({ data, dataKey, name, emptyMessage, xLabel }) => {
   );
 };
 
+// Range bar: shows each metric's low→high span, with a reference dot for the
+// average. Best read for "min–max–average" data (clearer than a table).
+const RangeBars = ({ data, emptyMessage, valueSuffix = "" }) => {
+  if (!data || !data.length) return <p className={styles.empty}>{emptyMessage || "No data yet"}</p>;
+  return (
+    <ResponsiveContainer width="100%" height={barChartHeight(data.length)}>
+      <BarChart data={data} layout="vertical" margin={CHART_MARGINS.barHorizontal} barCategoryGap="30%">
+        <CartesianGrid {...CHART_GRID.cartesian} horizontal={false} />
+        <XAxis type="number" tick={CHART_AXIS.x} />
+        <YAxis type="category" dataKey="name" width={CHART_AXES.barCategory} tick={CHART_AXIS.y} tickFormatter={(v) => shortAxisLabel(v)} />
+        <Tooltip {...CHART_TOOLTIP} formatter={(v, n) => [`${v}${valueSuffix}`, n]} />
+        <Bar dataKey="low" name="Low" stackId="r" fill="rgba(127,199,175,0.28)" radius={[4, 0, 0, 4]} />
+        <Bar dataKey="span" name="Range to best" stackId="r" fill={CHART_COLORS.primary} radius={[0, 4, 4, 0]} />
+        <Bar dataKey="avg" name="Average" fill={CHART_COLORS.warning} barSize={3} />
+        <Legend {...CHART_LEGEND} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};
+
 function formatDate(value) {
   const d = new Date(value);
   return isNaN(d) ? "—" : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
@@ -211,7 +231,8 @@ export async function getServerSideProps(context) {
     const [metricId, sportName] = key.split("|");
     const metric = metrics.find((m) => m.id === Number(metricId));
     const event = metric?.event;
-    return { metricName: metric?.metricName || "—", eventName: event?.eventName || "—", sportName, samples: values.length, min: Math.min(...values), max: Math.max(...values), best: metric?.betterDirection === "higher" ? Math.max(...values) : Math.min(...values), unit: metric?.unit || "" };
+    const avg = values.reduce((s, v) => s + v, 0) / values.length;
+    return { metricName: metric?.metricName || "—", eventName: event?.eventName || "—", sportName, samples: values.length, min: Math.min(...values), max: Math.max(...values), avg: Math.round(avg * 10) / 10, best: metric?.betterDirection === "higher" ? Math.max(...values) : Math.min(...values), unit: metric?.unit || "" };
   });
 
   const insights = [];
@@ -291,8 +312,15 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
     .filter(Boolean)
     .map((h) => ({ name: cap(h.name), value: h.value, color: HEALTH_COLORS[h.name] || CHART_COLORS.muted }));
 
-  const downloadCsv = () => {
-    if (!insights.length || typeof window === "undefined") return;
+  // Measurement charts (B1): averages become bars; min/max/avg become range bars.
+  const averagesChart = (averages || []).map((a) => ({ name: `${a.metricName} (${a.sportName})`, value: a.average })).sort((x, y) => y.value - x.value).slice(0, 12);
+  const rangesChart = (metricRanges || []).map((r) => {
+    const low = Math.min(r.min, r.max);
+    const high = Math.max(r.min, r.max);
+    return { name: `${r.metricName} (${r.sportName})`, low, span: Math.max(0, high - low), avg: r.avg };
+  }).sort((x, y) => (y.low + y.span) - (x.low + x.span)).slice(0, 12);
+
+  const downloadCsv = () => {    if (!insights.length || typeof window === "undefined") return;
     const blob = new Blob([toCsvRows(insights)], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -433,12 +461,14 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
           <section id="measurements">
             <section className={styles.chartGrid}>
               <div className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Measurements</p><h2>Average results</h2></div></div>
-                {averages.length ? <div className={styles.tableWrap}><table><thead><tr><th scope="col">Metric</th><th scope="col">Sport</th><th scope="col">Sample avg</th></tr></thead><tbody>{averages.map((item) => <tr key={`${item.sportName}-${item.metricName}`}><td data-label="Metric">{item.metricName}<small>{item.unit}</small></td><td data-label="Sport">{item.sportName}</td><td data-label="Sample avg"><strong>{item.average}</strong>{item.unit ? <small>{item.unit}</small> : null}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No numeric results yet.</p>}
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Measurements</p><h2>Average result per metric</h2></div></div>
+                <p className={styles.formHint} style={{ marginTop: 0 }}>Sample average of each metric (top 12 by value).</p>
+                <HBars data={averagesChart} axisLabel="Metric" axisValue="Average" emptyMessage="No numeric results yet." />
               </div>
               <div className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Measurements</p><h2>Metric records & range</h2></div></div>
-                {metricRanges.length ? <div className={styles.tableWrap}><table><thead><tr><th scope="col">Metric</th><th scope="col">Event</th><th scope="col">Samples</th><th scope="col">Min–Max</th><th scope="col">Record (best)</th></tr></thead><tbody>{metricRanges.map((item) => <tr key={`${item.sportName}-${item.eventName}-${item.metricName}`}><td data-label="Metric">{item.metricName}<small>{item.unit}</small></td><td data-label="Event">{item.eventName}<small>{item.sportName}</small></td><td data-label="Samples">{item.samples}</td><td data-label="Min–Max">{item.min}–{item.max}{item.unit ? <small>{item.unit}</small> : null}</td><td data-label="Record (best)"><strong>{item.best}</strong>{item.unit ? <small>{item.unit}</small> : null}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No numeric results yet.</p>}
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Measurements</p><h2>Metric range — low to high</h2></div></div>
+                <p className={styles.formHint} style={{ marginTop: 0 }}>Grey = lowest recorded, green = spread to highest, amber tick = average.</p>
+                <RangeBars data={rangesChart} emptyMessage="No numeric results yet." />
               </div>
             </section>
 
