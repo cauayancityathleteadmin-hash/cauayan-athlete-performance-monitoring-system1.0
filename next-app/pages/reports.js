@@ -684,12 +684,20 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
   );
 }
 
-function CoachReportCard({ coach, session, prefix }) {
+function CoachReportCard({ coach, session, from, to, prefix }) {
   const issued = formatDate(new Date().toISOString());
   const reportRef = `${prefix}${coach.coachCode}`;
   const age = computeAge(coach.birthdate);
-  const avg = coach.performances.length
-    ? Math.round((coach.performances.reduce((sum, p) => sum + Number(p.overallScore), 0) / coach.performances.length) * 10) / 10
+  // Period windowing — same rule as AthleteReportCard: the report period only
+  // narrows the date-bearing history sections (sessions, plans, evaluations,
+  // applications, participation), never the identity/profile section.
+  const windowedSessions = coach.trainingSessions.filter((s) => inPeriod(s.sessionDate, from, to));
+  const windowedPlans = coach.trainingPlans.filter((p) => inPeriod(p.startDate || p.endDate, from, to));
+  const windowedPerformances = coach.performances.filter((p) => inPeriod(p.periodStart || p.periodEnd, from, to));
+  const windowedApplications = coach.applications.filter((a) => inPeriod(a.appliedAt || a.startDate, from, to));
+  const windowedParticipants = coach.participants.filter((p) => inPeriod(p.startDate, from, to));
+  const avg = windowedPerformances.length
+    ? Math.round((windowedPerformances.reduce((sum, p) => sum + Number(p.overallScore), 0) / windowedPerformances.length) * 10) / 10
     : null;
 
   return (
@@ -755,26 +763,26 @@ function CoachReportCard({ coach, session, prefix }) {
         ) : <p className="rd-empty">No athletes currently assigned.</p>}
       </RdSection>
 
-      <RdSection num="III." title="Training Sessions Conducted" meta={`${coach.sessionCount} session(s)`}>
-        {coach.trainingSessions && coach.trainingSessions.length ? (
+      <RdSection num="III." title="Training Sessions Conducted" meta={`${windowedSessions.length} session(s)`}>
+        {windowedSessions && windowedSessions.length ? (
           <table className="rd-results">
             <thead><tr><th scope="col">Date</th><th scope="col">Session Type</th><th scope="col">Sport</th><th scope="col">Venue</th><th scope="col">Notes</th></tr></thead>
-            <tbody>{coach.trainingSessions.slice(0, 30).map((s, i) => <tr key={i}><td>{formatDate(s.sessionDate)}</td><td>{SESSION_TYPE_LABEL[s.sessionType] || s.sessionType}</td><td>{s.sport}</td><td>{s.venue || "—"}</td><td>{s.notes || "—"}</td></tr>)}</tbody>
+            <tbody>{windowedSessions.slice(0, 30).map((s, i) => <tr key={i}><td>{formatDate(s.sessionDate)}</td><td>{SESSION_TYPE_LABEL[s.sessionType] || s.sessionType}</td><td>{s.sport}</td><td>{s.venue || "—"}</td><td>{s.notes || "—"}</td></tr>)}</tbody>
           </table>
         ) : <p className="rd-empty">No training sessions recorded.</p>}
       </RdSection>
 
-      <RdSection num="IV." title="Training Plans" meta={`${coach.planCount} plan(s)`}>
-        {coach.trainingPlans && coach.trainingPlans.length ? (
+      <RdSection num="IV." title="Training Plans" meta={`${windowedPlans.length} plan(s)`}>
+        {windowedPlans && windowedPlans.length ? (
           <table className="rd-results">
             <thead><tr><th scope="col">Plan</th><th scope="col">Sport</th><th scope="col">Status</th><th scope="col">Start Date</th><th scope="col">End Date</th><th scope="col">Athletes Enrolled</th></tr></thead>
-            <tbody>{coach.trainingPlans.map((p, i) => <tr key={i}><td>{p.title}</td><td>{p.sport}</td><td>{STATUS_LABEL[p.status] || p.status}</td><td>{p.startDate ? formatDate(p.startDate) : "—"}</td><td>{p.endDate ? formatDate(p.endDate) : "—"}</td><td className="num">{p.athleteCount}</td></tr>)}</tbody>
+            <tbody>{windowedPlans.map((p, i) => <tr key={i}><td>{p.title}</td><td>{p.sport}</td><td>{STATUS_LABEL[p.status] || p.status}</td><td>{p.startDate ? formatDate(p.startDate) : "—"}</td><td>{p.endDate ? formatDate(p.endDate) : "—"}</td><td className="num">{p.athleteCount}</td></tr>)}</tbody>
           </table>
         ) : <p className="rd-empty">No training plans recorded.</p>}
       </RdSection>
 
-      <RdSection num="V." title="Performance Evaluation History" meta={`${coach.evalCount} evaluation(s)${avg ? ` · Overall average: ${avg}/10` : ""}`}>
-        {coach.performances && coach.performances.length ? coach.performances.map((p, i) => (
+      <RdSection num="V." title="Performance Evaluation History" meta={`${windowedPerformances.length} evaluation(s)${avg ? ` · Overall average: ${avg}/10` : ""}`}>
+        {windowedPerformances && windowedPerformances.length ? windowedPerformances.map((p, i) => (
           <div className="rd-assessment" key={i}>
             <div className="rd-assessment-head">{formatDate(p.periodStart)} – {formatDate(p.periodEnd)}{p.evaluator ? <small> &middot; Evaluated by {p.evaluator}</small> : null}</div>
             <table className="rd-results">
@@ -788,20 +796,20 @@ function CoachReportCard({ coach, session, prefix }) {
         )) : <p className="rd-empty">No evaluations recorded yet.</p>}
       </RdSection>
 
-      {coach.applications.length > 0 && (
-        <RdSection num="VI." title="Event Applications" meta={`${coach.applicationCount} application(s)`}>
+      {windowedApplications.length > 0 && (
+        <RdSection num="VI." title="Event Applications" meta={`${windowedApplications.length} application(s)`}>
           <table className="rd-results">
             <thead><tr><th scope="col">Event</th><th scope="col">Venue</th><th scope="col">Applied At</th><th scope="col">Start Date</th><th scope="col">Status</th></tr></thead>
-            <tbody>{coach.applications.map((a, i) => <tr key={i}><td>{a.eventName}</td><td>{a.venue || "—"}</td><td>{formatDate(a.appliedAt)}</td><td>{a.startDate ? formatDate(a.startDate) : "—"}</td><td>{STATUS_LABEL[a.status] || a.status}</td></tr>)}</tbody>
+            <tbody>{windowedApplications.map((a, i) => <tr key={i}><td>{a.eventName}</td><td>{a.venue || "—"}</td><td>{formatDate(a.appliedAt)}</td><td>{a.startDate ? formatDate(a.startDate) : "—"}</td><td>{STATUS_LABEL[a.status] || a.status}</td></tr>)}</tbody>
           </table>
         </RdSection>
       )}
 
-      {coach.participants.length > 0 && (
-        <RdSection num="VII." title="Event Participation" meta={`${coach.participantCount} participant record(s)`}>
+      {windowedParticipants.length > 0 && (
+        <RdSection num="VII." title="Event Participation" meta={`${windowedParticipants.length} participant record(s)`}>
           <table className="rd-results">
             <thead><tr><th scope="col">Event</th><th scope="col">Sport</th><th scope="col">Venue</th><th scope="col">Start Date</th><th scope="col">Athlete / Group</th><th scope="col">Status</th></tr></thead>
-            <tbody>{coach.participants.map((p, i) => <tr key={i}><td>{p.eventName}</td><td>{p.sport}</td><td>{p.venue || "—"}</td><td>{p.startDate ? formatDate(p.startDate) : "—"}</td><td>{p.athlete || "Coach delegation"}</td><td>{STATUS_LABEL[p.status] || p.status}</td></tr>)}</tbody>
+            <tbody>{windowedParticipants.map((p, i) => <tr key={i}><td>{p.eventName}</td><td>{p.sport}</td><td>{p.venue || "—"}</td><td>{p.startDate ? formatDate(p.startDate) : "—"}</td><td>{p.athlete || "Coach delegation"}</td><td>{STATUS_LABEL[p.status] || p.status}</td></tr>)}</tbody>
           </table>
         </RdSection>
       )}
@@ -1170,6 +1178,11 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
   const [cSortKey, setCSortKey] = React.useState("name");
   const [cSortDir, setCSortDir] = React.useState("asc");
 
+  // Facet filters on the records table. Empty string = "All".
+  const [fSchool, setFSchool] = React.useState("");
+  const [fStatus, setFStatus] = React.useState("");
+  const [fSport, setFSport] = React.useState("");
+
   const list = type === "athlete" ? athletes : coaches;
   const SORT_COLS = type === "athlete" ? ATH_SORT_COLS : {
     name: (c) => `${c.lastName}, ${c.firstName}`.toLowerCase(),
@@ -1201,6 +1214,9 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
     setSelected([]);
     setSearch("");
     setCSearch("");
+    setFSchool("");
+    setFStatus("");
+    setFSport("");
   }
 
   // Period presets (Step 8): the preset sets From/To; editing a date is "custom".
@@ -1213,8 +1229,23 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
   }
 
   const query = (type === "athlete" ? search : cSearch).trim().toLowerCase();
+  // Facet option lists come from the data actually present, so filters never
+  // offer an empty result set.
+  const facetValue = (item, kind) => {
+    if (kind === "school") return (item.school || "").trim();
+    if (kind === "status") return (item.status || "").trim();
+    if (kind === "sport") return type === "athlete" ? (item.sport || "").trim() : (item.sports || []).join(", ").trim();
+    return "";
+  };
+  const distinct = (kind) => [...new Set(list.map((item) => facetValue(item, kind)).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const schoolOptions = distinct("school");
+  const statusOptions = distinct("status");
+  const sportOptions = distinct("sport");
   const visible = list
     .filter((item) => {
+      if (fSchool && facetValue(item, "school") !== fSchool) return false;
+      if (fStatus && facetValue(item, "status") !== fStatus) return false;
+      if (fSport && !facetValue(item, "sport").split(", ").includes(fSport)) return false;
       const fields = type === "athlete"
         ? [item.lastName, item.firstName, item.athleteCode, item.sport, item.event, item.coach, item.school]
         : [item.lastName, item.firstName, item.coachCode, item.email, item.school, ...(item.sports || [])];
@@ -1282,31 +1313,67 @@ const REPORTS_SECTIONS = [
 
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Selection</p><h2>{type === "athlete" ? "Athletes" : "Coaches"}</h2></div></div>
 
-          {type === "athlete" && (
-            <div style={{ marginTop: "var(--space-4)" }}>
-              <span style={{ display: "block", fontSize: "var(--text-sm)", color: "var(--muted)", marginBottom: 6 }}>
-                Report period — {periodText(from, to)}
-              </span>
-              <div className={styles.segmented} style={{ flexWrap: "wrap" }}>
-                {PERIOD_PRESETS.map((p) => (
-                  <button key={p.id} type="button" aria-pressed={periodPreset === p.id} className={periodPreset === p.id ? styles.active : ""} onClick={() => applyPeriod(p.id)}>
-                    {p.label}
-                  </button>
-                ))}
-              </div>
+          <div style={{ marginTop: "var(--space-4)" }}>
+            <span style={{ display: "block", fontSize: "var(--text-sm)", color: "var(--muted)", marginBottom: 6 }}>
+              Report period — {periodText(from, to)}
+            </span>
+            <div className={styles.segmented} style={{ flexWrap: "wrap" }}>
+              {PERIOD_PRESETS.map((p) => (
+                <button key={p.id} type="button" aria-pressed={periodPreset === p.id} className={periodPreset === p.id ? styles.active : ""} onClick={() => applyPeriod(p.id)}>
+                  {p.label}
+                </button>
+              ))}
             </div>
-          )}
+          </div>
 
           <div className={styles.toolbar} style={{ marginTop: "var(--space-4)" }}>
             <label>Search {type === "athlete" ? "athletes" : "coaches"}<input type="text" placeholder={type === "athlete" ? "Name, code, sport, event, coach, school…" : "Name, code, email, sport, school…"} value={type === "athlete" ? search : cSearch} onChange={(event) => (type === "athlete" ? setSearch(event.target.value) : setCSearch(event.target.value))} /></label>
-            {type === "athlete" && <label>From<input type="date" value={from} onChange={(event) => { setFrom(event.target.value); setPeriodPreset("custom"); }} /></label>}
-            {type === "athlete" && <label>To<input type="date" value={to} onChange={(event) => { setTo(event.target.value); setPeriodPreset("custom"); }} /></label>}
+            <label>From<input type="date" value={from} onChange={(event) => { setFrom(event.target.value); setPeriodPreset("custom"); }} /></label>
+            <label>To<input type="date" value={to} onChange={(event) => { setTo(event.target.value); setPeriodPreset("custom"); }} /></label>
             {count > 0 && <p className={styles.selectionSummary}>{count > 1 ? `${count} selected` : "1 selected"}<button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setSelected([])}>Clear</button></p>}
 <div className={styles.stackedActions}>
               <button className={styles.primary} disabled={!count} onClick={() => scrollRef.current?.scrollIntoView({ behavior: "smooth" })}>Show {count ? `${count} report${count > 1 ? "s" : ""}` : "reports"}</button>
               <button className={styles.secondary} disabled={!count} onClick={() => printScope("records")}>Print</button>
             </div>
           </div>
+
+          {(schoolOptions.length > 0 || statusOptions.length > 0 || sportOptions.length > 0) && (
+            <div style={{ marginTop: "var(--space-4)" }}>
+              {schoolOptions.length > 0 && (
+                <div style={{ marginBottom: "var(--space-3)" }}>
+                  <span style={{ display: "block", fontSize: "var(--text-sm)", color: "var(--muted)", marginBottom: 6 }}>School</span>
+                  <div className={styles.segmented} style={{ flexWrap: "wrap" }}>
+                    <button type="button" aria-pressed={fSchool === ""} className={fSchool === "" ? styles.active : ""} onClick={() => setFSchool("")}>All</button>
+                    {schoolOptions.map((s) => (
+                      <button key={s} type="button" aria-pressed={fSchool === s} className={fSchool === s ? styles.active : ""} onClick={() => setFSchool(s)}>{s}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {statusOptions.length > 0 && (
+                <div style={{ marginBottom: "var(--space-3)" }}>
+                  <span style={{ display: "block", fontSize: "var(--text-sm)", color: "var(--muted)", marginBottom: 6 }}>Status</span>
+                  <div className={styles.segmented} style={{ flexWrap: "wrap" }}>
+                    <button type="button" aria-pressed={fStatus === ""} className={fStatus === "" ? styles.active : ""} onClick={() => setFStatus("")}>All</button>
+                    {statusOptions.map((s) => (
+                      <button key={s} type="button" aria-pressed={fStatus === s} className={fStatus === s ? styles.active : ""} onClick={() => setFStatus(s)}>{STATUS_LABEL[s] || s}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {sportOptions.length > 0 && (
+                <div>
+                  <span style={{ display: "block", fontSize: "var(--text-sm)", color: "var(--muted)", marginBottom: 6 }}>Sport</span>
+                  <div className={styles.segmented} style={{ flexWrap: "wrap" }}>
+                    <button type="button" aria-pressed={fSport === ""} className={fSport === "" ? styles.active : ""} onClick={() => setFSport("")}>All</button>
+                    {sportOptions.map((s) => (
+                      <button key={s} type="button" aria-pressed={fSport === s} className={fSport === s ? styles.active : ""} onClick={() => setFSport(s)}>{s}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </section>
         </section>
         <section id="table">
@@ -1382,7 +1449,7 @@ const REPORTS_SECTIONS = [
                     <AthleteReportCard athlete={athlete} session={session} from={from} to={to} prefix={prefix} />
                   </React.Fragment>
                 ))
-              : filtered.map((coach) => <CoachReportCard key={coach.id} coach={coach} session={session} prefix={prefix} />)}
+              : filtered.map((coach) => <CoachReportCard key={coach.id} coach={coach} session={session} from={from} to={to} prefix={prefix} />)}
           </div>
           {filtered.length > 0 && <div className={styles.stackedActions}><button className={styles.secondary} onClick={() => printScope("records")}>Print all reports</button></div>}
         </section>
