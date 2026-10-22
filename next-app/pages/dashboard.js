@@ -5,7 +5,7 @@ import { useRouter } from "next/router";
 import { getSession, useSession } from "next-auth/react";
 import {
   ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, CartesianGrid,
-  PieChart, Pie, Legend, Label,
+  LineChart, Line, PieChart, Pie, Legend, Label,
 } from "recharts";
 import { prisma } from "../lib/prisma";
 import { evaluateCompliance } from "../lib/compliance";
@@ -53,6 +53,45 @@ const HBars = ({ data, axisLabel, axisValue, colors, emptyMessage }) => {
   );
 };
 
+const VStacked = ({ data, categories, colors, xLabel, yLabel, emptyMessage }) => {
+  if (!data || !data.length || !data.some((d) => categories.some((c) => d[c] > 0))) return <p className={styles.empty}>{emptyMessage || "No data yet"}</p>;
+  return (
+    <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barVertical}>
+      <BarChart data={data} margin={CHART_MARGINS.barVertical}>
+        <CartesianGrid {...CHART_GRID.cartesian} />
+        <XAxis dataKey="name" tick={CHART_AXIS.x} interval={0}>
+          {xLabel ? <Label value={xLabel} position="insideBottom" dy={22} style={{ fill: CHART_AXIS.x.tick.fill, fontSize: 12 }} /> : null}
+        </XAxis>
+        <YAxis tick={CHART_AXIS.y} allowDecimals={false}>
+          {yLabel ? <Label value={yLabel} angle={-90} position="insideLeft" offset={8} style={{ fill: CHART_AXIS.y.tick.fill, fontSize: 12 }} /> : null}
+        </YAxis>
+        <Tooltip {...CHART_TOOLTIP} />
+        {categories.map((c, i) => (
+          <Bar key={c} dataKey={c} stackId="a" fill={colors[i % colors.length]} radius={i === categories.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+        ))}
+        <Legend {...CHART_LEGEND} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+};
+
+const TrendLine = ({ data, dataKey, name, xLabel, emptyMessage }) => {
+  if (!data || !data.length) return <p className={styles.empty}>{emptyMessage || "No data yet"}</p>;
+  return (
+    <ResponsiveContainer width="100%" height={CHART_HEIGHTS.line}>
+      <LineChart data={data} margin={CHART_MARGINS.line}>
+        <CartesianGrid {...CHART_GRID.cartesian} />
+        <XAxis dataKey="name" tick={CHART_AXIS.x} interval="preserveStartEnd" minTickGap={36}>
+          {xLabel ? <Label value={xLabel} position="insideBottom" dy={22} style={{ fill: CHART_AXIS.x.tick.fill, fontSize: 12 }} /> : null}
+        </XAxis>
+        <YAxis domain={[0, 10]} tick={CHART_AXIS.y} allowDecimals={false} tickFormatter={(v) => `${v}/10`} />
+        <Tooltip {...CHART_TOOLTIP} formatter={(v) => [`${v}/10`, name]} />
+        <Line type="monotone" dataKey={dataKey} name={name} stroke={CHART_COLORS.primary} strokeWidth={2} dot={false} />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+};
+
 export async function getServerSideProps(context) {
   const session = await getSession(context);
   if (!session) return { redirect: { destination: "/login", permanent: false } };
@@ -85,7 +124,7 @@ export async function getServerSideProps(context) {
   const fromToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const nextWeek = new Date(fromToday.getTime() + 7 * 86400000);
 
-  const [athletes, coaches, sports, assessments, plans, logs, evals, healthIssues, trainingPlans, activityLogs, trainingAssessments, mySports, myApprovedPlans, pendingCoaches, upcomingSessions, coachEvals, healthByStatus, achievementsCount] = await Promise.all([
+  const [athletes, coaches, sports, assessments, plans, logs, evals, healthIssues, trainingPlans, activityLogs, trainingAssessments, mySports, myApprovedPlans, pendingCoaches, upcomingSessions, coachEvals, healthByStatus, achievementsCount, statusByStatus, sportAthletes] = await Promise.all([
     coachScope ? prisma.athlete.count({ where: coachScope }) : prisma.athlete.count(),
     prisma.coach.count(), prisma.sport.count(),
     coachScope ? prisma.assessment.count({ where: { athlete: coachScope } }) : prisma.assessment.count(),
@@ -119,6 +158,10 @@ export async function getServerSideProps(context) {
         : Promise.resolve([]),
     coachScope ? prisma.athlete.groupBy({ by: ["healthStatus"], where: coachScope, _count: { _all: true } }) : prisma.athlete.groupBy({ by: ["healthStatus"], _count: { _all: true } }),
     coachScope ? prisma.achievement.count({ where: { athlete: coachScope } }) : prisma.achievement.count(),
+    coachScope ? prisma.athlete.groupBy({ by: ["status"], where: coachScope, _count: { _all: true } }) : prisma.athlete.groupBy({ by: ["status"], _count: { _all: true } }),
+    coachScope
+      ? prisma.athlete.findMany({ where: { ...coachScope, sportId: { not: null } }, select: { sport: { select: { sportName: true } } } })
+      : prisma.athlete.findMany({ where: { sportId: { not: null } }, select: { sport: { select: { sportName: true } } } }),
   ]);
 
   const buckets = [];
@@ -140,6 +183,23 @@ export async function getServerSideProps(context) {
   }));
 
   const healthDist = healthByStatus.map((h) => ({ name: h.healthStatus, value: h._count._all }));
+  const statusDist = statusByStatus.map((s) => ({ name: s.status, value: s._count._all }));
+  const sportDist = (() => {
+    const map = new Map();
+    for (const a of sportAthletes) {
+      const key = a.sport?.sportName || "Unassigned";
+      map.set(key, (map.get(key) || 0) + 1);
+    }
+    return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  })();
+  // Completion buckets with a friendly week label — used by the trend chart.
+  const completionSeries = buckets.map((b) => ({
+    name: new Date(b.when).toLocaleDateString("en-US", { month: "short", day: "2-digit" }),
+    done: b.done,
+    partial: b.partial,
+    missed: b.missed,
+  }));
+  const ratingTrend = ratingSeries.map((r) => ({ name: new Date(r.when).toLocaleDateString("en-US", { month: "short", day: "2-digit" }), rating: r.rating }));
   const coachEvalAverages = (() => {
     const map = new Map();
     for (const e of coachEvals) {
@@ -226,6 +286,10 @@ export async function getServerSideProps(context) {
       docAttention: JSON.parse(JSON.stringify(docAttention.slice(0, 6))),
       nextEvent,
       docAttentionTotal,
+      statusDist: JSON.parse(JSON.stringify(statusDist)),
+      sportDist: JSON.parse(JSON.stringify(sportDist)),
+      completionSeries: JSON.parse(JSON.stringify(completionSeries)),
+      ratingTrend: JSON.parse(JSON.stringify(ratingTrend)),
     },
   };
 }
@@ -251,7 +315,7 @@ function FeatureCard({ eyebrow, title, href, children }) {
   );
 }
 
-export default function Dashboard({ stats, completion = [], ratingSeries = [], upcomingSessions = [], healthDist = [], coachEvalAverages = [], achievementsCount, greetingName, healthAttention = [], docAttention = [], nextEvent = null, docAttentionTotal = 0 }) {
+export default function Dashboard({ stats, completion = [], ratingSeries = [], upcomingSessions = [], healthDist = [], coachEvalAverages = [], achievementsCount, greetingName, healthAttention = [], docAttention = [], nextEvent = null, docAttentionTotal = 0, statusDist = [], sportDist = [], completionSeries = [], ratingTrend = [] }) {
   const router = useRouter();
   const { data: session } = useSession();
   useEffect(() => {
@@ -398,6 +462,26 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
           })}
         </section>
       )}
+      <section className={styles.chartGrid} aria-label="Overview trends">
+        <div className={styles.panel}>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Activity completion — 8 weeks</h2></div><Link href="/training-plans">Training</Link></div>
+          <VStacked data={completionSeries} categories={["done", "partial", "missed"]} colors={[CHART_COLORS.primary, CHART_COLORS.warning, CHART_COLORS.danger]} xLabel="Week of" yLabel="Activities" emptyMessage="No activity logged yet." />
+        </div>
+        <div className={styles.panel}>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Rating trend</h2></div><Link href="/assessments">Assessments</Link></div>
+          <TrendLine data={ratingTrend} dataKey="rating" name="Rating" xLabel="Assessment date" emptyMessage="No training ratings yet." />
+        </div>
+      </section>
+      <section className={styles.chartGrid} aria-label="Roster breakdown">
+        <div className={styles.panel}>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Roster</p><h2>Athletes by sport</h2></div><Link href="/athletes">Athletes</Link></div>
+          <HBars data={sportDist} axisLabel="Sport" axisValue="Athletes" emptyMessage="No athletes assigned to a sport yet." />
+        </div>
+        <div className={styles.panel}>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Roster</p><h2>Share by status</h2></div><Link href="/athletes">Athletes</Link></div>
+          <Donut segments={statusDist.map((s) => ({ name: cap(s.name), value: s.value, color: STATUS_COLORS[s.name] || CHART_COLORS.muted }))} label="athletes" emptyMessage="No athletes yet." />
+        </div>
+      </section>
       <section className={styles.grid}>
         <div className={styles.panel}>
           <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training</p><h2>Activity completion</h2></div><Link href="/training-plans">Training</Link></div>
