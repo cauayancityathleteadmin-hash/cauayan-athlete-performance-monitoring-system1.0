@@ -3,7 +3,8 @@ import { requireCsrf, requireSession, text, validId, setSecurityHeaders } from "
 import { rateLimiters } from "../../../lib/rate-limit";
 import { notifyAthlete } from "../../../lib/notify";
 
-const STATUSES = ["planned", "done", "partial", "missed"];
+const STATUSES = ["planned", "done", "partial", "missed", "excused"];
+const EXCUSE_REASONS = ["rest", "sick", "injured", "excused"];
 
 function toDecimal(v) {
   if (v === "" || v == null) return null;
@@ -102,6 +103,7 @@ export default async function handler(req, res) {
   if (access.activity.athleteId !== athleteId) return res.status(409).json({ error: "This activity is for a different athlete." });
 
   const status = STATUSES.includes(body.status) ? body.status : "planned";
+  const excuseReason = status === "excused" && EXCUSE_REASONS.includes(body.excuseReason) ? body.excuseReason : status === "excused" ? "excused" : null;
   const performedAtBody = text(body.performedAt, 30);
   const performedAt = performedAtBody ? new Date(performedAtBody) : new Date();
   if (isNaN(performedAt)) return res.status(400).json({ error: "Invalid date." });
@@ -111,6 +113,7 @@ export default async function handler(req, res) {
     athleteId,
     performedAt,
     status,
+    excuseReason,
     quantityDone: toDecimal(body.quantityDone),
     setsDone: toInt(body.setsDone),
     repsDone: toInt(body.repsDone),

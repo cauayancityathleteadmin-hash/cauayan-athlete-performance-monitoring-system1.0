@@ -19,6 +19,7 @@ import styles from "../styles/Dashboard.module.css";
 import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_LEGEND, CHART_COLORS } from "../lib/chart-config";
 import { classifyFitnessValue, TIER_META, CLASSIFICATION_TIERS } from "../lib/starter-metrics";
 import { loadNormOverrides } from "../lib/fitness-norms";
+import { buildTrainingDays, summarizeTrainingDays, trainingStatusLabel, excuseReasonLabel } from "../lib/training-status";
 
 export async function getServerSideProps(context) {
   const session = await getSession(context);
@@ -44,11 +45,10 @@ export async function getServerSideProps(context) {
       healthLogs: { orderBy: { reportedAt: "desc" }, include: { reporter: { select: { email: true } }, resolver: { select: { email: true } } }, take: 50 },
       coachHistory: { orderBy: { startedAt: "desc" }, include: { coach: { select: { firstName: true, lastName: true, coachCode: true } } }, take: 50 },
       statusHistory: { orderBy: { changedAt: "desc" }, take: 50 },
-      trainingAttendances: { orderBy: { session: { sessionDate: "desc" } }, include: { session: { select: { sessionDate: true, sessionType: true, sport: { select: { sportName: true } } } } }, take: 200 },
       trainingPerformances: { orderBy: { recordedAt: "desc" }, include: { exercise: { select: { exerciseName: true, category: true } }, recorder: { select: { email: true } } }, take: 100 },
       trainingPlans: { include: { plan: { include: { sport: true } } }, take: 50 },
       participants: { where: { status: "active" }, orderBy: { createdAt: "desc" }, include: { eventPlan: { select: { eventName: true, venue: true, status: true, startDate: true } }, sport: true }, take: 100 },
-      _count: { select: { assessments: true, achievements: true, healthLogs: true, trainingAttendances: true } },
+      _count: { select: { assessments: true, achievements: true, healthLogs: true } },
       assessments: { orderBy: { assessmentDate: "desc" }, include: { recorder: { select: { email: true, username: true } }, results: { include: { metric: true } } }, take: 500 },
     };
 
@@ -65,7 +65,7 @@ export async function getServerSideProps(context) {
             athletes: { select: { id: true, athleteCode: true, firstName: true, middleName: true, lastName: true, suffix: true, gender: true, birthdate: true, status: true, sport: { select: { sportName: true } }, event: { select: { eventName: true } } } },
             performances: { orderBy: { createdAt: "desc" }, include: { evaluator: { select: { username: true, email: true } } }, take: 50 },
             trainingPlans: { include: { sport: true, athletes: { select: { athleteId: true } } }, take: 50 },
-            trainingSessions: { orderBy: { sessionDate: "desc" }, include: { sport: true, _count: { select: { attendances: true } } }, take: 100 },
+            trainingSessions: { orderBy: { sessionDate: "desc" }, include: { sport: true }, take: 100 },
             applications: { orderBy: { appliedAt: "desc" }, include: { eventPlan: { select: { eventName: true, venue: true, status: true, startDate: true } } }, take: 100 },
             participants: { where: { status: "active" }, orderBy: { createdAt: "desc" }, include: { eventPlan: { select: { eventName: true, venue: true, status: true, startDate: true } }, sport: true, athlete: { select: { firstName: true, lastName: true, athleteCode: true } } }, take: 100 },
             _count: { select: { athletes: true, performances: true, trainingPlans: true, trainingSessions: true, applications: true, participants: { where: { status: "active" } } } },
@@ -81,10 +81,9 @@ export async function getServerSideProps(context) {
     }
 
     const athleteIds = athletes.map((a) => a.id);
-    const [activityCounts, logCounts, attendanceCounts, normOverrides, activityLogs] = await Promise.all([
+    const [activityCounts, logCounts, normOverrides, activityLogs] = await Promise.all([
       athleteIds.length ? prisma.planActivity.groupBy({ by: ["athleteId"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
       athleteIds.length ? prisma.planActivityLog.groupBy({ by: ["athleteId", "status"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
-      athleteIds.length ? prisma.trainingAttendance.groupBy({ by: ["athleteId", "status"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
       loadNormOverrides(),
       athleteIds.length ? prisma.planActivityLog.findMany({ where: { athleteId: { in: athleteIds } }, include: { activity: { select: { fitnessType: true, metricType: true } } }, orderBy: { performedAt: "asc" } }) : [],
     ]);
@@ -94,12 +93,6 @@ export async function getServerSideProps(context) {
       if (!logCountMap.has(row.athleteId)) logCountMap.set(row.athleteId, { done: 0, partial: 0, missed: 0 });
       const entry = logCountMap.get(row.athleteId);
       if (["done", "partial", "missed"].includes(row.status)) entry[row.status] += row._count._all;
-    }
-    const attendanceMap = new Map();
-    for (const row of attendanceCounts) {
-      if (!attendanceMap.has(row.athleteId)) attendanceMap.set(row.athleteId, { present: 0, late: 0, excused: 0, absent: 0 });
-      const entry = attendanceMap.get(row.athleteId);
-      if (["present", "late", "excused", "absent"].includes(row.status)) entry[row.status] += row._count._all;
     }
     const achievementPoints = (a) => computeAchievementPoints(a);
     const logsByAthlete = new Map();
@@ -172,8 +165,8 @@ export async function getServerSideProps(context) {
       }));
       const completionLog = logCountMap.get(athlete.id) || { done: 0, partial: 0, missed: 0 };
       const planned = activityCountMap.get(athlete.id) || 0;
-      const attendance = attendanceMap.get(athlete.id) || { present: 0, late: 0, excused: 0, absent: 0 };
-      const attendanceEntries = athlete.trainingAttendances.map((ta) => ({ date: ta.session.sessionDate.toISOString(), type: ta.session.sessionType, sport: ta.session.sport.sportName }));
+      const trainingDays = buildTrainingDays(logsByAthlete.get(athlete.id) || []);
+      const trainingStatus = summarizeTrainingDays(trainingDays);
       return {
         id: athlete.id,
         athleteCode: athlete.athleteCode,
@@ -215,9 +208,8 @@ export async function getServerSideProps(context) {
         healthLogs: athlete.healthLogs.map((h) => ({ status: h.status, description: h.description || null, reportedAt: h.reportedAt.toISOString(), reportedBy: h.reporter?.email || null, resolvedAt: h.resolvedAt?.toISOString() || null, resolvedBy: h.resolver?.email || null })),
         coachHistory: athlete.coachHistory.map((h) => ({ coachName: h.coach ? `${h.coach.lastName}, ${h.coach.firstName}` : null, coachCode: h.coach?.coachCode || null, startedAt: h.startedAt.toISOString(), endedAt: h.endedAt?.toISOString() || null, reason: h.reason || null })),
         statusHistory: athlete.statusHistory.map((s) => ({ from: s.oldStatus || null, to: s.newStatus, changedAt: s.changedAt.toISOString(), reason: s.reason || null })),
-        attendance,
-        attendanceCount: athlete._count.trainingAttendances,
-        attendanceEntries,
+        trainingDays: trainingDays.map((d) => ({ day: d.day, status: d.status, reason: d.reason, counts: d.counts })),
+        trainingStatus,
         exercisePerformances: athlete.trainingPerformances.map((p) => ({
           exerciseName: p.exercise.exerciseName,
           category: p.exercise.category,
@@ -293,7 +285,7 @@ export async function getServerSideProps(context) {
         evaluator: p.evaluator?.username || p.evaluator?.email || null,
       })),
       trainingPlans: coach.trainingPlans.map((p) => ({ title: p.planName, sport: p.sport.sportName, status: p.status, startDate: p.startDate?.toISOString() || null, endDate: p.endDate?.toISOString() || null, athleteCount: p.athletes.length })),
-      trainingSessions: coach.trainingSessions.map((s) => ({ sessionDate: s.sessionDate.toISOString(), sessionType: s.sessionType, sport: s.sport.sportName, venue: s.venue || null, notes: s.notes || null, attendance: s._count.attendances })),
+      trainingSessions: coach.trainingSessions.map((s) => ({ sessionDate: s.sessionDate.toISOString(), sessionType: s.sessionType, sport: s.sport.sportName, venue: s.venue || null, notes: s.notes || null })),
       applications: coach.applications.map((a) => ({ eventName: a.eventPlan.eventName, venue: a.eventPlan.venue, status: a.eventPlan.status, startDate: a.eventPlan.startDate?.toISOString() || null, appliedAt: a.appliedAt.toISOString() })),
       participants: coach.participants.map((p) => ({ eventName: p.eventPlan.eventName, venue: p.eventPlan.venue, status: p.eventPlan.status, startDate: p.eventPlan.startDate?.toISOString() || null, sport: p.sport.sportName, athlete: p.athlete ? `${p.athlete.lastName}, ${p.athlete.firstName}${p.athlete.athleteCode ? ` (${p.athlete.athleteCode})` : ""}` : null })),
     });
@@ -344,7 +336,6 @@ function bmiCategory(bmi) {
 const GENDER_LABEL = { male: "Male", female: "Female", other: "Other", prefer_not_to_say: "Prefer not to say" };
 const STATUS_LABEL = { active: "Active", inactive: "Inactive", pending: "Pending", draft: "Draft", open: "Open", closed: "Closed", cancelled: "Cancelled", approved: "Approved", rejected: "Rejected" };
 const HEALTH_LABEL = { healthy: "Healthy", injured: "Injured", recovering: "Recovering", sick: "Sick", inactive: "Inactive" };
-const ATTENDANCE_LABEL = { present: "Present", late: "Late", excused: "Excused", absent: "Absent" };
 const SESSION_TYPE_LABEL = {
   regular: "Regular",
   conditioning: "Conditioning",
@@ -406,7 +397,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
   const windowedParticipants = athlete.participants.filter((p) => inPeriod(p.startDate, from, to));
   const windowedNotes = athlete.notes.filter((n) => inPeriod(n.date, from, to));
   const windowedTraining = athlete.trainingAssessments.filter((t) => inPeriod(t.dates, from, to));
-  const windowedAttendanceEntries = athlete.attendanceEntries.filter((a) => inPeriod(a.date, from, to));
+  const windowedTrainingDays = athlete.trainingDays.filter((d) => inPeriod(d.day, from, to));
   const windowedExercises = athlete.exercisePerformances.filter((p) => inPeriod(p.recordedAt, from, to));
   const windowedAchievementPoints = windowedAchievements.reduce((sum, a) => sum + (Number(a.points) || 0), 0);
   const last = athlete.assessments[0];
@@ -418,10 +409,6 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
   const bmi = heightM && weightKg ? Math.round((weightKg / (heightM * heightM)) * 10) / 10 : null;
   const bmiClass = bmiCategory(bmi);
   const age = computeAge(athlete.birthdate);
-  const attendanceTotal = athlete.attendance ? athlete.attendance.present + athlete.attendance.late + athlete.attendance.excused + athlete.attendance.absent : 0;
-  const attendanceRate = attendanceTotal
-    ? Math.round(((athlete.attendance.present + athlete.attendance.late + athlete.attendance.excused) / attendanceTotal) * 100)
-    : null;
   const activePlans = athlete.plans.filter((p) => p.status === "active");
 
   return (
@@ -595,7 +582,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
         </RdSection>
       )}
 
-      <RdSection num="VII." title="Training Plans, Activities and Attendance">
+      <RdSection num="VII." title="Training Plans, Activities and Daily Training Status">
         <div className="rd-grid">
           <div className="rd-grid-item">
             <div className="rd-kpi-label">Plan Activity Completion</div>
@@ -603,9 +590,10 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
             <div className="rd-kpi-note">{athlete.completion.planned} planned · {athlete.completion.done} done · {athlete.completion.partial} partial · {athlete.completion.missed} missed · {athlete.completion.open} open</div>
           </div>
           <div className="rd-grid-item">
-            <div className="rd-kpi-label">Session Attendance Rate</div>
-            <div className="rd-kpi-value">{attendanceRate != null ? `${attendanceRate}%` : "—"}</div>
-            <div className="rd-kpi-note">{athlete.attendanceCount} sessions · {athlete.attendance.present} present · {athlete.attendance.late} late · {athlete.attendance.excused} excused · {athlete.attendance.absent} absent</div>
+            <div className="rd-kpi-label">Daily Training Status</div>
+            <div className="rd-kpi-value">{athlete.trainingStatus.disciplineRate != null ? `${athlete.trainingStatus.disciplineRate}%` : "—"}</div>
+            <div className="rd-kpi-note">{athlete.trainingStatus.total} day(s) logged · {athlete.trainingStatus.trained} trained · {athlete.trainingStatus.partial} partly trained · {athlete.trainingStatus.missed} not trained{athlete.trainingStatus.excused ? ` · ${athlete.trainingStatus.excused} excused (rest / sick / injured, not counted)` : ""}</div>
+            <div className="rd-kpi-note">Athletes train individually, wherever and whenever assigned, so this records whether daily training was completed rather than roll-call attendance.</div>
           </div>
         </div>
 
@@ -619,12 +607,12 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
           </>
         )}
 
-        {windowedAttendanceEntries.length > 0 && (
+        {windowedTrainingDays.length > 0 && (
           <>
-            <div className="rd-sub-section">Recent Session Attendance <span style={{ fontWeight: 400, fontSize: 12 }}>({periodLabel})</span></div>
+            <div className="rd-sub-section">Daily Training Status <span style={{ fontWeight: 400, fontSize: 12 }}>({periodLabel})</span></div>
             <table className="rd-results">
-              <thead><tr><th scope="col">Date</th><th scope="col">Session Type</th><th scope="col">Sport</th></tr></thead>
-              <tbody>{windowedAttendanceEntries.slice(0, 30).map((a, i) => <tr key={i}><td>{formatDate(a.date)}</td><td>{SESSION_TYPE_LABEL[a.type] || a.type}</td><td>{a.sport}</td></tr>)}</tbody>
+              <thead><tr><th scope="col">Date</th><th scope="col">Status</th><th scope="col">Reason</th><th scope="col">Activity Summary</th></tr></thead>
+              <tbody>{windowedTrainingDays.slice(-30).reverse().map((d, i) => <tr key={i}><td>{formatDate(d.day)}</td><td>{trainingStatusLabel(d.status)}</td><td>{d.status === "excused" ? excuseReasonLabel(d.reason) : "—"}</td><td>{d.counts.done} done{d.counts.partial ? `, ${d.counts.partial} partial` : ""}{d.counts.missed ? `, ${d.counts.missed} not trained` : ""}{d.counts.excused ? `, ${d.counts.excused} excused` : ""}</td></tr>)}</tbody>
             </table>
           </>
         )}
@@ -770,8 +758,8 @@ function CoachReportCard({ coach, session, prefix }) {
       <RdSection num="III." title="Training Sessions Conducted" meta={`${coach.sessionCount} session(s)`}>
         {coach.trainingSessions && coach.trainingSessions.length ? (
           <table className="rd-results">
-            <thead><tr><th scope="col">Date</th><th scope="col">Session Type</th><th scope="col">Sport</th><th scope="col">Venue</th><th scope="col">Attendees</th><th scope="col">Notes</th></tr></thead>
-            <tbody>{coach.trainingSessions.slice(0, 30).map((s, i) => <tr key={i}><td>{formatDate(s.sessionDate)}</td><td>{SESSION_TYPE_LABEL[s.sessionType] || s.sessionType}</td><td>{s.sport}</td><td>{s.venue || "—"}</td><td className="num">{s.attendance}</td><td>{s.notes || "—"}</td></tr>)}</tbody>
+            <thead><tr><th scope="col">Date</th><th scope="col">Session Type</th><th scope="col">Sport</th><th scope="col">Venue</th><th scope="col">Notes</th></tr></thead>
+            <tbody>{coach.trainingSessions.slice(0, 30).map((s, i) => <tr key={i}><td>{formatDate(s.sessionDate)}</td><td>{SESSION_TYPE_LABEL[s.sessionType] || s.sessionType}</td><td>{s.sport}</td><td>{s.venue || "—"}</td><td>{s.notes || "—"}</td></tr>)}</tbody>
           </table>
         ) : <p className="rd-empty">No training sessions recorded.</p>}
       </RdSection>
@@ -1282,7 +1270,7 @@ const REPORTS_SECTIONS = [
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Official & performance records" title="Official Reports" active="/reports">
         <PageSectionTabs sections={REPORTS_SECTIONS} defaultSection="records">
           <section id="records">
-            <section className={styles.intro}><div><p className={styles.eyebrow}>Generate</p><h2>Official personnel records</h2><p>Select one or more records to produce a complete official personnel record covering registration, physical and health profile, performance records, training, attendance, achievements, and event participation. {isAdmin ? "Generate reports for any athlete or coach." : "You can generate reports for the athletes assigned to you."}</p></div></section>
+            <section className={styles.intro}><div><p className={styles.eyebrow}>Generate</p><h2>Official personnel records</h2><p>Select one or more records to produce a complete official personnel record covering registration, physical and health profile, performance records, training, daily training status, achievements, and event participation. {isAdmin ? "Generate reports for any athlete or coach." : "You can generate reports for the athletes assigned to you."}</p></div></section>
 
             <section className={styles.panel}>
           {isAdmin && (

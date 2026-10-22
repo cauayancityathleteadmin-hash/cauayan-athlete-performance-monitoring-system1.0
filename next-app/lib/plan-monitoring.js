@@ -20,6 +20,7 @@ export function buildMonitoringGrid({ activities, planAthletes, week }) {
       const done = dayActivities.filter((a) => a.logs.length > 0 && a.logs[0].status === "done").length;
       const partial = dayActivities.filter((a) => a.logs.length > 0 && a.logs[0].status === "partial").length;
       const missed = dayActivities.filter((a) => a.logs.length > 0 && a.logs[0].status === "missed").length;
+      const excused = dayActivities.filter((a) => a.logs.length > 0 && a.logs[0].status === "excused").length;
       const total = dayActivities.length;
       grid[aid].days[d] = {
         dayIndex: d,
@@ -27,7 +28,8 @@ export function buildMonitoringGrid({ activities, planAthletes, week }) {
         done,
         partial,
         missed,
-        pending: total - done - partial - missed,
+        excused,
+        pending: total - done - partial - missed - excused,
         activities: dayActivities.map((a) => ({
           id: a.id,
           activityName: a.activityName,

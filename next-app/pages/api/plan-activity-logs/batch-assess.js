@@ -4,7 +4,8 @@ import { rateLimiters } from "../../../lib/rate-limit";
 import { notifyAthlete } from "../../../lib/notify";
 import { resolveWeekGate } from "../../../lib/plan-weeks";
 
-const STATUSES = ["done", "partial", "missed"];
+const STATUSES = ["done", "partial", "missed", "excused"];
+const EXCUSE_REASONS = ["rest", "sick", "injured", "excused"];
 
 function toDecimal(v) {
   if (v === "" || v == null) return null;
@@ -76,10 +77,12 @@ export default async function handler(req, res) {
     if (!act || act.athleteId !== athleteId) continue;
     const status = STATUSES.includes(row.status) ? row.status : null;
     if (!status) continue;
+    const excuseReason = status === "excused" ? (EXCUSE_REASONS.includes(row.excuseReason) ? row.excuseReason : "excused") : null;
     validRows.push({
       athleteId,
       activityId,
       status,
+      excuseReason,
       quantityDone: toDecimal(row.quantityDone),
       setsDone: toInt(row.setsDone),
       repsDone: toInt(row.repsDone),
@@ -124,6 +127,7 @@ export default async function handler(req, res) {
           athleteId: r.athleteId,
           performedAt,
           status: r.status,
+          excuseReason: r.excuseReason,
           quantityDone: r.quantityDone,
           setsDone: r.setsDone,
           repsDone: r.repsDone,

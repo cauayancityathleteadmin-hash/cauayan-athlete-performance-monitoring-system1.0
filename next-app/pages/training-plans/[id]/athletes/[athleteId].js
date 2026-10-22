@@ -12,6 +12,7 @@ import styles from "../../../../styles/Dashboard.module.css";
 import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, CHART_COLORS, barChartHeight, completionColor, shortAxisLabel } from "../../../../lib/chart-config";
 import { loadNormOverrides } from "../../../../lib/fitness-norms";
 import { classifyFitnessValue } from "../../../../lib/starter-metrics";
+import { buildTrainingDays, summarizeTrainingDays, trainingStatusLabel, excuseReasonLabel } from "../../../../lib/training-status";
 
 const FITNESS_META = {
   endurance: "Endurance", strength: "Strength", power: "Power",
@@ -26,7 +27,7 @@ const ATHLETE_SECTIONS = [
   { label: "Distribution", sectionId: "distribution" },
   { label: "Assessments", sectionId: "assessments" },
   { label: "Exercise Performance", sectionId: "performance" },
-  { label: "Attendance", sectionId: "attendance" },
+  { label: "Training days", sectionId: "training-days" },
   { label: "Achievements", sectionId: "achievements" },
   { label: "Health", sectionId: "health" },
 ];
@@ -200,19 +201,6 @@ function performanceSummary(performances) {
   return { best, avg, count: scored.length, trend };
 }
 
-/* Attendance + plan logs effort summary */
-function effortSummary(attendances) {
-  const att = { present: 0, late: 0, excused: 0, absent: 0 };
-  for (const a of attendances) att[a.status] = (att[a.status] || 0) + 1;
-  const totalAtt = attendances.length;
-  return {
-    attendances,
-    att,
-    totalAtt,
-    attendanceRate: totalAtt ? Math.round(((att.present + att.late) / totalAtt) * 100) : null,
-  };
-}
-
 function commentAuthorName(author) {
   if (!author) return "Admin";
   if (author.coach?.firstName || author.coach?.lastName) return `${author.coach.firstName} ${author.coach.lastName}`.trim();
@@ -313,7 +301,7 @@ export async function getServerSideProps(context) {
   if (!onPlan) return { redirect: { destination: `/training-plans/${planId}`, permanent: false } };
 
   // Fetch additional data for merged progress features
-  const [trainingAssessments, performances, attendances, achievements, healthLogs, normOverrides] = await Promise.all([
+  const [trainingAssessments, performances, achievements, healthLogs, normOverrides] = await Promise.all([
     prisma.trainingAssessment.findMany({
       where: { athleteId },
       orderBy: { assessmentDate: "asc" },
@@ -322,11 +310,6 @@ export async function getServerSideProps(context) {
       where: { athleteId },
       orderBy: { recordedAt: "asc" },
       select: { id: true, recordedAt: true, score: true, rpe: true, exercise: { select: { exerciseName: true, category: true } } },
-    }),
-    prisma.trainingAttendance.findMany({
-      where: { athleteId },
-      orderBy: { session: { startTime: "asc" } },
-      select: { id: true, status: true, session: { select: { startTime: true, sessionType: true } } },
     }),
     prisma.achievement.findMany({
       where: { athleteId },
@@ -350,7 +333,6 @@ export async function getServerSideProps(context) {
       athlete: onPlan.athlete,
       trainingAssessments: JSON.parse(JSON.stringify(trainingAssessments)),
       performances: JSON.parse(JSON.stringify(performances)),
-      attendances: JSON.parse(JSON.stringify(attendances)),
       achievements: JSON.parse(JSON.stringify(achievements)),
       healthLogs: JSON.parse(JSON.stringify(healthLogs)),
       normOverrides: JSON.parse(JSON.stringify(normOverrides)),
@@ -358,7 +340,7 @@ export async function getServerSideProps(context) {
   };
 }
 
-export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trainingAssessments = [], performances = [], attendances = [], achievements = [], healthLogs = [], normOverrides = {} }) {
+export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trainingAssessments = [], performances = [], achievements = [], healthLogs = [], normOverrides = {} }) {
   const router = useRouter();
   const [data, setData] = React.useState(null);
   const [allLogs, setAllLogs] = React.useState([]);
@@ -430,7 +412,6 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
   const activities = React.useMemo(() => data?.activities || [], [data]);
   const summary = data?.summary || { total: 0, completed: 0, partial: 0, missed: 0, completionPercent: 0, rating: null, ratingDate: null };
   const perfSummary = React.useMemo(() => performanceSummary(performances), [performances]);
-  const attSummary = React.useMemo(() => effortSummary(attendances), [attendances]);
 
   const logsByActivity = React.useMemo(() => {
     const map = new Map();
@@ -440,6 +421,10 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
     }
     return map;
   }, [allLogs]);
+
+  // Day-by-day training status — the honest replacement for session attendance.
+  const trainingDays = React.useMemo(() => buildTrainingDays(allLogs), [allLogs]);
+  const trainingDaySummary = React.useMemo(() => summarizeTrainingDays(trainingDays), [trainingDays]);
 
   const fitnessDist = React.useMemo(() => {
     const map = new Map();
@@ -614,7 +599,7 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
           <div className={styles.detailPanel}><h4>Coach rating</h4><div style={{ fontSize: 26, fontWeight: 800, color: summary.rating != null ? (summary.rating >= 7 ? "var(--accent)" : summary.rating >= 5 ? "#fbbf24" : "#f87171") : "var(--muted)" }}>{summary.rating != null ? `${summary.rating}/10` : "—"}</div>{summary.rating != null && summary.ratingDate ? <small style={{ color: "var(--muted)" }}>{fmtDate(summary.ratingDate)}</small> : <small style={{ color: "var(--muted)" }}>No assessment yet</small>}</div>
           <div className={styles.detailPanel}><h4>Best performance score</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{perfSummary.best != null ? fmtNum(perfSummary.best) : "—"}</div><small style={{ color: "var(--muted)" }}>{perfSummary.count ? `${perfSummary.count} performance${perfSummary.count === 1 ? "" : "s"} recorded` : "No performances yet"}</small></div>
           <div className={styles.detailPanel}><h4>Average performance score</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{perfSummary.avg != null ? fmtNum(perfSummary.avg) : "—"}</div><small style={{ color: "var(--muted)" }}>Across all recorded exercises</small></div>
-          <div className={styles.detailPanel}><h4>Sessions present</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{attSummary.att.present} / {attSummary.totalAtt || 0}</div><small style={{ color: "var(--muted)" }}>{attSummary.attendanceRate != null ? `Attendance rate ${attSummary.attendanceRate}%` : "No sessions logged"}</small></div>
+          <div className={styles.detailPanel}><h4>Training days</h4><div style={{ fontSize: 26, fontWeight: 800, color: "var(--accent)" }}>{trainingDaySummary.trained} / {trainingDaySummary.trained + trainingDaySummary.partial + trainingDaySummary.missed}</div><small style={{ color: "var(--muted)" }}>{trainingDaySummary.disciplineRate != null ? `Trained on ${trainingDaySummary.disciplineRate}% of planned days` : "No training logged yet"}{trainingDaySummary.excused ? ` · ${trainingDaySummary.excused} excused` : ""}</small></div>
         </div>
 
         <section className={styles.panel} id="fitness">
@@ -1031,46 +1016,34 @@ export default function AthleteDrillPage({ session, isAdmin, plan, athlete, trai
           ) : <p className={styles.empty}>No exercise performance records yet.</p>}
         </section>
 
-        {/* Attendance tab */}
-        <section className={styles.panel} id="attendance">
-          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Attendance</p><h2>Training attendance</h2></div></div>
-          {attendances.length ? (
+        {/* Training days tab — daily training status (honest replacement for attendance) */}
+        <section className={styles.panel} id="training-days">
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Training days</p><h2>Daily training status</h2></div></div>
+          <p className={styles.formHint} style={{ marginTop: 0 }}>Whether {athlete.firstName} did the training assigned for each day — wherever and whenever it was done. Rest, sickness and injury are marked <strong>Excused</strong> and are not counted against the athlete.</p>
+          {trainingDays.length ? (
             <>
-              <section className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Effort</p><h2>Effort overview</h2></div></div>
-                {(() => {
-                  const effort = effortSummary(attendances);
-                  return effort.totalAtt ? (
-                    <>
-                      <div className={styles.infoList}>
-                        <div><dt>Sessions present</dt><dd>{effort.att.present}</dd></div>
-                        <div><dt>Late</dt><dd>{effort.att.late}</dd></div>
-                        <div><dt>Excused</dt><dd>{effort.att.excused}</dd></div>
-                        <div><dt>Absent</dt><dd>{effort.att.absent}</dd></div>
-                        {effort.attendanceRate != null && <div><dt>Attendance rate</dt><dd>{effort.attendanceRate}%</dd></div>}
-                      </div>
-                    </>
-                  ) : <p className={styles.empty}>No attendance data yet.</p>;
-                })()}
-              </section>
-
-              <section className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Sessions</p><h2>Session history</h2></div></div>
-                <div className={styles.tableWrap}><table>
-                  <thead><tr><th scope="col">Date</th><th scope="col">Session</th><th scope="col">Status</th></tr></thead>
-                  <tbody>
-                    {attendances.map((a) => (
-                      <tr key={a.id}>
-                        <td data-label="Date">{fmtDate(a.session?.startTime)}</td>
-                        <td data-label="Session">{a.session?.sessionType || "—"}</td>
-                        <td data-label="Status"><span className={`${styles.badge} ${a.status === "present" ? styles.badgeActive : a.status === "late" ? styles.badgePending : styles.badgeRejected}`}>{a.status}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table></div>
-              </section>
+              <div className={styles.infoList} style={{ marginBottom: "var(--space-4)" }}>
+                <div><dt>Trained</dt><dd style={{ color: "var(--accent)" }}>{trainingDaySummary.trained}</dd></div>
+                <div><dt>Partly trained</dt><dd style={{ color: "var(--warning)" }}>{trainingDaySummary.partial}</dd></div>
+                <div><dt>Not trained</dt><dd style={{ color: "var(--danger)" }}>{trainingDaySummary.missed}</dd></div>
+                <div><dt>Excused</dt><dd style={{ color: "var(--muted)" }}>{trainingDaySummary.excused}</dd></div>
+                {trainingDaySummary.disciplineRate != null && <div><dt>Training rate</dt><dd>{trainingDaySummary.disciplineRate}%</dd></div>}
+              </div>
+              <div className={styles.tableWrap}><table>
+                <thead><tr><th scope="col">Date</th><th scope="col">Status</th><th scope="col">Reason</th><th scope="col">Activities</th></tr></thead>
+                <tbody>
+                  {trainingDays.slice().reverse().map((d) => (
+                    <tr key={d.day}>
+                      <td data-label="Date">{fmtDate(d.day)}</td>
+                      <td data-label="Status"><span className={`${styles.badge} ${d.status === "done" ? styles.badgeActive : d.status === "partial" ? styles.badgePending : d.status === "excused" ? styles.badgeMuted : styles.badgeRejected}`}>{trainingStatusLabel(d.status)}</span></td>
+                      <td data-label="Reason">{d.status === "excused" ? excuseReasonLabel(d.reason) : "—"}</td>
+                      <td data-label="Activities">{d.counts.done} done{d.counts.partial ? `, ${d.counts.partial} partial` : ""}{d.counts.missed ? `, ${d.counts.missed} not trained` : ""}{d.counts.excused ? `, ${d.counts.excused} excused` : ""}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table></div>
             </>
-          ) : <p className={styles.empty}>No attendance records yet.</p>}
+          ) : <p className={styles.empty}>No training days logged yet. Days appear here once plan activities are marked done, partial, missed or excused.</p>}
         </section>
 
         {/* Achievements tab */}

@@ -164,6 +164,7 @@ const NAV_GROUPS = [
     links: [
       { href: "/account", label: "My account", icon: "userCircle" },
       { href: "/admin/audit-logs", label: "Audit logs", icon: "list", adminOnly: true },
+      { href: "/admin/attendance-archive", label: "Attendance archive", icon: "database", adminOnly: true },
       { href: "/admin/backup", label: "Backup", icon: "database", adminOnly: true },
     ],
   },

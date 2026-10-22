@@ -124,6 +124,16 @@ enum ActivityStatus {
   done
   partial
   missed
+  excused
+}
+
+/* Why a training day/activity was excused instead of done or missed.
+   Used so rest days, sickness and injury are NOT counted against an athlete. */
+enum ExcuseReason {
+  rest
+  sick
+  injured
+  excused
 }
 
 enum ActivityMetric {
@@ -820,6 +830,7 @@ model PlanActivityLog {
   athleteId    Int            @map("athlete_id")
   performedAt  DateTime       @map("performed_at")
   status       ActivityStatus @default(planned)
+  excuseReason ExcuseReason?  @map("excuse_reason")
   quantityDone Decimal?       @map("quantity_done")
   setsDone     Int?           @map("sets_done")
   repsDone     Int?           @map("reps_done")

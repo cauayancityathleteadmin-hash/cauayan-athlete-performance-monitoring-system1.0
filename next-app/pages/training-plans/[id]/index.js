@@ -14,6 +14,7 @@ import { PLAN_TYPE_META } from "../../../lib/training-metrics";
 import AppShell from "../../../components/AppShell";
 import styles from "../../../styles/Dashboard.module.css";
 import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, CHART_LEGEND, CHART_COLORS, barChartHeight, completionColor, shortAxisLabel } from "../../../lib/chart-config";
+import { EXCUSE_REASONS, EXCUSE_REASON_META } from "../../../lib/training-status";
 
 export async function getServerSideProps(context) {
   const session = await getSession(context);
@@ -474,6 +475,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
   const [confirm, setConfirm] = React.useState(null);
   const [toast, setToast] = React.useState(null);
   const [evidenceMap, setEvidenceMap] = React.useState({});
+  const [excuseDay, setExcuseDay] = React.useState({});
   const [reviewColumn, setReviewColumn] = React.useState(null);
   const [showLightbox, setShowLightbox] = React.useState(null);
   const undoRef = React.useRef(null);
@@ -490,7 +492,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
           const hasSavedForDate = logs.some((l) => l.athleteId === athlete.id && l.activityId === activity.id && l.performedAt && l.performedAt.slice(0, 10) === date);
           if (hasSavedForDate) continue;
           const target = targetOf(activity);
-          const cell = { touched: true, status: "done", qty: "", sets: "", reps: "", time: "", dist: "", load: "", attempts: "", rpe: "", note: "" };
+          const cell = { touched: true, status: "done", excuse: "", qty: "", sets: "", reps: "", time: "", dist: "", load: "", attempts: "", rpe: "", note: "" };
           if (target) {
             if (target.kind === "qty") cell.qty = target.n;
             else if (target.kind === "sets") cell.sets = target.n;
@@ -686,13 +688,14 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
 
   function setCell(athleteId, activityId, patch) {
     const k = key(athleteId, activityId);
-    setCells((cur) => ({ ...cur, [k]: { touched: true, status: null, qty: "", sets: "", reps: "", time: "", dist: "", load: "", attempts: "", rpe: "", note: "", ...cur[k], ...patch } }));
+    setCells((cur) => ({ ...cur, [k]: { touched: true, status: null, excuse: "", qty: "", sets: "", reps: "", time: "", dist: "", load: "", attempts: "", rpe: "", note: "", ...cur[k], ...patch } }));
   }
 
   function cycleStatus(athleteId, activityId, activity) {
     const current = effective(athleteId, activityId, "status");
-    const next = current === "done" ? "partial" : current === "partial" ? "missed" : "done";
+    const next = current === "done" ? "partial" : current === "partial" ? "missed" : current === "missed" ? "excused" : "done";
     const patch = { status: next };
+    if (next === "excused") patch.excuse = effective(athleteId, activityId, "excuse") || "rest";
     if (next === "done") {
       const t = targetOf(activity);
       if (t && t.kind === "qty") patch.qty = t.n;
@@ -712,13 +715,14 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
     setCell(athleteId, activityId, patch);
   }
 
-  function applyPreset(athleteId, preset) {
+  function applyPreset(athleteId, preset, excuseReason = "rest") {
     const acts = visibleActivities(athleteId);
     setCells((cur) => {
       const n = { ...cur };
       for (const a of acts) {
         const t = targetOf(a);
-        const cell = { touched: true, status: preset === "full" ? "done" : preset === "light" ? "partial" : "missed", qty: "", sets: "", reps: "", rpe: "", note: "" };
+        const status = preset === "full" ? "done" : preset === "light" ? "partial" : preset === "rest" ? "excused" : "missed";
+        const cell = { touched: true, status, excuse: status === "excused" ? excuseReason : "", qty: "", sets: "", reps: "", rpe: "", note: "" };
         if (preset === "full" && t) {
           if (t.kind === "qty") cell.qty = t.n;
           else if (t.kind === "sets") cell.sets = t.n;
@@ -737,30 +741,34 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
   }
 
   function suggestRating(athleteId) {
-    const statuses = (byAthlete[athleteId] || []).map((a) => cells[key(athleteId, a.id)] && cells[key(athleteId, a.id)].status).filter(Boolean);
+    const statuses = (byAthlete[athleteId] || []).map((a) => cells[key(athleteId, a.id)] && cells[key(athleteId, a.id)].status).filter((s) => s && s !== "excused");
     if (!statuses.length) return null;
     const avg = statuses.reduce((sum, s) => sum + (s === "done" ? 1 : s === "partial" ? 0.6 : 0.2), 0) / statuses.length;
     return Math.max(1, Math.min(9, Math.round(avg * 10)));
   }
 
   function presetAll(preset) {
-    for (const athlete of athletes) applyPreset(athlete.id, preset);
+    let mode = preset, reason = "rest";
+    if (preset === "excused-sick") { mode = "rest"; reason = "sick"; }
+    else if (preset === "excused-injured") { mode = "rest"; reason = "injured"; }
+    for (const athlete of athletes) applyPreset(athlete.id, mode, reason);
   }
 
   function summary() {
     const done = Object.values(cells).filter((c) => c.status === "done").length;
     const partial = Object.values(cells).filter((c) => c.status === "partial").length;
     const missed = Object.values(cells).filter((c) => c.status === "missed").length;
+    const excused = Object.values(cells).filter((c) => c.status === "excused").length;
     const athletesCount = new Set(Object.keys(cells).map((k) => k.split(":")[0])).size;
     const rated = Object.values(ratings).filter((r) => r.rating).length;
-    return { done, partial, missed, athletes: athletesCount, rated };
+    return { done, partial, missed, excused, athletes: athletesCount, rated };
   }
 
   function buildPayload() {
     const rows = Object.keys(cells).map((k) => {
       const [aid, actId] = k.split(":");
       const c = cells[k];
-      return { athleteId: Number(aid), activityId: Number(actId), status: c.status, quantityDone: c.qty !== "" ? c.qty : null, setsDone: c.sets !== "" ? c.sets : null, repsDone: c.reps !== "" ? c.reps : null, timeSec: c.time !== "" ? c.time : null, distanceDone: c.dist !== "" ? c.dist : null, loadUsed: c.load !== "" ? c.load : null, attempts: c.attempts !== "" ? c.attempts : null, rpe: c.rpe !== "" ? c.rpe : null, notes: c.note || null };
+      return { athleteId: Number(aid), activityId: Number(actId), status: c.status, excuseReason: c.status === "excused" ? (c.excuse || "excused") : null, quantityDone: c.qty !== "" ? c.qty : null, setsDone: c.sets !== "" ? c.sets : null, repsDone: c.reps !== "" ? c.reps : null, timeSec: c.time !== "" ? c.time : null, distanceDone: c.dist !== "" ? c.dist : null, loadUsed: c.load !== "" ? c.load : null, attempts: c.attempts !== "" ? c.attempts : null, rpe: c.rpe !== "" ? c.rpe : null, notes: c.note || null };
     });
     const assessments = Object.keys(ratings).filter((aid) => ratings[aid].rating).map((aid) => ({ athleteId: Number(aid), rating: ratings[aid].rating, comments: ratings[aid].comments || null }));
     return { rows, assessments };
@@ -851,6 +859,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
         .dotBtn.on { background: rgba(45,212,168,.2); color: var(--accent); border-color: rgba(45,212,168,.5); }
         .dotBtn.part { background: rgba(251,191,36,.18); color: #fbbf24; border-color: rgba(251,191,36,.45); }
         .dotBtn.miss { background: rgba(248,113,113,.16); color: #f87171; border-color: rgba(248,113,113,.45); }
+        .dotBtn.exc { background: rgba(134,239,172,.14); color: var(--muted); border-color: rgba(134,239,172,.4); }
         .dotBtn.touchedD { outline: 1px solid rgba(45,212,168,.4); }
         .qtyIn { width: 72px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255,255,255,.04); color: var(--foreground); font-size: 13px; }
         .rowHead { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
@@ -912,13 +921,15 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
         <button type="button" className={styles.secondary} disabled={isCurrentViewLocked} onClick={() => presetAll("full")}>All done</button>
         <button type="button" className={styles.secondary} disabled={isCurrentViewLocked} onClick={() => presetAll("light")}>Mark half-day</button>
         <button type="button" className={styles.secondary} disabled={isCurrentViewLocked} onClick={() => presetAll("rest")}>Mark as rest day</button>
+        <button type="button" className={styles.secondary} disabled={isCurrentViewLocked} onClick={() => presetAll("excused-sick")}>Mark sick day</button>
+        <button type="button" className={styles.secondary} disabled={isCurrentViewLocked} onClick={() => presetAll("excused-injured")}>Mark injured day</button>
       </div>
 
-      <p className={styles.formHint} style={{ marginTop: 0, marginBottom: "var(--space-3)" }}>Cells start marked done at their target for the selected date. Tap a cell&apos;s button to flip its status (D → P → M → open), type an amount and the status picks itself, or use the Everyone buttons to fill the whole view at once. Ratings auto-fill as cells are completed — adjust any athlete&apos;s rating to override. Activities without a set week are shown under Week 1.</p>
+      <p className={styles.formHint} style={{ marginTop: 0, marginBottom: "var(--space-3)" }}>Cells start marked done at their target for the selected date. Tap a cell&apos;s button to flip its status (D trained → P partly → M not trained → E excused → open), type an amount and the status picks itself, or use the Everyone buttons to fill the whole view at once. Use Excuse… / Mark sick day / Mark injured day so rest, sickness and injury are never counted as missed. Ratings auto-fill as cells are completed — adjust any athlete&apos;s rating to override. Activities without a set week are shown under Week 1.</p>
 
       {confirm && (
         <div className={styles.alertBox} style={{ marginBottom: "var(--space-3)" }}>
-          Save {confirm.athletes} athlete{confirm.athletes === 1 ? "" : "s"}: <strong style={{ color: "var(--accent)" }}>{confirm.done} done</strong>, <strong style={{ color: "var(--warning)" }}>{confirm.partial} partial</strong>, <strong style={{ color: "var(--danger)" }}>{confirm.missed} missed</strong>{confirm.rated ? `, ${confirm.rated} rating${confirm.rated === 1 ? "" : "s"}` : ""} for {date}?
+          Save {confirm.athletes} athlete{confirm.athletes === 1 ? "" : "s"}: <strong style={{ color: "var(--accent)" }}>{confirm.done} done</strong>, <strong style={{ color: "var(--warning)" }}>{confirm.partial} partial</strong>, <strong style={{ color: "var(--danger)" }}>{confirm.missed} missed</strong>{confirm.excused ? <>, <strong style={{ color: "var(--muted)" }}>{confirm.excused} excused</strong></> : null}{confirm.rated ? `, ${confirm.rated} rating${confirm.rated === 1 ? "" : "s"}` : ""} for {date}?
           <div style={{ marginTop: "var(--space-2)", display: "flex", flexWrap: "wrap", gap: "var(--space-3)" }}>
             {[...new Set(Object.keys(cells).map((k) => k.split(":")[0]))].map((aid) => {
               const at = athletes.find((x) => String(x.id) === aid);
@@ -988,7 +999,11 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                       <div className="rowActions">
                         <button className="miniBtn" disabled={isCurrentViewLocked} title="Mark all this athlete's shown activities as done" onClick={() => applyPreset(athlete.id, "full")}>Full</button>
                         <button className="miniBtn" disabled={isCurrentViewLocked} title="Mark all at half target" onClick={() => applyPreset(athlete.id, "light")}>Half</button>
-                        <button className="miniBtn" disabled={isCurrentViewLocked} title="Mark all missed" onClick={() => applyPreset(athlete.id, "rest")}>Rest</button>
+                        <button className="miniBtn" disabled={isCurrentViewLocked} title="Mark all missed" onClick={() => applyPreset(athlete.id, "missed")}>Missed</button>
+                        <select className="miniBtn" disabled={isCurrentViewLocked} title="Excuse this athlete for the whole day (rest, sick, injured)" value={excuseDay[athlete.id] || ""} onChange={(e) => { const reason = e.target.value; setExcuseDay((cur) => ({ ...cur, [athlete.id]: reason })); if (reason) applyPreset(athlete.id, "rest", reason); }}>
+                          <option value="">Excuse…</option>
+                          {EXCUSE_REASONS.map((r) => <option key={r} value={r}>{EXCUSE_REASON_META[r].label}</option>)}
+                        </select>
                         <button className={`miniBtn ${openRatingId === athlete.id ? "on" : ""}`} disabled={isCurrentViewLocked} onClick={() => setOpenRatingId(openRatingId === athlete.id ? null : athlete.id)}>Rating</button>
                         {(() => { const ev = evFor(athlete.id); return <button className={`miniBtn ${ev && ev.url ? "on" : ""}`} disabled={isCurrentViewLocked} title="Upload a training photo as proof the session happened" onClick={() => pickEvidence(athlete.id)}>{ev && ev.uploading ? "Uploading…" : "📷 Evidence"}</button>; })()}
                       </div>
@@ -1014,7 +1029,7 @@ function AssessStudio({ plan, planId, athletes, activities, logs, onDone }) {
                       return (
                         <td key={column.gkey}>
                           <span className="mkCell">
-                            <button className={`dotBtn ${status === "done" ? "on" : status === "partial" ? "part" : status === "missed" ? "miss" : ""} ${touched ? "touchedD" : ""}`} disabled={isCurrentViewLocked} title={status ? `Status: ${status === "done" ? "Done" : status === "partial" ? "Partial" : "Missed"}. Tap to change.` : "Open. Tap to mark Done."} onClick={() => cycleStatus(athlete.id, activityId, activity)}>{status === "done" ? "D" : status === "partial" ? "P" : status === "missed" ? "M" : "–"}</button>
+                            <button className={`dotBtn ${status === "done" ? "on" : status === "partial" ? "part" : status === "missed" ? "miss" : status === "excused" ? "exc" : ""} ${touched ? "touchedD" : ""}`} disabled={isCurrentViewLocked} title={status ? `Status: ${status === "done" ? "Trained" : status === "partial" ? "Partly trained" : status === "missed" ? "Not trained" : "Excused"}. Tap to change.` : "Open. Tap to mark Trained."} onClick={() => cycleStatus(athlete.id, activityId, activity)}>{status === "done" ? "D" : status === "partial" ? "P" : status === "missed" ? "M" : status === "excused" ? "E" : "–"}</button>
                             <input className="qtyIn" disabled={isCurrentViewLocked} type="number" min="0" step="any" placeholder={resultPlaceholder} value={result != null ? result : ""} onChange={(e) => onResult(e.target.value)} title={metricType === "none" ? "Amount done" : `${METRIC_LABELS[metricType] || metricType} result`} />
                             <input className="qtyIn" disabled={isCurrentViewLocked} type="number" min="0" step="1" placeholder="#" value={effAttempts != null ? effAttempts : ""} onChange={(e) => setCell(athlete.id, activityId, { attempts: e.target.value })} style={{ width: 46 }} title="Attempts taken" />
                             <input className="qtyIn" disabled={isCurrentViewLocked} type="number" min="1" max="10" step="1" placeholder="RPE" value={effRpe != null ? effRpe : ""} onChange={(e) => setCell(athlete.id, activityId, { rpe: e.target.value })} style={{ width: 54 }} title="Session RPE, 1-10 (perceived exertion)" />
@@ -1142,6 +1157,7 @@ function MonitoringGrid({ data, athletes, maxWeek, currentWeek, onWeekChange }) 
     if (dayData.total === 0) return "none";
     if (dayData.done === dayData.total) return "done";
     if (dayData.done > 0 || dayData.partial > 0 || dayData.missed > 0) return "partial";
+    if (dayData.excused > 0) return "excused";
     return "pending";
   };
 
@@ -1149,6 +1165,7 @@ function MonitoringGrid({ data, athletes, maxWeek, currentWeek, onWeekChange }) 
     switch (status) {
       case "done": return "day-done";
       case "partial": return "day-partial";
+      case "excused": return "day-excused";
       case "pending": return "day-pending";
       default: return "day-none";
     }
@@ -1196,7 +1213,7 @@ function MonitoringGrid({ data, athletes, maxWeek, currentWeek, onWeekChange }) 
                     const dayPercent = dayData.total > 0 ? Math.round(((dayData.done + dayData.partial) / dayData.total) * 100) : null;
                     return (
                       <td key={i} style={{ textAlign: "center", verticalAlign: "middle" }}>
-                        <span className={`day-badge ${getStatusClass(status)}`} title={`${dayData.done} done · ${dayData.partial} partial · ${dayData.missed} missed · ${dayData.pending} open`}>
+                        <span className={`day-badge ${getStatusClass(status)}`} title={`${dayData.done} done · ${dayData.partial} partial · ${dayData.missed} missed${dayData.excused ? ` · ${dayData.excused} excused` : ""} · ${dayData.pending} open`}>
                           {dayPercent != null ? `${dayPercent}%` : "—"}
                         </span>
                         {dayData.total > 0 && (
@@ -1234,6 +1251,7 @@ function MonitoringGrid({ data, athletes, maxWeek, currentWeek, onWeekChange }) 
         .day-badge { display: inline-block; min-width: 48px; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; }
         .day-done { background: rgba(45,212,168,.2); color: var(--accent); border: 1px solid rgba(45,212,168,.4); }
         .day-partial { background: rgba(251,191,36,.2); color: #fbbf24; border: 1px solid rgba(251,191,36,.4); }
+        .day-excused { background: rgba(134,239,172,.14); color: var(--muted); border: 1px solid rgba(134,239,172,.4); }
         .day-pending { background: rgba(26,92,74,.1); color: var(--muted); border: 1px solid rgba(26,92,74,.2); }
         .day-none { background: transparent; color: var(--muted); border: 1px dashed var(--border); }
       `}</style>
