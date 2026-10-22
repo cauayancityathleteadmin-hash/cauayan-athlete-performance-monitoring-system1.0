@@ -139,6 +139,9 @@ export default function EventPlans({ plans, session, page, totalPages, sports, a
                                 <h4>Participation</h4>
                                 <EventPlanActions plan={plan} session={session} athletes={athletes} coachId={coachId} sports={sports} />
                               </div>
+                              <div style={{ borderTop: "1px solid rgba(26, 92, 74, .5)", paddingTop: "var(--space-5)" }}>
+                                <EventPhotos plan={plan} isAdmin={isAdmin} coachId={coachId} />
+                              </div>
                             </div>
                           </td>
                         </tr>
@@ -544,6 +547,192 @@ const pending = plan.applications.filter((application) => application.status ===
       <ParticipationToggle label="results" count={resultAthletes(plan.participants).length} open={false}>
         <ResultsEntry plan={plan} />
       </ParticipationToggle>
+    </div>
+  );
+}
+
+/* Event documentation photos — winners per sport plus whole-event shots.
+   Upload/delete is admin + coaches attached to the event (enforced by the API);
+   every signed-in user can view. Photos are additive; nothing is ever replaced. */
+function EventPhotos({ plan, isAdmin, coachId }) {
+  const fileRef = React.useRef(null);
+  const [photos, setPhotos] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [filter, setFilter] = React.useState("all");
+  const [category, setCategory] = React.useState("winner");
+  const [sportId, setSportId] = React.useState("");
+  const [athleteId, setAthleteId] = React.useState("");
+  const [caption, setCaption] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [message, setMessage] = React.useState("");
+  const [lightbox, setLightbox] = React.useState(null);
+
+  const canManage = Boolean(isAdmin)
+    || Boolean(coachId && (plan.participants || []).some((p) => p.coachId === coachId))
+    || Boolean(coachId && (plan.applications || []).some((a) => a.coachId === coachId && a.status === "approved"));
+  const sports = (plan.sports || []).map((item) => item.sport).filter(Boolean);
+  const athleteChoices = (plan.participants || []).filter((p) => p.participantType === "athlete" && p.athlete && (!sportId || p.sportId === Number(sportId)));
+
+  const load = React.useCallback(() => {
+    return fetch(`/api/event-plans/photos?eventPlanId=${plan.id}`)
+      .then((response) => response.json().then((data) => ({ ok: response.ok, data })))
+      .then(({ data }) => setPhotos(Array.isArray(data.photos) ? data.photos : []))
+      .catch(() => setPhotos([]))
+      .finally(() => setLoading(false));
+  }, [plan.id]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  async function upload(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setMessage("Choose a JPEG, PNG, or WEBP photo.");
+      return;
+    }
+    setBusy(true);
+    setMessage("");
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(",")[1]);
+        reader.onerror = () => reject(new Error("Could not read that file."));
+        reader.readAsDataURL(file);
+      });
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/event-plans/photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify({
+          eventPlanId: plan.id,
+          category,
+          sportId: sportId ? Number(sportId) : null,
+          athleteId: athleteId ? Number(athleteId) : null,
+          caption: caption.trim() || null,
+          mime: file.type,
+          base64,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.error) throw new Error(result.error || "Upload failed.");
+      setCaption("");
+      setAthleteId("");
+      setMessage("Photo added.");
+      await load();
+    } catch (error) {
+      setMessage(error.message || "Could not upload the photo.");
+    }
+    setBusy(false);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  async function remove(photo) {
+    if (typeof window !== "undefined" && !window.confirm("Delete this photo? This cannot be undone.")) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch(`/api/event-plans/photos?id=${photo.id}`, { method: "DELETE", headers: { "x-csrf-token": csrf.token } });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.error) throw new Error(result.error || "Delete failed.");
+      setMessage("Photo deleted.");
+      await load();
+    } catch (error) {
+      setMessage(error.message || "Could not delete the photo.");
+    }
+    setBusy(false);
+  }
+
+  const shown = filter === "all" ? photos : photos.filter((p) => p.category === filter);
+  const countFor = (value) => (value === "all" ? photos.length : photos.filter((p) => p.category === value).length);
+  const photoLabel = (photo) => photo.caption || (photo.athlete ? `${photo.athlete.firstName} ${photo.athlete.lastName}` : "Event photo");
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+      <div className={styles.panelHeader} style={{ margin: 0 }}>
+        <div>
+          <h4>Photos</h4>
+          <p className={styles.formHint} style={{ margin: 0 }}>Documentation for this event — winners per sport and whole-event photos. JPEG, PNG or WEBP up to 2.5 MB.</p>
+        </div>
+        <span className={styles.formHint} style={{ margin: 0 }}>{photos.length} photo{photos.length === 1 ? "" : "s"}</span>
+      </div>
+
+      {canManage && (
+        <div className={styles.formGrid}>
+          <label>Photo type
+            <select className={styles.fieldControl} value={category} onChange={(event) => { setCategory(event.target.value); if (event.target.value === "event") { setSportId(""); setAthleteId(""); } }}>
+              <option value="winner">Winner photo</option>
+              <option value="event">Whole event</option>
+            </select>
+          </label>
+          <label>Sport {category === "winner" ? "*" : "(optional)"}
+            <select className={styles.fieldControl} value={sportId} onChange={(event) => { setSportId(event.target.value); setAthleteId(""); }}>
+              <option value="">Select sport</option>
+              {sports.map((sport) => <option key={sport.id} value={sport.id}>{sport.sportName}</option>)}
+            </select>
+          </label>
+          {category === "winner" && (
+            <label>Athlete (optional)
+              <select className={styles.fieldControl} value={athleteId} onChange={(event) => setAthleteId(event.target.value)}>
+                <option value="">Whole sport / team</option>
+                {athleteChoices.map((p) => <option key={p.id} value={p.athleteId}>{p.athlete.lastName}, {p.athlete.firstName}</option>)}
+              </select>
+            </label>
+          )}
+          <label>Caption (optional)
+            <input className={styles.fieldControl} value={caption} maxLength={300} onChange={(event) => setCaption(event.target.value)} placeholder="e.g. Gold - 100m Boys" />
+          </label>
+          <div className={styles.formActions}>
+            <button type="button" className={styles.primary} disabled={busy || (category === "winner" && !sportId)} onClick={() => fileRef.current && fileRef.current.click()}>
+              {busy ? "Uploading..." : "Upload photo"}
+            </button>
+          </div>
+          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={upload} disabled={busy} style={{ display: "none" }} />
+        </div>
+      )}
+
+      {message && <p role="status" className={styles.formHint} style={{ margin: 0 }}>{message}</p>}
+
+      <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+        {[["all", "All"], ["winner", "Winners"], ["event", "Whole event"]].map(([value, label]) => (
+          <button key={value} type="button" aria-pressed={filter === value} className={`${filter === value ? styles.primary : styles.secondary} ${styles.btnSm}`} onClick={() => setFilter(value)}>
+            {label} ({countFor(value)})
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <p className={styles.formHint} style={{ margin: 0 }}>Loading photos...</p>
+      ) : shown.length ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "var(--space-4)" }}>
+          {shown.map((photo) => (
+            <figure key={photo.id} style={{ margin: 0, border: "1px solid var(--border)", borderRadius: "var(--radius-lg)", overflow: "hidden", background: "rgba(6, 38, 30, 0.4)" }}>
+              <button type="button" onClick={() => setLightbox(photo)} aria-label={`View ${photoLabel(photo)}`} style={{ display: "block", width: "100%", padding: 0, border: 0, background: "transparent", cursor: "zoom-in" }}>
+                <img src={photo.url} alt={photoLabel(photo)} style={{ display: "block", width: "100%", height: 120, objectFit: "cover" }} />
+              </button>
+              <figcaption style={{ padding: "var(--space-3)", display: "flex", flexDirection: "column", gap: 4 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", color: photo.category === "winner" ? "var(--warning-dark)" : "var(--muted)" }}>
+                  {photo.category === "winner" ? "Winner" : "Event"}{photo.sport ? ` · ${photo.sport.sportName}` : ""}
+                </span>
+                <span style={{ fontSize: 13 }}>{photoLabel(photo)}</span>
+                {canManage && <button type="button" className={`${styles.secondary} ${styles.btnSm}`} disabled={busy} onClick={() => remove(photo)} style={{ alignSelf: "flex-start", marginTop: 4 }}>Delete</button>}
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      ) : (
+        <div className={styles.detailEmpty}>
+          {filter === "all" ? "No photos yet." : `No ${filter === "winner" ? "winner" : "whole-event"} photos yet.`}{canManage ? " Upload the first one above." : ""}
+        </div>
+      )}
+
+      {lightbox && (
+        <div role="dialog" aria-modal="true" aria-label="Event photo" style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(2, 12, 9, 0.88)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "var(--space-4)", padding: "var(--space-5)" }}>
+          <img src={lightbox.url} alt={photoLabel(lightbox)} style={{ maxWidth: "100%", maxHeight: "78vh", objectFit: "contain", borderRadius: "var(--radius-lg)" }} />
+          <p style={{ margin: 0, color: "var(--foreground)", textAlign: "center" }}>{photoLabel(lightbox)}</p>
+          <button type="button" className={styles.secondary} onClick={() => setLightbox(null)}>Close</button>
+        </div>
+      )}
     </div>
   );
 }

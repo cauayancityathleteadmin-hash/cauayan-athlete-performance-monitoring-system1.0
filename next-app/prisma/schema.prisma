@@ -197,6 +197,7 @@ model User {
   transferRequests         AthleteTransfer[]      @relation("TransferRequester")
   transferDecisions        AthleteTransfer[]      @relation("TransferDecider")
   documentUploads          AthleteDocument[]      @relation("AthleteDocumentUploader")
+  eventPhotoUploads        EventPhoto[]           @relation("EventPhotoUploader")
 
   @@index([role, status])
   @@map("users")
@@ -296,6 +297,7 @@ model Sport {
   trainingSessions TrainingSession[]
   trainingPlans    TrainingPlan[]
   achievements     Achievement[]
+  eventPhotos      EventPhoto[]
 
   @@map("sports")
 }
@@ -374,6 +376,7 @@ model Athlete {
   activityComments     ActivityPlanComment[]  @relation("ActivityPlanCommentAthlete")
   transfers            AthleteTransfer[]
   documents            AthleteDocument[]
+  eventPhotos          EventPhoto[]
 
   @@index([coachId, status])
   @@index([sportId, eventId])
@@ -595,6 +598,7 @@ model EventPlan {
   applications       EventApplication[]
   participants       EventParticipant[]
   achievements       Achievement[]
+  photos             EventPhoto[]
 
   @@index([status, startDate])
   @@map("event_plans")
@@ -650,6 +654,29 @@ model EventParticipant {
   @@unique([eventPlanId, coachId, athleteId, sportId])
   @@index([eventPlanId, athleteId])
   @@map("event_participants")
+}
+
+// Event documentation photos. Two kinds on purpose:
+//   winner -> a winning moment for a sport (optionally a specific athlete)
+//   event  -> general documentation of the whole event (venue, program, crowd)
+// Multiple photos per event/sport/athlete are allowed, so every photo owns a blob.
+model EventPhoto {
+  id          Int       @id @default(autoincrement())
+  eventPlanId Int       @map("event_plan_id")
+  category    String    @default("event") // "winner" | "event"
+  sportId     Int?      @map("sport_id")
+  athleteId   Int?      @map("athlete_id")
+  caption     String?
+  url         String
+  uploadedBy  Int?      @map("uploaded_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  eventPlan   EventPlan @relation(fields: [eventPlanId], references: [id], onDelete: Cascade)
+  sport       Sport?    @relation(fields: [sportId], references: [id], onDelete: SetNull)
+  athlete     Athlete?  @relation(fields: [athleteId], references: [id], onDelete: SetNull)
+  uploader    User?     @relation("EventPhotoUploader", fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  @@index([eventPlanId, category])
+  @@map("event_photos")
 }
 
 model HealthLog {
