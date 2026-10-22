@@ -160,8 +160,8 @@ export async function getServerSideProps(context) {
     coachScope ? prisma.achievement.count({ where: { athlete: coachScope } }) : prisma.achievement.count(),
     coachScope ? prisma.athlete.groupBy({ by: ["status"], where: coachScope, _count: { _all: true } }) : prisma.athlete.groupBy({ by: ["status"], _count: { _all: true } }),
     coachScope
-      ? prisma.athlete.findMany({ where: { ...coachScope, sportId: { not: null } }, select: { sport: { select: { sportName: true } } } })
-      : prisma.athlete.findMany({ where: { sportId: { not: null } }, select: { sport: { select: { sportName: true } } } }),
+      ? prisma.athlete.findMany({ where: { ...coachScope, sportId: { gt: 0 } }, select: { sport: { select: { sportName: true } } } })
+      : prisma.athlete.findMany({ where: { sportId: { gt: 0 } }, select: { sport: { select: { sportName: true } } } }),
   ]);
 
   const buckets = [];
