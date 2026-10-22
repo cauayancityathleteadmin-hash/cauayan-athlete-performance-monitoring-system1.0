@@ -127,13 +127,6 @@ function cap(value) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function trendCell(trend) {
-  if (trend === "up") return <span className={styles.trendUp}>▲ Up</span>;
-  if (trend === "down") return <span className={styles.trendDown}>▼ Down</span>;
-  if (trend === "same") return <span className={styles.trendFlat}>— Same</span>;
-  return <span className={styles.trendFlat}>— No trend</span>;
-}
-
 export async function getServerSideProps(context) {
   const session = await getSession(context);
   if (!session) return { redirect: { destination: "/login", permanent: false } };
@@ -235,20 +228,53 @@ export async function getServerSideProps(context) {
     return { metricName: metric?.metricName || "—", eventName: event?.eventName || "—", sportName, samples: values.length, min: Math.min(...values), max: Math.max(...values), avg: Math.round(avg * 10) / 10, best: metric?.betterDirection === "higher" ? Math.max(...values) : Math.min(...values), unit: metric?.unit || "" };
   });
 
+  // Athlete progress (B2): compare each athlete's LATEST result to their
+  // PREVIOUS result on the SAME metric — real improvement, not a peer rank.
+  // Respects each metric's betterDirection (higher or lower is better).
   const insights = [];
   for (const a of athletes) {
     const athleteAssessments = assessments.filter((as) => as.athlete.id === a.id);
-    for (const r of athleteAssessments.flatMap((as) => as.results)) {
-      if (r.valueDecimal != null) {
-        const sameMetric = assessments.flatMap((as) => as.results).filter((res) => res.metricId === r.metricId && res.valueDecimal != null && res.athleteId !== a.id);
-        if (sameMetric.length >= 3) {
-          const vals = sameMetric.map((res) => Number(res.valueDecimal)).sort((x, y) => x - y);
-          const pct = Math.round(vals.filter((v) => v <= Number(r.valueDecimal)).length / vals.length * 100);
-          insights.push({ athleteName: `${a.lastName}, ${a.firstName}`, metricName: r.metric.metricName, unit: r.metric.unit, value: Number(r.valueDecimal), band: pct, trend: pct >= 75 ? "up" : pct >= 25 ? "same" : "down" });
-        }
+    const byMetric = new Map();
+    for (const as of athleteAssessments) {
+      for (const r of as.results) {
+        if (r.valueDecimal == null) continue;
+        if (!byMetric.has(r.metricId)) byMetric.set(r.metricId, []);
+        byMetric.get(r.metricId).push({ value: Number(r.valueDecimal), date: as.assessmentDate, metric: r.metric });
       }
     }
+    for (const [metricId, rows] of byMetric) {
+      if (rows.length < 2) continue;
+      rows.sort((x, y) => new Date(x.date) - new Date(y.date));
+      const prev = rows[rows.length - 2];
+      const latest = rows[rows.length - 1];
+      const higherBetter = latest.metric.betterDirection !== "lower";
+      const delta = latest.value - prev.value;
+      const good = higherBetter ? delta > 0 : delta < 0;
+      const flat = delta === 0;
+      // Percentile among all athletes on this metric (context for the value).
+      const peers = assessments.flatMap((as) => as.results).filter((res) => res.metricId === metricId && res.valueDecimal != null && res.athleteId !== a.id).map((res) => Number(res.valueDecimal)).sort((x, y) => x - y);
+      const band = peers.length >= 3 ? Math.round(peers.filter((v) => v <= latest.value).length / peers.length * 100) : null;
+      insights.push({
+        athleteName: `${a.lastName}, ${a.firstName}`,
+        metricName: latest.metric.metricName,
+        unit: latest.metric.unit,
+        value: latest.value,
+        previous: prev.value,
+        change: Math.round(delta * 100) / 100,
+        band,
+        trend: flat ? "same" : good ? "up" : "down",
+      });
+    }
   }
+  const progressSummary = [
+    { name: "Improving", value: insights.filter((i) => i.trend === "up").length },
+    { name: "No change", value: insights.filter((i) => i.trend === "same").length },
+    { name: "Declining", value: insights.filter((i) => i.trend === "down").length },
+  ];
+  const movers = insights
+    .map((i) => ({ ...i, pctChange: i.previous ? Math.round((i.change / Math.abs(i.previous)) * 1000) / 10 : 0 }))
+    .sort((x, y) => (x.trend === "up" ? -1 : 1) - (y.trend === "up" ? -1 : 1) || Math.abs(y.pctChange) - Math.abs(x.pctChange))
+    .slice(0, 10);
 
   const coachSchoolDist = schools.map((s) => ({ name: s.schoolName, value: s._count.coaches })).filter((s) => s.value > 0);
   const achievementTypeDist = Object.entries(achievements.reduce((acc, a) => {
@@ -291,13 +317,15 @@ export async function getServerSideProps(context) {
       sportDist, statusDist, genderDist, schoolDist, eventDist, coachDist, roster,
       assessmentTypeDist, monthly, assessmentsPerAthlete, recentAssessments,
       averages, metricRanges, insights,
+      progressSummary: JSON.parse(JSON.stringify(progressSummary)),
+      movers: JSON.parse(JSON.stringify(movers)),
       coachSchoolDist, achievementTypeDist, eventPlans: eventPlansAgg, applications: applicationsAgg, participants: participantsAgg,
       completionBuckets, ratingTrend, ratingDist, healthStatusDist,
     },
   };
 }
 
-export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist, genderDist, schoolDist, eventDist, coachDist, roster, assessmentTypeDist, monthly, assessmentsPerAthlete, recentAssessments, averages, metricRanges, insights, coachSchoolDist, achievementTypeDist, eventPlans, applications, participants, completionBuckets, ratingTrend, ratingDist, healthStatusDist }) {
+export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist, genderDist, schoolDist, eventDist, coachDist, roster, assessmentTypeDist, monthly, assessmentsPerAthlete, recentAssessments, averages, metricRanges, insights, progressSummary = [], movers = [], coachSchoolDist, achievementTypeDist, eventPlans, applications, participants, completionBuckets, ratingTrend, ratingDist, healthStatusDist }) {
   const [openStatus, setOpenStatus] = React.useState({});
 
   const statusSegments = statusDist.map((item) => ({ ...item, color: STATUS_COLORS[item.name] || CHART_COLORS.muted }));
@@ -320,12 +348,13 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
     return { name: `${r.metricName} (${r.sportName})`, low, span: Math.max(0, high - low), avg: r.avg };
   }).sort((x, y) => (y.low + y.span) - (x.low + x.span)).slice(0, 12);
 
-  const downloadCsv = () => {    if (!insights.length || typeof window === "undefined") return;
+  const downloadCsv = () => {
+    if (!insights.length || typeof window === "undefined") return;
     const blob = new Blob([toCsvRows(insights)], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "analytics-percentile-progress.csv";
+    link.download = "analytics-athlete-progress.csv";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -472,12 +501,20 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
               </div>
             </section>
 
-            <section className={styles.panel}>
-              <div className={styles.panelHeader}>
-                <div><p className={styles.eyebrow}>Latest results benchmarked</p><h2>Percentile & progress</h2></div>
-                <button className={styles.secondary} type="button" onClick={downloadCsv} disabled={!insights.length}>Export CSV</button>
+            <section className={styles.chartGrid}>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}>
+                  <div><p className={styles.eyebrow}>Athlete progress</p><h2>Improving, flat or declining</h2></div>
+                  <button className={styles.secondary} type="button" onClick={downloadCsv} disabled={!insights.length}>Export CSV</button>
+                </div>
+                <p className={styles.formHint} style={{ marginTop: 0 }}>Each athlete&rsquo;s latest result compared to their previous result on the same metric. Needs two or more records per metric.</p>
+                <Donut segments={progressSummary.map((p) => ({ ...p, color: p.name === "Improving" ? CHART_COLORS.primary : p.name === "Declining" ? CHART_COLORS.danger : CHART_COLORS.muted }))} label="records" emptyMessage="No athlete has two results on the same metric yet." />
               </div>
-              {insights.length ? <div className={styles.tableWrap}><table><thead><tr><th scope="col">Athlete</th><th scope="col">Metric</th><th scope="col">Latest</th><th scope="col">Percentile</th><th scope="col">Trend vs prior</th></tr></thead><tbody>{insights.map((row, i) => <tr key={i}><td data-label="Athlete"><strong>{row.athleteName}</strong></td><td data-label="Metric">{row.metricName}<small>{row.unit}</small></td><td data-label="Latest"><strong>{row.value}</strong>{row.unit ? <small>{row.unit}</small> : null}</td><td data-label="Percentile">{row.band >= 75 ? <strong>{row.band}%</strong> : row.band >= 25 ? <span>{row.band}%</span> : <span className={styles.mutedSmall}>{row.band}%</span>}</td><td data-label="Trend vs prior">{trendCell(row.trend)}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>No numeric results with trends yet.</p>}
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athlete progress</p><h2>Biggest movers</h2></div></div>
+                <p className={styles.formHint} style={{ marginTop: 0 }}>Largest changes first — improving (green) and declining (amber).</p>
+                {movers.length ? <HBars data={movers.map((m) => ({ name: `${m.athleteName} · ${m.metricName}`, value: m.change }))} colors={movers.map((m) => (m.trend === "up" ? CHART_COLORS.primary : m.trend === "down" ? CHART_COLORS.danger : CHART_COLORS.muted))} axisLabel="Change" axisValue="Change" emptyMessage="No changes to show yet." /> : <p className={styles.empty}>No athlete has two results on the same metric yet.</p>}
+              </div>
             </section>
           </section>
 
