@@ -10,6 +10,7 @@ import PageSectionTabs from "../components/PageSectionTabs";
 import { prisma } from "../lib/prisma";
 import styles from "../styles/Dashboard.module.css";
 import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_AXES, CHART_LEGEND, CHART_COLORS, shortAxisLabel, barChartHeight } from "../lib/chart-config";
+import { toCsvRows } from "../lib/performance-insights";
 
 const STATUS_COLORS = { active: CHART_COLORS.primary, inactive: CHART_COLORS.muted, pending: CHART_COLORS.warning, draft: CHART_COLORS.muted };
 const GENDER_COLORS = { male: CHART_COLORS.primary, female: CHART_COLORS.palette[2], other: CHART_COLORS.warning, prefer_not_to_say: CHART_COLORS.muted };
@@ -128,7 +129,7 @@ export async function getServerSideProps(context) {
   const firstBucket = new Date(weekStart(now).getTime() - 7 * 7 * 86400000);
   const ninetyDayStart = new Date(now.getTime() - 90 * 86400000);
 
-  const [athletes, assessments, metrics, coaches, schools, events, sports, eventPlans, applications, participants, activityLogs, trainingAssessments, healthByStatus] = await Promise.all([
+  const [athletes, assessments, metrics, coaches, schools, events, sports, eventPlans, applications, participants, activityLogs, trainingAssessments, healthByStatus, achievements] = await Promise.all([
     prisma.athlete.findMany({ where: { status: "active" }, include: { sport: true, event: true, school: true, coach: { select: { firstName: true, lastName: true, coachCode: true } }, _count: { select: { assessments: true } } }, orderBy: { lastName: "asc" } }),
     prisma.assessment.findMany({ include: { athlete: { select: { athleteCode: true, firstName: true, lastName: true, sport: true } }, recorder: { select: { email: true, username: true } }, results: { include: { metric: true } } }, orderBy: { assessmentDate: "desc" } }),
     prisma.performanceMetric.findMany({ include: { event: { include: { sport: true } } } }),
@@ -142,6 +143,7 @@ export async function getServerSideProps(context) {
     prisma.planActivityLog.findMany({ where: { performedAt: { gte: firstBucket }, status: { in: ["done", "partial", "missed"] } }, select: { status: true, performedAt: true } }),
     prisma.trainingAssessment.findMany({ where: { assessmentDate: { gte: ninetyDayStart } }, select: { rating: true, assessmentDate: true }, orderBy: { assessmentDate: "desc" } }),
     prisma.athlete.groupBy({ by: ["healthStatus"], _count: { _all: true } }),
+    prisma.achievement.findMany({ select: { achievementType: true } }),
   ]);
 
   const kpi = {
@@ -150,7 +152,7 @@ export async function getServerSideProps(context) {
     totalAssessments: assessments.length,
     avgPerAthlete: athletes.length ? Math.round(assessments.length / athletes.length * 10) / 10 : 0,
     totalResults: assessments.reduce((sum, a) => sum + a.results.length, 0),
-    achievements: 0,
+    achievements: achievements.length,
   };
 
   const sportDist = sports.map((s) => ({ name: s.sportName, value: s._count.events }));
@@ -228,7 +230,11 @@ export async function getServerSideProps(context) {
   }
 
   const coachSchoolDist = schools.map((s) => ({ name: s.schoolName, value: s._count.coaches })).filter((s) => s.value > 0);
-  const achievementTypeDist = [];
+  const achievementTypeDist = Object.entries(achievements.reduce((acc, a) => {
+    const key = a.achievementType && a.achievementType.trim() ? a.achievementType.trim() : "Unspecified";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {})).map(([name, value]) => ({ name: cap(name), value })).sort((a, b) => b.value - a.value);
   const eventPlansAgg = { total: eventPlans.length, byStatus: Object.entries(eventPlans.reduce((acc, e) => { acc[e.status] = (acc[e.status] || 0) + 1; return acc; }, {})).map(([name, value]) => ({ name, value })) };
   const applicationsAgg = { total: applications.length, byStatus: Object.entries(applications.reduce((acc, a) => { acc[a.status] = (acc[a.status] || 0) + 1; return acc; }, {})).map(([name, value]) => ({ name, value })) };
   const participantsAgg = (() => {
@@ -284,6 +290,19 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
     .map((name) => healthStatusDist.find((h) => h.name === name))
     .filter(Boolean)
     .map((h) => ({ name: cap(h.name), value: h.value, color: HEALTH_COLORS[h.name] || CHART_COLORS.muted }));
+
+  const downloadCsv = () => {
+    if (!insights.length || typeof window === "undefined") return;
+    const blob = new Blob([toCsvRows(insights)], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "analytics-percentile-progress.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const ANALYTICS_SECTIONS = [
     { label: "Athletes", sectionId: "athletes" },
@@ -496,5 +515,3 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
     </>
   );
 }
-
-function downloadCsv() {}
