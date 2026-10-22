@@ -889,16 +889,18 @@
 }
 
 .statRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-6);
-  align-items: flex-end;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-4);
+  align-items: stretch;
+  width: 100%;
 }
 
 .stat {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  min-width: 0;
 }
 
 .stat strong {
@@ -2747,11 +2749,12 @@ a.podiumCard:hover {
   grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
   gap: var(--space-5);
   align-items: stretch;
+  grid-auto-rows: 1fr;
   margin-bottom: var(--space-5);
 }
 
-.chartGrid:last-child {
-  margin-bottom: 0;
+.chartGrid > * {
+  height: 100%;
 }
 
 @media (max-width: 560px) {
@@ -2958,7 +2961,7 @@ a.podiumCard:hover {
 .badge-accent { background: rgba(45, 212, 168, .16); color: var(--accent); }
 
 /* Grid utilities */
-.gridAuto { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.gridAuto { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-4); align-items: stretch; }
 .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
