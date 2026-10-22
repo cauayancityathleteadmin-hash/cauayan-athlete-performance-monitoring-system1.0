@@ -194,7 +194,6 @@ export async function getServerSideProps(context) {
     docAttention.sort((a, b) => b.expired - a.expired || b.expiring - a.expiring || a.name.localeCompare(b.name));
   }
   const docAttentionTotal = docAttention.length;
-  const missedActivities = buckets.reduce((sum, w) => sum + (w.missed || 0), 0);
 
   const nextEventRow = await prisma.eventPlan.findFirst({
     where: { status: "open", startDate: { gte: fromToday } },
@@ -283,6 +282,7 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
   const totalActivities = (completion || []).reduce((sum, w) => sum + (w.done || 0) + (w.partial || 0) + (w.missed || 0), 0);
   const totalDone = (completion || []).reduce((sum, w) => sum + (w.done || 0), 0);
   const completionRate = totalActivities ? Math.round((totalDone / totalActivities) * 100) : 0;
+  const missedActivities = (completion || []).reduce((sum, w) => sum + (w.missed || 0), 0);
   const avgRating = ratingSeries.length ? (ratingSeries.reduce((sum, r) => sum + r.rating, 0) / ratingSeries.length).toFixed(1) : "—";
   const healthHealthy = healthDist.find((h) => h.name === "healthy")?.value || 0;
   const healthFlagged = (healthDist || []).filter((h) => ["sick", "injured", "recovering", "inactive"].includes(h.name)).reduce((sum, h) => sum + h.value, 0);
@@ -297,7 +297,6 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
     ...(canApprove ? [{ name: "Coach approvals", value: stats.pendingCoaches || 0, color: CHART_COLORS.warning }] : []),
   ];
   const hasAttention = attentionBars.some((b) => b.value > 0);
-
   return <>
     <Head><title>Dashboard | Cauayan Athlete Performance</title><meta name="description" content="Athlete performance monitoring dashboard" /></Head>
     <AppShell session={session} isAdmin={isAdmin} active="/dashboard">
