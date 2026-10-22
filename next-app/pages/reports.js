@@ -17,6 +17,8 @@ import { printScope } from "../lib/report-doc";
 import { PERIOD_PRESETS, presetRange, periodText, inPeriod } from "../lib/period-presets";
 import styles from "../styles/Dashboard.module.css";
 import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_LEGEND, CHART_COLORS } from "../lib/chart-config";
+import { classifyFitnessValue, TIER_META, CLASSIFICATION_TIERS } from "../lib/starter-metrics";
+import { loadNormOverrides } from "../lib/fitness-norms";
 
 export async function getServerSideProps(context) {
   const session = await getSession(context);
@@ -79,10 +81,12 @@ export async function getServerSideProps(context) {
     }
 
     const athleteIds = athletes.map((a) => a.id);
-    const [activityCounts, logCounts, attendanceCounts] = await Promise.all([
+    const [activityCounts, logCounts, attendanceCounts, normOverrides, activityLogs] = await Promise.all([
       athleteIds.length ? prisma.planActivity.groupBy({ by: ["athleteId"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
       athleteIds.length ? prisma.planActivityLog.groupBy({ by: ["athleteId", "status"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
       athleteIds.length ? prisma.trainingAttendance.groupBy({ by: ["athleteId", "status"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
+      loadNormOverrides(),
+      athleteIds.length ? prisma.planActivityLog.findMany({ where: { athleteId: { in: athleteIds } }, include: { activity: { select: { fitnessType: true, metricType: true } } }, orderBy: { performedAt: "asc" } }) : [],
     ]);
     const activityCountMap = new Map(activityCounts.map((x) => [x.athleteId, x._count._all]));
     const logCountMap = new Map();
@@ -98,8 +102,64 @@ export async function getServerSideProps(context) {
       if (["present", "late", "excused", "absent"].includes(row.status)) entry[row.status] += row._count._all;
     }
     const achievementPoints = (a) => computeAchievementPoints(a);
+    const logsByAthlete = new Map();
+    for (const log of activityLogs) {
+      if (!logsByAthlete.has(log.athleteId)) logsByAthlete.set(log.athleteId, []);
+      logsByAthlete.get(log.athleteId).push(log);
+    }
+
+    const loggedResultValueRep = (activity, log) => {
+      if (!activity || !log) return null;
+      const toNum = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
+      switch (activity.metricType) {
+        case "time": return toNum(log.timeSec);
+        case "distance": return toNum(log.distanceDone);
+        case "load": return toNum(log.loadUsed);
+        case "reps": return toNum(log.repsDone);
+        case "sets": return toNum(log.setsDone);
+        case "quantity": return toNum(log.quantityDone);
+        default: return toNum(log.quantityDone);
+      }
+    };
+    const buildFitnessProfile = (athlete) => {
+      const byType = new Map();
+      for (const log of logsByAthlete.get(athlete.id) || []) {
+        if (!log.activity?.fitnessType) continue;
+        const value = loggedResultValueRep(log.activity, log);
+        if (value == null) continue;
+        const cls = classifyFitnessValue(log.activity.fitnessType, athlete.gender, athlete.birthdate, value, normOverrides);
+        if (!cls) continue;
+        const key = log.activity.fitnessType;
+        if (!byType.has(key)) byType.set(key, []);
+        byType.get(key).push({ cls, performedAt: log.performedAt });
+      }
+      const result = [];
+      for (const [fitnessType, items] of byType) {
+        const sorted = items.sort((a, b) => new Date(a.performedAt) - new Date(b.performedAt));
+        const latest = sorted[sorted.length - 1].cls;
+        const first = sorted[0].cls;
+        result.push({
+          fitnessType,
+          label: FITNESS_LABEL[fitnessType] || fitnessType,
+          tierLabel: latest.label,
+          rank: latest.rank,
+          value: latest.value,
+          unit: latest.unit,
+          test: latest.test,
+          date: sorted[sorted.length - 1].performedAt.toISOString(),
+          nextTierLabel: latest.nextTierLabel,
+          nextValue: latest.nextValue,
+          unverified: latest.unverified,
+          sourceNote: latest.sourceNote,
+          delta: latest.rank - first.rank,
+          count: sorted.length,
+        });
+      }
+      return result.sort((x, y) => y.rank - x.rank);
+    };
 
     const serializeAthlete = (athlete) => {
+      const fitnessProfile = buildFitnessProfile(athlete);
       const achievements = athlete.achievements.map((a) => ({
         title: a.achievementTitle,
         type: a.achievementType || null,
@@ -182,6 +242,7 @@ export async function getServerSideProps(context) {
           open: planned - (completionLog.done + completionLog.partial + completionLog.missed),
           percent: planned ? Math.round(((completionLog.done + completionLog.partial) / planned) * 100) : null,
         },
+        fitnessProfile,
       };
     };
 
@@ -491,7 +552,28 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
         )}
       </RdSection>
 
-      <RdSection num="IV." title="Performance Record" meta={`Covering period: ${periodLabel} · ${windowed.length} assessment record(s)`}>
+      <RdSection num="IV." title="Physical Fitness Profile" meta={`DepEd PFT classification · ${athlete.fitnessProfile.length} test(s) logged`}>
+        {athlete.fitnessProfile.length ? (
+          <>
+            <table className="rd-results">
+              <thead><tr><th scope="col">Fitness Component</th><th scope="col">Test</th><th scope="col">Latest Result</th><th scope="col">Classification</th><th scope="col">Trend</th><th scope="col">Date</th></tr></thead>
+              <tbody>{athlete.fitnessProfile.map((f, i) => (
+                <tr key={i}>
+                  <td>{f.label}</td>
+                  <td>{f.test || "—"}</td>
+                  <td className="num"><strong>{f.value}{f.unit ? ` ${f.unit}` : ""}</strong></td>
+                  <td><strong>{f.tierLabel}</strong>{f.nextTierLabel ? <span> (next: {f.nextTierLabel} at {f.nextValue}{f.unit ? ` ${f.unit}` : ""})</span> : null}</td>
+                  <td>{f.delta > 0 ? `Improved (+${f.delta})` : f.delta < 0 ? `Declined (${f.delta})` : "Steady"}</td>
+                  <td>{formatDate(f.date)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+            <p className="rd-empty" style={{ marginTop: 6 }}>Classification uses DepEd PFT tier wording (Excellent / Very Good / Good / Fair / Needs Improvement) against Cauayan City reference bands — not a DepEd-published norm. Trend compares the latest result with the earliest logged result for each component.</p>
+          </>
+        ) : <p className="rd-empty">No fitness-component results were logged for this athlete in the training-plan activities.</p>}
+      </RdSection>
+
+      <RdSection num="V." title="Performance Record" meta={`Covering period: ${periodLabel} · ${windowed.length} assessment record(s)`}>
         {windowed.length ? windowed.map((assessment) => (
           <div className="rd-assessment" key={assessment.id}>
             <div className="rd-assessment-head">{formatDate(assessment.assessmentDate)} &mdash; {assessment.assessmentType}{assessment.recorder ? <small> &middot; Recorded by {assessment.recorder}</small> : null}</div>
@@ -505,7 +587,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
       </RdSection>
 
       {windowedTraining.length > 0 && (
-        <RdSection num="V." title="Training Assessments and Fitness Ratings" meta={`${windowedTraining.length} record(s) · ${periodLabel}`}>
+        <RdSection num="VI." title="Training Assessments and Fitness Ratings" meta={`${windowedTraining.length} record(s) · ${periodLabel}`}>
           <table className="rd-results">
             <thead><tr><th scope="col">Training Plan</th><th scope="col">Date Assessed</th><th scope="col">Fitness Dimension</th><th scope="col">Rating</th><th scope="col">Comments</th></tr></thead>
             <tbody>{windowedTraining.slice(0, 20).map((t, i) => <tr key={i}><td>{t.plan || "—"}</td><td>{formatDate(t.dates)}</td><td>{FITNESS_LABEL[t.fitness] || t.fitness}</td><td className="num">{t.rating}/10</td><td>{t.comments || "—"}</td></tr>)}</tbody>
@@ -513,7 +595,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
         </RdSection>
       )}
 
-      <RdSection num="VI." title="Training Plans, Activities and Attendance">
+      <RdSection num="VII." title="Training Plans, Activities and Attendance">
         <div className="rd-grid">
           <div className="rd-grid-item">
             <div className="rd-kpi-label">Plan Activity Completion</div>
@@ -549,7 +631,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
       </RdSection>
 
       {windowedExercises.length > 0 && (
-        <RdSection num="VII." title="Exercise Performance Log" meta={`${windowedExercises.length} record(s) · ${periodLabel}`}>
+        <RdSection num="VIII." title="Exercise Performance Log" meta={`${windowedExercises.length} record(s) · ${periodLabel}`}>
           <table className="rd-results">
             <thead><tr><th scope="col">Exercise</th><th scope="col">Category</th><th scope="col">Score</th><th scope="col">Sets / Reps</th><th scope="col">Load / Distance</th><th scope="col">RPE</th><th scope="col">Date</th></tr></thead>
             <tbody>{windowedExercises.slice(0, 30).map((p, i) => <tr key={i}><td>{p.exerciseName}</td><td>{EXERCISE_CATEGORY_LABEL[p.category] || p.category}</td><td className="num">{p.score ?? "—"}</td><td className="num">{p.sets != null ? `${p.sets} / ${p.reps ?? "—"}` : "—"}</td><td className="num">{p.load ? `${p.load} kg` : p.distance ? `${p.distance} m` : "—"}</td><td className="num">{p.rpe ?? "—"}</td><td>{formatDate(p.recordedAt)}</td></tr>)}</tbody>
@@ -558,7 +640,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
       )}
 
       {windowedAchievements.length > 0 && (
-        <RdSection num="VIII." title="Achievements and Awards" meta={`${windowedAchievements.length} in period · ${windowedAchievementPoints} points · ${periodLabel}`}>
+        <RdSection num="IX." title="Achievements and Awards" meta={`${windowedAchievements.length} in period · ${windowedAchievementPoints} points · ${periodLabel}`}>
           <table className="rd-results">
             <thead><tr><th scope="col">Achievement</th><th scope="col">Type</th><th scope="col">Medal / Level</th><th scope="col">Points</th><th scope="col">Date</th><th scope="col">Organization</th></tr></thead>
             <tbody>{windowedAchievements.map((a, i) => <tr key={i}><td>{a.title}</td><td>{a.type || "—"}</td><td>{(a.medal ? a.medal.toUpperCase() : "—")}{a.level ? ` / ${a.level}` : ""}</td><td className="num">{a.points || "—"}</td><td>{a.date ? formatDate(a.date) : "—"}</td><td>{a.organization || "—"}</td></tr>)}</tbody>
@@ -567,7 +649,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
       )}
 
       {windowedParticipants.length > 0 && (
-        <RdSection num="IX." title="Event Participation" meta={`${windowedParticipants.length} event(s) · ${periodLabel}`}>
+        <RdSection num="X." title="Event Participation" meta={`${windowedParticipants.length} event(s) · ${periodLabel}`}>
           <table className="rd-results">
             <thead><tr><th scope="col">Event</th><th scope="col">Sport</th><th scope="col">Venue</th><th scope="col">Start Date</th><th scope="col">Status</th></tr></thead>
             <tbody>{windowedParticipants.map((p, i) => <tr key={i}><td>{p.eventName}</td><td>{p.sport}</td><td>{p.venue || "—"}</td><td>{p.startDate ? formatDate(p.startDate) : "—"}</td><td>{STATUS_LABEL[p.status] || p.status}</td></tr>)}</tbody>
@@ -576,7 +658,7 @@ function AthleteReportCard({ athlete, session, from, to, prefix }) {
       )}
 
       {windowedNotes.length > 0 && (
-        <RdSection num="X." title="Coaching Notes" meta={`${windowedNotes.length} note(s) · ${periodLabel}`}>
+        <RdSection num="XI." title="Coaching Notes" meta={`${windowedNotes.length} note(s) · ${periodLabel}`}>
           {windowedNotes.slice(0, 20).map((n, i) => (
             <div className="rd-assessment" key={i}>
               <div className="rd-assessment-head">{formatDate(n.date)}{n.author ? <small> &middot; {n.author}</small> : null}</div>
@@ -940,6 +1022,151 @@ function PerformanceSummary({ athlete }) {
   );
 }
 
+function SquadFitnessBoard({ athletes }) {
+  const [sport, setSport] = React.useState("all");
+  const [sex, setSex] = React.useState("all");
+  const [component, setComponent] = React.useState("all");
+
+  // Only athletes that actually have a classified fitness profile count.
+  const withProfile = React.useMemo(() => athletes.filter((a) => a.fitnessProfile && a.fitnessProfile.length), [athletes]);
+
+  const sports = React.useMemo(() => {
+    const set = new Set();
+    for (const a of withProfile) if (a.sport) set.add(a.sport);
+    return [...set].sort((x, y) => x.localeCompare(y));
+  }, [withProfile]);
+
+  const components = React.useMemo(() => {
+    const set = new Set();
+    for (const a of withProfile) for (const f of a.fitnessProfile) set.add(f.fitnessType);
+    return [...set].sort((x, y) => (FITNESS_LABEL[x] || x).localeCompare(FITNESS_LABEL[y] || y));
+  }, [withProfile]);
+
+  // Flatten to one row per athlete × component test, then filter.
+  const rows = React.useMemo(() => {
+    const out = [];
+    for (const a of withProfile) {
+      if (sport !== "all" && a.sport !== sport) continue;
+      if (sex !== "all" && a.gender !== sex) continue;
+      for (const f of a.fitnessProfile) {
+        if (component !== "all" && f.fitnessType !== component) continue;
+        out.push({ athlete: a, f });
+      }
+    }
+    // Best tier first, then by name — a simple, honest ranking within the view.
+    return out.sort((x, y) => y.f.rank - x.f.rank || `${x.athlete.lastName}${x.athlete.firstName}`.localeCompare(`${y.athlete.lastName}${y.athlete.firstName}`));
+  }, [withProfile, sport, sex, component]);
+
+  // Tier distribution across the filtered rows (for the bar chart).
+  const tierDist = React.useMemo(() => {
+    const counts = {};
+    for (const t of CLASSIFICATION_TIERS) counts[t] = 0;
+    for (const r of rows) counts[r.f.tier] = (counts[r.f.tier] || 0) + 1;
+    return CLASSIFICATION_TIERS.map((t) => ({ tier: t, label: TIER_META[t].label, count: counts[t], color: TIER_META[t].color }));
+  }, [rows]);
+
+  const tierDistData = tierDist.filter((t) => t.count > 0);
+
+  return (
+    <>
+      <section className={styles.intro}>
+        <div>
+          <p className={styles.eyebrow}>Compare</p>
+          <h2>Squad fitness board</h2>
+          <p>Every logged fitness-component result from training-plan activities, classified with the DepEd PFT tier wording (Excellent / Very Good / Good / Fair / Needs Improvement) against Cauayan City reference bands — not a DepEd-published norm. Ranked best tier first within the current view.</p>
+        </div>
+      </section>
+
+      <section className={styles.panel}>
+        <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Filters</p><h2>View</h2></div></div>
+        <div className={styles.toolbar} style={{ marginTop: "var(--space-4)", flexWrap: "wrap" }}>
+          <label>Sport
+            <select value={sport} onChange={(e) => setSport(e.target.value)}>
+              <option value="all">All sports</option>
+              {sports.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </label>
+          <label>Sex
+            <select value={sex} onChange={(e) => setSex(e.target.value)}>
+              <option value="all">All</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </label>
+          <label>Fitness component
+            <select value={component} onChange={(e) => setComponent(e.target.value)}>
+              <option value="all">All components</option>
+              {components.map((c) => <option key={c} value={c}>{FITNESS_LABEL[c] || c}</option>)}
+            </select>
+          </label>
+          {(sport !== "all" || sex !== "all" || component !== "all") && (
+            <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => { setSport("all"); setSex("all"); setComponent("all"); }}>Clear filters</button>
+          )}
+        </div>
+      </section>
+
+      {withProfile.length === 0 ? (
+        <section className={styles.panel}><p className={styles.empty}>No fitness-component results have been logged in training-plan activities yet. Coaches log these on an athlete&apos;s training plan; once results exist they appear here.</p></section>
+      ) : (
+        <>
+          <section className={styles.panel}>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Distribution</p><h2>Tier distribution</h2></div><span className={styles.badge}>{rows.length} result{rows.length === 1 ? "" : "s"}</span></div>
+            {tierDistData.length ? (
+              <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barVertical}>
+                <BarChart data={tierDistData} margin={CHART_MARGINS.barVertical}>
+                  <CartesianGrid {...CHART_GRID.cartesian} />
+                  <XAxis dataKey="label" tick={CHART_AXIS.x} interval={0} />
+                  <YAxis allowDecimals={false} tick={CHART_AXIS.y}>
+                    <Label value="Athletes" angle={-90} position="insideLeft" offset={8} style={{ fill: CHART_AXIS.y.tick.fill, fontSize: 12 }} />
+                  </YAxis>
+                  <Tooltip {...CHART_TOOLTIP} formatter={(v, _n, item) => [`${v} result${v === 1 ? "" : "s"}`, item?.payload?.label || "Tier"]} cursor={{ fill: "rgba(45,212,168,0.08)" }} />
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                    {tierDistData.map((t) => <Cell key={t.tier} fill={t.color} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <p className={styles.empty}>No results match the current filters.</p>}
+          </section>
+
+          <section className={styles.panel}>
+            <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Ranking</p><h2>Athletes by tier</h2></div></div>
+            {rows.length ? (
+              <div className={styles.reportTableScroll}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Athlete</th>
+                      <th scope="col">Sport</th>
+                      <th scope="col">Sex</th>
+                      <th scope="col">Component</th>
+                      <th scope="col">Latest result</th>
+                      <th scope="col">Classification</th>
+                      <th scope="col">Trend</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r, i) => (
+                      <tr key={`${r.athlete.id}-${r.f.fitnessType}-${i}`}>
+                        <td><strong>{r.athlete.lastName}, {r.athlete.firstName}</strong> <span style={{ color: "var(--muted)" }}>{r.athlete.athleteCode}</span></td>
+                        <td>{r.athlete.sport || "—"}</td>
+                        <td>{GENDER_LABEL[r.athlete.gender] || r.athlete.gender || "—"}</td>
+                        <td>{r.f.label}</td>
+                        <td className={styles.numCell}>{r.f.value}{r.f.unit ? ` ${r.f.unit}` : ""}</td>
+                        <td><span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: "50%", background: TIER_META[r.f.tier]?.color || CHART_COLORS.muted, display: "inline-block" }} />{r.f.tierLabel}</span></td>
+                        <td>{r.f.delta > 0 ? `▲ +${r.f.delta}` : r.f.delta < 0 ? `▼ ${r.f.delta}` : "→ 0"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : <p className={styles.empty}>No results match the current filters.</p>}
+          </section>
+        </>
+      )}
+    </>
+  );
+}
+
 export default function Reports({ session, isAdmin, athletes, coaches }) {
   const [type, setType] = React.useState("athlete");
   const [selected, setSelected] = React.useState([]);
@@ -1037,6 +1264,7 @@ export default function Reports({ session, isAdmin, athletes, coaches }) {
 
 const REPORTS_SECTIONS = [
     { label: "Records", sectionId: "records" },
+    { label: "Squad fitness", sectionId: "squad-fitness" },
     { label: "Accomplishments", sectionId: "accomplishments" },
     { label: "Event winners", sectionId: "winners" },
     { label: "Compliance", sectionId: "compliance" },
@@ -1169,6 +1397,9 @@ const REPORTS_SECTIONS = [
               : filtered.map((coach) => <CoachReportCard key={coach.id} coach={coach} session={session} prefix={prefix} />)}
           </div>
           {filtered.length > 0 && <div className={styles.stackedActions}><button className={styles.secondary} onClick={() => printScope("records")}>Print all reports</button></div>}
+        </section>
+        <section id="squad-fitness">
+          <SquadFitnessBoard athletes={athletes} />
         </section>
         <AccomplishmentsReport session={session} isAdmin={isAdmin} />
         <EventWinnersReport session={session} isAdmin={isAdmin} />

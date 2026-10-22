@@ -1,7 +1,7 @@
 # Plan — Athlete Fitness Assessment Metrics for Training-Plan Activities
 
 Date: 2026-10-21
-Status: PARTS A + B DONE (2026-10-21) — C, D pending
+Status: PARTS A + B + C + D DONE — plan complete
 
 ## Progress log
 
@@ -53,6 +53,44 @@ Verified: all 7 fitness types classify correctly from their own bands and report
 `unverified: true` with a source note; eslint 0 errors; `next build` OK; live
 health fresh; live project (`cauayan-athlete-performance-monitoring-system1-0`)
 deployment for `2a7dc60` = success.
+
+### Part C — DONE (`03d7ffa`, deployed, live-verified)
+- Added the `FitnessNorm` model (`prisma/schema.prisma`) + migration
+  `20261021230000_add_fitness_norms` (generated via the safe `migrate diff
+  --from-config-datasource --to-schema` path → folder → `migrate deploy`).
+  Seeded 350 rows (7 types × 2 sexes × 5 age groups × 5 tiers) from `STARTER_NORMS`.
+- New server-side norm layer `lib/fitness-norms.js`: `loadNormOverrides`,
+  `buildNormTable`, `seedNormsFromDefaults`, `setNormValue`, `resetNormsToDefault`,
+  `countNormRows` (server-only; imports `lib/prisma`).
+- `lib/starter-metrics.js`: `resolveNorm(fitnessType, overrides)`; DB rows override
+  the JS defaults **band by band**; JS defaults are always the fallback, so the
+  system works even before any admin edits.
+- Athlete page: new **Fitness profile** tab (radar + tier table) reading logged
+  activity results; `normOverrides` loaded server-side in `getServerSideProps`
+  and passed as a prop to the client classifier (no Prisma in the client bundle).
+- `pages/admin/metrics.js`: **Fitness norms** editor — quality selector, editable
+  bands, verified checkbox, "Seed missing rows", "Reset to default".
+- `pages/api/admin/fitness-norms.js`: admin-only, CSRF + rate-limited, audit-logged.
+- `prisma/seed.js` seeds `fitnessNorm` idempotently.
+
+### Part D — DONE (deployed, live-verified)
+- `pages/reports.js` now serializes a `fitnessProfile` for every athlete, built
+  from `planActivityLog` results joined to `activity.fitnessType`/`metricType`
+  and classified with `classifyFitnessValue` (honouring DB norm overrides).
+  Each entry: component, test, latest value/unit, tier + next-tier hint, trend
+  (latest vs earliest logged), date, provenance note.
+- **Official report**: inserted a formal **Section IV — Physical Fitness Profile**
+  into `AthleteReportCard` (DecEd PFT tier wording against Cauayan reference bands,
+  explicitly noted as not a DepEd-published norm). Sections after it renumbered
+  IV→XI; the certification block and "Prepared by → Reviewed by → Certified Correct"
+  signature chain are untouched.
+- **Squad fitness board**: new **Squad fitness** tab on `/reports`. Athletes ranked
+  best-tier-first per fitness component, filters by sport / sex / component, a
+  tier-distribution bar chart (cells coloured from `TIER_META`, all via
+  `lib/chart-config.js`), and an athlete-by-tier table with tier dot + trend arrow.
+- No athlete data-model change → `lib/athlete-import-headers.js` unchanged (per the
+  guardrail), so no import round-trip re-run needed for Part D.
+- Verified: eslint 0 errors, `next build` OK, deployment success, `/api/health` OK.
 
 ## The goal, in plain words
 
