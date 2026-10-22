@@ -102,6 +102,15 @@ enum EventCategory {
   largeTeam
 }
 
+enum SportCategory {
+  individual
+  team
+  racket
+  combat
+  aquatics
+  dance
+}
+
 enum AttendanceStatus {
   present
   late
@@ -276,6 +285,7 @@ model Sport {
   id               Int                @id @default(autoincrement())
   sportName        String             @unique @map("sport_name")
   description      String?
+  category         SportCategory      @default(individual)
   status           ActiveStatus       @default(active)
   createdAt        DateTime           @default(now()) @map("created_at")
   events           Event[]

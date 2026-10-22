@@ -7,6 +7,21 @@ import AppShell from "../../components/AppShell";
 import PageSectionTabs from "../../components/PageSectionTabs";
 import styles from "../../styles/Dashboard.module.css";
 
+// Sport category labels (mirrors the SportCategory enum in schema.prisma).
+const SPORT_CATEGORY_LABELS = {
+  individual: "Individual",
+  team: "Team",
+  racket: "Racket",
+  combat: "Combat",
+  aquatics: "Aquatics",
+  dance: "Dance",
+};
+const SPORT_CATEGORY_ORDER = ["individual", "team", "racket", "combat", "aquatics", "dance"];
+const sportCategoryLabel = (category) => SPORT_CATEGORY_LABELS[category] || category || "—";
+
+// Event type labels (mirrors the EventCategory enum in schema.prisma).
+const EVENT_TYPE_LABEL = { individual: "Individual", smallTeam: "Small team", largeTeam: "Large team" };
+
 export async function getServerSideProps(context) {
   const session = await getSession(context);
   if (!session) return { redirect: { destination: "/login", permanent: false } };
@@ -28,6 +43,7 @@ export default function Catalog({ session, sports, events, schools }) {
   const [editingEvent, setEditingEvent] = React.useState(null);
   const [editingSchool, setEditingSchool] = React.useState(null);
   const [confirmDeleting, setConfirmDeleting] = React.useState(null);
+  const [sportCatFilter, setSportCatFilter] = React.useState("");
   const router = useRouter();
 
   async function post(url, body, method = "POST") {
@@ -42,7 +58,7 @@ export default function Catalog({ session, sports, events, schools }) {
     setBusy(true);
     setSportMessage("");
     const form = new FormData(event.currentTarget);
-    const { ok, result } = await post("/api/catalog", { kind: "sport", sportName: form.get("sportName"), description: form.get("description") });
+    const { ok, result } = await post("/api/catalog", { kind: "sport", sportName: form.get("sportName"), category: form.get("category"), description: form.get("description") });
     setSportMessage(ok ? "Sport added. Refresh to see it." : (result.error || "Could not add sport."));
     if (ok) event.currentTarget.reset();
     setBusy(false);
@@ -64,7 +80,7 @@ export default function Catalog({ session, sports, events, schools }) {
     setBusy(true);
     setSportMessage("");
     const form = new FormData(event.currentTarget);
-    const { ok, result } = await post("/api/catalog", { kind: "sport", id: Number(editingSport.id), sportName: form.get("sportName"), description: form.get("description"), status: form.get("status") }, "PUT");
+    const { ok, result } = await post("/api/catalog", { kind: "sport", id: Number(editingSport.id), sportName: form.get("sportName"), category: form.get("category"), description: form.get("description"), status: form.get("status") }, "PUT");
     if (ok) { setSportMessage(`Updated ${form.get("sportName")}.`); setEditingSport(null); router.replace("/admin/catalog"); }
     else setSportMessage(result.error || "Could not update sport.");
     setBusy(false);
@@ -131,6 +147,12 @@ const statusBadge = (status) => (status === "active" ? <span className={`${style
     { label: "Schools", sectionId: "schools" },
   ];
 
+  // Categories actually present, in canonical order, with counts.
+  const sportCategoryCounts = SPORT_CATEGORY_ORDER
+    .map((c) => ({ category: c, count: sports.filter((s) => s.category === c).length }))
+    .filter((c) => c.count > 0);
+  const visibleSports = sportCatFilter ? sports.filter((s) => s.category === sportCatFilter) : sports;
+
   return (
     <>
       <Head><title>Sports & Discipline | Administration</title></Head>
@@ -144,6 +166,9 @@ const statusBadge = (status) => (status === "active" ? <span className={`${style
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Sport</p><h2>Add sport</h2></div></div>
             <form onSubmit={addSport} className={styles.formStack}>
               <label>Sport name *<input name="sportName" required maxLength="100" placeholder="e.g. Basketball" /></label>
+              <label>Category *<select name="category" defaultValue="individual" required>
+                {SPORT_CATEGORY_ORDER.map((c) => <option value={c} key={c}>{SPORT_CATEGORY_LABELS[c]}</option>)}
+              </select></label>
               <label>Description<textarea name="description" maxLength="2000" rows="3" /></label>
               <div className={styles.stackedActions}>
                 <button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Add sport"}</button>
@@ -172,25 +197,32 @@ const statusBadge = (status) => (status === "active" ? <span className={`${style
       </section>
       <section id="sports">
         <section className={styles.panel}>
-          <div className={styles.sectionHeading}><div><h2>Sports</h2><small className={styles.small}>Active sports and their event totals</small></div><span className={styles.countBadge}>{sports.length}</span></div>
-          <div className={styles.tableWrap}><table><thead><tr><th scope="col">Sport</th><th scope="col">Events</th><th scope="col">Status</th><th scope="col"></th></tr></thead><tbody>{sports.map((sport) => editingSport && editingSport.id === sport.id ? (
-  <tr key={sport.id}><td colSpan="4"><form onSubmit={saveSport} className={styles.formStack}>
+          <div className={styles.sectionHeading}><div><h2>Sports</h2><small className={styles.small}>Sports by category and their event totals</small></div><span className={styles.countBadge}>{sports.length}</span></div>
+          <div className={styles.segmented} style={{ flexWrap: "wrap", marginBottom: "var(--space-4)" }}>
+            <button type="button" aria-pressed={sportCatFilter === ""} className={sportCatFilter === "" ? styles.active : ""} onClick={() => setSportCatFilter("")}>All ({sports.length})</button>
+            {sportCategoryCounts.map(({ category, count }) => (
+              <button key={category} type="button" aria-pressed={sportCatFilter === category} className={sportCatFilter === category ? styles.active : ""} onClick={() => setSportCatFilter(category)}>{SPORT_CATEGORY_LABELS[category]} ({count})</button>
+            ))}
+          </div>
+          <div className={styles.tableWrap}><table><thead><tr><th scope="col">Sport</th><th scope="col">Category</th><th scope="col">Events</th><th scope="col">Status</th><th scope="col"></th></tr></thead><tbody>{visibleSports.map((sport) => editingSport && editingSport.id === sport.id ? (
+  <tr key={sport.id}><td colSpan="5"><form onSubmit={saveSport} className={styles.formStack}>
     <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", alignItems: "flex-end" }}>
       <label style={{ flex: "1 1 160px" }}>Name *<input name="sportName" className={styles.fieldControl} required maxLength="100" defaultValue={sport.sportName} /></label>
+      <label style={{ flex: "1 1 140px" }}>Category<select name="category" className={styles.fieldControl} defaultValue={sport.category}>{SPORT_CATEGORY_ORDER.map((c) => <option value={c} key={c}>{SPORT_CATEGORY_LABELS[c]}</option>)}</select></label>
       <label style={{ flex: "1 1 120px" }}>Status<select name="status" className={styles.fieldControl} defaultValue={sport.status}><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
       <button className={styles.primary} disabled={busy}>Save sport</button>
       <button type="button" className={styles.secondary} onClick={() => setEditingSport(null)}>Cancel</button>
     </div>
     <label>Description<textarea name="description" className={styles.fieldControl} rows="2" maxLength="2000" defaultValue={sport.description || ""} /></label>
   </form></td></tr>
-) : <tr key={sport.id}><td data-label="Sport">{sport.sportName}</td><td data-label="Events">{sport._count.events}</td><td data-label="Status">{statusBadge(sport.status)}</td><td data-label="Actions"><div style={{ display: "flex", gap: 6 }}><button className={styles.expandBtn} onClick={() => setEditingSport(sport)}>Edit</button><button className={styles.expandBtn} disabled={busy} onClick={() => deleteItem("sport", { id: sport.id, label: sport.sportName })}>Deactivate</button></div></td></tr>)}{!sports.length && <tr><td colSpan="4" className={styles.empty}>No sports yet.</td></tr>}</tbody></table></div>
+) : <tr key={sport.id}><td data-label="Sport">{sport.sportName}</td><td data-label="Category">{sportCategoryLabel(sport.category)}</td><td data-label="Events">{sport._count.events}</td><td data-label="Status">{statusBadge(sport.status)}</td><td data-label="Actions"><div style={{ display: "flex", gap: 6 }}><button className={styles.expandBtn} onClick={() => setEditingSport(sport)}>Edit</button><button className={styles.expandBtn} disabled={busy} onClick={() => deleteItem("sport", { id: sport.id, label: sport.sportName })}>Deactivate</button></div></td></tr>)}{!visibleSports.length && <tr><td colSpan="5" className={styles.empty}>No sports in this category.</td></tr>}</tbody></table></div>
       </section>
     </section>
       <section id="events">
         <section className={styles.panel}>
           <div className={styles.sectionHeading}><div><h2>Events / Disciplines</h2><small className={styles.small}>Events grouped under each sport</small></div><span className={styles.countBadge}>{events.length}</span></div>
-          <div className={styles.tableWrap}><table><thead><tr><th scope="col">Event</th><th scope="col">Sport</th><th scope="col">Status</th><th scope="col"></th></tr></thead><tbody>{events.map((event) => editingEvent && editingEvent.id === event.id ? (
-  <tr key={event.id}><td colSpan="4"><form onSubmit={saveEvent} className={styles.formStack}>
+          <div className={styles.tableWrap}><table><thead><tr><th scope="col">Event</th><th scope="col">Sport</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col"></th></tr></thead><tbody>{events.map((event) => editingEvent && editingEvent.id === event.id ? (
+  <tr key={event.id}><td colSpan="5"><form onSubmit={saveEvent} className={styles.formStack}>
     <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", alignItems: "flex-end" }}>
       <label style={{ flex: "1 1 160px" }}>Name *<input name="eventName" className={styles.fieldControl} required maxLength="150" defaultValue={event.eventName} /></label>
       <label style={{ flex: "1 1 140px" }}>Sport<select name="sportId" className={styles.fieldControl} defaultValue={event.sportId}>{sports.map((s) => <option value={s.id} key={s.id}>{s.sportName}</option>)}</select></label>
@@ -201,7 +233,7 @@ const statusBadge = (status) => (status === "active" ? <span className={`${style
     </div>
     <label>Description<textarea name="description" className={styles.fieldControl} rows="2" maxLength="2000" defaultValue={event.description || ""} /></label>
   </form></td></tr>
-) : <tr key={event.id}><td data-label="Event">{event.eventName}</td><td data-label="Sport">{event.sport.sportName}</td><td data-label="Status">{statusBadge(event.status)}</td><td data-label="Actions"><div style={{ display: "flex", gap: 6 }}><button className={styles.expandBtn} onClick={() => setEditingEvent(event)}>Edit</button><button className={styles.expandBtn} disabled={busy} onClick={() => deleteItem("event", { id: event.id, label: event.eventName })}>Deactivate</button></div></td></tr>)}{!events.length && <tr><td colSpan="4" className={styles.empty}>No events yet. Add events above.</td></tr>}</tbody></table></div>
+) : <tr key={event.id}><td data-label="Event">{event.eventName}</td><td data-label="Sport">{event.sport.sportName}<small>{sportCategoryLabel(event.sport.category)}</small></td><td data-label="Type">{EVENT_TYPE_LABEL[event.eventCategory] || event.eventCategory}</td><td data-label="Status">{statusBadge(event.status)}</td><td data-label="Actions"><div style={{ display: "flex", gap: 6 }}><button className={styles.expandBtn} onClick={() => setEditingEvent(event)}>Edit</button><button className={styles.expandBtn} disabled={busy} onClick={() => deleteItem("event", { id: event.id, label: event.eventName })}>Deactivate</button></div></td></tr>)}{!events.length && <tr><td colSpan="5" className={styles.empty}>No events yet. Add events above.</td></tr>}</tbody></table></div>
       </section>
     </section>
       <section id="schools">

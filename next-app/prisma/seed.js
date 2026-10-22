@@ -29,37 +29,109 @@ async function seedReferenceData() {
   }
 
   const sports = {};
-  for (const [name, description] of [
-    ["Athletics", "Track and field events including sprints, jumps, and throws"],
-    ["Swimming", "Competitive swimming events in the pool"],
-    ["Basketball", "Indoor 5x5 basketball competition"],
-    ["Volleyball", "Indoor team volleyball competition"],
-    ["Badminton", "Racket sport played in singles and doubles"],
-    ["Baseball", "Bat-and-ball team sport"],
+  for (const [name, category, description] of [
+    // Individual sports
+    ["Athletics", "individual", "Track and field events including sprints, jumps, and throws"],
+    ["Swimming", "aquatics", "Competitive swimming events in the pool"],
+    ["Gymnastics", "individual", "Artistic and rhythmic gymnastics routines"],
+    ["Weightlifting", "individual", "Olympic-style snatch and clean-and-jerk lifts"],
+    ["Chess", "individual", "Standard, rapid, and blitz chess competition"],
+    ["Archery", "individual", "Target archery competition"],
+    // Team sports
+    ["Basketball", "team", "Indoor 5x5 and 3x3 basketball competition"],
+    ["Volleyball", "team", "Indoor and beach volleyball competition"],
+    ["Football", "team", "Association football (soccer) competition"],
+    ["Futsal", "team", "Indoor five-a-side football competition"],
+    ["Baseball", "team", "Bat-and-ball team sport"],
+    ["Softball", "team", "Bat-and-ball team sport (fastpitch)"],
+    ["Sepak Takraw", "team", "Rattan-ball team sport"],
+    // Racket sports
+    ["Badminton", "racket", "Racket sport played in singles and doubles"],
+    ["Table Tennis", "racket", "Racket sport played in singles and doubles"],
+    ["Tennis", "racket", "Lawn tennis played in singles and doubles"],
+    // Combat sports
+    ["Arnis", "combat", "Philippine martial art — anyo and sparring"],
+    ["Boxing", "combat", "Amateur boxing competition"],
+    ["Taekwondo", "combat", "Poomsae and kyorugi competition"],
+    ["Wrestling", "combat", "Freestyle and Greco-Roman wrestling"],
+    ["Judo", "combat", "Olympic judo competition"],
+    // Dance and cheer
+    ["Dancesport", "dance", "Ballroom and Latin dance competition"],
+    ["Cheerdance", "dance", "Cheerleading and cheerdance competition"],
   ]) {
     sports[name] = await prisma.sport.upsert({
       where: { sportName: name },
-      update: { description },
-      create: { sportName: name, description },
+      update: { description, category },
+      create: { sportName: name, description, category },
     });
   }
 
   const eventData = [
     ["Athletics", "100m Sprint", "Track sprint assessment", "individual"],
     ["Athletics", "200m Sprint", "Track double-lap sprint assessment", "individual"],
+    ["Athletics", "400m Run", "Track single-lap sprint assessment", "individual"],
+    ["Athletics", "800m Run", "Track middle-distance assessment", "individual"],
+    ["Athletics", "1500m Run", "Track distance assessment", "individual"],
     ["Athletics", "Long Jump", "Jump distance assessment", "individual"],
+    ["Athletics", "Triple Jump", "Triple-jump distance assessment", "individual"],
+    ["Athletics", "High Jump", "Vertical jump height assessment", "individual"],
     ["Athletics", "Shot Put", "Throw distance assessment", "individual"],
+    ["Athletics", "Discus Throw", "Throw distance assessment", "individual"],
+    ["Athletics", "Javelin Throw", "Throw distance assessment", "individual"],
+    ["Athletics", "4x100m Relay", "Track relay assessment", "smallTeam"],
     ["Swimming", "50m Freestyle", "Pool sprint assessment", "individual"],
-    ["Swimming", "100m Butterfly", "Pool butterfly stroke assessment", "individual"],
+    ["Swimming", "100m Freestyle", "Pool freestyle assessment", "individual"],
+    ["Swimming", "50m Backstroke", "Pool backstroke sprint assessment", "individual"],
+    ["Swimming", "100m Backstroke", "Pool backstroke assessment", "individual"],
+    ["Swimming", "100m Breaststroke", "Pool breaststroke assessment", "individual"],
     ["Swimming", "200m Breaststroke", "Pool breaststroke endurance assessment", "individual"],
+    ["Swimming", "50m Butterfly", "Pool butterfly sprint assessment", "individual"],
+    ["Swimming", "100m Butterfly", "Pool butterfly stroke assessment", "individual"],
+    ["Swimming", "200m Individual Medley", "Pool medley assessment", "individual"],
+    ["Swimming", "4x50m Freestyle Relay", "Pool relay assessment", "largeTeam"],
+    ["Gymnastics", "Floor Exercise", "Artistic gymnastics floor routine", "individual"],
+    ["Gymnastics", "Balance Beam", "Artistic gymnastics beam routine", "individual"],
+    ["Gymnastics", "Uneven Bars", "Artistic gymnastics bars routine", "individual"],
+    ["Gymnastics", "Vault", "Artistic gymnastics vault", "individual"],
+    ["Weightlifting", "Snatch", "Olympic snatch lift", "individual"],
+    ["Weightlifting", "Clean and Jerk", "Olympic clean and jerk lift", "individual"],
+    ["Chess", "Standard 60+60", "Classical time-control chess", "individual"],
+    ["Chess", "Blitz", "Blitz chess", "individual"],
+    ["Archery", "Recurve 70m", "Recurve target archery at 70m", "individual"],
+    ["Archery", "Compound 50m", "Compound target archery at 50m", "individual"],
     ["Basketball", "5x5 Basketball", "Team basketball assessment", "largeTeam"],
+    ["Basketball", "3x3 Basketball", "Half-court 3x3 basketball assessment", "smallTeam"],
     ["Volleyball", "Indoor Volleyball", "Indoor volleyball assessment", "largeTeam"],
-    ["Badminton", "Singles", "Badminton singles assessment", "individual"],
+    ["Volleyball", "Beach Volleyball", "Beach volleyball assessment", "smallTeam"],
+    ["Football", "11-a-side Football", "Full-pitch football assessment", "largeTeam"],
+    ["Football", "7-a-side Football", "Small-sided football assessment", "largeTeam"],
+    ["Futsal", "Futsal Match", "Indoor five-a-side match assessment", "largeTeam"],
     ["Baseball", "9-Inning Game", "Baseball full game assessment", "largeTeam"],
+    ["Softball", "7-Inning Game", "Softball full game assessment", "largeTeam"],
+    ["Sepak Takraw", "Regu", "Sepak takraw regu (three-a-side) match", "smallTeam"],
+    ["Badminton", "Singles", "Badminton singles assessment", "individual"],
+    ["Badminton", "Doubles", "Badminton doubles assessment", "smallTeam"],
+    ["Table Tennis", "Singles", "Table tennis singles assessment", "individual"],
+    ["Table Tennis", "Doubles", "Table tennis doubles assessment", "smallTeam"],
+    ["Tennis", "Singles", "Tennis singles assessment", "individual"],
+    ["Tennis", "Doubles", "Tennis doubles assessment", "smallTeam"],
+    ["Arnis", "Anyo (Forms)", "Arnis forms routine assessment", "individual"],
+    ["Arnis", "Full Contact Sparring", "Arnis sparring assessment", "individual"],
+    ["Boxing", "Light Flyweight", "Amateur boxing bout assessment", "individual"],
+    ["Boxing", "Flyweight", "Amateur boxing bout assessment", "individual"],
+    ["Taekwondo", "Poomsae", "Taekwondo forms assessment", "individual"],
+    ["Taekwondo", "Kyorugi", "Taekwondo sparring assessment", "individual"],
+    ["Wrestling", "Freestyle 57kg", "Freestyle wrestling bout", "individual"],
+    ["Wrestling", "Freestyle 65kg", "Freestyle wrestling bout", "individual"],
+    ["Judo", "60kg", "Judo bout assessment", "individual"],
+    ["Judo", "66kg", "Judo bout assessment", "individual"],
+    ["Dancesport", "Standard", "Ballroom standard dance assessment", "smallTeam"],
+    ["Dancesport", "Latin", "Latin dance assessment", "smallTeam"],
+    ["Cheerdance", "Cheerdance Routine", "Cheerdance group routine assessment", "largeTeam"],
   ];
   const events = {};
   for (const [sport, eventName, description, eventCategory] of eventData) {
-    events[eventName] = await prisma.event.upsert({
+    events[`${sport}|${eventName}`] = await prisma.event.upsert({
       where: { sportId_eventName: { sportId: sports[sport].id, eventName } },
       update: { eventCategory },
       create: { sportId: sports[sport].id, eventName, description, eventCategory },
@@ -67,25 +139,85 @@ async function seedReferenceData() {
   }
 
   const metricData = [
-    ["100m Sprint", "Time", "seconds", "decimal", "lower", 1, 8, 14, true],
-    ["200m Sprint", "Time", "seconds", "decimal", "lower", 1, 18, 30, true],
-    ["Long Jump", "Distance", "meters", "decimal", "higher", 2, 2, 8, true],
-    ["Shot Put", "Distance", "meters", "decimal", "higher", 2, 4, 16, true],
-    ["50m Freestyle", "Time", "seconds", "decimal", "lower", 1, 22, 40, true],
-    ["100m Butterfly", "Time", "seconds", "decimal", "lower", 1, 55, 90, true],
-    ["200m Breaststroke", "Time", "seconds", "decimal", "lower", 1, 120, 200, true],
-    ["5x5 Basketball", "Points", "points", "integer", "higher", 0, 0, 50, true],
-    ["Indoor Volleyball", "Points", "points", "integer", "higher", 0, 0, 40, true],
-    ["Singles", "Points", "points", "integer", "higher", 0, 0, 21, true],
-    ["9-Inning Game", "Points", "points", "integer", "higher", 0, 0, 20, true],
+    // Athletics
+    ["Athletics", "100m Sprint", "Time", "seconds", "decimal", "lower", 1, 8, 14, true],
+    ["Athletics", "200m Sprint", "Time", "seconds", "decimal", "lower", 1, 18, 30, true],
+    ["Athletics", "400m Run", "Time", "seconds", "decimal", "lower", 1, 45, 80, true],
+    ["Athletics", "800m Run", "Time", "seconds", "decimal", "lower", 1, 120, 240, true],
+    ["Athletics", "1500m Run", "Time", "seconds", "decimal", "lower", 1, 240, 500, true],
+    ["Athletics", "Long Jump", "Distance", "meters", "decimal", "higher", 2, 2, 8, true],
+    ["Athletics", "Triple Jump", "Distance", "meters", "decimal", "higher", 2, 8, 16, true],
+    ["Athletics", "High Jump", "Height", "meters", "decimal", "higher", 2, 1, 2.5, true],
+    ["Athletics", "Shot Put", "Distance", "meters", "decimal", "higher", 2, 4, 16, true],
+    ["Athletics", "Discus Throw", "Distance", "meters", "decimal", "higher", 2, 10, 60, true],
+    ["Athletics", "Javelin Throw", "Distance", "meters", "decimal", "higher", 2, 15, 70, true],
+    ["Athletics", "4x100m Relay", "Time", "seconds", "decimal", "lower", 1, 40, 60, true],
+    // Swimming
+    ["Swimming", "50m Freestyle", "Time", "seconds", "decimal", "lower", 1, 22, 40, true],
+    ["Swimming", "100m Freestyle", "Time", "seconds", "decimal", "lower", 1, 50, 90, true],
+    ["Swimming", "50m Backstroke", "Time", "seconds", "decimal", "lower", 1, 28, 45, true],
+    ["Swimming", "100m Backstroke", "Time", "seconds", "decimal", "lower", 1, 60, 100, true],
+    ["Swimming", "100m Breaststroke", "Time", "seconds", "decimal", "lower", 1, 65, 110, true],
+    ["Swimming", "200m Breaststroke", "Time", "seconds", "decimal", "lower", 1, 120, 200, true],
+    ["Swimming", "50m Butterfly", "Time", "seconds", "decimal", "lower", 1, 25, 45, true],
+    ["Swimming", "100m Butterfly", "Time", "seconds", "decimal", "lower", 1, 55, 90, true],
+    ["Swimming", "200m Individual Medley", "Time", "seconds", "decimal", "lower", 1, 140, 240, true],
+    ["Swimming", "4x50m Freestyle Relay", "Time", "seconds", "decimal", "lower", 1, 100, 180, true],
+    // Gymnastics
+    ["Gymnastics", "Floor Exercise", "Score", "points", "decimal", "higher", 2, 0, 20, true],
+    ["Gymnastics", "Balance Beam", "Score", "points", "decimal", "higher", 2, 0, 20, true],
+    ["Gymnastics", "Uneven Bars", "Score", "points", "decimal", "higher", 2, 0, 20, true],
+    ["Gymnastics", "Vault", "Score", "points", "decimal", "higher", 2, 0, 20, true],
+    // Weightlifting
+    ["Weightlifting", "Snatch", "Weight", "kg", "decimal", "higher", 1, 10, 150, true],
+    ["Weightlifting", "Clean and Jerk", "Weight", "kg", "decimal", "higher", 1, 15, 200, true],
+    // Chess
+    ["Chess", "Standard 60+60", "Points", "points", "integer", "higher", 0, 0, 20, false],
+    ["Chess", "Blitz", "Points", "points", "integer", "higher", 0, 0, 20, false],
+    // Archery
+    ["Archery", "Recurve 70m", "Score", "points", "integer", "higher", 0, 0, 720, true],
+    ["Archery", "Compound 50m", "Score", "points", "integer", "higher", 0, 0, 720, true],
+    // Team sports
+    ["Basketball", "5x5 Basketball", "Points", "points", "integer", "higher", 0, 0, 50, true],
+    ["Basketball", "3x3 Basketball", "Points", "points", "integer", "higher", 0, 0, 30, true],
+    ["Volleyball", "Indoor Volleyball", "Points", "points", "integer", "higher", 0, 0, 40, true],
+    ["Volleyball", "Beach Volleyball", "Points", "points", "integer", "higher", 0, 0, 40, true],
+    ["Football", "11-a-side Football", "Goals", "count", "integer", "higher", 0, 0, 20, false],
+    ["Football", "7-a-side Football", "Goals", "count", "integer", "higher", 0, 0, 20, false],
+    ["Futsal", "Futsal Match", "Goals", "count", "integer", "higher", 0, 0, 20, false],
+    ["Baseball", "9-Inning Game", "Points", "points", "integer", "higher", 0, 0, 20, true],
+    ["Softball", "7-Inning Game", "Points", "points", "integer", "higher", 0, 0, 20, true],
+    ["Sepak Takraw", "Regu", "Points", "points", "integer", "higher", 0, 0, 30, true],
+    // Racket sports
+    ["Badminton", "Singles", "Points", "points", "integer", "higher", 0, 0, 21, true],
+    ["Badminton", "Doubles", "Points", "points", "integer", "higher", 0, 0, 21, true],
+    ["Table Tennis", "Singles", "Points", "points", "integer", "higher", 0, 0, 21, true],
+    ["Table Tennis", "Doubles", "Points", "points", "integer", "higher", 0, 0, 21, true],
+    ["Tennis", "Singles", "Points", "points", "integer", "higher", 0, 0, 21, true],
+    ["Tennis", "Doubles", "Points", "points", "integer", "higher", 0, 0, 21, true],
+    // Combat sports
+    ["Arnis", "Anyo (Forms)", "Score", "points", "decimal", "higher", 2, 0, 100, true],
+    ["Arnis", "Full Contact Sparring", "Wins", "count", "integer", "higher", 0, 0, 10, false],
+    ["Boxing", "Light Flyweight", "Wins", "count", "integer", "higher", 0, 0, 10, false],
+    ["Boxing", "Flyweight", "Wins", "count", "integer", "higher", 0, 0, 10, false],
+    ["Taekwondo", "Poomsae", "Score", "points", "decimal", "higher", 2, 0, 100, true],
+    ["Taekwondo", "Kyorugi", "Wins", "count", "integer", "higher", 0, 0, 10, false],
+    ["Wrestling", "Freestyle 57kg", "Wins", "count", "integer", "higher", 0, 0, 10, false],
+    ["Wrestling", "Freestyle 65kg", "Wins", "count", "integer", "higher", 0, 0, 10, false],
+    ["Judo", "60kg", "Wins", "count", "integer", "higher", 0, 0, 10, false],
+    ["Judo", "66kg", "Wins", "count", "integer", "higher", 0, 0, 10, false],
+    // Dance
+    ["Dancesport", "Standard", "Score", "points", "decimal", "higher", 2, 0, 100, true],
+    ["Dancesport", "Latin", "Score", "points", "decimal", "higher", 2, 0, 100, true],
+    ["Cheerdance", "Cheerdance Routine", "Score", "points", "decimal", "higher", 2, 0, 100, true],
   ];
   const metrics = {};
-  for (const [eventName, metricName, unit, dataType, direction, decimalPlaces, min, max, isRequired] of metricData) {
-    metrics[eventName] = await prisma.performanceMetric.upsert({
-      where: { eventId_metricName: { eventId: events[eventName].id, metricName } },
+  for (const [sport, eventName, metricName, unit, dataType, direction, decimalPlaces, min, max, isRequired] of metricData) {
+    metrics[`${sport}|${eventName}`] = await prisma.performanceMetric.upsert({
+      where: { eventId_metricName: { eventId: events[`${sport}|${eventName}`].id, metricName } },
       update: {},
       create: {
-        eventId: events[eventName].id,
+        eventId: events[`${sport}|${eventName}`].id,
         metricName,
         unit,
         dataType,
@@ -519,9 +651,11 @@ async function seedTestData(ref) {
   let assessmentCount = 0;
   for (let ai = 0; ai < athletes.length; ai += 1) {
     const { athlete, row } = athletes[ai];
+    const sportName = row[7];
     const eventName = row[8];
     if (!eventName || !eventAssessPlan[eventName]) continue;
     const plan = eventAssessPlan[eventName];
+    const metric = metrics[`${sportName}|${eventName}`];
     const athleteCoach = athlete.coachId;
     const recorder = coachUsers[`coach${Math.min(athleteCoach, coachUsers.coachOne ? 1 : 1)}`] || coachUsers.coachOne;
     // pick a recorder that matches the athlete's coach
@@ -558,7 +692,7 @@ async function seedTestData(ref) {
       await prisma.assessmentResult.create({
         data: {
           assessmentId: created.id,
-          metricId: metrics[eventName].id,
+          metricId: metric.id,
           valueDecimal: recordValue,
           notes: d === assessmentDates.length - 1 ? "Record performance." : null,
         },
@@ -584,7 +718,7 @@ async function seedTestData(ref) {
   for (const [athIdx, title, type, date, org, desc, medal, level, sportName, eventName, isRecord] of achievementsSeed) {
     const athlete = athletes[athIdx].athlete;
     const sport = sports[sportName];
-    const event = events[eventName];
+    const event = events[`${sportName}|${eventName}`];
     await once(
       prisma, "achievement",
       { athleteId: athlete.id, achievementTitle: title },

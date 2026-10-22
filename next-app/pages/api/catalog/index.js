@@ -2,6 +2,9 @@ import { prisma } from "../../../lib/prisma";
 import { requireCsrf, requireRole, requireSession, text, validId, setSecurityHeaders } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
 
+// Allowed sport categories (mirrors the SportCategory enum in schema.prisma).
+const SPORT_CATEGORIES = ["individual", "team", "racket", "combat", "aquatics", "dance"];
+
 export default async function handler(req, res) {
   setSecurityHeaders(res);
   const session = await requireSession(req, res);
@@ -21,7 +24,8 @@ export default async function handler(req, res) {
       const sportName = text(req.body?.sportName, 100, true);
       if (!sportName) return res.status(400).json({ error: "Sport name is required." });
       const status = ["active", "inactive"].includes(req.body?.status) ? req.body.status : undefined;
-      const result = await updateCatalogItem(res, session, "sport", id, { sportName, description: text(req.body?.description, 2000) || null, status: status ?? undefined });
+      const category = SPORT_CATEGORIES.includes(req.body?.category) ? req.body.category : undefined;
+      const result = await updateCatalogItem(res, session, "sport", id, { sportName, description: text(req.body?.description, 2000) || null, category: category ?? undefined, status: status ?? undefined });
       if (result) return result;
     } else if (kind === "event") {
       const eventName = text(req.body?.eventName, 150, true);
@@ -91,8 +95,9 @@ export default async function handler(req, res) {
   if (kind === "sport") {
     const sportName = text(req.body?.sportName, 100, true);
     if (!sportName) return res.status(400).json({ error: "Sport name is required." });
+    const category = SPORT_CATEGORIES.includes(req.body?.category) ? req.body.category : "individual";
     try {
-      const sport = await prisma.sport.create({ data: { sportName, description: text(req.body?.description, 2000) || null } });
+      const sport = await prisma.sport.create({ data: { sportName, description: text(req.body?.description, 2000) || null, category } });
       await prisma.auditLog.create({ data: { userId: Number(session.user.id), action: "create", entityType: "sport", entityId: sport.id, description: `Created sport ${sport.sportName}` } });
       return res.status(201).json(sport);
     } catch (error) {
