@@ -1,4 +1,5 @@
 import { put, list, del, get } from "@vercel/blob";
+import { decodeBackupPayload, encodeBackupPayload } from "./backup-crypto";
 
 const PREFIX = "db-backups/";
 const MAX_SYSTEM_BACKUPS = 20;
@@ -13,13 +14,21 @@ function stamp() {
 
 export async function saveBackupBlob({ kind, id, payload, prune = true }) {
   if (!blobEnabled()) return null;
-  const name = `${PREFIX}${kind}-${id ? `${id}-` : ""}${stamp()}.json`;
-  // CR-02 fix: backups contain password hashes, reset tokens and athlete PII.
-  // Private blobs require the BLOB_READ_WRITE_TOKEN to read, so a leaked URL
-  // is no longer an open download.
-  const { url } = await put(name, payload, { access: "private", contentType: "application/json", addRandomSuffix: true });
+  const name = `${PREFIX}${kind}-${id ? `${id}-` : ""}${stamp()}.json.enc`;
+  // Backups contain password hashes, reset tokens and athlete PII. Encrypt the
+  // payload first, then prefer private blob storage. If this store does not
+  // support private access, an encrypted public blob is still safe to expose:
+  // only ciphertext and a random URL are visible without the server key.
+  const encrypted = encodeBackupPayload(payload);
+  let stored;
+  try {
+    stored = await put(name, encrypted, { access: "private", contentType: "application/octet-stream", addRandomSuffix: true });
+  } catch (error) {
+    console.warn("Private blob storage is unavailable; storing an encrypted backup in public blob storage.", error?.message);
+    stored = await put(name, encrypted, { access: "public", contentType: "application/octet-stream", addRandomSuffix: true });
+  }
   if (kind === "system" && prune) await pruneSystemBackups(MAX_SYSTEM_BACKUPS);
-  return { url, name };
+  return { url: stored.url, name };
 }
 
 function isPrivateBlobUrl(url) {
@@ -42,6 +51,10 @@ export async function listSystemBackups() {
     console.error("Failed to list backups:", error);
     return [];
   }
+}
+
+export async function deleteBackupBlob(url) {
+  await del(url);
 }
 
 async function pruneSystemBackups(keep) {
@@ -69,34 +82,41 @@ export async function fetchBackupBlob(url) {
   if (!result || result.statusCode !== 200 || !result.stream) {
     throw new Error("The stored backup could not be downloaded.");
   }
-  return new Response(result.stream).json();
+  const text = await new Response(result.stream).text();
+  return decodeBackupPayload(text);
 }
 
 export async function migratePublicSystemBackups() {
   if (!blobEnabled()) return { total: 0, migrated: 0, failed: 0, failures: [] };
   const backups = await listSystemBackups();
-  const legacy = backups.filter((b) => !isPrivateBlobUrl(b.url));
+  // Public snapshots ending in .enc are already encrypted; only old public
+  // plaintext snapshots need migration.
+  const legacy = backups.filter((b) => !isPrivateBlobUrl(b.url) && !b.pathname.endsWith(".enc"));
   const failures = [];
   let migrated = 0;
 
   for (const backup of legacy) {
+    let stage = "read";
     try {
       const snapshot = await fetchBackupBlob(backup.url);
       if (!snapshot || !snapshot.tables) throw new Error("Not a full-system backup.");
+      stage = "save";
       const stored = await saveBackupBlob({
         kind: "system",
         payload: JSON.stringify(snapshot),
         prune: false,
       });
-      if (!stored) throw new Error("Private backup storage is not configured.");
+      if (!stored) throw new Error("Backup storage is not configured.");
+      stage = "verify";
       const copy = await fetchBackupBlob(stored.url);
       if (!copy || copy.createdAt !== snapshot.createdAt || Object.keys(copy.tables || {}).length !== Object.keys(snapshot.tables).length) {
-        throw new Error("The private copy could not be verified.");
+        throw new Error("The encrypted copy could not be verified.");
       }
+      stage = "delete";
       await del(backup.url);
       migrated += 1;
     } catch (error) {
-      failures.push(backup.pathname);
+      failures.push(`${backup.pathname} (${stage})`);
       console.error("Legacy backup migration failed:", backup.pathname, error);
     }
   }

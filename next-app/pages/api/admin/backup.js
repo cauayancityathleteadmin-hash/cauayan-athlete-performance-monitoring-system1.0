@@ -2,7 +2,7 @@ import { prisma } from "../../../lib/prisma";
 import { requireCsrf, requireRole, requireSession, setSecurityHeaders, text } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
 import { buildSystemSnapshot, getSetting, setSetting } from "../../../lib/backup";
-import { blobEnabled, saveBackupBlob, listSystemBackups, migratePublicSystemBackups } from "../../../lib/blob-store";
+import { saveBackupBlob, listSystemBackups, migratePublicSystemBackups, fetchBackupBlob, deleteBackupBlob } from "../../../lib/blob-store";
 
 export const config = { api: { responseLimit: false } };
 
@@ -35,6 +35,16 @@ export default async function handler(req, res) {
       let url = null;
       if (!stored) {
         url = "/api/admin/backup?action=download";
+      } else {
+        try {
+          const copy = await fetchBackupBlob(stored.url);
+          if (!copy || copy.createdAt !== snapshot.createdAt || Object.keys(copy.tables || {}).length !== Object.keys(snapshot.tables || {}).length) {
+            throw new Error("The saved backup could not be read back.");
+          }
+        } catch (error) {
+          await deleteBackupBlob(stored.url).catch(() => {});
+          throw error;
+        }
       }
       await setSetting(prisma, "last_backup_at", new Date().toISOString()).catch(() => {});
       await prisma.auditLog.create({
