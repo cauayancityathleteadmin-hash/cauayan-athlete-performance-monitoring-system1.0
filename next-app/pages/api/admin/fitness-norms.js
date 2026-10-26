@@ -24,7 +24,9 @@ export default async function handler(req, res) {
   const rate = rateLimiters.api(`api:${ip}:${req.method}`);
   if (!rate.allowed) return res.status(429).json({ error: "Too many requests. Please try again later." });
 
-  if (!requireCsrf(req, res)) return;
+  // CSRF is only needed for state-changing requests. The admin metrics page
+  // loads the norms table with a plain GET.
+  if (!["GET", "HEAD"].includes(req.method) && !requireCsrf(req, res)) return;
 
   try {
     if (req.method === "GET") {
