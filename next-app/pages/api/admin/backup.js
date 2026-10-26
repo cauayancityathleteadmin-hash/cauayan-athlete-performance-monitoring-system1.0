@@ -2,7 +2,7 @@ import { prisma } from "../../../lib/prisma";
 import { requireCsrf, requireRole, requireSession, setSecurityHeaders, text } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
 import { buildSystemSnapshot, getSetting, setSetting } from "../../../lib/backup";
-import { blobEnabled, saveBackupBlob, listSystemBackups } from "../../../lib/blob-store";
+import { blobEnabled, saveBackupBlob, listSystemBackups, migratePublicSystemBackups } from "../../../lib/blob-store";
 
 export const config = { api: { responseLimit: false } };
 
@@ -57,6 +57,40 @@ export default async function handler(req, res) {
     } catch (error) {
       console.error("Backup failed:", error);
       return res.status(500).json({ error: "The backup could not be created." });
+    }
+  }
+
+  if (action === "migrate-legacy") {
+    if (String(req.body?.confirm || "").trim().toUpperCase() !== "MIGRATE") {
+      return res.status(400).json({ error: 'Type MIGRATE to move old public snapshots to private storage.' });
+    }
+    try {
+      const result = await migratePublicSystemBackups();
+      await prisma.auditLog.create({
+        data: {
+          userId: Number(session.user.id),
+          action: "backup",
+          entityType: "system",
+          entityId: null,
+          description: `Legacy public backups moved to private storage. Migrated: ${result.migrated}; failed: ${result.failed}.`,
+        },
+      }).catch(() => {});
+      if (result.failed) {
+        return res.status(500).json({
+          error: `${result.failed} old public backup${result.failed === 1 ? "" : "s"} could not be moved. The originals were kept.`,
+          ...result,
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        message: result.total
+          ? `${result.migrated} old public backup${result.migrated === 1 ? "" : "s"} moved to private storage.`
+          : "There are no old public backups to move.",
+        ...result,
+      });
+    } catch (error) {
+      console.error("Legacy backup migration failed:", error);
+      return res.status(500).json({ error: "The old public backups could not be moved." });
     }
   }
 

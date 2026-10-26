@@ -11,15 +11,23 @@ function stamp() {
   return new Date().toISOString().replace(/[:.]/g, "-");
 }
 
-export async function saveBackupBlob({ kind, id, payload }) {
+export async function saveBackupBlob({ kind, id, payload, prune = true }) {
   if (!blobEnabled()) return null;
   const name = `${PREFIX}${kind}-${id ? `${id}-` : ""}${stamp()}.json`;
   // CR-02 fix: backups contain password hashes, reset tokens and athlete PII.
   // Private blobs require the BLOB_READ_WRITE_TOKEN to read, so a leaked URL
   // is no longer an open download.
   const { url } = await put(name, payload, { access: "private", contentType: "application/json", addRandomSuffix: true });
-  if (kind === "system") await pruneSystemBackups(MAX_SYSTEM_BACKUPS);
+  if (kind === "system" && prune) await pruneSystemBackups(MAX_SYSTEM_BACKUPS);
   return { url, name };
+}
+
+function isPrivateBlobUrl(url) {
+  try {
+    return new URL(url).hostname.includes(".private.");
+  } catch {
+    return false;
+  }
 }
 
 export async function listSystemBackups() {
@@ -48,10 +56,51 @@ async function pruneSystemBackups(keep) {
 }
 
 export async function fetchBackupBlob(url) {
-  // Private blobs require the token; @vercel/blob's get() attaches it.
-  const blob = await get(url);
-  if (!blob) throw new Error("The stored backup could not be downloaded.");
-  const response = await fetch(blob.downloadUrl);
-  if (!response.ok) throw new Error("The stored backup could not be downloaded.");
-  return response.json();
+  // @vercel/blob v2 returns the response body as a stream and requires an
+  // explicit access mode. Private blobs need the token; old snapshots may
+  // still be public, so try the expected mode first and fall back once.
+  const expected = isPrivateBlobUrl(url) ? "private" : "public";
+  let result = null;
+  try {
+    result = await get(url, { access: expected });
+  } catch {
+    result = await get(url, { access: expected === "private" ? "public" : "private" });
+  }
+  if (!result || result.statusCode !== 200 || !result.stream) {
+    throw new Error("The stored backup could not be downloaded.");
+  }
+  return new Response(result.stream).json();
+}
+
+export async function migratePublicSystemBackups() {
+  if (!blobEnabled()) return { total: 0, migrated: 0, failed: 0, failures: [] };
+  const backups = await listSystemBackups();
+  const legacy = backups.filter((b) => !isPrivateBlobUrl(b.url));
+  const failures = [];
+  let migrated = 0;
+
+  for (const backup of legacy) {
+    try {
+      const snapshot = await fetchBackupBlob(backup.url);
+      if (!snapshot || !snapshot.tables) throw new Error("Not a full-system backup.");
+      const stored = await saveBackupBlob({
+        kind: "system",
+        payload: JSON.stringify(snapshot),
+        prune: false,
+      });
+      if (!stored) throw new Error("Private backup storage is not configured.");
+      const copy = await fetchBackupBlob(stored.url);
+      if (!copy || copy.createdAt !== snapshot.createdAt || Object.keys(copy.tables || {}).length !== Object.keys(snapshot.tables).length) {
+        throw new Error("The private copy could not be verified.");
+      }
+      await del(backup.url);
+      migrated += 1;
+    } catch (error) {
+      failures.push(backup.pathname);
+      console.error("Legacy backup migration failed:", backup.pathname, error);
+    }
+  }
+
+  if (failures.length === 0 && migrated > 0) await pruneSystemBackups(MAX_SYSTEM_BACKUPS);
+  return { total: legacy.length, migrated, failed: failures.length, failures };
 }
