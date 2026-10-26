@@ -49,9 +49,9 @@ export default function Login() {
       } else {
         const cb = typeof router.query.callbackUrl === "string" ? router.query.callbackUrl : "";
         if (cb && cb.startsWith("/") && !cb.startsWith("//") && !cb.startsWith("/api/auth/")) {
-          window.location.href = cb;
+          router.push(cb);
         } else {
-          window.location.href = "/dashboard";
+          router.push("/dashboard");
         }
         return;
       }
