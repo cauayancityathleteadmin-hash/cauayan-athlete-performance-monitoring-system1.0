@@ -26,7 +26,8 @@
     "recharts": "^3.10.1"
   },
   "overrides": {
-    "nodemailer": "^8.0.11"
+    "nodemailer": "^8.0.11",
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "eslint": "^9",
