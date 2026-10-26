@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { prisma } from "../../../lib/prisma";
 import { authOptions } from "../auth/[...nextauth]";
 import { requireCsrf } from "../../../lib/api-security";
+import { checkRateLimitDb } from "../../../lib/rate-limit-db";
 import { checkPasswordStrength } from "../../../lib/password";
 
 export default async function handler(req, res) {
@@ -13,6 +14,22 @@ export default async function handler(req, res) {
   if (origin && origin !== expectedOrigin) return res.status(403).json({ error: "Request origin rejected." });
   const session = await getServerSession(req, res, authOptions);
   if (!session?.user?.id) return res.status(401).json({ error: "Authentication required" });
+
+  // L-03: throttle current-password guesses so a stolen session cannot be
+  // used to brute-force the account password.
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || "unknown";
+  const rate = await checkRateLimitDb({
+    scope: "change-password",
+    key: `user:${session.user.id}:${ip}`,
+    limit: 10,
+    windowMs: 15 * 60 * 1000,
+    failClosed: true,
+  });
+  if (!rate.allowed) {
+    if (rate.retryAfter) res.setHeader("Retry-After", String(rate.retryAfter));
+    return res.status(429).json({ error: "Too many password attempts. Please try again later." });
+  }
+
   const { currentPassword, newPassword } = req.body ?? {};
   if (typeof currentPassword !== "string" || typeof newPassword !== "string" || newPassword.length < 12 || newPassword.length > 200) return res.status(400).json({ error: "New password must be 12 to 200 characters." });
 

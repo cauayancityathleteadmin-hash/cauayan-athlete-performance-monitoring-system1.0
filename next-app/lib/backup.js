@@ -64,7 +64,6 @@ export const COACH_ORDER = [
   "training_attendances",
   "exercise_performances",
   "training_assessments",
-  "coach_performances",
 ];
 
 const COACH_SELECT = {
@@ -88,7 +87,6 @@ const COACH_SELECT = {
   training_attendances: "session_id IN (SELECT id FROM training_sessions WHERE coach_id = $1)",
   exercise_performances: "exercise_id IN (SELECT e.id FROM training_exercises e JOIN training_sessions s ON s.id = e.session_id WHERE s.coach_id = $1) AND athlete_id IN (SELECT id FROM athletes WHERE coach_id = $1)",
   training_assessments: "plan_id IN (SELECT id FROM training_plans WHERE coach_id = $1) OR athlete_id IN (SELECT id FROM athletes WHERE coach_id = $1)",
-  coach_performances: "coach_id = $1",
 };
 
 const CAST_BY_TYPE = {
@@ -276,6 +274,52 @@ export async function restoreCoach(prisma, rawSnapshot, coachId) {
     throw new Error("This backup file does not match your coach record.");
   }
 
+  const liveCoach = await prisma.coach.findUnique({ where: { id: Number(coachId) } });
+  if (!liveCoach) throw new Error("Coach record not found.");
+
+  // H-02: a backup file is user-editable JSON. Never let a coach restore
+  // admin-only approval fields or change the identity link of their account.
+  const lockedCoachFields = {
+    user_id: liveCoach.userId,
+    coach_code: liveCoach.coachCode,
+    status: liveCoach.status,
+  };
+  for (const [column, expected] of Object.entries(lockedCoachFields)) {
+    if (coachRows[0][column] !== undefined && String(coachRows[0][column]) !== String(expected)) {
+      throw new Error(`Restore blocked: the backup tries to change the protected coach field "${column}". Nothing was changed.`);
+    }
+  }
+
+  const livePlans = await prisma.trainingPlan.findMany({
+    where: { coachId: Number(coachId) },
+    select: { id: true, allowLateAssessment: true, isTemplate: true },
+  });
+  const livePlansById = new Map(livePlans.map((plan) => [plan.id, plan]));
+
+  function protectedRow(table, row) {
+    if (table === "coaches") {
+      return {
+        ...row,
+        ...lockedCoachFields,
+        can_approve_coaches: liveCoach.canApproveCoaches,
+        approval_code_hash: liveCoach.approvalCodeHash,
+        approval_code_expires_at: liveCoach.approvalCodeExpiresAt,
+        approval_activated_at: liveCoach.approvalActivatedAt,
+      };
+    }
+    if (table === "training_plans") {
+      const livePlan = livePlansById.get(Number(row.id));
+      return {
+        ...row,
+        // Admin-only switches: a restore can never grant late assessment or
+        // publish a coach-created plan as a shared template.
+        allow_late_assessment: livePlan ? livePlan.allowLateAssessment : false,
+        is_template: livePlan ? livePlan.isTemplate : false,
+      };
+    }
+    return row;
+  }
+
   const myAthletes = ids(decodeRows(snapshot.tables.athletes || []));
   const myAssessments = ids(decodeRows(snapshot.tables.assessments || []));
   const myPlans = ids(decodeRows(snapshot.tables.training_plans || []));
@@ -309,7 +353,9 @@ export async function restoreCoach(prisma, rawSnapshot, coachId) {
 
   const tables = await getTables(prisma);
   const typeMap = await getColumnTypes(prisma);
-  const order = snapshot.order.filter((t) => tables.includes(t) && snapshot.tables[t]);
+  // Coach evaluations are admin-authored. Older coach backups may contain
+  // them, but restoring must never overwrite the official record.
+  const order = snapshot.order.filter((t) => t !== "coach_performances" && tables.includes(t) && snapshot.tables[t]);
 
   await prisma.$transaction(async (tx) => {
     for (const table of order.slice().reverse()) {
@@ -319,7 +365,9 @@ export async function restoreCoach(prisma, rawSnapshot, coachId) {
     }
     for (const table of order) {
       const raw = snapshot.tables[table] || [];
-      const rows = decodeRows(raw).filter((r) => validators[table] ? validators[table](r) : true);
+      const rows = decodeRows(raw)
+        .filter((r) => validators[table] ? validators[table](r) : true)
+        .map((r) => protectedRow(table, r));
       if (!validators[table]) throw new Error(`Restore blocked: table "${table}" is not part of a coach's own data.`);
       if (raw.length !== rows.length) {
         throw new Error(`Restore blocked: the backup contains data that is not yours in "${table}". Nothing was changed.`);
@@ -329,7 +377,12 @@ export async function restoreCoach(prisma, rawSnapshot, coachId) {
     await syncSequences(tx, order, typeMap);
   });
 
-  return summarize(snapshot);
+  const summary = summarize(snapshot);
+  if (summary.tables && summary.tables.coach_performances) {
+    summary.total -= summary.tables.coach_performances;
+    delete summary.tables.coach_performances;
+  }
+  return summary;
 }
 
 function summarize(snapshot) {

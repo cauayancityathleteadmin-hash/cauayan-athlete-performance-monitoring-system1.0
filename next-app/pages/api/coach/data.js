@@ -1,7 +1,7 @@
 import { prisma } from "../../../lib/prisma";
 import { requireCsrf, requireSession, setSecurityHeaders } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
-import { buildCoachSnapshot, restoreCoach } from "../../../lib/backup";
+import { buildCoachSnapshot, buildSystemSnapshot, restoreCoach } from "../../../lib/backup";
 import { blobEnabled, saveBackupBlob } from "../../../lib/blob-store";
 
 export const config = { api: { bodyParser: { sizeLimit: "25mb" }, responseLimit: false } };
