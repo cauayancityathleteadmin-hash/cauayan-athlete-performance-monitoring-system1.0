@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import Head from "next/head";
+import { signIn } from "next-auth/react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 
@@ -18,47 +19,11 @@ export default function Login() {
     try {
       const identifier = identifierRef.current ? identifierRef.current.value : "";
       const password = passwordRef.current ? passwordRef.current.value : "";
-      
-      const csrfRes = await fetch("/api/auth/csrf");
-      const { csrfToken } = await csrfRes.json();
-      
-      const formData = new URLSearchParams();
-      formData.append("csrfToken", csrfToken);
-      formData.append("identifier", identifier);
-      formData.append("password", password);
-      formData.append("callbackUrl", "/dashboard");
-      formData.append("json", "true");
-      
-      const res = await fetch("/api/auth/callback/credentials", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: formData,
-        credentials: "include",
-      });
-      
-      const data = await res.json();
-      
-      if (data.url && data.url.includes("error")) {
-        if (data.url.includes("PENDING_APPROVAL")) {
-          setError("Approval still pending.");
-        } else {
-          setError("Login failed. Try again.");
-        }
-      } else {
-        const cb = typeof router.query.callbackUrl === "string" ? router.query.callbackUrl : "";
-        if (cb && cb.startsWith("/") && !cb.startsWith("//") && !cb.startsWith("/api/auth/")) {
-          router.push(cb);
-        } else {
-          router.push("/dashboard");
-        }
-        return;
-      }
+      const result = await signIn("credentials", { identifier, password, redirect: true, callbackUrl: "/dashboard" });
     } catch (err) {
       setError("Unable to sign in.");
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   return (
