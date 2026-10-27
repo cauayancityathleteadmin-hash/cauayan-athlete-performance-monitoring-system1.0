@@ -1,6 +1,5 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Head from "next/head";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 
@@ -9,8 +8,16 @@ export default function Login() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [csrfToken, setCsrfToken] = useState("");
   const identifierRef = useRef(null);
   const passwordRef = useRef(null);
+
+  useEffect(() => {
+    fetch("/api/auth/csrf")
+      .then((res) => res.json())
+      .then((data) => setCsrfToken(data.csrfToken || ""))
+      .catch(() => {});
+  }, []);
 
   async function submit(event) {
     event.preventDefault();
@@ -19,11 +26,37 @@ export default function Login() {
     try {
       const identifier = identifierRef.current ? identifierRef.current.value : "";
       const password = passwordRef.current ? passwordRef.current.value : "";
-      const result = await signIn("credentials", { identifier, password, redirect: true, callbackUrl: "/dashboard" });
+      
+      const form = event.target;
+      const formData = new FormData(form);
+      formData.set("identifier", identifier);
+      formData.set("password", password);
+      if (csrfToken) formData.set("csrfToken", csrfToken);
+      formData.set("callbackUrl", "/dashboard");
+      
+      const res = await fetch("/api/auth/callback/credentials", {
+        method: "POST",
+        body: new URLSearchParams(formData),
+        credentials: "include",
+        redirect: "manual"
+      });
+      
+      if (res.status === 302 || res.status === 307) {
+        window.location.href = "/dashboard";
+        return;
+      }
+      
+      const data = await res.json().catch(() => ({}));
+      if (data.url && data.url.includes("error")) {
+        setError("Login failed. Try again.");
+      } else {
+        window.location.href = "/dashboard";
+        return;
+      }
     } catch (err) {
       setError("Unable to sign in.");
-      setBusy(false);
     }
+    setBusy(false);
   }
 
   return (
