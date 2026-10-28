@@ -20,9 +20,14 @@ const nextConfig = {
   async headers() {
     // 'unsafe-eval' is only needed in dev (Next.js dev tooling); keep it out
     // of the production CSP (M-09).
+    // 'unsafe-inline' is required: the Pages Router emits an inline Turbopack
+    // bootstrap script on every page, and /login, /forgot-password and
+    // /reset-password are statically prerendered, so a per-request nonce
+    // cannot be injected (nonces require dynamic rendering on every page).
+    // Without it the CSP blocks that script and no page hydrates.
     const scriptSrc = process.env.NODE_ENV === "production"
-      ? "default-src 'self'; script-src 'self' https://challenges.cloudflare.com;"
-      : "default-src 'self'; script-src 'self' 'unsafe-eval' https://challenges.cloudflare.com;";
+      ? "default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com;"
+      : "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com;";
     return [
       {
         source: "/(.*)",
