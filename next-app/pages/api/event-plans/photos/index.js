@@ -2,6 +2,7 @@ import { put, del } from "@vercel/blob";
 import { prisma } from "../../../../lib/prisma";
 import { requireCsrf, requireSession, text, validId, setSecurityHeaders } from "../../../../lib/api-security";
 import { rateLimiters } from "../../../../lib/rate-limit";
+import { detectImage } from "../../../../lib/image-validation";
 
 export const config = { api: { bodyParser: { sizeLimit: "4mb" } } };
 
@@ -108,15 +109,17 @@ export default async function handler(req, res) {
     if (!base64 || !mime || !ALLOWED[mime]) return res.status(400).json({ error: "Attach a valid JPEG, PNG, or WEBP photo." });
     const buf = Buffer.from(base64, "base64");
     if (!buf.length || buf.length > MAX_BYTES) return res.status(400).json({ error: "The photo is empty or larger than 2.5 MB." });
+    const detected = detectImage(buf);
+    if (!detected) return res.status(400).json({ error: "The file content is not a valid JPEG, PNG, or WEBP image." });
 
     const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || "unknown";
     const rate = rateLimiters.api(`event-photos:${ip}`);
     if (!rate.allowed) return res.status(429).json({ error: "Too many uploads. Please try again later." });
 
     try {
-      const ext = ALLOWED[mime];
+      const { ext, mime: realMime } = detected;
       const name = `event-photos/p${eventPlanId}-${category}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
-      const { url } = await put(name, buf, { access: "public", contentType: mime });
+      const { url } = await put(name, buf, { access: "public", contentType: realMime });
 
       const row = await prisma.eventPhoto.create({
         data: {

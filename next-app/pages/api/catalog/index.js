@@ -5,6 +5,11 @@ import { rateLimiters } from "../../../lib/rate-limit";
 // Allowed sport categories (mirrors the SportCategory enum in schema.prisma).
 const SPORT_CATEGORIES = ["individual", "team", "racket", "combat", "aquatics", "dance"];
 
+// Deactivation is only allowed on these models. `kind` arrives from the client,
+// so it must never be used directly as a Prisma model name (that would let a
+// caller target any model, e.g. users).
+const DEACTIVATABLE_KINDS = ["sport", "event", "school"];
+
 export default async function handler(req, res) {
   setSecurityHeaders(res);
   const session = await requireSession(req, res);
@@ -68,6 +73,9 @@ export default async function handler(req, res) {
     const kind = text(req.body?.kind, 20, true);
     const id = validId(req.body?.id);
     if (!kind || !id) return res.status(400).json({ error: "Catalog item id and kind are required." });
+    if (!DEACTIVATABLE_KINDS.includes(kind)) {
+      return res.status(400).json({ error: "Unsupported catalog item." });
+    }
     try {
       await prisma[kind].update({ where: { id }, data: { status: "inactive" } });
       await prisma.auditLog.create({ data: { userId: Number(session.user.id), action: "deactivate", entityType: kind, entityId: id, description: `Deactivated ${kind} #${id}` } });

@@ -1,6 +1,7 @@
 import { put } from "@vercel/blob";
 import { requireCsrf, requireSession, setSecurityHeaders } from "../../../lib/api-security";
 import { rateLimiters } from "../../../lib/rate-limit";
+import { detectImage } from "../../../lib/image-validation";
 
 export const config = { api: { bodyParser: { sizeLimit: "2.5mb" } } };
 
@@ -26,14 +27,18 @@ export default async function handler(req, res) {
   if (!buf.length || buf.length > MAX_BYTES) {
     return res.status(400).json({ error: "The ID picture is empty or larger than 1 MB." });
   }
+  const detected = detectImage(buf);
+  if (!detected) {
+    return res.status(400).json({ error: "The file content is not a valid JPEG, PNG, or WEBP image." });
+  }
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return res.status(503).json({ error: "Image storage is not configured on the server." });
   }
 
   try {
-    const ext = ALLOWED[mime];
+    const { ext, mime: realMime } = detected;
     const name = `id-photos/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
-    const { url } = await put(name, buf, { access: "public", contentType: mime });
+    const { url } = await put(name, buf, { access: "public", contentType: realMime });
     return res.status(200).json({ url });
   } catch (error) {
     console.error("ID picture upload failed", error);
