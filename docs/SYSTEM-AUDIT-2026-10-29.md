@@ -190,6 +190,33 @@ batch/mixed-batch, review status, completeness checklist.
 
 ---
 
+## 6A. Phase A results (implemented, deployed, verified)
+
+Commit `e29e6d7` (pushed to `main`; `origin/main` matches; live code confirmed).
+
+| Item | Change | Evidence |
+|---|---|---|
+| S3 | `lib/image-validation.js` magic-byte detection (JPEG/PNG/WEBP); both upload endpoints reject content that does not match, and store the **detected** content type | Local unit probe: png/jpg/webp accepted, html/php/exe/truncated → `null`. Live: HTML-as-PNG, PHP-as-JPEG, truncated PNG → `400 The file content is not a valid JPEG, PNG, or WEBP image.` |
+| S4 | `DEACTIVATABLE_KINDS = ["sport","event","school"]` in catalog DELETE | Live: `kind:"user"` → `400 Unsupported catalog item.` |
+| — | Lint / build | `npx eslint .` 0 problems; `next build` success |
+
+### Incident during verification (disclosed, corrected)
+
+The first live probe ran **before** the new deployment rolled over, so it hit the old
+catalog handler: `DELETE /api/catalog {kind:"user", id:1}` set `admin.101` to `inactive`
+(audit log #620), and `kind:"performanceMetric"` set `performance_metrics#1` to `inactive`
+(#621). Both were restored to `active` within minutes and a corrective audit entry (#622)
+was written. The evidence logs were **not** deleted.
+
+Residual: the same probe uploaded one non-image object through the old endpoint
+(`id-photos/1793236756608-5aiyadmx.png`, stored as `image/png`, content HTML). It is
+public but not renderable as HTML because of the stored content type. The local
+`BLOB_READ_WRITE_TOKEN` cannot delete objects in that store, so it remains to be removed
+with a token that owns the production store.
+
+Lesson applied: deployment liveness must be confirmed with a **non-mutating** probe before
+exercising any endpoint that can write.
+
 ## 7. What was NOT verified in this phase
 
 - Per-route authorization for `/api/reports/*`, `/api/notifications/test`, `/api/nav-shortcuts`,
