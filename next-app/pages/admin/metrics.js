@@ -1,6 +1,7 @@
 import Head from "next/head";
 import React from "react";
 import { getSession } from "next-auth/react";
+import { useRouter } from "next/router";
 import { prisma } from "../../lib/prisma";
 import AppShell from "../../components/AppShell";
 import styles from "../../styles/Dashboard.module.css";
@@ -12,7 +13,10 @@ export async function getServerSideProps(context) {
   if (session.user.role !== "admin") return { redirect: { destination: "/dashboard", permanent: false } };
   const [events, metrics] = await Promise.all([
     prisma.event.findMany({ where: { status: "active" }, orderBy: { eventName: "asc" }, include: { sport: true } }),
-    prisma.performanceMetric.findMany({ orderBy: { metricName: "asc" }, include: { event: { include: { sport: true } } } }),
+    prisma.performanceMetric.findMany({
+      orderBy: [{ status: "asc" }, { metricName: "asc" }],
+      include: { event: { include: { sport: true } }, _count: { select: { results: true } } },
+    }),
   ]);
   return { props: { session, events: JSON.parse(JSON.stringify(events)), metrics: JSON.parse(JSON.stringify(metrics)) } };
 }
@@ -210,10 +214,23 @@ function FitnessNormsEditor() {
 }
 
 export default function Metrics({ session, events, metrics }) {
+  const router = useRouter();
   const [message, setMessage] = React.useState({ kind: "", text: "" });
   const [busy, setBusy] = React.useState(false);
+  const [editing, setEditing] = React.useState(null);
 
-  async function addMetric(event) {
+  async function send(method, body) {
+    const csrf = await fetch("/api/csrf").then((r) => r.json());
+    const response = await fetch("/api/catalog", {
+      method,
+      headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+      body: JSON.stringify(body),
+    }).catch(() => null);
+    const result = response ? await response.json().catch(() => ({})) : {};
+    return { ok: !!(response && response.ok && !result.error), error: result.error, result };
+  }
+
+  async function saveMetric(event) {
     event.preventDefault();
     setBusy(true);
     setMessage({ kind: "", text: "" });
@@ -230,17 +247,35 @@ export default function Metrics({ session, events, metrics }) {
       minimumValue: form.get("minimumValue"),
       maximumValue: form.get("maximumValue"),
     };
-    const csrf = await fetch("/api/csrf").then((r) => r.json());
-    const response = await fetch("/api/catalog", { method: "POST", headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token }, body: JSON.stringify(body) }).catch(() => null);
-    const result = response ? await response.json().catch(() => ({})) : {};
-    if (response && response.ok && !result.error) {
-      setMessage({ kind: "success", text: "Performance metric added. Refresh to see it in the list." });
+    if (editing) body.id = editing.id;
+    const { ok, error } = await send(editing ? "PUT" : "POST", body);
+    if (ok) {
+      setMessage({ kind: "success", text: editing ? "Metric updated." : "Performance metric added." });
+      setEditing(null);
       event.currentTarget.reset();
+      await router.replace(router.asPath);
     } else {
-      setMessage({ kind: "danger", text: result.error || "Could not add metric." });
+      setMessage({ kind: "danger", text: error || "Could not save metric." });
     }
     setBusy(false);
   }
+
+  async function setStatus(metric, status) {
+    if (status === "inactive" && typeof window !== "undefined" && !window.confirm(`Deactivate “${metric.metricName}”? Existing results stay readable, but it will no longer be offered for new assessments.`)) return;
+    setBusy(true);
+    setMessage({ kind: "", text: "" });
+    const { ok, error } = await send("PUT", { kind: "metric", id: metric.id, status });
+    if (ok) {
+      setMessage({ kind: "success", text: `“${metric.metricName}” is now ${status}.` });
+      if (editing?.id === metric.id) setEditing(null);
+      await router.replace(router.asPath);
+    } else {
+      setMessage({ kind: "danger", text: error || "Could not update the metric." });
+    }
+    setBusy(false);
+  }
+
+  const editingEventMissing = editing && !events.some((event) => event.id === editing.eventId);
 
   return (
     <>
@@ -248,25 +283,58 @@ export default function Metrics({ session, events, metrics }) {
       <AppShell session={session} isAdmin eyebrow="Measurements" title="Performance Metrics" active="/admin/metrics">
         <div className={styles.pageTitle}><h1>Performance metrics</h1></div>
         <section className={styles.panel}>
-          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Configuration</p><h2>Add performance metric</h2></div></div>
-          <form onSubmit={addMetric} className={styles.formGrid}>
-            <label>Event *<select name="eventId" required defaultValue="">{events.map((event) => <option value={event.id} key={event.id}>{event.sport.sportName} - {event.eventName}</option>)}</select></label>
-            <label>Metric name *<input name="metricName" required maxLength="150" placeholder="e.g. 100m time" /></label>
-            <label>Unit<input name="unit" maxLength="50" placeholder="seconds, cm, score..." /></label>
-            <label>Data type<select name="dataType" defaultValue="decimal">{Object.entries(DATA_TYPES).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
-            <label>Better result<select name="betterDirection" defaultValue="neutral">{Object.entries(BETTER).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
-            <label>Decimal places<input name="decimalPlaces" type="number" min="0" max="6" defaultValue="0" /></label>
-            <label>Minimum value<input name="minimumValue" type="number" step="any" /></label>
-            <label>Maximum value<input name="maximumValue" type="number" step="any" /></label>
-            <label className={styles.fullField} style={{ flexDirection: "row", alignItems: "center", gap: "var(--space-3)", color: "var(--muted)", fontSize: 14 }}><input name="isRequired" type="checkbox" style={{ width: 16, height: 16, accentColor: "var(--accent)" }} />Required metric (must be completed on every assessment)</label>
-            <div className={styles.formActions}><button className={styles.primary} disabled={busy}>{busy ? "Saving..." : "Add metric"}</button></div>
+          <div className={styles.panelHeader}>
+            <div>
+              <p className={styles.eyebrow}>Configuration</p>
+              <h2>{editing ? "Edit performance metric" : "Add performance metric"}</h2>
+            </div>
+            {editing && <button type="button" className={styles.btnSm} onClick={() => { setEditing(null); setMessage({ kind: "", text: "" }); }}>Cancel edit</button>}
+          </div>
+          {editing && editing._count?.results > 0 && (
+            <p className={styles.formError} role="status">
+              This metric has {editing._count.results} recorded result(s). Its definition cannot be changed; only status can be updated.
+            </p>
+          )}
+          <form onSubmit={saveMetric} className={styles.formGrid} key={editing ? `edit-${editing.id}` : "new"}>
+            <label>Event *<select name="eventId" required defaultValue={editing ? String(editing.eventId) : ""}>
+              {editingEventMissing && <option value={editing.eventId}>{editing.event.sport.sportName} - {editing.event.eventName} (inactive)</option>}
+              {events.map((event) => <option value={event.id} key={event.id}>{event.sport.sportName} - {event.eventName}</option>)}
+            </select></label>
+            <label>Metric name *<input name="metricName" required maxLength="150" defaultValue={editing?.metricName || ""} placeholder="e.g. 100m time" /></label>
+            <label>Unit<input name="unit" maxLength="50" defaultValue={editing?.unit || ""} placeholder="seconds, cm, score..." /></label>
+            <label>Data type<select name="dataType" defaultValue={editing?.dataType || "decimal"}>{Object.entries(DATA_TYPES).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+            <label>Better result<select name="betterDirection" defaultValue={editing?.betterDirection || "neutral"}>{Object.entries(BETTER).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+            <label>Decimal places<input name="decimalPlaces" type="number" min="0" max="6" defaultValue={editing?.decimalPlaces ?? 0} /></label>
+            <label>Minimum value<input name="minimumValue" type="number" step="any" defaultValue={editing?.minimumValue ?? ""} /></label>
+            <label>Maximum value<input name="maximumValue" type="number" step="any" defaultValue={editing?.maximumValue ?? ""} /></label>
+            <label className={styles.fullField} style={{ flexDirection: "row", alignItems: "center", gap: "var(--space-3)", color: "var(--muted)", fontSize: 14 }}><input name="isRequired" type="checkbox" defaultChecked={!!editing?.isRequired} style={{ width: 16, height: 16, accentColor: "var(--accent)" }} />Required metric (must be completed on every assessment)</label>
+            <div className={styles.formActions}><button className={styles.primary} disabled={busy}>{busy ? "Saving..." : editing ? "Save changes" : "Add metric"}</button></div>
             {message.text && <p role="status" className={`${styles.fullField} ${message.kind === "success" ? styles.formSuccess : styles.formError}`}>{message.text}</p>}
           </form>
         </section>
 
         <section className={styles.panel}>
-          <div className={styles.sectionHeading}><div><h2>Configured metrics</h2><small className={styles.small}>Quantifiable measures by event</small></div><span className={styles.countBadge}>{metrics.length}</span></div>
-          <div className={styles.tableWrap}><table><thead><tr><th scope="col">Sport / Event</th><th scope="col">Metric</th><th scope="col">Unit</th><th scope="col">Data type</th><th scope="col">Better</th><th scope="col">Required</th></tr></thead><tbody>{metrics.map((metric) => <tr key={metric.id}><td data-label="Sport / Event">{metric.event.sport.sportName} / {metric.event.eventName}</td><td data-label="Metric">{metric.metricName}</td><td data-label="Unit">{metric.unit || "—"}</td><td data-label="Data type">{DATA_TYPES[metric.dataType] || metric.dataType}</td><td data-label="Better">{BETTER[metric.betterDirection] || "—"}</td><td data-label="Required">{metric.isRequired ? "Yes" : "No"}</td></tr>)}{!metrics.length && <tr><td colSpan="6" className={styles.empty}>No metrics configured yet.</td></tr>}</tbody></table></div>
+          <div className={styles.sectionHeading}><div><h2>Configured metrics</h2><small className={styles.small}>Quantifiable measures by event. Metrics with recorded results cannot be redefined.</small></div><span className={styles.countBadge}>{metrics.length}</span></div>
+          <div className={styles.tableWrap}><table><thead><tr><th scope="col">Sport / Event</th><th scope="col">Metric</th><th scope="col">Unit</th><th scope="col">Data type</th><th scope="col">Better</th><th scope="col">Required</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead><tbody>{metrics.map((metric) => {
+            const locked = metric._count?.results > 0;
+            return (
+              <tr key={metric.id}>
+                <td data-label="Sport / Event">{metric.event.sport.sportName} / {metric.event.eventName}</td>
+                <td data-label="Metric">{metric.metricName}</td>
+                <td data-label="Unit">{metric.unit || "—"}</td>
+                <td data-label="Data type">{DATA_TYPES[metric.dataType] || metric.dataType}</td>
+                <td data-label="Better">{BETTER[metric.betterDirection] || "—"}</td>
+                <td data-label="Required">{metric.isRequired ? "Yes" : "No"}</td>
+                <td data-label="Status">{metric.status === "active" ? "Active" : "Inactive"}{locked ? ` · ${metric._count.results} result(s)` : ""}</td>
+                <td data-label="Actions">
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)" }}>
+                    <button type="button" className={styles.btnSm} disabled={busy || locked} title={locked ? "Recorded results exist; create a new metric instead." : "Edit this metric"} onClick={() => { setEditing(metric); setMessage({ kind: "", text: "" }); }}>Edit</button>
+                    <button type="button" className={styles.btnSm} disabled={busy} onClick={() => setStatus(metric, metric.status === "active" ? "inactive" : "active")}>{metric.status === "active" ? "Deactivate" : "Reactivate"}</button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}{!metrics.length && <tr><td colSpan="8" className={styles.empty}>No metrics configured yet.</td></tr>}</tbody></table></div>
         </section>
 
         <FitnessNormsEditor />

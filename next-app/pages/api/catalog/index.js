@@ -8,7 +8,48 @@ const SPORT_CATEGORIES = ["individual", "team", "racket", "combat", "aquatics", 
 // Deactivation is only allowed on these models. `kind` arrives from the client,
 // so it must never be used directly as a Prisma model name (that would let a
 // caller target any model, e.g. users).
-const DEACTIVATABLE_KINDS = ["sport", "event", "school"];
+const DEACTIVATABLE_KINDS = ["sport", "event", "school", "metric"];
+
+const METRIC_DATA_TYPES = ["decimal", "integer", "text"];
+const METRIC_DIRECTIONS = ["higher", "lower", "neutral"];
+
+function optionalNumber(value) {
+  if (value === "" || value === undefined || value === null) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+// Validates a full metric definition (existing values merged with the request).
+// Returns an error string, or null when the definition is usable.
+function validateMetricDefinition(metric) {
+  if (!METRIC_DATA_TYPES.includes(metric.dataType)) return "Data type must be decimal, integer, or text.";
+  if (!METRIC_DIRECTIONS.includes(metric.betterDirection)) return "Better result must be higher, lower, or neutral.";
+  if (!Number.isInteger(metric.decimalPlaces) || metric.decimalPlaces < 0 || metric.decimalPlaces > 6) {
+    return "Decimal places must be a whole number from 0 to 6.";
+  }
+  const hasMin = metric.minimumValue !== null && metric.minimumValue !== undefined;
+  const hasMax = metric.maximumValue !== null && metric.maximumValue !== undefined;
+  if (metric.dataType === "text") {
+    if (hasMin || hasMax) return "Text metrics cannot have a numeric minimum or maximum.";
+    return null;
+  }
+  if (hasMin && !Number.isFinite(Number(metric.minimumValue))) return "Minimum value must be a number.";
+  if (hasMax && !Number.isFinite(Number(metric.maximumValue))) return "Maximum value must be a number.";
+  if (hasMin && hasMax && Number(metric.minimumValue) > Number(metric.maximumValue)) {
+    return "Minimum value cannot be greater than the maximum value.";
+  }
+  return null;
+}
+
+// Fields that change how an already-recorded result must be interpreted.
+const INTERPRETATION_FIELDS = ["eventId", "metricName", "unit", "dataType", "betterDirection", "decimalPlaces", "minimumValue", "maximumValue"];
+
+function sameValue(a, b) {
+  if (a === null || a === undefined) return b === null || b === undefined;
+  if (b === null || b === undefined) return false;
+  if (typeof a === "object" || typeof b === "object") return String(a) === String(b);
+  return a === b;
+}
 
 export default async function handler(req, res) {
   setSecurityHeaders(res);
@@ -61,6 +102,67 @@ export default async function handler(req, res) {
           return d;
         })()
       );
+      if (result) return result;
+    } else if (kind === "metric") {
+      const existing = await prisma.performanceMetric.findUnique({
+        where: { id },
+        include: { _count: { select: { results: true } } },
+      });
+      if (!existing) return res.status(404).json({ error: "Metric not found." });
+
+      const next = {
+        eventId: req.body?.eventId !== undefined ? validId(req.body.eventId) : existing.eventId,
+        metricName: req.body?.metricName !== undefined ? text(req.body.metricName, 150, true) : existing.metricName,
+        unit: req.body?.unit !== undefined ? text(req.body.unit, 50) || null : existing.unit,
+        dataType: req.body?.dataType !== undefined ? req.body.dataType : existing.dataType,
+        betterDirection: req.body?.betterDirection !== undefined ? req.body.betterDirection : existing.betterDirection,
+        decimalPlaces: req.body?.decimalPlaces !== undefined ? Number(req.body.decimalPlaces) : existing.decimalPlaces,
+        minimumValue: req.body?.minimumValue !== undefined ? optionalNumber(req.body.minimumValue) : existing.minimumValue,
+        maximumValue: req.body?.maximumValue !== undefined ? optionalNumber(req.body.maximumValue) : existing.maximumValue,
+        isRequired: req.body?.isRequired !== undefined ? (req.body.isRequired === true || req.body.isRequired === "true") : existing.isRequired,
+        status: req.body?.status !== undefined ? req.body.status : existing.status,
+      };
+
+      if (!next.eventId) return res.status(400).json({ error: "The selected event is invalid." });
+      if (!next.metricName) return res.status(400).json({ error: "Metric name is required." });
+      if (!["active", "inactive"].includes(next.status)) return res.status(400).json({ error: "Status must be active or inactive." });
+      if (next.dataType === "text") next.decimalPlaces = 0;
+      if (Number.isNaN(next.minimumValue) || Number.isNaN(next.maximumValue)) {
+        return res.status(400).json({ error: "Minimum and maximum must be numbers." });
+      }
+      const invalid = validateMetricDefinition(next);
+      if (invalid) return res.status(400).json({ error: invalid });
+
+      const event = await prisma.event.findUnique({ where: { id: next.eventId }, select: { id: true } });
+      if (!event) return res.status(400).json({ error: "The selected event is invalid." });
+
+      // Historical protection: once results exist, redefining the metric would
+      // silently change what those results mean. Only status and "required"
+      // may change; everything else requires a new metric definition.
+      if (existing._count.results > 0) {
+        const changed = INTERPRETATION_FIELDS.filter((field) => {
+          if (field === "decimalPlaces" && next.dataType === "text") return false;
+          return !sameValue(existing[field], next[field]);
+        });
+        if (changed.length) {
+          return res.status(409).json({
+            error: `This metric already has ${existing._count.results} recorded result(s), so its definition cannot be changed. Deactivate it and create a new metric instead.`,
+          });
+        }
+      }
+
+      const result = await updateCatalogItem(res, session, "performanceMetric", id, {
+        eventId: next.eventId,
+        metricName: next.metricName,
+        unit: next.unit,
+        dataType: next.dataType,
+        betterDirection: next.betterDirection,
+        decimalPlaces: next.decimalPlaces,
+        minimumValue: next.minimumValue,
+        maximumValue: next.maximumValue,
+        isRequired: next.isRequired,
+        status: next.status,
+      }, "metric");
       if (result) return result;
     } else {
       return res.status(400).json({ error: "Unsupported catalog item." });
@@ -143,13 +245,25 @@ export default async function handler(req, res) {
     const eventId = validId(req.body?.eventId);
     const metricName = text(req.body?.metricName, 150, true);
     if (!eventId || !metricName) return res.status(400).json({ error: "Event and metric name are required." });
-    const dataType = ["decimal", "integer", "text"].includes(req.body?.dataType) ? req.body.dataType : "decimal";
-    const betterDirection = ["higher", "lower", "neutral"].includes(req.body?.betterDirection) ? req.body.betterDirection : "neutral";
+    const dataType = req.body?.dataType ?? "decimal";
+    const betterDirection = req.body?.betterDirection ?? "neutral";
+    const decimalPlaces = Number(req.body?.decimalPlaces ?? 0);
+    const minimumValue = optionalNumber(req.body?.minimumValue);
+    const maximumValue = optionalNumber(req.body?.maximumValue);
+    if (Number.isNaN(minimumValue) || Number.isNaN(maximumValue)) {
+      return res.status(400).json({ error: "Minimum and maximum must be numbers." });
+    }
+    const definition = {
+      dataType,
+      betterDirection,
+      decimalPlaces: dataType === "text" ? 0 : decimalPlaces,
+      minimumValue,
+      maximumValue,
+    };
+    const invalid = validateMetricDefinition(definition);
+    if (invalid) return res.status(400).json({ error: invalid });
     const unit = text(req.body?.unit, 50) || null;
-    const decimalPlaces = Math.max(0, Math.min(6, Number(req.body?.decimalPlaces) || 0));
     const isRequired = req.body?.isRequired === true || req.body?.isRequired === "true";
-    const minimumValue = req.body?.minimumValue !== "" && req.body?.minimumValue !== undefined && req.body?.minimumValue !== null ? Number(req.body.minimumValue) : null;
-    const maximumValue = req.body?.maximumValue !== "" && req.body?.maximumValue !== undefined && req.body?.maximumValue !== null ? Number(req.body.maximumValue) : null;
     const event = await prisma.event.findUnique({ where: { id: eventId }, select: { id: true } });
     if (!event) return res.status(400).json({ error: "The selected event is invalid." });
     try {
@@ -158,11 +272,11 @@ export default async function handler(req, res) {
           eventId,
           metricName,
           unit,
-          dataType,
-          betterDirection,
-          decimalPlaces,
-          minimumValue: Number.isFinite(minimumValue) ? minimumValue : null,
-          maximumValue: Number.isFinite(maximumValue) ? maximumValue : null,
+          dataType: definition.dataType,
+          betterDirection: definition.betterDirection,
+          decimalPlaces: definition.decimalPlaces,
+          minimumValue: definition.minimumValue,
+          maximumValue: definition.maximumValue,
           isRequired,
           status: "active",
         },
@@ -177,10 +291,10 @@ export default async function handler(req, res) {
   return res.status(400).json({ error: "Unsupported catalog item." });
 }
 
-async function updateCatalogItem(res, session, kind, id, data) {
+async function updateCatalogItem(res, session, kind, id, data, entityType = kind) {
   try {
     const updated = await prisma[kind].update({ where: { id }, data });
-    await prisma.auditLog.create({ data: { userId: Number(session.user.id), action: "update", entityType: kind, entityId: id, description: `Updated ${kind} #${id}` } });
+    await prisma.auditLog.create({ data: { userId: Number(session.user.id), action: "update", entityType, entityId: id, description: `Updated ${entityType} #${id}` } });
     return res.status(200).json(updated);
   } catch (error) {
     if (error.code === "P2025") return res.status(404).json({ error: "Catalog item not found." });
