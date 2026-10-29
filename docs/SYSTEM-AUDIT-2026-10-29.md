@@ -217,6 +217,34 @@ with a token that owns the production store.
 Lesson applied: deployment liveness must be confirmed with a **non-mutating** probe before
 exercising any endpoint that can write.
 
+## 6B. Phase B results — performance metric lifecycle (implemented, deployed, verified)
+
+Commit `75d4a02` (plus `949908a` chore). Live API behavior confirmed against production.
+
+| Requirement | Implementation | Evidence |
+|---|---|---|
+| Edit metric definition | `PUT /api/catalog {kind:"metric"}` with full validation | Local: rename + range change → 200, persisted |
+| Deactivate / reactivate | Same PUT with `status`; DELETE whitelist includes `metric` | Local: deactivate → status `inactive` in GET; reactivate → 200 |
+| Historical protection | If `_count.results > 0`, any change to event/name/unit/dataType/direction/precision/min/max → `409` with "create a new metric" guidance | Code-reviewed; **not exercised** — production has zero assessment results |
+| `min <= max` | Enforced on create and update | Local POST/PUT → `400 Minimum value cannot be greater than the maximum value.` |
+| Type-aware bounds | Text metrics reject numeric bounds | Local POST → `400 Text metrics cannot have a numeric minimum or maximum.` |
+| Precision | Whole number 0–6 | Local POST → `400 Decimal places must be a whole number from 0 to 6.` |
+| Enum validation | dataType / betterDirection strict | Local POST → `400 Data type must be decimal, integer, or text.`; live probe confirms same |
+| Admin UI | Status + Actions columns, result counts, Edit (disabled when results exist), Deactivate/Reactivate, edit prefill | Live browser: 61 rows, header `… STATUS | ACTIONS`, Edit prefill populated (Distance / event 4 / decimal / higher / 2dp / 4–16), 0 console errors |
+
+Test artifacts: two scratch metrics were created in the shared DB during local testing and then
+hard-deleted together with their audit rows (verified `remainingScratch: 0`).
+
+Not verified: the `409` historical-protection branch (no results exist), and the UI path for a
+metric that already has results.
+
+## 6C. Deployment liveness discipline (applied after the Phase A incident)
+
+Production is only treated as updated after a **non-mutating** probe confirms the new code:
+- Phase A: `DELETE /api/catalog {kind:"user", id:999999}` → new code returns `400 Unsupported catalog item.`
+- Phase B: `POST /api/catalog {eventId:999999, dataType:"boolean"}` → new code returns `400 Data type must be …`
+  (old code returned "The selected event is invalid." and wrote nothing).
+
 ## 7. What was NOT verified in this phase
 
 - Per-route authorization for `/api/reports/*`, `/api/notifications/test`, `/api/nav-shortcuts`,
