@@ -244,12 +244,46 @@ Production is only treated as updated after a **non-mutating** probe confirms th
 - Phase A: `DELETE /api/catalog {kind:"user", id:999999}` → new code returns `400 Unsupported catalog item.`
 - Phase B: `POST /api/catalog {eventId:999999, dataType:"boolean"}` → new code returns `400 Data type must be …`
   (old code returned "The selected event is invalid." and wrote nothing).
+- Phase C: read `buildId` from the live `/login` page, then fetch
+  `/_next/static/<buildId>/_buildManifest.js` and confirm it lists `/admin/signatories`
+  (the page does not exist in the previous build). Health must also return 200 `db:"up"`.
+  Only then are authenticated or writing calls made.
+
+## 6D. Phase C results — admin-managed report signatories (implemented, deployed, verified)
+
+Commit `010ca27`. Additive migration `20261029014000_add_signatories` (new table `signatories`,
+new enums `SignatoryRole` / `SignatoryDisplay`); no existing table or column was altered.
+A pre-migration dump was written and re-read before the change
+(`db-pre-phase-c-2026-10-29T01-36-10.json`, 42 tables, 613 rows, verify OK).
+
+| Requirement | Implementation | Evidence |
+|---|---|---|
+| Migration safety | `prisma migrate deploy`; table + enums confirmed by direct query | Applied cleanly; `signatories` table and both enums present |
+| Admin CRUD API | `GET/POST/PUT/DELETE /api/admin/signatories`; session + `admin` role, CSRF, rate limit, audit log per write | Local: create 201, update 200, soft delete 200; live: create 201, delete 200 |
+| Strict validation | Report type, role, display mode, status, order 0–999, valid dates, `from <= to`, required name/position, 150-char caps | 10 invalid payloads → `400` with field-specific messages; live order-1000 probe → `400` |
+| Effective window | Only `active` rows inside `effectiveFrom`/`effectiveTo` are used | Server helper: row excluded today, included in 2031 after setting a 2030 start date |
+| Inactive rows | Never rendered on reports | Inactive compliance row did not appear in the grouped result (`inactiveLeak: []`) |
+| Legacy fallback | A report type with no active configuration keeps Prepared by → Reviewed by → Certified Correct; names blank except the signed-in preparer | Server render harness: 3 default rows, 3 "Signature over Printed Name" notes |
+| Display modes | `name_position_line`, `name_position`, `designation_only`, `line_only` | Server render harness: names/positions/notes match each mode; printed name is configuration only |
+| Admin UI | `/admin/signatories` table, add/edit/deactivate, defaults notice, incomplete-standard-chain notice, nav link under Reports | Browser: 4 rows with correct labels/status, defaults notice, no console errors |
+| Report integration | Athlete, coach, compliance, accomplishments, event-winners cards read per-request config | Browser: coach report showed the configured "Reviewed by" name/position; `/reports` 200 |
+| Per-request freshness | `loadSignatoriesByType()` runs in `getServerSideProps`, not cached with report data | Code path verified; config change reflected on next request |
+| Live verification | Build manifest check, then login, read, create, soft delete | 10/10 live checks passed |
+
+Test artifacts: local test rows and the live verification row were hard-deleted together with their
+audit rows (`remaining: 0`, `remainingAudit: 0`). Production therefore ships with no configured
+signatories and every report still uses the built-in chain until an admin configures one.
+
+Not verified in Phase C:
+- Report persistence/finalization (`ReportDocument`) — **not implemented** (deferred to Phase C2).
+  No stored report exists yet, so no historical report can currently be rewritten by a signatory change.
+- Print/PDF pagination with a long configured chain (production has no athletes or meets).
+- Coach-role access to `/admin/signatories` (admin-only redirect) — code-reviewed, not exercised live.
 
 ## 7. What was NOT verified in this phase
 
-- Per-route authorization for `/api/reports/*`, `/api/notifications/test`, `/api/nav-shortcuts`,
-  `/api/coaches/approvals`.
-- Any analytics/report number correctness (no operational data).
-- Restore from backup into a real database.
+- Any analytics/report number correctness (production has no athletes, assessments, or event results).
+- Restore from backup into a real database (no staging environment; no restore drill).
 - Coach-role UI end-to-end.
 - Photo privacy (S2) exploitability from an unauthenticated client.
+- Report finalization/snapshotting (Phase C2, not built).
