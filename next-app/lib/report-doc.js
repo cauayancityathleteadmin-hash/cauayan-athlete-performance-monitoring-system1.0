@@ -61,19 +61,30 @@ function signatoryLines(sig, session) {
   return { name, position, note: "Signature over Printed Name" };
 }
 
-export function ReportSignatures({ session, certification, signatories }) {
+// Resolves the configured (or default) signatory rows into their final printed
+// form. A finalized report stores this resolved output, so a later change to the
+// signatory configuration — or to the built-in defaults — can never alter an
+// already issued report.
+export function resolveSignatureRows({ session, signatories }) {
   const configured = Array.isArray(signatories) && signatories.length > 0;
-  const rows = configured
-    ? signatories.map((sig, index) => ({ key: `sig-${sig.id ?? index}`, role: sig.role, ...signatoryLines(sig, session) }))
-    : DEFAULT_SIGNATORIES.map((sig, index) => ({ key: `default-${index}`, role: sig.role, ...signatoryLines(sig, session) }));
+  const source = configured ? signatories : DEFAULT_SIGNATORIES;
+  return source.map((sig, index) => ({
+    key: `${configured ? "sig" : "default"}-${sig.id ?? index}`,
+    role: sig.role,
+    label: ROLE_LABEL[sig.role] || "Signed by:",
+    ...signatoryLines(sig, session),
+  }));
+}
 
+export function ReportSignatureRows({ rows, certification }) {
+  const list = Array.isArray(rows) ? rows : [];
   return (
     <>
       {certification ? <div className="rd-cert"><strong>Certification</strong>{certification}</div> : null}
       <div className="rd-signatures">
-        {rows.map((row) => (
+        {list.map((row) => (
           <div className="rd-sig" key={row.key}>
-            <div className="rd-sig-label">{ROLE_LABEL[row.role] || "Signed by:"}</div>
+            <div className="rd-sig-label">{row.label || ROLE_LABEL[row.role] || "Signed by:"}</div>
             <div className="rd-sig-name">{row.name}</div>
             <div className="rd-sig-pos">{row.position}</div>
             {row.note ? <div className="rd-sig-note">{row.note}</div> : null}
@@ -82,6 +93,10 @@ export function ReportSignatures({ session, certification, signatories }) {
       </div>
     </>
   );
+}
+
+export function ReportSignatures({ session, certification, signatories }) {
+  return <ReportSignatureRows rows={resolveSignatureRows({ session, signatories })} certification={certification} />;
 }
 
 export function ReportFooter({ session, note }) {
@@ -93,8 +108,8 @@ export function ReportFooter({ session, note }) {
   );
 }
 
-// Numbered section heading used inside .report-doc (same markup as
-// RdSection in pages/reports.js — kept in sync here for new reports).
+// Numbered section heading used inside .report-doc (same markup as the
+// RdSection in components/reports/record-reports.js — kept in sync here).
 export function RdSection({ num, title, meta, children }) {
   return (
     <section>

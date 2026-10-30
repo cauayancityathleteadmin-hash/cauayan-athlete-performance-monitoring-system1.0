@@ -1065,3 +1065,36 @@ model Signatory {
   @@index([reportType, status, displayOrder])
   @@map("signatories")
 }
+
+enum ReportSubjectType {
+  athlete
+  coach
+}
+
+// An immutable, finalized official report. The subject data and the resolved
+// signature rows are frozen at finalization time, so later edits to the source
+// records or to the signatory configuration can never rewrite an issued report.
+// There is deliberately no update/delete path for this model.
+model ReportDocument {
+  id             Int               @id @default(autoincrement())
+  reference      String            @unique
+  reportType     String            @map("report_type")
+  subjectType    ReportSubjectType @map("subject_type")
+  subjectId      Int               @map("subject_id")
+  subjectCode    String            @map("subject_code")
+  subjectName    String            @map("subject_name")
+  periodFrom     DateTime?         @map("period_from")
+  periodTo       DateTime?         @map("period_to")
+  periodLabel    String            @map("period_label")
+  snapshot       Json
+  signatureRows  Json              @map("signature_rows")
+  generatedBy    String            @map("generated_by")
+  preparedById   Int?              @map("prepared_by_id")
+  preparedByName String            @map("prepared_by_name")
+  contentHash    String            @map("content_hash")
+  finalizedAt    DateTime          @default(now()) @map("finalized_at")
+
+  @@index([subjectType, subjectId, finalizedAt])
+  @@index([finalizedAt])
+  @@map("report_documents")
+}

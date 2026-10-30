@@ -1,4 +1,5 @@
 import Head from "next/head";
+import Link from "next/link";
 import React from "react";
 import { getSession } from "next-auth/react";
 import {
@@ -6,21 +7,21 @@ import {
   LineChart, Line, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Legend, Label,
 } from "recharts";
 import { prisma } from "../lib/prisma";
-import { computeAchievementPoints } from "../lib/points";
 import { gsspData } from "../lib/gssp-cache";
+import { loadReportData } from "../lib/report-data";
 import AppShell from "../components/AppShell";
 import PageSectionTabs from "../components/PageSectionTabs";
 import ComplianceReport from "../components/reports/ComplianceReport";
 import AccomplishmentsReport from "../components/reports/AccomplishmentsReport";
 import EventWinnersReport from "../components/reports/EventWinnersReport";
-import { printScope, ReportSignatures } from "../lib/report-doc";
+import { AthleteReportCard, CoachReportCard } from "../components/reports/record-reports";
+import { printScope } from "../lib/report-doc";
 import { loadSignatoriesByType } from "../lib/signatories";
-import { PERIOD_PRESETS, presetRange, periodText, inPeriod } from "../lib/period-presets";
+import { PERIOD_PRESETS, presetRange, periodText } from "../lib/period-presets";
+import { formatDate, GENDER_LABEL, STATUS_LABEL, FITNESS_LABEL } from "../lib/report-labels";
 import styles from "../styles/Dashboard.module.css";
 import { CHART_HEIGHTS, CHART_MARGINS, CHART_TOOLTIP, CHART_GRID, CHART_AXIS, CHART_LEGEND, CHART_COLORS } from "../lib/chart-config";
 import { classifyFitnessValue, TIER_META, CLASSIFICATION_TIERS } from "../lib/starter-metrics";
-import { loadNormOverrides } from "../lib/fitness-norms";
-import { buildTrainingDays, summarizeTrainingDays, trainingStatusLabel, excuseReasonLabel } from "../lib/training-status";
 
 export async function getServerSideProps(context) {
   const session = await getSession(context);
@@ -34,268 +35,7 @@ export async function getServerSideProps(context) {
     cacheKey = `reports:c:${coach.id}`;
   }
 
-  const data = await gsspData(cacheKey, 30000, async () => {
-    const athleteInclude = {
-      school: true,
-      sport: true,
-      event: true,
-      coach: { select: { firstName: true, lastName: true, coachCode: true } },
-      achievements: { orderBy: { achievementDate: "desc" }, include: { event: { select: { eventCategory: true } } }, take: 500 },
-      notes: { orderBy: { createdAt: "desc" }, take: 20 },
-      trainingAssessments: { orderBy: { assessmentDate: "desc" }, include: { plan: { select: { planName: true } } }, take: 20 },
-      healthLogs: { orderBy: { reportedAt: "desc" }, include: { reporter: { select: { email: true } }, resolver: { select: { email: true } } }, take: 50 },
-      coachHistory: { orderBy: { startedAt: "desc" }, include: { coach: { select: { firstName: true, lastName: true, coachCode: true } } }, take: 50 },
-      statusHistory: { orderBy: { changedAt: "desc" }, take: 50 },
-      trainingPerformances: { orderBy: { recordedAt: "desc" }, include: { exercise: { select: { exerciseName: true, category: true } }, recorder: { select: { email: true } } }, take: 100 },
-      trainingPlans: { include: { plan: { include: { sport: true } } }, take: 50 },
-      participants: { where: { status: "active" }, orderBy: { createdAt: "desc" }, include: { eventPlan: { select: { eventName: true, venue: true, status: true, startDate: true } }, sport: true }, take: 100 },
-      _count: { select: { assessments: true, achievements: true, healthLogs: true } },
-      assessments: { orderBy: { assessmentDate: "desc" }, include: { recorder: { select: { email: true, username: true } }, results: { include: { metric: true } } }, take: 500 },
-    };
-
-    let athletes = [];
-    let coaches = [];
-    if (isAdmin) {
-      [athletes, coaches] = await Promise.all([
-        prisma.athlete.findMany({ orderBy: { lastName: "asc" }, include: athleteInclude }),
-        prisma.coach.findMany({
-          orderBy: { lastName: "asc" },
-          include: {
-            school: true,
-            sports: { include: { sport: true } },
-            athletes: { select: { id: true, athleteCode: true, firstName: true, middleName: true, lastName: true, suffix: true, gender: true, birthdate: true, status: true, sport: { select: { sportName: true } }, event: { select: { eventName: true } } } },
-            performances: { orderBy: { createdAt: "desc" }, include: { evaluator: { select: { username: true, email: true } } }, take: 50 },
-            trainingPlans: { include: { sport: true, athletes: { select: { athleteId: true } } }, take: 50 },
-            trainingSessions: { orderBy: { sessionDate: "desc" }, include: { sport: true }, take: 100 },
-            applications: { orderBy: { appliedAt: "desc" }, include: { eventPlan: { select: { eventName: true, venue: true, status: true, startDate: true } } }, take: 100 },
-            participants: { where: { status: "active" }, orderBy: { createdAt: "desc" }, include: { eventPlan: { select: { eventName: true, venue: true, status: true, startDate: true } }, sport: true, athlete: { select: { firstName: true, lastName: true, athleteCode: true } } }, take: 100 },
-            _count: { select: { athletes: true, performances: true, trainingPlans: true, trainingSessions: true, applications: true, participants: { where: { status: "active" } } } },
-          },
-        }),
-      ]);
-    } else {
-      athletes = await prisma.athlete.findMany({
-        where: { coach: { userId: Number(session.user.id) } },
-        orderBy: { lastName: "asc" },
-        include: athleteInclude,
-      });
-    }
-
-    const athleteIds = athletes.map((a) => a.id);
-    const [activityCounts, logCounts, normOverrides, activityLogs] = await Promise.all([
-      athleteIds.length ? prisma.planActivity.groupBy({ by: ["athleteId"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
-      athleteIds.length ? prisma.planActivityLog.groupBy({ by: ["athleteId", "status"], where: { athleteId: { in: athleteIds } }, _count: { _all: true } }) : [],
-      loadNormOverrides(),
-      athleteIds.length ? prisma.planActivityLog.findMany({ where: { athleteId: { in: athleteIds } }, include: { activity: { select: { fitnessType: true, metricType: true } } }, orderBy: { performedAt: "asc" } }) : [],
-    ]);
-    const activityCountMap = new Map(activityCounts.map((x) => [x.athleteId, x._count._all]));
-    const logCountMap = new Map();
-    for (const row of logCounts) {
-      if (!logCountMap.has(row.athleteId)) logCountMap.set(row.athleteId, { done: 0, partial: 0, missed: 0 });
-      const entry = logCountMap.get(row.athleteId);
-      if (["done", "partial", "missed"].includes(row.status)) entry[row.status] += row._count._all;
-    }
-    const achievementPoints = (a) => computeAchievementPoints(a);
-    const logsByAthlete = new Map();
-    for (const log of activityLogs) {
-      if (!logsByAthlete.has(log.athleteId)) logsByAthlete.set(log.athleteId, []);
-      logsByAthlete.get(log.athleteId).push(log);
-    }
-
-    const loggedResultValueRep = (activity, log) => {
-      if (!activity || !log) return null;
-      const toNum = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
-      switch (activity.metricType) {
-        case "time": return toNum(log.timeSec);
-        case "distance": return toNum(log.distanceDone);
-        case "load": return toNum(log.loadUsed);
-        case "reps": return toNum(log.repsDone);
-        case "sets": return toNum(log.setsDone);
-        case "quantity": return toNum(log.quantityDone);
-        default: return toNum(log.quantityDone);
-      }
-    };
-    const buildFitnessProfile = (athlete) => {
-      const byType = new Map();
-      for (const log of logsByAthlete.get(athlete.id) || []) {
-        if (!log.activity?.fitnessType) continue;
-        const value = loggedResultValueRep(log.activity, log);
-        if (value == null) continue;
-        const cls = classifyFitnessValue(log.activity.fitnessType, athlete.gender, athlete.birthdate, value, normOverrides);
-        if (!cls) continue;
-        const key = log.activity.fitnessType;
-        if (!byType.has(key)) byType.set(key, []);
-        byType.get(key).push({ cls, performedAt: log.performedAt });
-      }
-      const result = [];
-      for (const [fitnessType, items] of byType) {
-        const sorted = items.sort((a, b) => new Date(a.performedAt) - new Date(b.performedAt));
-        const latest = sorted[sorted.length - 1].cls;
-        const first = sorted[0].cls;
-        result.push({
-          fitnessType,
-          label: FITNESS_LABEL[fitnessType] || fitnessType,
-          tierLabel: latest.label,
-          rank: latest.rank,
-          value: latest.value,
-          unit: latest.unit,
-          test: latest.test,
-          date: sorted[sorted.length - 1].performedAt.toISOString(),
-          nextTierLabel: latest.nextTierLabel,
-          nextValue: latest.nextValue,
-          unverified: latest.unverified,
-          sourceNote: latest.sourceNote,
-          delta: latest.rank - first.rank,
-          count: sorted.length,
-        });
-      }
-      return result.sort((x, y) => y.rank - x.rank);
-    };
-
-    const serializeAthlete = (athlete) => {
-      const fitnessProfile = buildFitnessProfile(athlete);
-      const achievements = athlete.achievements.map((a) => ({
-        title: a.achievementTitle,
-        type: a.achievementType || null,
-        medal: a.medal || null,
-        level: a.level || null,
-        date: a.achievementDate?.toISOString() || null,
-        organization: a.organization || null,
-        description: a.description || null,
-        points: achievementPoints(a),
-      }));
-      const completionLog = logCountMap.get(athlete.id) || { done: 0, partial: 0, missed: 0 };
-      const planned = activityCountMap.get(athlete.id) || 0;
-      const trainingDays = buildTrainingDays(logsByAthlete.get(athlete.id) || []);
-      const trainingStatus = summarizeTrainingDays(trainingDays);
-      return {
-        id: athlete.id,
-        athleteCode: athlete.athleteCode,
-        firstName: athlete.firstName,
-        middleName: athlete.middleName,
-        lastName: athlete.lastName,
-        suffix: athlete.suffix || null,
-        birthdate: athlete.birthdate.toISOString(),
-        gender: athlete.gender,
-        contactNumber: athlete.contactNumber || null,
-        email: athlete.email || null,
-        address: athlete.address || null,
-        school: athlete.school?.schoolName || null,
-        sport: athlete.sport.sportName,
-        event: athlete.event?.eventName || null,
-        coach: athlete.coach ? `${athlete.coach.lastName}, ${athlete.coach.firstName}` : null,
-        coachCode: athlete.coach?.coachCode || null,
-        status: athlete.status,
-        height: athlete.height?.toString?.() || null,
-        weight: athlete.weight?.toString?.() || null,
-        healthStatus: athlete.healthStatus,
-        healthNotes: athlete.healthNotes || null,
-        dateRegistered: athlete.dateRegistered?.toISOString() || null,
-        updatedAt: athlete.updatedAt?.toISOString() || null,
-        assessmentCount: athlete._count.assessments,
-        achievementCount: athlete._count.achievements,
-        achievements,
-        pointsTotal: achievements.reduce((s, a) => s + a.points, 0),
-        notes: athlete.notes.map((n) => ({ note: n.note, author: n.author?.email || null, date: n.createdAt.toISOString() })),
-        trainingAssessments: athlete.trainingAssessments.map((t) => ({ rating: t.rating, fitness: t.fitnessDimension || "general", dates: t.assessmentDate.toISOString(), plan: t.plan?.planName || null, comments: t.comments || null })),
-        assessments: athlete.assessments.map((assessment) => ({
-          id: assessment.id,
-          assessmentDate: assessment.assessmentDate.toISOString(),
-          assessmentType: assessment.assessmentType,
-          remarks: assessment.remarks || null,
-          recorder: assessment.recorder?.username || assessment.recorder?.email || null,
-          results: assessment.results.map((result) => ({ metricName: result.metric.metricName, unit: result.metric.unit, valueDecimal: result.valueDecimal?.toString() || null, valueText: result.valueText || null, notes: result.notes || null })),
-        })),
-        healthLogs: athlete.healthLogs.map((h) => ({ status: h.status, description: h.description || null, reportedAt: h.reportedAt.toISOString(), reportedBy: h.reporter?.email || null, resolvedAt: h.resolvedAt?.toISOString() || null, resolvedBy: h.resolver?.email || null })),
-        coachHistory: athlete.coachHistory.map((h) => ({ coachName: h.coach ? `${h.coach.lastName}, ${h.coach.firstName}` : null, coachCode: h.coach?.coachCode || null, startedAt: h.startedAt.toISOString(), endedAt: h.endedAt?.toISOString() || null, reason: h.reason || null })),
-        statusHistory: athlete.statusHistory.map((s) => ({ from: s.oldStatus || null, to: s.newStatus, changedAt: s.changedAt.toISOString(), reason: s.reason || null })),
-        trainingDays: trainingDays.map((d) => ({ day: d.day, status: d.status, reason: d.reason, counts: d.counts })),
-        trainingStatus,
-        exercisePerformances: athlete.trainingPerformances.map((p) => ({
-          exerciseName: p.exercise.exerciseName,
-          category: p.exercise.category,
-          score: p.score?.toString() || null,
-          rpe: p.rpe ?? null,
-          sets: p.setsCompleted ?? null,
-          reps: p.repsCompleted ?? null,
-          load: p.loadUsed?.toString() || null,
-          duration: p.durationSec ?? null,
-          distance: p.distanceCovered?.toString() || null,
-          notes: p.notes || null,
-          recordedAt: p.recordedAt.toISOString(),
-          recordedBy: p.recorder?.email || null,
-        })),
-        plans: athlete.trainingPlans.map((t) => ({ planName: t.plan.planName, sport: t.plan.sport.sportName, status: t.plan.status, startDate: t.plan.startDate?.toISOString() || null, endDate: t.plan.endDate?.toISOString() || null })),
-        participants: athlete.participants.map((p) => ({ eventName: p.eventPlan.eventName, venue: p.eventPlan.venue, status: p.eventPlan.status, startDate: p.eventPlan.startDate?.toISOString() || null, sport: p.sport.sportName })),
-        completion: {
-          planned,
-          done: completionLog.done,
-          partial: completionLog.partial,
-          missed: completionLog.missed,
-          open: planned - (completionLog.done + completionLog.partial + completionLog.missed),
-          percent: planned ? Math.round(((completionLog.done + completionLog.partial) / planned) * 100) : null,
-        },
-        fitnessProfile,
-      };
-    };
-
-    const serializeCoach = (coach) => ({
-      id: coach.id,
-      coachCode: coach.coachCode,
-      firstName: coach.firstName,
-      middleName: coach.middleName,
-      lastName: coach.lastName,
-      suffix: coach.suffix || null,
-      birthdate: coach.birthdate.toISOString(),
-      email: coach.email,
-      contactNumber: coach.contactNumber || null,
-      school: coach.school?.schoolName || null,
-      status: coach.status,
-      dateRegistered: coach.dateRegistered.toISOString(),
-      updatedAt: coach.updatedAt?.toISOString() || null,
-      sports: coach.sports.map((s) => s.sport.sportName),
-      athleteCount: coach._count.athletes,
-      evalCount: coach._count.performances,
-      planCount: coach._count.trainingPlans,
-      sessionCount: coach._count.trainingSessions,
-      applicationCount: coach._count.applications,
-      participantCount: coach._count.participants,
-      athletes: coach.athletes.map((a) => ({
-        athleteCode: a.athleteCode,
-        name: `${a.lastName}, ${a.firstName}${a.middleName ? ` ${a.middleName}` : ""}${a.suffix ? ` ${a.suffix}` : ""}`,
-        sport: a.sport.sportName,
-        event: a.event?.eventName || null,
-        status: a.status,
-        gender: a.gender,
-        birthdate: a.birthdate?.toISOString() || null,
-      })),
-      performances: coach.performances.map((p) => ({
-        periodStart: p.periodStart.toISOString(),
-        periodEnd: p.periodEnd.toISOString(),
-        sessionPlanning: p.sessionPlanning,
-        exerciseSelection: p.exerciseSelection,
-        technicalInstruction: p.technicalInstruction,
-        athleteDevelopment: p.athleteDevelopment,
-        communication: p.communication,
-        safetyCompliance: p.safetyCompliance,
-        trainingImplementation: p.trainingImplementation,
-        overallScore: p.overallScore.toString(),
-        strengths: p.strengths || null,
-        areasForImprovement: p.areasForImprovement || null,
-        actionPlan: p.actionPlan || null,
-        evaluator: p.evaluator?.username || p.evaluator?.email || null,
-      })),
-      trainingPlans: coach.trainingPlans.map((p) => ({ title: p.planName, sport: p.sport.sportName, status: p.status, startDate: p.startDate?.toISOString() || null, endDate: p.endDate?.toISOString() || null, athleteCount: p.athletes.length })),
-      trainingSessions: coach.trainingSessions.map((s) => ({ sessionDate: s.sessionDate.toISOString(), sessionType: s.sessionType, sport: s.sport.sportName, venue: s.venue || null, notes: s.notes || null })),
-      applications: coach.applications.map((a) => ({ eventName: a.eventPlan.eventName, venue: a.eventPlan.venue, status: a.eventPlan.status, startDate: a.eventPlan.startDate?.toISOString() || null, appliedAt: a.appliedAt.toISOString() })),
-      participants: coach.participants.map((p) => ({ eventName: p.eventPlan.eventName, venue: p.eventPlan.venue, status: p.eventPlan.status, startDate: p.eventPlan.startDate?.toISOString() || null, sport: p.sport.sportName, athlete: p.athlete ? `${p.athlete.lastName}, ${p.athlete.firstName}${p.athlete.athleteCode ? ` (${p.athlete.athleteCode})` : ""}` : null })),
-    });
-
-    return {
-      athletes: athletes.map(serializeAthlete),
-      coaches: coaches.map(serializeCoach),
-    };
-  });
+  const data = await gsspData(cacheKey, 30000, () => loadReportData({ isAdmin, userId: session.user.id }));
 
   // Signatory configuration is read on every request (not cached with the
   // report data) so an admin change shows up on the next generated report.
@@ -311,69 +51,6 @@ export async function getServerSideProps(context) {
   };
 }
 
-function formatDate(value) {
-  const date = new Date(value);
-  return isNaN(date) ? "—" : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-}
-
-function formatDateTime(value) {
-  const date = new Date(value);
-  return isNaN(date) ? "—" : date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
-function computeAge(value) {
-  const d = new Date(value);
-  if (isNaN(d)) return null;
-  const now = new Date();
-  let age = now.getFullYear() - d.getFullYear();
-  const m = now.getMonth() - d.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
-  return age >= 0 ? age : null;
-}
-
-function bmiCategory(bmi) {
-  if (bmi == null) return null;
-  if (bmi < 18.5) return "Underweight";
-  if (bmi < 25) return "Normal weight";
-  if (bmi < 30) return "Overweight";
-  return "Obese";
-}
-
-const GENDER_LABEL = { male: "Male", female: "Female", other: "Other", prefer_not_to_say: "Prefer not to say" };
-const STATUS_LABEL = { active: "Active", inactive: "Inactive", pending: "Pending", draft: "Draft", open: "Open", closed: "Closed", cancelled: "Cancelled", approved: "Approved", rejected: "Rejected" };
-const HEALTH_LABEL = { healthy: "Healthy", injured: "Injured", recovering: "Recovering", sick: "Sick", inactive: "Inactive" };
-const SESSION_TYPE_LABEL = {
-  regular: "Regular",
-  conditioning: "Conditioning",
-  technical: "Technical",
-  tactical: "Tactical",
-  recovery: "Recovery",
-  competition_simulation: "Competition Simulation",
-  tryout: "Tryout",
-};
-const FITNESS_LABEL = {
-  endurance: "Endurance",
-  strength: "Strength",
-  power: "Power",
-  speed_agility: "Speed / Agility",
-  skill_technique: "Skill / Technique",
-  mobility: "Mobility",
-  recovery: "Recovery",
-  general: "General",
-};
-const EXERCISE_CATEGORY_LABEL = {
-  warmup: "Warm-up",
-  mobility: "Mobility",
-  strength: "Strength",
-  power: "Power",
-  speed_agility: "Speed / Agility",
-  endurance: "Endurance",
-  skill_technique: "Skill / Technique",
-  tactical: "Tactical",
-  cooldown: "Cool-down",
-  recovery: "Recovery",
-};
-
 const ATH_SORT_COLS = {
   name: (a) => `${a.lastName}, ${a.firstName}`.toLowerCase(),
   code: (a) => a.athleteCode.toLowerCase(),
@@ -385,430 +62,6 @@ const ATH_SORT_COLS = {
   registered: (a) => (a.dateRegistered || ""),
   assessments: (a) => a.assessmentCount,
 };
-
-function RdSection({ num, title, meta, children }) {
-  return (
-    <section>
-      <div className="rd-section-title"><span className="rd-sec-no">{num}</span>{title}{meta ? <span>{meta}</span> : null}</div>
-      {children}
-    </section>
-  );
-}
-
-function AthleteReportCard({ athlete, session, from, to, prefix, signatories }) {
-  const windowed = athlete.assessments.filter((assessment) => (!from || assessment.assessmentDate >= new Date(from).toISOString()) && (!to || assessment.assessmentDate <= new Date(new Date(to).getTime() + 86400000).toISOString()));
-  // Period-scoped time-based lists (Step 8: the From/To period now filters every
-  // dated list in the personnel record, not just assessment records).
-  const windowedAchievements = athlete.achievements.filter((a) => inPeriod(a.date, from, to));
-  const windowedParticipants = athlete.participants.filter((p) => inPeriod(p.startDate, from, to));
-  const windowedNotes = athlete.notes.filter((n) => inPeriod(n.date, from, to));
-  const windowedTraining = athlete.trainingAssessments.filter((t) => inPeriod(t.dates, from, to));
-  const windowedTrainingDays = athlete.trainingDays.filter((d) => inPeriod(d.day, from, to));
-  const windowedExercises = athlete.exercisePerformances.filter((p) => inPeriod(p.recordedAt, from, to));
-  const windowedAchievementPoints = windowedAchievements.reduce((sum, a) => sum + (Number(a.points) || 0), 0);
-  const last = athlete.assessments[0];
-  const reportRef = `${prefix}${athlete.athleteCode}-${from || "all"}${to ? `-${to}` : ""}`;
-  const issued = formatDate(new Date().toISOString());
-  const periodLabel = `${from ? formatDate(new Date(from).toISOString()) : "earliest"} to ${to ? formatDate(new Date(to).toISOString()) : "latest"}`;
-  const heightM = athlete.height ? Number(athlete.height) : null;
-  const weightKg = athlete.weight ? Number(athlete.weight) : null;
-  const bmi = heightM && weightKg ? Math.round((weightKg / (heightM * heightM)) * 10) / 10 : null;
-  const bmiClass = bmiCategory(bmi);
-  const age = computeAge(athlete.birthdate);
-  const activePlans = athlete.plans.filter((p) => p.status === "active");
-
-  return (
-    <article className="report-doc" key={athlete.id}>
-      <header className="rd-header">
-        <img src="/cauayan logo.png" alt="Official Seal of the City Government of Cauayan" className="rd-logo rd-logo-left" />
-        <div className="rd-header-text">
-          <p className="rd-republic">Republic of the Philippines</p>
-          <p className="rd-province">Province of Isabela</p>
-          <h1 className="rd-lgu">City Government of Cauayan</h1>
-          <p className="rd-office">City Sports Development Office</p>
-          <p className="rd-address">Cauayan City, Isabela, Philippines</p>
-        </div>
-        <img src="/sports_logo.png" alt="Cauayan City Sports Development Office" className="rd-logo rd-logo-right" />
-      </header>
-
-      <h2 className="rd-title">Athlete Official Personnel Record</h2>
-      <p className="rd-ref">Record No.: <span>{reportRef}</span> &nbsp;·&nbsp; Date Issued: <span>{issued}</span></p>
-
-      <RdSection num="I." title="Personal Information">
-        <table className="rd-info">
-          <tbody>
-            <tr>
-              <th scope="col">Full Name</th>
-              <td>{athlete.lastName}, {athlete.firstName}{athlete.middleName ? ` ${athlete.middleName}` : ""}{athlete.suffix ? ` ${athlete.suffix}` : ""}</td>
-              <th scope="col">Athlete Code</th>
-              <td>{athlete.athleteCode}</td>
-            </tr>
-            <tr>
-              <th scope="col">Date of Birth</th>
-              <td>{formatDate(athlete.birthdate)}</td>
-              <th scope="col">Age / Sex</th>
-              <td>{age != null ? `${age} years` : "—"} / {GENDER_LABEL[athlete.gender] || athlete.gender}</td>
-            </tr>
-            <tr>
-              <th scope="col">Civil Status</th>
-              <td colSpan="3">—</td>
-            </tr>
-            <tr>
-              <th scope="col">Permanent Address</th>
-              <td colSpan="3">{athlete.address || "—"}</td>
-            </tr>
-            <tr>
-              <th scope="col">Contact No.</th>
-              <td>{athlete.contactNumber || "—"}</td>
-              <th scope="col">Email Address</th>
-              <td>{athlete.email || "—"}</td>
-            </tr>
-            <tr>
-              <th scope="col">Record Status</th>
-              <td>{STATUS_LABEL[athlete.status] || athlete.status}</td>
-              <th scope="col">Date Registered</th>
-              <td>{athlete.dateRegistered ? formatDate(athlete.dateRegistered) : "—"}</td>
-            </tr>
-          </tbody>
-        </table>
-      </RdSection>
-
-      <RdSection num="II." title="Classification and Assignment">
-        <table className="rd-info">
-          <tbody>
-            <tr>
-              <th scope="col">Sport</th>
-              <td>{athlete.sport || "—"}</td>
-              <th scope="col">Event / Discipline</th>
-              <td>{athlete.event || "—"}</td>
-            </tr>
-            <tr>
-              <th scope="col">School / Institution</th>
-              <td>{athlete.school || "—"}</td>
-              <th scope="col">Head Coach</th>
-              <td>{athlete.coach || "—"}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        {athlete.coachHistory.length > 0 && (
-          <>
-            <div className="rd-sub-section">Coach Assignment History</div>
-            <table className="rd-results">
-              <thead><tr><th scope="col">Coach</th><th scope="col">Code</th><th scope="col">From</th><th scope="col">To</th><th scope="col">Reason / Remarks</th></tr></thead>
-              <tbody>{athlete.coachHistory.slice(0, 20).map((h, i) => <tr key={i}><td>{h.coachName || "—"}</td><td>{h.coachCode || "—"}</td><td>{formatDate(h.startedAt)}</td><td>{h.endedAt ? formatDate(h.endedAt) : "Current"}</td><td>{h.reason || "—"}</td></tr>)}</tbody>
-            </table>
-          </>
-        )}
-
-        {athlete.statusHistory.length > 0 && (
-          <>
-            <div className="rd-sub-section">Status History</div>
-            <table className="rd-results">
-              <thead><tr><th scope="col">Changed From</th><th scope="col">Changed To</th><th scope="col">Date</th><th scope="col">Reason / Remarks</th></tr></thead>
-              <tbody>{athlete.statusHistory.slice(0, 20).map((s, i) => <tr key={i}><td>{s.from ? STATUS_LABEL[s.from] || s.from : "—"}</td><td>{STATUS_LABEL[s.to] || s.to}</td><td>{formatDate(s.changedAt)}</td><td>{s.reason || "—"}</td></tr>)}</tbody>
-            </table>
-          </>
-        )}
-      </RdSection>
-
-      <RdSection num="III." title="Physical and Health Profile">
-        <table className="rd-info">
-          <tbody>
-            <tr>
-              <th scope="col">Height</th>
-              <td>{heightM ? `${heightM} m` : "—"}</td>
-              <th scope="col">Weight</th>
-              <td>{weightKg ? `${weightKg} kg` : "—"}</td>
-            </tr>
-            <tr>
-              <th scope="col">Body Mass Index</th>
-              <td>{bmi != null ? `${bmi} (${bmiClass})` : "—"}</td>
-              <th scope="col">Health Status</th>
-              <td>{HEALTH_LABEL[athlete.healthStatus] || athlete.healthStatus}</td>
-            </tr>
-            <tr>
-              <th scope="col">Health Notes</th>
-              <td colSpan="3">{athlete.healthNotes || "—"}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        {athlete.healthLogs.length > 0 && (
-          <>
-            <div className="rd-sub-section">Health Log History</div>
-            <table className="rd-results">
-              <thead><tr><th scope="col">Date Reported</th><th scope="col">Status</th><th scope="col">Description</th><th scope="col">Date Resolved</th></tr></thead>
-              <tbody>{athlete.healthLogs.slice(0, 30).map((h, i) => <tr key={i}><td>{formatDate(h.reportedAt)}</td><td>{HEALTH_LABEL[h.status] || h.status}</td><td>{h.description || "—"}</td><td>{h.resolvedAt ? formatDate(h.resolvedAt) : "Open"}</td></tr>)}</tbody>
-            </table>
-          </>
-        )}
-      </RdSection>
-
-      <RdSection num="IV." title="Physical Fitness Profile" meta={`DepEd PFT classification · ${athlete.fitnessProfile.length} test(s) logged`}>
-        {athlete.fitnessProfile.length ? (
-          <>
-            <table className="rd-results">
-              <thead><tr><th scope="col">Fitness Component</th><th scope="col">Test</th><th scope="col">Latest Result</th><th scope="col">Classification</th><th scope="col">Trend</th><th scope="col">Date</th></tr></thead>
-              <tbody>{athlete.fitnessProfile.map((f, i) => (
-                <tr key={i}>
-                  <td>{f.label}</td>
-                  <td>{f.test || "—"}</td>
-                  <td className="num"><strong>{f.value}{f.unit ? ` ${f.unit}` : ""}</strong></td>
-                  <td><strong>{f.tierLabel}</strong>{f.nextTierLabel ? <span> (next: {f.nextTierLabel} at {f.nextValue}{f.unit ? ` ${f.unit}` : ""})</span> : null}</td>
-                  <td>{f.delta > 0 ? `Improved (+${f.delta})` : f.delta < 0 ? `Declined (${f.delta})` : "Steady"}</td>
-                  <td>{formatDate(f.date)}</td>
-                </tr>
-              ))}</tbody>
-            </table>
-            <p className="rd-empty" style={{ marginTop: 6 }}>Classification uses DepEd PFT tier wording (Excellent / Very Good / Good / Fair / Needs Improvement) against Cauayan City reference bands — not a DepEd-published norm. Trend compares the latest result with the earliest logged result for each component.</p>
-          </>
-        ) : <p className="rd-empty">No fitness-component results were logged for this athlete in the training-plan activities.</p>}
-      </RdSection>
-
-      <RdSection num="V." title="Performance Record" meta={`Covering period: ${periodLabel} · ${windowed.length} assessment record(s)`}>
-        {windowed.length ? windowed.map((assessment) => (
-          <div className="rd-assessment" key={assessment.id}>
-            <div className="rd-assessment-head">{formatDate(assessment.assessmentDate)} &mdash; {assessment.assessmentType}{assessment.recorder ? <small> &middot; Recorded by {assessment.recorder}</small> : null}</div>
-            <table className="rd-results">
-              <thead><tr><th scope="col">Metric</th><th scope="col">Result</th></tr></thead>
-              <tbody>{assessment.results.length ? assessment.results.map((result, i) => <tr key={i}><td>{result.metricName}</td><td className="num"><strong>{result.valueDecimal !== null && result.valueDecimal !== undefined ? Number(result.valueDecimal) + (result.unit ? ` ${result.unit}` : "") : (result.valueText || "—")}</strong>{result.notes ? <p className="rd-empty" style={{ margin: "2px 0 0" }}>{result.notes}</p> : null}</td></tr>) : <tr><td colSpan="2" className="rd-empty">No results recorded.</td></tr>}</tbody>
-            </table>
-            {assessment.remarks ? <p className="rd-empty" style={{ marginTop: 6 }}>Remarks: {assessment.remarks}</p> : null}
-          </div>
-        )) : <p className="rd-empty">No assessments were found within the selected date window.</p>}
-      </RdSection>
-
-      {windowedTraining.length > 0 && (
-        <RdSection num="VI." title="Training Assessments and Fitness Ratings" meta={`${windowedTraining.length} record(s) · ${periodLabel}`}>
-          <table className="rd-results">
-            <thead><tr><th scope="col">Training Plan</th><th scope="col">Date Assessed</th><th scope="col">Fitness Dimension</th><th scope="col">Rating</th><th scope="col">Comments</th></tr></thead>
-            <tbody>{windowedTraining.slice(0, 20).map((t, i) => <tr key={i}><td>{t.plan || "—"}</td><td>{formatDate(t.dates)}</td><td>{FITNESS_LABEL[t.fitness] || t.fitness}</td><td className="num">{t.rating}/10</td><td>{t.comments || "—"}</td></tr>)}</tbody>
-          </table>
-        </RdSection>
-      )}
-
-      <RdSection num="VII." title="Training Plans, Activities and Daily Training Status">
-        <div className="rd-grid">
-          <div className="rd-grid-item">
-            <div className="rd-kpi-label">Plan Activity Completion</div>
-            <div className="rd-kpi-value">{athlete.completion.percent != null ? `${athlete.completion.percent}%` : "—"}</div>
-            <div className="rd-kpi-note">{athlete.completion.planned} planned · {athlete.completion.done} done · {athlete.completion.partial} partial · {athlete.completion.missed} missed · {athlete.completion.open} open</div>
-          </div>
-          <div className="rd-grid-item">
-            <div className="rd-kpi-label">Daily Training Status</div>
-            <div className="rd-kpi-value">{athlete.trainingStatus.disciplineRate != null ? `${athlete.trainingStatus.disciplineRate}%` : "—"}</div>
-            <div className="rd-kpi-note">{athlete.trainingStatus.total} day(s) logged · {athlete.trainingStatus.trained} trained · {athlete.trainingStatus.partial} partly trained · {athlete.trainingStatus.missed} not trained{athlete.trainingStatus.excused ? ` · ${athlete.trainingStatus.excused} excused (rest / sick / injured, not counted)` : ""}</div>
-            <div className="rd-kpi-note">Athletes train individually, wherever and whenever assigned, so this records whether daily training was completed rather than roll-call attendance.</div>
-          </div>
-        </div>
-
-        {athlete.plans.length > 0 && (
-          <>
-            <div className="rd-sub-section">Assigned Training Plans {activePlans.length > 0 ? `(${activePlans.length} active)` : ""}</div>
-            <table className="rd-results">
-              <thead><tr><th scope="col">Plan</th><th scope="col">Sport</th><th scope="col">Status</th><th scope="col">Start Date</th><th scope="col">End Date</th></tr></thead>
-              <tbody>{athlete.plans.map((p, i) => <tr key={i}><td>{p.planName}</td><td>{p.sport}</td><td>{STATUS_LABEL[p.status] || p.status}</td><td>{p.startDate ? formatDate(p.startDate) : "—"}</td><td>{p.endDate ? formatDate(p.endDate) : "—"}</td></tr>)}</tbody>
-            </table>
-          </>
-        )}
-
-        {windowedTrainingDays.length > 0 && (
-          <>
-            <div className="rd-sub-section">Daily Training Status <span style={{ fontWeight: 400, fontSize: 12 }}>({periodLabel})</span></div>
-            <table className="rd-results">
-              <thead><tr><th scope="col">Date</th><th scope="col">Status</th><th scope="col">Reason</th><th scope="col">Activity Summary</th></tr></thead>
-              <tbody>{windowedTrainingDays.slice(-30).reverse().map((d, i) => <tr key={i}><td>{formatDate(d.day)}</td><td>{trainingStatusLabel(d.status)}</td><td>{d.status === "excused" ? excuseReasonLabel(d.reason) : "—"}</td><td>{d.counts.done} done{d.counts.partial ? `, ${d.counts.partial} partial` : ""}{d.counts.missed ? `, ${d.counts.missed} not trained` : ""}{d.counts.excused ? `, ${d.counts.excused} excused` : ""}</td></tr>)}</tbody>
-            </table>
-          </>
-        )}
-      </RdSection>
-
-      {windowedExercises.length > 0 && (
-        <RdSection num="VIII." title="Exercise Performance Log" meta={`${windowedExercises.length} record(s) · ${periodLabel}`}>
-          <table className="rd-results">
-            <thead><tr><th scope="col">Exercise</th><th scope="col">Category</th><th scope="col">Score</th><th scope="col">Sets / Reps</th><th scope="col">Load / Distance</th><th scope="col">RPE</th><th scope="col">Date</th></tr></thead>
-            <tbody>{windowedExercises.slice(0, 30).map((p, i) => <tr key={i}><td>{p.exerciseName}</td><td>{EXERCISE_CATEGORY_LABEL[p.category] || p.category}</td><td className="num">{p.score ?? "—"}</td><td className="num">{p.sets != null ? `${p.sets} / ${p.reps ?? "—"}` : "—"}</td><td className="num">{p.load ? `${p.load} kg` : p.distance ? `${p.distance} m` : "—"}</td><td className="num">{p.rpe ?? "—"}</td><td>{formatDate(p.recordedAt)}</td></tr>)}</tbody>
-          </table>
-        </RdSection>
-      )}
-
-      {windowedAchievements.length > 0 && (
-        <RdSection num="IX." title="Achievements and Awards" meta={`${windowedAchievements.length} in period · ${windowedAchievementPoints} points · ${periodLabel}`}>
-          <table className="rd-results">
-            <thead><tr><th scope="col">Achievement</th><th scope="col">Type</th><th scope="col">Medal / Level</th><th scope="col">Points</th><th scope="col">Date</th><th scope="col">Organization</th></tr></thead>
-            <tbody>{windowedAchievements.map((a, i) => <tr key={i}><td>{a.title}</td><td>{a.type || "—"}</td><td>{(a.medal ? a.medal.toUpperCase() : "—")}{a.level ? ` / ${a.level}` : ""}</td><td className="num">{a.points || "—"}</td><td>{a.date ? formatDate(a.date) : "—"}</td><td>{a.organization || "—"}</td></tr>)}</tbody>
-          </table>
-        </RdSection>
-      )}
-
-      {windowedParticipants.length > 0 && (
-        <RdSection num="X." title="Event Participation" meta={`${windowedParticipants.length} event(s) · ${periodLabel}`}>
-          <table className="rd-results">
-            <thead><tr><th scope="col">Event</th><th scope="col">Sport</th><th scope="col">Venue</th><th scope="col">Start Date</th><th scope="col">Status</th></tr></thead>
-            <tbody>{windowedParticipants.map((p, i) => <tr key={i}><td>{p.eventName}</td><td>{p.sport}</td><td>{p.venue || "—"}</td><td>{p.startDate ? formatDate(p.startDate) : "—"}</td><td>{STATUS_LABEL[p.status] || p.status}</td></tr>)}</tbody>
-          </table>
-        </RdSection>
-      )}
-
-      {windowedNotes.length > 0 && (
-        <RdSection num="XI." title="Coaching Notes" meta={`${windowedNotes.length} note(s) · ${periodLabel}`}>
-          {windowedNotes.slice(0, 20).map((n, i) => (
-            <div className="rd-assessment" key={i}>
-              <div className="rd-assessment-head">{formatDate(n.date)}{n.author ? <small> &middot; {n.author}</small> : null}</div>
-              <p className="rd-empty" style={{ margin: 0 }}>{n.note}</p>
-            </div>
-          ))}
-        </RdSection>
-      )}
-
-      <div className="rd-cert"><strong>Certification</strong>This is to certify that the information contained herein is an accurate and complete record of the above-named athlete&apos;s registration, physical profile, performance, training, and achievements, as officially recorded and maintained in the database of the City Sports Development Office of the City Government of Cauayan, Isabela.</div>
-
-      <ReportSignatures session={session} signatories={signatories} />
-
-      <footer className="rd-footer"><span>Generated by {session.user.name || session.user.email || "system"} on {issued}</span><span>Athlete since {athlete.dateRegistered ? formatDate(athlete.dateRegistered) : "—"} · Last assessment: {last ? formatDate(last.assessmentDate) : "none"} · Record updated: {athlete.updatedAt ? formatDateTime(athlete.updatedAt) : "—"}</span></footer>
-    </article>
-  );
-}
-
-function CoachReportCard({ coach, session, from, to, prefix, signatories }) {
-  const issued = formatDate(new Date().toISOString());
-  const reportRef = `${prefix}${coach.coachCode}`;
-  const age = computeAge(coach.birthdate);
-  // Period windowing — same rule as AthleteReportCard: the report period only
-  // narrows the date-bearing history sections (sessions, plans, evaluations,
-  // applications, participation), never the identity/profile section.
-  const windowedSessions = coach.trainingSessions.filter((s) => inPeriod(s.sessionDate, from, to));
-  const windowedPlans = coach.trainingPlans.filter((p) => inPeriod(p.startDate || p.endDate, from, to));
-  const windowedPerformances = coach.performances.filter((p) => inPeriod(p.periodStart || p.periodEnd, from, to));
-  const windowedApplications = coach.applications.filter((a) => inPeriod(a.appliedAt || a.startDate, from, to));
-  const windowedParticipants = coach.participants.filter((p) => inPeriod(p.startDate, from, to));
-  const avg = windowedPerformances.length
-    ? Math.round((windowedPerformances.reduce((sum, p) => sum + Number(p.overallScore), 0) / windowedPerformances.length) * 10) / 10
-    : null;
-
-  return (
-    <article className="report-doc" key={coach.id}>
-      <header className="rd-header">
-        <img src="/cauayan logo.png" alt="Official Seal of the City Government of Cauayan" className="rd-logo rd-logo-left" />
-        <div className="rd-header-text">
-          <p className="rd-republic">Republic of the Philippines</p>
-          <p className="rd-province">Province of Isabela</p>
-          <h1 className="rd-lgu">City Government of Cauayan</h1>
-          <p className="rd-office">City Sports Development Office</p>
-          <p className="rd-address">Cauayan City, Isabela, Philippines</p>
-        </div>
-        <img src="/sports_logo.png" alt="Cauayan City Sports Development Office" className="rd-logo rd-logo-right" />
-      </header>
-
-      <h2 className="rd-title">Coach Official Personnel Record</h2>
-      <p className="rd-ref">Record No.: <span>{reportRef}</span> &nbsp;·&nbsp; Date Issued: <span>{issued}</span></p>
-
-      <RdSection num="I." title="Personal Information">
-        <table className="rd-info">
-          <tbody>
-            <tr>
-              <th scope="col">Full Name</th>
-              <td>{coach.lastName}, {coach.firstName}{coach.middleName ? ` ${coach.middleName}` : ""}{coach.suffix ? ` ${coach.suffix}` : ""}</td>
-              <th scope="col">Coach Code</th>
-              <td>{coach.coachCode}</td>
-            </tr>
-            <tr>
-              <th scope="col">Date of Birth</th>
-              <td>{formatDate(coach.birthdate)}</td>
-              <th scope="col">Age</th>
-              <td>{age != null ? `${age} years` : "—"}</td>
-            </tr>
-            <tr>
-              <th scope="col">Contact No.</th>
-              <td>{coach.contactNumber || "—"}</td>
-              <th scope="col">Email Address</th>
-              <td>{coach.email}</td>
-            </tr>
-            <tr>
-              <th scope="col">School / Institution</th>
-              <td>{coach.school || "—"}</td>
-              <th scope="col">Record Status</th>
-              <td>{STATUS_LABEL[coach.status] || coach.status}</td>
-            </tr>
-            <tr>
-              <th scope="col">Date Registered</th>
-              <td>{formatDate(coach.dateRegistered)}</td>
-              <th scope="col">Sports Coached</th>
-              <td>{(coach.sports && coach.sports.length) ? coach.sports.join(", ") : "—"}</td>
-            </tr>
-          </tbody>
-        </table>
-      </RdSection>
-
-      <RdSection num="II." title="Assigned Athletes" meta={`${coach.athleteCount} total`}>
-        {coach.athletes && coach.athletes.length ? (
-          <table className="rd-results">
-            <thead><tr><th scope="col">Code</th><th scope="col">Athlete</th><th scope="col">Sport</th><th scope="col">Event</th><th scope="col">Age</th><th scope="col">Sex</th><th scope="col">Status</th></tr></thead>
-            <tbody>{coach.athletes.map((a, i) => <tr key={i}><td>{a.athleteCode}</td><td>{a.name}</td><td>{a.sport}</td><td>{a.event || "—"}</td><td>{computeAge(a.birthdate) != null ? computeAge(a.birthdate) : "—"}</td><td>{GENDER_LABEL[a.gender] || a.gender}</td><td>{STATUS_LABEL[a.status] || a.status}</td></tr>)}</tbody>
-          </table>
-        ) : <p className="rd-empty">No athletes currently assigned.</p>}
-      </RdSection>
-
-      <RdSection num="III." title="Training Sessions Conducted" meta={`${windowedSessions.length} session(s)`}>
-        {windowedSessions && windowedSessions.length ? (
-          <table className="rd-results">
-            <thead><tr><th scope="col">Date</th><th scope="col">Session Type</th><th scope="col">Sport</th><th scope="col">Venue</th><th scope="col">Notes</th></tr></thead>
-            <tbody>{windowedSessions.slice(0, 30).map((s, i) => <tr key={i}><td>{formatDate(s.sessionDate)}</td><td>{SESSION_TYPE_LABEL[s.sessionType] || s.sessionType}</td><td>{s.sport}</td><td>{s.venue || "—"}</td><td>{s.notes || "—"}</td></tr>)}</tbody>
-          </table>
-        ) : <p className="rd-empty">No training sessions recorded.</p>}
-      </RdSection>
-
-      <RdSection num="IV." title="Training Plans" meta={`${windowedPlans.length} plan(s)`}>
-        {windowedPlans && windowedPlans.length ? (
-          <table className="rd-results">
-            <thead><tr><th scope="col">Plan</th><th scope="col">Sport</th><th scope="col">Status</th><th scope="col">Start Date</th><th scope="col">End Date</th><th scope="col">Athletes Enrolled</th></tr></thead>
-            <tbody>{windowedPlans.map((p, i) => <tr key={i}><td>{p.title}</td><td>{p.sport}</td><td>{STATUS_LABEL[p.status] || p.status}</td><td>{p.startDate ? formatDate(p.startDate) : "—"}</td><td>{p.endDate ? formatDate(p.endDate) : "—"}</td><td className="num">{p.athleteCount}</td></tr>)}</tbody>
-          </table>
-        ) : <p className="rd-empty">No training plans recorded.</p>}
-      </RdSection>
-
-      <RdSection num="V." title="Performance Evaluation History" meta={`${windowedPerformances.length} evaluation(s)${avg ? ` · Overall average: ${avg}/10` : ""}`}>
-        {windowedPerformances && windowedPerformances.length ? windowedPerformances.map((p, i) => (
-          <div className="rd-assessment" key={i}>
-            <div className="rd-assessment-head">{formatDate(p.periodStart)} – {formatDate(p.periodEnd)}{p.evaluator ? <small> &middot; Evaluated by {p.evaluator}</small> : null}</div>
-            <table className="rd-results">
-              <thead><tr><th scope="col">Session Planning</th><th scope="col">Exercise Selection</th><th scope="col">Technical Instruction</th><th scope="col">Athlete Development</th><th scope="col">Communication</th><th scope="col">Safety Compliance</th><th scope="col">Training Implementation</th><th scope="col">Overall</th></tr></thead>
-              <tbody><tr>{[p.sessionPlanning, p.exerciseSelection, p.technicalInstruction, p.athleteDevelopment, p.communication, p.safetyCompliance, p.trainingImplementation].map((v, j) => <td key={j} className="num">{v}/10</td>)}<td className="num"><strong>{Number(p.overallScore)}/10</strong></td></tr></tbody>
-            </table>
-            {p.strengths ? <p className="rd-empty" style={{ marginTop: 6 }}>Strengths: {p.strengths}</p> : null}
-            {p.areasForImprovement ? <p className="rd-empty" style={{ margin: 4 }}>Areas for improvement: {p.areasForImprovement}</p> : null}
-            {p.actionPlan ? <p className="rd-empty" style={{ margin: 4 }}>Action plan: {p.actionPlan}</p> : null}
-          </div>
-        )) : <p className="rd-empty">No evaluations recorded yet.</p>}
-      </RdSection>
-
-      {windowedApplications.length > 0 && (
-        <RdSection num="VI." title="Event Applications" meta={`${windowedApplications.length} application(s)`}>
-          <table className="rd-results">
-            <thead><tr><th scope="col">Event</th><th scope="col">Venue</th><th scope="col">Applied At</th><th scope="col">Start Date</th><th scope="col">Status</th></tr></thead>
-            <tbody>{windowedApplications.map((a, i) => <tr key={i}><td>{a.eventName}</td><td>{a.venue || "—"}</td><td>{formatDate(a.appliedAt)}</td><td>{a.startDate ? formatDate(a.startDate) : "—"}</td><td>{STATUS_LABEL[a.status] || a.status}</td></tr>)}</tbody>
-          </table>
-        </RdSection>
-      )}
-
-      {windowedParticipants.length > 0 && (
-        <RdSection num="VII." title="Event Participation" meta={`${windowedParticipants.length} participant record(s)`}>
-          <table className="rd-results">
-            <thead><tr><th scope="col">Event</th><th scope="col">Sport</th><th scope="col">Venue</th><th scope="col">Start Date</th><th scope="col">Athlete / Group</th><th scope="col">Status</th></tr></thead>
-            <tbody>{windowedParticipants.map((p, i) => <tr key={i}><td>{p.eventName}</td><td>{p.sport}</td><td>{p.venue || "—"}</td><td>{p.startDate ? formatDate(p.startDate) : "—"}</td><td>{p.athlete || "Coach delegation"}</td><td>{STATUS_LABEL[p.status] || p.status}</td></tr>)}</tbody>
-          </table>
-        </RdSection>
-      )}
-
-      <div className="rd-cert"><strong>Certification</strong>This is to certify that the information contained herein is an accurate and complete record of the above-named coach&apos;s profile, assigned athletes, training sessions, training plans, and performance evaluations, as officially recorded and maintained in the database of the City Sports Development Office of the City Government of Cauayan, Isabela.</div>
-
-      <ReportSignatures session={session} signatories={signatories} />
-
-      <footer className="rd-footer"><span>Generated by {session.user.name || session.user.email || "system"} on {issued}</span><span>Coach since {formatDate(coach.dateRegistered)} · Record updated: {coach.updatedAt ? formatDateTime(coach.updatedAt) : "—"}</span></footer>
-    </article>
-  );
-}
 
 const SUMMARY_FITNESS_META = {
   endurance: "Endurance",
@@ -1138,6 +391,8 @@ export default function Reports({ session, isAdmin, athletes, coaches, signatori
   const [to, setTo] = React.useState("");
   const [periodPreset, setPeriodPreset] = React.useState("all");
   const [search, setSearch] = React.useState("");
+  const [finalizing, setFinalizing] = React.useState(false);
+  const [finalizeResult, setFinalizeResult] = React.useState(null);
 
   const [sortKey, setSortKey] = React.useState("name");
   const [sortDir, setSortDir] = React.useState("asc");
@@ -1237,6 +492,36 @@ export default function Reports({ session, isAdmin, athletes, coaches, signatori
   const filtered = list.filter((item) => selected.includes(item.id));
   const prefix = type === "athlete" ? "APR-" : "CPR-";
 
+  // Freezes each selected record into an immutable ReportDocument. The server
+  // rebuilds the snapshot from current data and stores the resolved signature
+  // rows, so later edits can never rewrite the archived report.
+  async function finalizeSelected() {
+    if (!count || finalizing) return;
+    setFinalizing(true);
+    setFinalizeResult(null);
+    try {
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const results = [];
+      for (const item of filtered) {
+        const response = await fetch("/api/reports/finalize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+          body: JSON.stringify({ subjectType: type, subjectId: item.id, from, to }),
+        }).catch(() => null);
+        const body = response ? await response.json().catch(() => ({})) : {};
+        results.push({
+          ok: !!(response && response.ok && body.id),
+          id: body.id || null,
+          reference: body.reference || (type === "athlete" ? item.athleteCode : item.coachCode),
+          error: body.error || (response ? null : "Network error."),
+        });
+      }
+      setFinalizeResult(results);
+    } finally {
+      setFinalizing(false);
+    }
+  }
+
   function sortedHeader(key, label) {
     const active = sortKeyRef === key;
     return (
@@ -1269,7 +554,7 @@ const REPORTS_SECTIONS = [
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Official & performance records" title="Official Reports" active="/reports">
         <PageSectionTabs sections={REPORTS_SECTIONS} defaultSection="records">
           <section id="records">
-            <section className={styles.intro}><div><p className={styles.eyebrow}>Generate</p><h2>Official personnel records</h2><p>Select one or more records to produce a complete official personnel record covering registration, physical and health profile, performance records, training, daily training status, achievements, and event participation. {isAdmin ? "Generate reports for any athlete or coach." : "You can generate reports for the athletes assigned to you."}</p></div></section>
+            <section className={styles.intro}><div><p className={styles.eyebrow}>Generate</p><h2>Official personnel records</h2><p>Select one or more records to produce a complete official personnel record covering registration, physical and health profile, performance records, training, daily training status, achievements, and event participation. {isAdmin ? "Generate reports for any athlete or coach." : "You can generate reports for the athletes assigned to you."}</p><p><Link href="/reports/archive">View finalized reports</Link></p></div></section>
 
             <section className={styles.panel}>
           {isAdmin && (
@@ -1419,7 +704,25 @@ const REPORTS_SECTIONS = [
                 ))
               : filtered.map((coach) => <CoachReportCard key={coach.id} coach={coach} session={session} from={from} to={to} prefix={prefix} signatories={signatoriesByType?.coach_record} />)}
           </div>
-          {filtered.length > 0 && <div className={styles.stackedActions}><button className={styles.secondary} onClick={() => printScope("records")}>Print all reports</button></div>}
+          {filtered.length > 0 && (
+            <div className={styles.stackedActions}>
+              <button className={styles.primary} type="button" onClick={finalizeSelected} disabled={finalizing}>
+                {finalizing ? "Finalizing…" : `Finalize & archive (${count})`}
+              </button>
+              <button className={styles.secondary} type="button" onClick={() => printScope("records")}>Print all reports</button>
+            </div>
+          )}
+          {finalizeResult && (
+            <div className={styles.selectionSummary} role="status">
+              <span>{finalizeResult.filter((r) => r.ok).length} of {finalizeResult.length} archived. </span>
+              {finalizeResult.map((r, i) => (
+                r.ok
+                  ? <Link key={i} href={`/reports/archive/${r.id}`} style={{ marginRight: "var(--space-3)" }}>{r.reference}</Link>
+                  : <span key={i} style={{ marginRight: "var(--space-3)" }}>{r.reference}: {r.error}</span>
+              ))}
+              <Link href="/reports/archive">Open archive</Link>
+            </div>
+          )}
         </section>
         <section id="squad-fitness">
           <SquadFitnessBoard athletes={athletes} />
