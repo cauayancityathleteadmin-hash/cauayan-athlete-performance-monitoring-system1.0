@@ -155,7 +155,7 @@ const NAV_GROUPS = [
   },
   { key: "standing", label: "Standing", links: [{ href: "/standings", label: "Standing", icon: "trophy" }] },
   { key: "analytics", label: "Analytics", links: [{ href: "/analytics", label: "Analytics", icon: "barChart" }] },
-  { key: "reports", label: "Reports", links: [{ href: "/reports", label: "Reports", icon: "fileText" }] },
+  { key: "reports", label: "Reports", links: [{ href: "/reports", label: "Reports", icon: "fileText" }, { href: "/admin/signatories", label: "Signatories", icon: "badgeCheck", adminOnly: true }] },
   { key: "events", label: "Sports & Events", links: [{ href: "/event-plans", label: "Events", icon: "calendar" }, { href: "/admin/catalog", label: "Sports", icon: "flag", adminOnly: true }] },
   { key: "metrics", label: "Metrics", links: [{ href: "/admin/metrics", label: "Metrics", icon: "gauge", adminOnly: true }, { href: "/admin/document-types", label: "Document types", icon: "fileText", adminOnly: true }] },
   {

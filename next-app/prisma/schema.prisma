@@ -23,6 +23,24 @@ enum ActiveStatus {
   inactive
 }
 
+// Which function a person performs on a printed report. Kept as an enum so the
+// database rejects unknown roles even if an API caller bypasses validation.
+enum SignatoryRole {
+  prepared_by
+  reviewed_by
+  certified_by
+  noted_by
+}
+
+// How the signature area is rendered. "line_only" is a blank signature line for
+// handwritten signing; a printed name is never proof that a person signed.
+enum SignatoryDisplay {
+  name_position_line
+  name_position
+  designation_only
+  line_only
+}
+
 enum AthleteGender {
   male
   female
@@ -198,6 +216,8 @@ model User {
   transferDecisions        AthleteTransfer[]      @relation("TransferDecider")
   documentUploads          AthleteDocument[]      @relation("AthleteDocumentUploader")
   eventPhotoUploads        EventPhoto[]           @relation("EventPhotoUploader")
+  signatories              Signatory[]            @relation("SignatoryUser")
+  createdSignatories       Signatory[]            @relation("SignatoryCreator")
 
   @@index([role, status])
   @@map("users")
@@ -1017,4 +1037,31 @@ model FitnessNorm {
 
   @@unique([fitnessType, sex, ageGroup, tier])
   @@map("fitness_norms")
+}
+
+// Admin-managed signatories used on generated reports. Each row is one
+// signature area for one report type. Report content is never rewritten when
+// this configuration changes; historical finalized reports snapshot their own
+// signatories (see ReportDocument in the next migration).
+model Signatory {
+  id            Int               @id @default(autoincrement())
+  reportType    String            @map("report_type")
+  role          SignatoryRole
+  printedName   String            @map("printed_name")
+  position      String
+  office        String?
+  displayMode   SignatoryDisplay  @default(name_position_line) @map("display_mode")
+  displayOrder  Int               @default(0) @map("display_order")
+  effectiveFrom DateTime?         @map("effective_from")
+  effectiveTo   DateTime?         @map("effective_to")
+  status        ActiveStatus      @default(active)
+  userId        Int?              @map("user_id")
+  createdBy     Int?              @map("created_by")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+  user          User?             @relation("SignatoryUser", fields: [userId], references: [id], onDelete: SetNull)
+  creator       User?             @relation("SignatoryCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([reportType, status, displayOrder])
+  @@map("signatories")
 }

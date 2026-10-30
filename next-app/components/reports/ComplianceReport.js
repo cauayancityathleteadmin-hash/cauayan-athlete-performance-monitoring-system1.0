@@ -26,7 +26,7 @@ function ChipRow({ label, options, value, onChange, allLabel }) {
   );
 }
 
-export default function ComplianceReport({ session, isAdmin }) {
+export default function ComplianceReport({ session, isAdmin, signatories }) {
   const [schoolId, setSchoolId] = React.useState("");
   const [sportId, setSportId] = React.useState("");
   const [incomplete, setIncomplete] = React.useState(false);
@@ -194,6 +194,7 @@ export default function ComplianceReport({ session, isAdmin }) {
 
             <ReportSignatures
               session={session}
+              signatories={signatories}
               certification="This is to certify that the document compliance status reported herein reflects the required documents actually on file for each athlete, as officially recorded and maintained in the database of the City Sports Development Office of the City Government of Cauayan, Isabela, as of the date of generation."
             />
             <ReportFooter session={session} note={`Required types: ${data.requiredTypes.length} · Athletes: ${data.summary.athletes} · Compliant: ${data.summary.complete}`} />

@@ -10,7 +10,7 @@ const LEVEL_LABEL = { intramural: "Intramural", barangay: "Barangay", city: "Cit
 
 const periodLabel = periodText;
 
-export default function AccomplishmentsReport({ session, isAdmin }) {
+export default function AccomplishmentsReport({ session, isAdmin, signatories }) {
   const [preset, setPreset] = React.useState("sy");
   const [customFrom, setCustomFrom] = React.useState("");
   const [customTo, setCustomTo] = React.useState("");
@@ -275,6 +275,7 @@ export default function AccomplishmentsReport({ session, isAdmin }) {
 
             <ReportSignatures
               session={session}
+              signatories={signatories}
               certification="This is to certify that the athletic accomplishments, medal tallies, points, and records reported herein were computed from the official achievement records of the City Sports Development Office of the City Government of Cauayan, Isabela, using the office's standard points system, and are true and correct to the best of our knowledge."
             />
             <ReportFooter session={session} note={`Period: ${periodLabel(data.period.from, data.period.to)} · Achievements: ${data.counts.achievements} · Points: ${data.counts.points}`} />

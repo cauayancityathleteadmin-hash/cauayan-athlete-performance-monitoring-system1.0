@@ -1,6 +1,9 @@
 // Shared pieces for official printable reports (single source of truth for
 // header, certification/signature chain, footer, and print scoping).
-// Mirrors the chain used by AthleteReportCard / CoachReportCard in pages/reports.js.
+// Signature areas can be configured per report type in Admin > Signatories;
+// when a report type has no configuration, the legacy built-in chain is used.
+
+import { DEFAULT_SIGNATORIES } from "./signatory-options";
 
 export function reportDate(value) {
   if (!value) return "—";
@@ -37,29 +40,45 @@ export function ReportHeader({ title, reference }) {
   );
 }
 
-export function ReportSignatures({ session, certification }) {
+const ROLE_LABEL = {
+  prepared_by: "Prepared by:",
+  reviewed_by: "Reviewed by:",
+  certified_by: "Certified Correct:",
+  noted_by: "Noted by:",
+};
+
+// Turns one configuration row into the three printed lines. A printed name is
+// configuration only; it never implies that the person signed or approved.
+function signatoryLines(sig, session) {
+  const mode = sig.displayMode || "name_position_line";
+  const configuredName = (sig.printedName || "").trim();
+  const fallbackName = sig.role === "prepared_by" ? (session?.user?.name || session?.user?.email || "") : "";
+  const name = configuredName || fallbackName;
+  const position = [sig.position, sig.office].filter(Boolean).join(" · ");
+  if (mode === "line_only") return { name: "", position: "", note: "Signature over Printed Name" };
+  if (mode === "designation_only") return { name: "", position, note: "" };
+  if (mode === "name_position") return { name, position, note: "" };
+  return { name, position, note: "Signature over Printed Name" };
+}
+
+export function ReportSignatures({ session, certification, signatories }) {
+  const configured = Array.isArray(signatories) && signatories.length > 0;
+  const rows = configured
+    ? signatories.map((sig, index) => ({ key: `sig-${sig.id ?? index}`, role: sig.role, ...signatoryLines(sig, session) }))
+    : DEFAULT_SIGNATORIES.map((sig, index) => ({ key: `default-${index}`, role: sig.role, ...signatoryLines(sig, session) }));
+
   return (
     <>
-      <div className="rd-cert"><strong>Certification</strong>{certification}</div>
+      {certification ? <div className="rd-cert"><strong>Certification</strong>{certification}</div> : null}
       <div className="rd-signatures">
-        <div className="rd-sig">
-          <div className="rd-sig-label">Prepared by:</div>
-          <div className="rd-sig-name">{session.user.name || session.user.email || ""}</div>
-          <div className="rd-sig-pos">Authorized User, City Sports Development Office</div>
-          <div className="rd-sig-note">Signature over Printed Name</div>
-        </div>
-        <div className="rd-sig">
-          <div className="rd-sig-label">Reviewed by:</div>
-          <div className="rd-sig-name"></div>
-          <div className="rd-sig-pos">Head, Sports Development Division</div>
-          <div className="rd-sig-note">Signature over Printed Name</div>
-        </div>
-        <div className="rd-sig">
-          <div className="rd-sig-label">Certified Correct:</div>
-          <div className="rd-sig-name"></div>
-          <div className="rd-sig-pos">City Sports Development Officer</div>
-          <div className="rd-sig-note">Signature over Printed Name</div>
-        </div>
+        {rows.map((row) => (
+          <div className="rd-sig" key={row.key}>
+            <div className="rd-sig-label">{ROLE_LABEL[row.role] || "Signed by:"}</div>
+            <div className="rd-sig-name">{row.name}</div>
+            <div className="rd-sig-pos">{row.position}</div>
+            {row.note ? <div className="rd-sig-note">{row.note}</div> : null}
+          </div>
+        ))}
       </div>
     </>
   );

@@ -23,7 +23,7 @@ function roman(n) {
   return out || "I";
 }
 
-export default function EventWinnersReport({ session, isAdmin }) {
+export default function EventWinnersReport({ session, isAdmin, signatories }) {
   const [search, setSearch] = React.useState("");
   const [selected, setSelected] = React.useState(null);
   const [results, setResults] = React.useState(null);
@@ -234,6 +234,7 @@ export default function EventWinnersReport({ session, isAdmin }) {
 
             <ReportSignatures
               session={session}
+              signatories={signatories}
               certification="This is to certify that the event results, medal winners, records, and school delegation tally reported herein reflect the official results of the above-stated event, as officially recorded and maintained in the database of the City Sports Development Office of the City Government of Cauayan, Isabela."
             />
             <ReportFooter session={session} note={`${results.plan.eventName} · ${results.summary.entries} entries · ${results.summary.delegations} school(s) · Records: ${results.summary.records}`} />
