@@ -19,12 +19,17 @@ export async function getServerSideProps(context) {
     const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
     if (!coach) return { redirect: { destination: "/dashboard", permanent: false } };
     const athletes = await prisma.athlete.findMany({ where: { coach: { userId: Number(session.user.id) } }, select: { id: true } });
-    where = {
-      OR: [
-        { subjectType: "athlete", subjectId: { in: athletes.map((a) => a.id) } },
-        { subjectType: "coach", subjectId: coach.id },
-      ],
-    };
+    const athleteIds = athletes.map((a) => a.id);
+    if (athleteIds.length === 0) {
+      where = { subjectType: "coach", subjectId: coach.id };
+    } else {
+      where = {
+        OR: [
+          { subjectType: "athlete", subjectId: { in: athleteIds } },
+          { subjectType: "coach", subjectId: coach.id },
+        ],
+      };
+    }
   }
 
   const documents = await prisma.reportDocument.findMany({

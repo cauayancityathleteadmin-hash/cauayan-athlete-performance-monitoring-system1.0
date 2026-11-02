@@ -407,6 +407,14 @@ export async function getServerSideProps(context) {
 
 export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist, genderDist, schoolDist, eventDist, coachDist, roster, assessmentTypeDist, monthly, assessmentsPerAthlete, recentAssessments, averages, metricRanges, insights, progressSummary = [], movers = [], coachSchoolDist, achievementTypeDist, eventPlans, applications, participants, athletesBySport = [], eventsByCategory = [], medalDist = [], medalsBySport = [], medalsByLevel = [], winnersByAthlete = [], achievementsByMonth = [], records = 0, medalTotals = {}, completionBuckets, ratingTrend, ratingDist, healthStatusDist }) {
   const [openStatus, setOpenStatus] = React.useState({});
+  const [filters, setFilters] = React.useState({
+    sport: "all",
+    school: "all",
+    event: "all",
+    coach: "all",
+    status: "all",
+    dateRange: "all"
+  });
 
   const statusSegments = statusDist.map((item) => ({ ...item, color: STATUS_COLORS[item.name] || CHART_COLORS.muted }));
   const genderSegments = genderDist.map((d) => ({ name: cap(d.label), value: d.value, color: GENDER_COLORS[d.label.toLowerCase()] || CHART_COLORS.muted }));
@@ -442,9 +450,11 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
   };
 
   const ANALYTICS_SECTIONS = [
+    { label: "Overview", sectionId: "overview" },
     { label: "Athletes", sectionId: "athletes" },
+    { label: "Sports & Events", sectionId: "sports-events" },
     { label: "Assessments", sectionId: "assessments" },
-    { label: "Measurements", sectionId: "measurements" },
+    { label: "Metrics & Progress", sectionId: "measurements" },
     { label: "Training", sectionId: "training" },
     ...(isAdmin ? [{ label: "Competition", sectionId: "competition" }] : []),
     ...(isAdmin ? [{ label: "Program", sectionId: "program" }] : []),
@@ -455,6 +465,14 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
       <Head><title>Analytics | Cauayan Athlete Performance</title></Head>
       <AppShell session={session} isAdmin={isAdmin} eyebrow="Analytics" title="Analytics" active="/analytics">
         <div className={styles.pageTitle}><h1>Analytics</h1></div>
+        <section className={styles.intro}>
+          <div>
+            <p className={styles.eyebrow}>Performance Analytics</p>
+            <h2>Comprehensive Analytics & Progress Monitoring</h2>
+            <p>Real-time insights into athlete performance, development trends, and system-wide metrics based on actual database records.</p>
+          </div>
+        </section>
+
         <section className={styles.kpiRow}>
           <KPI label="Total athletes" value={kpi.totalAthletes} />
           <KPI label="Active athletes" value={kpi.activeAthletes} />
@@ -464,45 +482,108 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
           <KPI label="Achievements" value={kpi.achievements} />
         </section>
 
-        <PageSectionTabs sections={ANALYTICS_SECTIONS} defaultSection="athletes">
-          <section id="athletes">
+        <section className={styles.panel}>
+          <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Filters</p><h2>Analytics Filters</h2></div></div>
+          <div className={styles.toolbar} style={{ marginTop: "var(--space-4)", flexWrap: "wrap" }}>
+            <label>Sport
+              <select value={filters.sport} onChange={(e) => setFilters({...filters, sport: e.target.value})}>
+                <option value="all">All Sports</option>
+                {Array.from(new Set((athletesBySport || []).map(s => s.name))).filter(n => n !== "Unassigned").map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </label>
+            <label>School
+              <select value={filters.school} onChange={(e) => setFilters({...filters, school: e.target.value})}>
+                <option value="all">All Schools</option>
+                {(schoolDist || []).map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
+              </select>
+            </label>
+            <label>Status
+              <select value={filters.status} onChange={(e) => setFilters({...filters, status: e.target.value})}>
+                <option value="all">All Status</option>
+                {(statusDist || []).map(s => <option key={s.name} value={s.name}>{cap(s.name)}</option>)}
+              </select>
+            </label>
+            <label>Date Range
+              <select value={filters.dateRange} onChange={(e) => setFilters({...filters, dateRange: e.target.value})}>
+                <option value="all">All Time</option>
+                <option value="90days">Last 90 Days</option>
+                <option value="30days">Last 30 Days</option>
+                <option value="7days">Last 7 Days</option>
+              </select>
+            </label>
+            {(filters.sport !== "all" || filters.school !== "all" || filters.status !== "all" || filters.dateRange !== "all") && (
+              <button type="button" className={`${styles.secondary} ${styles.btnSm}`} onClick={() => setFilters({sport: "all", school: "all", event: "all", coach: "all", status: "all", dateRange: "all"})}>Clear Filters</button>
+            )}
+          </div>
+        </section>
+
+        <PageSectionTabs sections={ANALYTICS_SECTIONS} defaultSection="overview">
+          <section id="overview">
             <section className={styles.chartGrid}>
               <div className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Events by sport</h2></div></div>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Overview</p><h2>System Summary</h2></div></div>
+                <div className={styles.statRow}>
+                  <div className={styles.stat}><strong>{kpi.totalAthletes}</strong><small>Total Athletes</small></div>
+                  <div className={styles.stat}><strong>{kpi.activeAthletes}</strong><small>Active</small></div>
+                  <div className={styles.stat}><strong>{kpi.totalAssessments}</strong><small>Assessments</small></div>
+                  <div className={styles.stat}><strong>{kpi.achievements}</strong><small>Achievements</small></div>
+                </div>
+              </div>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Overview</p><h2>Progress Snapshot</h2></div></div>
+                <Donut segments={progressSummary.map((p) => ({ ...p, color: p.name === "Improving" ? CHART_COLORS.primary : p.name === "Declining" ? CHART_COLORS.danger : CHART_COLORS.muted }))} label="records" emptyMessage="No progress data available yet." />
+              </div>
+            </section>
+            <section className={styles.chartGrid}>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Overview</p><h2>Training Activity (Last 8 Weeks)</h2></div></div>
+                <VStacked data={completionBuckets} categories={["done", "partial", "missed"]} colors={[CHART_COLORS.primary, CHART_COLORS.warning, CHART_COLORS.danger]} xLabel="Week of" yLabel="Activities" emptyMessage="No activity logged yet." />
+              </div>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Overview</p><h2>Health Status Distribution</h2></div></div>
+                <Donut segments={healthSegments} label="athletes" emptyMessage="No athletes yet." />
+              </div>
+            </section>
+          </section>
+          <section id="sports-events">
+            <section className={styles.chartGrid}>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Sports & Events</p><h2>Athletes by sport</h2></div></div>
+                <HBars data={athletesBySport} axisLabel="Sport" axisValue="Athletes" emptyMessage="No athletes assigned to a sport yet." />
+              </div>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Sports & Events</p><h2>Events by sport category</h2></div></div>
+                <HBars data={eventsByCategory} axisLabel="Category" axisValue="Events" emptyMessage="No events yet." />
+              </div>
+            </section>
+            <section className={styles.chartGrid}>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Sports & Events</p><h2>Events by sport</h2></div></div>
                 {sportDist.length ? <HBars data={sportDist} axisLabel="Sport" axisValue="Events" /> : <p className={styles.empty}>No sports yet.</p>}
               </div>
+              <div className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Sports & Events</p><h2>Athletes by event discipline</h2></div></div>
+                {eventDist.length ? <HBars data={eventDist} axisLabel="Event" axisValue="Athletes" /> : <p className={styles.empty}>No athletes assigned to events yet.</p>}
+              </div>
+            </section>
+          </section>
+
+          <section id="athletes">
+            <section className={styles.chartGrid}>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Share by status</h2></div></div>
                 <Donut segments={statusSegments} label="athletes" />
               </div>
-            </section>
-
-            <section className={styles.chartGrid}>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by gender</h2></div></div>
                 {genderDist.length ? <Donut segments={genderSegments} label="athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
               </div>
+            </section>
+
+            <section className={styles.chartGrid}>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by school</h2></div></div>
                 {schoolDist.length ? <HBars data={schoolDist} axisLabel="School" axisValue="Athletes" /> : <p className={styles.empty}>No athletes yet.</p>}
-              </div>
-            </section>
-
-            <section className={styles.chartGrid}>
-              <div className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by sport</h2></div></div>
-                <HBars data={athletesBySport} axisLabel="Sport" axisValue="Athletes" emptyMessage="No athletes assigned to a sport yet." />
-              </div>
-              <div className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Events by sport category</h2></div></div>
-                <HBars data={eventsByCategory} axisLabel="Category" axisValue="Events" emptyMessage="No events yet." />
-              </div>
-            </section>
-
-            <section className={styles.chartGrid}>
-              <div className={styles.panel}>
-                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by event discipline</h2></div></div>
-                {eventDist.length ? <HBars data={eventDist} axisLabel="Event" axisValue="Athletes" /> : <p className={styles.empty}>No athletes assigned to events yet.</p>}
               </div>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athletes</p><h2>Athletes by coach</h2></div></div>
@@ -556,6 +637,13 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
           </section>
 
           <section id="assessments">
+            <section className={styles.intro}>
+              <div>
+                <p className={styles.eyebrow}>Assessments</p>
+                <h2>Assessment History & Analysis</h2>
+                <p>Comprehensive tracking of all assessments, completed and pending, with performance trends over time.</p>
+              </div>
+            </section>
             <section className={styles.chartGrid}>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Assessments</p><h2>Assessments by type</h2></div></div>
@@ -580,15 +668,22 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
           </section>
 
           <section id="measurements">
+            <section className={styles.intro}>
+              <div>
+                <p className={styles.eyebrow}>Metrics & Progress</p>
+                <h2>Performance Metrics & Progress Tracking</h2>
+                <p>Track individual metrics with units, improvement direction, and time-based progress. Comparisons respect whether higher or lower values indicate better performance.</p>
+              </div>
+            </section>
             <section className={styles.chartGrid}>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Measurements</p><h2>Average result per metric</h2></div></div>
-                <p className={styles.formHint} style={{ marginTop: 0 }}>Sample average of each metric (top 12 by value).</p>
+                <p className={styles.formHint} style={{ marginTop: 0 }}>Sample average of each metric across all assessments (top 12).</p>
                 <HBars data={averagesChart} axisLabel="Metric" axisValue="Average" emptyMessage="No numeric results yet." />
               </div>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Measurements</p><h2>Metric range — low to high</h2></div></div>
-                <p className={styles.formHint} style={{ marginTop: 0 }}>Grey = lowest recorded, green = spread to highest, amber tick = average.</p>
+                <p className={styles.formHint} style={{ marginTop: 0 }}>Shows min-max range with average reference point. Respects metric direction.</p>
                 <RangeBars data={rangesChart} emptyMessage="No numeric results yet." />
               </div>
             </section>
@@ -599,15 +694,40 @@ export default function Analytics({ session, isAdmin, kpi, sportDist, statusDist
                   <div><p className={styles.eyebrow}>Athlete progress</p><h2>Improving, flat or declining</h2></div>
                   <button className={styles.secondary} type="button" onClick={downloadCsv} disabled={!insights.length}>Export CSV</button>
                 </div>
-                <p className={styles.formHint} style={{ marginTop: 0 }}>Each athlete&rsquo;s latest result compared to their previous result on the same metric. Needs two or more records per metric.</p>
-                <Donut segments={progressSummary.map((p) => ({ ...p, color: p.name === "Improving" ? CHART_COLORS.primary : p.name === "Declining" ? CHART_COLORS.danger : CHART_COLORS.muted }))} label="records" emptyMessage="No athlete has two results on the same metric yet." />
+                <p className={styles.formHint} style={{ marginTop: 0 }}>Each athlete&apos;s latest result compared to their previous result on the same metric. Correctly calculates improvement based on metric direction (higher/lower better).</p>
+                <Donut segments={progressSummary.map((p) => ({ ...p, color: p.name === "Improving" ? CHART_COLORS.primary : p.name === "Declining" ? CHART_COLORS.danger : CHART_COLORS.muted }))} label="comparisons" emptyMessage="No athlete has two results on the same metric yet." />
               </div>
               <div className={styles.panel}>
                 <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Athlete progress</p><h2>Biggest movers</h2></div></div>
-                <p className={styles.formHint} style={{ marginTop: 0 }}>Largest changes first — improving (green) and declining (amber).</p>
-                {movers.length ? <HBars data={movers.map((m) => ({ name: `${m.athleteName} · ${m.metricName}`, value: m.change }))} colors={movers.map((m) => (m.trend === "up" ? CHART_COLORS.primary : m.trend === "down" ? CHART_COLORS.danger : CHART_COLORS.muted))} axisLabel="Change" axisValue="Change" emptyMessage="No changes to show yet." /> : <p className={styles.empty}>No athlete has two results on the same metric yet.</p>}
+                <p className={styles.formHint} style={{ marginTop: 0 }}>Largest changes first — improving and declining athletes with percentage changes.</p>
+                {movers.length ? <HBars data={movers.map((m) => ({ name: `${m.athleteName} · ${m.metricName}`, value: Math.abs(m.change) }))} colors={movers.map((m) => (m.trend === "up" ? CHART_COLORS.primary : m.trend === "down" ? CHART_COLORS.danger : CHART_COLORS.muted))} axisLabel="Magnitude" axisValue="Change" emptyMessage="No changes to show yet." /> : <p className={styles.empty}>No athlete has two results on the same metric yet.</p>}
               </div>
             </section>
+
+            {movers.length > 0 && (
+              <section className={styles.panel}>
+                <div className={styles.panelHeader}><div><p className={styles.eyebrow}>Detailed Progress</p><h2>Progress Details</h2></div></div>
+                <div className={styles.tableWrap}>
+                  <table>
+                    <thead><tr><th scope="col">Athlete</th><th scope="col">Metric</th><th scope="col">Previous</th><th scope="col">Latest</th><th scope="col">Change</th><th scope="col">% Change</th><th scope="col">Trend</th><th scope="col">Percentile</th></tr></thead>
+                    <tbody>
+                      {movers.map((m, i) => (
+                        <tr key={i}>
+                          <td><strong>{m.athleteName}</strong></td>
+                          <td>{m.metricName} {m.unit ? `(${m.unit})` : ''}</td>
+                          <td>{m.previous}</td>
+                          <td><strong>{m.value}</strong></td>
+                          <td style={{ color: m.trend === 'up' ? 'var(--accent)' : m.trend === 'down' ? 'var(--danger)' : 'var(--muted)' }}>{m.change > 0 ? '+' : ''}{m.change}</td>
+                          <td>{m.pctChange > 0 ? '+' : ''}{m.pctChange}%</td>
+                          <td><span className={m.trend === 'up' ? styles.badgeActive : m.trend === 'down' ? styles.badgeRejected : styles.badgePending}>{m.trend === 'up' ? 'Improving' : m.trend === 'down' ? 'Declining' : 'Same'}</span></td>
+                          <td>{m.band != null ? `${m.band}th` : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
           </section>
 
           <section id="training">

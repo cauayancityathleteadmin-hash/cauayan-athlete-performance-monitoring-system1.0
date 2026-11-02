@@ -99,8 +99,8 @@ export default function ArchivedReport({ session, isAdmin, doc, integrityOk }) {
             </p>
             <p>
               {integrityOk
-                ? <span className={styles.formSuccess} role="status">Integrity verified — stored content matches its recorded hash.</span>
-                : <span className={styles.formError} role="alert">Integrity check failed — the stored content does not match its recorded hash. Do not rely on this copy; contact the administrator.</span>}
+                ? <span className={styles.formSuccess} role="status">Integrity verified &mdash; stored content matches its recorded hash.</span>
+                : <span className={styles.formError} role="alert">Integrity check failed &mdash; the stored content does not match its recorded hash. Do not rely on this copy; contact the administrator.</span>}
             </p>
             <p>
               <button type="button" className={styles.secondary} onClick={() => printScope("records")}>Print report</button>

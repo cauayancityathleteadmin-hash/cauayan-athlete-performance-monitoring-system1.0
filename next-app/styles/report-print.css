@@ -330,7 +330,7 @@
   font-style: italic;
 }
 
-/* Keep the app chrome out of print output */
+/* Formal printable reports - completely separate from on-screen UI */
 @media print {
   @page {
     size: A4 portrait;
@@ -341,6 +341,34 @@
   body {
     background: #ffffff !important;
     background-image: none !important;
+    color: #000000 !important;
+  }
+
+  /* Hide all app chrome when printing */
+  header,
+  nav,
+  aside,
+  footer,
+  .sidebar,
+  .app-header,
+  .topbar,
+  [class*="nav"],
+  [class*="sidebar"],
+  button,
+  .btn,
+  .primary,
+  .secondary,
+  [role="navigation"],
+  [role="banner"],
+  .toolbar,
+  .intro,
+  .panelHeader button,
+  .stackedActions,
+  .segmented,
+  #__next > div > header,
+  #__next > div > nav {
+    display: none !important;
+    visibility: hidden !important;
   }
 
   body * {
@@ -348,7 +376,9 @@
   }
 
   #report-workspace,
-  #report-workspace * {
+  #report-workspace *,
+  .print-workspace,
+  .print-workspace * {
     visibility: visible;
   }
 
@@ -359,19 +389,34 @@
     width: 100%;
     margin: 0;
     padding: 0;
+    background: #ffffff !important;
+  }
+
+  .print-workspace {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: #ffffff !important;
   }
 
   .report-doc {
     max-width: 100%;
-    margin: 0;
+    margin: 0 0 20mm 0;
     padding: 0;
     border-radius: 0;
     box-shadow: none;
+    background: #ffffff !important;
+    color: #000000 !important;
     page-break-after: always;
+    page-break-inside: avoid;
   }
 
   .report-doc:last-child {
     page-break-after: auto;
+    margin-bottom: 0;
   }
 
   .rd-logo,
@@ -384,44 +429,60 @@
     page-break-inside: avoid;
   }
 
-  /* ---- Workspace scoping (see lib/report-doc.js printScope) ------------
-     Each report type renders into its own .print-workspace container.
-     body[data-print-scope] selects which ONE prints; the others are hidden
-     so multiple absolutely-positioned workspaces can never overlap on paper.
-     Default scope ("records") is set by pages/reports.js on mount, keeping
-     plain Ctrl+P behavior identical to the original personnel reports. */
-  .print-workspace,
-  .print-workspace * {
-    visibility: visible;
-  }
-
-  .print-workspace {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-  }
-
+  /* ---- Workspace scoping (see lib/report-doc.js printScope) ------------ */
   body[data-print-scope] #report-workspace,
   body[data-print-scope] .print-workspace {
     display: none !important;
+    visibility: hidden !important;
   }
 
   body[data-print-scope="records"] #report-workspace {
     display: block !important;
+    visibility: visible !important;
   }
 
   body[data-print-scope="accomplishments"] #ws-accomplishments {
     display: block !important;
+    visibility: visible !important;
   }
 
   body[data-print-scope="winners"] #ws-winners {
     display: block !important;
+    visibility: visible !important;
   }
 
   body[data-print-scope="compliance"] #ws-compliance {
     display: block !important;
+    visibility: visible !important;
+  }
+
+  /* Ensure page breaks work properly */
+  .rd-assessment,
+  .rd-grid,
+  .rd-signatures,
+  .rd-cert {
+    page-break-inside: avoid;
+  }
+
+  .rd-section-title {
+    page-break-after: avoid;
+  }
+
+  /* Ensure tables don't break badly */
+  .rd-results {
+    page-break-inside: auto;
+  }
+
+  .rd-results tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  .rd-results thead {
+    display: table-header-group;
+  }
+
+  .rd-results tfoot {
+    display: table-footer-group;
   }
 }
