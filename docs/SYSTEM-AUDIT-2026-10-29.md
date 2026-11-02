@@ -287,3 +287,26 @@ Not verified in Phase C:
 - Coach-role UI end-to-end.
 - Photo privacy (S2) exploitability from an unauthenticated client.
 - Report finalization/snapshotting (Phase C2, not built).
+
+## 6E. Phase C2 results — immutable finalized reports (implemented, deployed, verified)
+
+Commit 1cbd678. Additive migration 20261030131500_add_report_documents (new enum ReportSubjectType, new table eport_documents); no existing table or column was altered. Pre-migration DB dump written and re-read (db-pre-c2-2026-10-30T13-11-33.json, 43 tables, 624 rows, verify OK); pre-migration source zip written (pre-c2-src-20261030-131143.zip, 212 entries). Local prisma migrate deploy applied cleanly; prisma generate completed. Build (
+pm run build) and lint (
+px eslint .) exit 0.
+
+| Requirement | Implementation | Evidence |
+|---|---|---|
+| Extract report cards (no behavior change) | components/reports/record-reports.js extracted from pages/reports.js; shared helpers moved to lib/report-labels.js; live page reuses extracted cards and lib/report-data.js | Render-to-static comparison: athlete, athlete-windowed, coach, coach-windowed all byte-identical between old and new components (verified via temporary harness, then artifacts deleted). |
+| Shared data builder | lib/report-data.js centralizes Prisma includes/serializers for live page and finalize (loadReportData, loadAthleteReportSubject, loadCoachReportSubject) | Live /reports loads via loadReportData in gSSP; finalize rebuilds from same serializers. |
+| Immutable finalization | POST /api/reports/finalize freezes subject snapshot + fully resolved signature rows into ReportDocument; no update/delete endpoint exists | Schema has ReportDocument only; API returns 201 on success. Local 17/17 API checks passed (401 unauth, CSRF 403, 400×4 validation, 404 unknown, 201 create, reference match, 64-char hash, archive list/detail, frozen name, integrity badge, live report). |
+| Frozen signatures | esolveSignatureRows snapshots configured/default chain at finalization time; archived view renders signatureRows from storage only | Live report picked up a newly configured signatory after finalize; the previously archived document did not show it and still passed integrity verification. Second finalize produced -R2 and used the new signatory. |
+| Immutability under source edits | Snapshot is stored verbatim; archived page never queries live athlete/coach records | Source athlete first name renamed in DB; archived document still showed the frozen name and did not reflect the rename; integrity still verified. |
+| Content integrity | SHA-256 over canonical (recursively key-sorted) JSON of frozen fields (handles PostgreSQL JSONB key reordering) | 64-char hex hash stored and verified on archive detail page; badge shown. |
+| Unique references | Duplicates get -R2, -R3, ... instead of blocking | Second finalize of same athlete/period returned APR-ZZ-TEST-C2B-all-R2. |
+| Authorization | Admin may finalize any; coach may finalize only own athletes and own record | Coach scoping verified 11/11 via real HTTP login as scratch coach user (403 foreign athlete/record, 201 own, archive scoped, foreign doc 404, live reports scoped). COA-000001 (John Paulo Dacayanan) not deleted. |
+| Archive discoverability | /reports/archive index (scoped by role) + /reports/archive/[id] frozen view linked from /reports (no new sidebar item) | Browser verified: 'Finalize & archive (1)' button, result message with links, archive list table + filters, archive detail renders card + integrity badge + print button + frozen signature row. |
+| Live deployment | Committed 1cbd678, pushed to main, Vercel prod deployment dpl_6JAsfLy2zYgV9jbFoymp3tChkCDF Ready; liveness probe passed | uildId manifest listed /reports/archive, /reports/archive/[id], /api/reports/finalize; /api/health 200 db:"up". Live HTTP verify: finalize → archive list/detail with integrity verified against real production URL. |
+
+Test artifacts created during verification (scratch athlete/coach/users/signatories, temp API routes, temp test scripts, DB dump/script files) were all deleted and hard-removed; final DB state confirmed: eport_documents 0, athletes 0, coaches 1 (real), users 2 (real), signatories 0, audit rows for eport_document/signatory 0.
+
+Not fully verified: restore drill into staging (no staging environment). Historical-protection 409 branch for metrics not exercised (no assessment results in prod). Private photo storage privacy not re-tested.
