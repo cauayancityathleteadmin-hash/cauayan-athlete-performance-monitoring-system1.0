@@ -111,7 +111,7 @@ export default function Login() {
                 </svg>
               ) : (
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.11-4.11"></path>
                   <line x1="1" y1="1" x2="23" y2="23"></line>
                 </svg>
               )}
@@ -121,7 +121,6 @@ export default function Login() {
         <button type="submit" disabled={busy}>{busy ? "Logging in..." : "Log in"}</button>
         {error && <p role="alert">{error}</p>}
       </form>
-      <p className="auth-register" style={{ marginTop: "var(--space-4)", fontSize: "13px", color: "var(--muted)" }}>Rate each statement based on your experience with the system.</p>
       <p className="auth-register"><Link href="/coach-register">Register as a coach</Link></p>
       <p className="auth-register"><Link href="/forgot-password">Forgot password?</Link></p>
     </main>
