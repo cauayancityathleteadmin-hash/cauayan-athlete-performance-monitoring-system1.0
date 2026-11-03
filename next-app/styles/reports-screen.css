@@ -1,234 +1,158 @@
-/* The on-screen reports are part of the application UI. The dedicated formal
-   white-paper design is applied only by the print rules below. */
-.report-doc,
-.report-doc * {
-  color: var(--foreground);
-  font-family: var(--font);
-}
-
-.report-doc {
-  max-width: 100%;
-  margin: 0 0 var(--space-5);
-  padding: clamp(var(--space-4), 2vw, var(--space-6));
-  overflow: hidden;
-  color: var(--foreground);
-  background: linear-gradient(145deg, rgba(10, 50, 40, .97), rgba(4, 31, 24, .97));
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, .24);
-  line-height: 1.6;
-  text-align: left;
-}
-
-.report-doc h1,
-.report-doc h2,
-.report-doc h3,
-.report-doc p {
-  color: inherit;
-  font-family: var(--font);
-}
-
-.report-doc .rd-header {
-  gap: var(--space-4);
-  border-bottom: 2px solid var(--accent);
-}
-
-.report-doc .rd-logo,
-.report-doc .rd-logo-left,
-.report-doc .rd-logo-right {
-  max-width: 22%;
-  object-fit: contain;
-}
-
-.report-doc .rd-title {
-  color: var(--accent);
-  letter-spacing: .08em;
-  text-wrap: balance;
-}
-
-.report-doc .rd-ref,
-.report-doc .rd-section-title span,
-.report-doc .rd-empty,
-.report-doc .rd-kpi-note,
-.report-doc .rd-footer {
-  color: var(--muted);
-}
-
-.report-doc .rd-section-title {
-  color: var(--foreground);
-  border-color: var(--border);
-}
-
-.report-doc .rd-sec-no,
-.report-doc .rd-kpi-value {
-  color: var(--accent);
-}
-
-.report-doc .rd-sub-section {
-  border-color: var(--accent);
-}
-
-.report-doc .rd-info,
-.report-doc .rd-results {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  overflow-x: auto;
-  border-collapse: collapse;
-  color: var(--foreground);
-  background: rgba(4, 31, 24, .45);
-}
-
-.report-doc .rd-info {
-  min-width: 520px;
-}
-
-.report-doc .rd-results {
-  min-width: 680px;
-}
-
-.report-doc .rd-info th,
-.report-doc .rd-results th,
-.report-doc .rd-info td,
-.report-doc .rd-results td {
-  color: var(--foreground);
-  border: 1px solid var(--border);
-  overflow-wrap: anywhere;
-}
-
-.report-doc .rd-info th,
-.report-doc .rd-results th {
-  background: rgba(45, 212, 168, .12);
-  color: var(--accent);
-}
-
-.report-doc .rd-info td,
-.report-doc .rd-results td {
-  background: rgba(4, 31, 24, .35);
-}
-
-.report-doc .rd-grid-item {
-  color: var(--foreground);
-  background: rgba(45, 212, 168, .07);
-  border-color: var(--border);
-}
-
-.report-doc .rd-kpi-label,
-.report-doc .rd-kpi-note,
-.report-doc .rd-assessment-head small {
-  color: var(--muted);
-}
-
-.report-doc .rd-cert {
-  color: var(--foreground);
-  background: rgba(45, 212, 168, .06);
-  border-color: var(--border);
-}
-
-.report-doc .rd-sig-name {
-  border-color: var(--muted);
-}
-
-@media (max-width: 640px) {
-  .report-doc .rd-header {
-    gap: var(--space-2);
+/* Screen-only styling. The formal document stylesheet is intentionally kept
+   separate in report-print.css; these rules never affect print output. */
+@media screen {
+  html body .report-doc,
+  html body .report-doc * {
+    color: var(--foreground);
+    font-family: var(--font);
   }
 
-  .report-doc .rd-logo,
-  .report-doc .rd-logo-left,
-  .report-doc .rd-logo-right {
-    height: 52px;
-  }
-
-  .report-doc .rd-lgu {
-    font-size: 18px;
-  }
-
-  .report-doc .rd-grid,
-  .report-doc .rd-signatures {
-    flex-direction: column;
-  }
-
-  .report-doc .rd-footer {
-    flex-direction: column;
-  }
-}
-
-@media print {
-  .report-doc,
-  .report-doc * {
-    color: #111 !important;
-    font-family: "Times New Roman", Georgia, serif !important;
-    text-shadow: none !important;
-  }
-
-  .report-doc {
-    max-width: none;
-    margin: 0 0 12mm;
-    padding: 0;
-    overflow: visible;
-    background: #fff !important;
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-    line-height: 1.45;
-    page-break-inside: auto;
-    break-inside: auto;
-    page-break-after: always;
-    break-after: page;
-  }
-
-  .report-doc:last-child {
-    margin-bottom: 0;
-    page-break-after: auto;
-    break-after: auto;
-  }
-
-  .report-doc .rd-info,
-  .report-doc .rd-results {
-    display: table;
+  html body .report-doc {
     width: 100%;
-    min-width: 0;
     max-width: 100%;
-    overflow: visible;
-    background: #fff !important;
-    table-layout: auto;
-    font-size: 9pt;
+    min-width: 0;
+    margin: 0 0 var(--space-5);
+    padding: clamp(var(--space-4), 2vw, var(--space-6));
+    overflow: hidden;
+    background: linear-gradient(145deg, rgba(10, 50, 40, .97), rgba(4, 31, 24, .97));
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, .24);
+    line-height: 1.6;
+    text-align: left;
   }
 
-  .report-doc .rd-info th,
-  .report-doc .rd-results th {
-    color: #111 !important;
-    background: #eee !important;
-    border-color: #333 !important;
+  html body .report-doc h1,
+  html body .report-doc h2,
+  html body .report-doc h3,
+  html body .report-doc p {
+    color: inherit;
+    font-family: var(--font);
   }
 
-  .report-doc .rd-info td,
-  .report-doc .rd-results td {
-    color: #111 !important;
-    background: #fff !important;
-    border-color: #333 !important;
+  html body .report-doc .rd-header {
+    gap: var(--space-4);
+    border-bottom: 2px solid var(--accent);
   }
 
-  .report-doc .rd-header {
-    border-color: #1a5c4a;
+  html body .report-doc .rd-logo,
+  html body .report-doc .rd-logo-left,
+  html body .report-doc .rd-logo-right {
+    max-width: 22%;
+    object-fit: contain;
   }
 
-  .report-doc .rd-title {
-    color: #111 !important;
+  html body .report-doc .rd-title {
+    color: var(--accent);
+    letter-spacing: .08em;
+    text-wrap: balance;
   }
 
-  .report-doc .rd-section-title {
-    page-break-after: avoid;
-    break-after: avoid-page;
+  html body .report-doc .rd-ref,
+  html body .report-doc .rd-section-title span,
+  html body .report-doc .rd-empty,
+  html body .report-doc .rd-kpi-note,
+  html body .report-doc .rd-footer {
+    color: var(--muted);
   }
 
-  .report-doc .rd-assessment,
-  .report-doc .rd-cert,
-  .report-doc .rd-signatures,
-  .report-doc .rd-grid-item,
-  .report-doc tr {
-    page-break-inside: avoid;
-    break-inside: avoid-page;
+  html body .report-doc .rd-section-title {
+    color: var(--foreground);
+    border-color: var(--border);
+  }
+
+  html body .report-doc .rd-sec-no,
+  html body .report-doc .rd-kpi-value {
+    color: var(--accent);
+  }
+
+  html body .report-doc .rd-sub-section {
+    border-color: var(--accent);
+  }
+
+  html body .report-doc .rd-info,
+  html body .report-doc .rd-results {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    color: var(--foreground);
+    background: rgba(4, 31, 24, .45);
+  }
+
+  html body .report-doc .rd-info {
+    min-width: 520px;
+  }
+
+  html body .report-doc .rd-results {
+    min-width: 680px;
+  }
+
+  html body .report-doc .rd-info th,
+  html body .report-doc .rd-results th,
+  html body .report-doc .rd-info td,
+  html body .report-doc .rd-results td {
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    overflow-wrap: anywhere;
+  }
+
+  html body .report-doc .rd-info th,
+  html body .report-doc .rd-results th {
+    background: rgba(45, 212, 168, .12);
+    color: var(--accent);
+  }
+
+  html body .report-doc .rd-info td,
+  html body .report-doc .rd-results td {
+    background: rgba(4, 31, 24, .35);
+  }
+
+  html body .report-doc .rd-grid-item {
+    color: var(--foreground);
+    background: rgba(45, 212, 168, .07);
+    border-color: var(--border);
+  }
+
+  html body .report-doc .rd-kpi-label,
+  html body .report-doc .rd-kpi-note,
+  html body .report-doc .rd-assessment-head small {
+    color: var(--muted);
+  }
+
+  html body .report-doc .rd-cert {
+    color: var(--foreground);
+    background: rgba(45, 212, 168, .06);
+    border-color: var(--border);
+  }
+
+  html body .report-doc .rd-sig-name {
+    border-color: var(--muted);
+  }
+
+  @media (max-width: 640px) {
+    html body .report-doc .rd-header {
+      gap: var(--space-2);
+    }
+
+    html body .report-doc .rd-logo,
+    html body .report-doc .rd-logo-left,
+    html body .report-doc .rd-logo-right {
+      height: 52px;
+    }
+
+    html body .report-doc .rd-lgu {
+      font-size: 18px;
+    }
+
+    html body .report-doc .rd-grid,
+    html body .report-doc .rd-signatures {
+      flex-direction: column;
+    }
+
+    html body .report-doc .rd-footer {
+      flex-direction: column;
+    }
   }
 }
