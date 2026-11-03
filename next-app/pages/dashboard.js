@@ -526,18 +526,18 @@ export default function Dashboard({ stats, completion = [], ratingSeries = [], u
         <FeatureCard eyebrow="Events &amp; program" title="Event plans" href="/event-plans">{plural(stats.plans, "open plan")}{stats.myApprovedPlans > 0 && !isAdmin ? `, ${plural(stats.myApprovedPlans, "approved application")}` : ""}. Apply, add participants, and track competition slots.</FeatureCard>
         <FeatureCard eyebrow="Standing" title="Standing" href="/standings">{plural(achievementsCount, "achievement")} recorded and ranked on the standing board.</FeatureCard>
         <FeatureCard eyebrow="Records" title="Reports" href="/reports">Generate official records — personnel, performance summaries, and coach files.</FeatureCard>
+        {isAdmin && (
+          <>
+            <FeatureCard eyebrow="People" title="Coaches" href="/admin/coaches">{plural(stats.coaches, "coach")} on file. Review records, approvals, and account access on each page.</FeatureCard>
+            <FeatureCard eyebrow="People" title="Coach approvals" href="/coach-approvals">{plural(stats.pendingCoaches, "account")} waiting for approval.</FeatureCard>
+            <FeatureCard eyebrow="Catalog" title="Sports &amp; discipline" href="/admin/catalog">{plural(stats.sports, "sport")} registered under the program catalog.</FeatureCard>
+            <FeatureCard eyebrow="Measurements" title="Performance metrics" href="/admin/metrics">Configure the quantifiable metrics that define each event.</FeatureCard>
+            <FeatureCard eyebrow="Records" title="Document types" href="/admin/document-types">Define the required and optional records tracked on each athlete&rsquo;s profile.</FeatureCard>
+            <FeatureCard eyebrow="Records" title="Audit trail" href="/admin/audit-logs">{plural(stats.logs, "meaningful action")} recorded in the database.</FeatureCard>
+            <FeatureCard eyebrow="Maintenance" title="Database backup" href="/admin/backup">Request backups and plan off-site snapshots.</FeatureCard>
+          </>
+        )}
       </section>
-      {isAdmin && (
-        <section className={styles.gridAuto} aria-label="Administration summaries">
-          <FeatureCard eyebrow="People" title="Coaches" href="/admin/coaches">{plural(stats.coaches, "coach")} on file. Review records, approvals, and account access on each page.</FeatureCard>
-          <FeatureCard eyebrow="People" title="Coach approvals" href="/coach-approvals">{plural(stats.pendingCoaches, "account")} waiting for approval.</FeatureCard>
-          <FeatureCard eyebrow="Catalog" title="Sports &amp; discipline" href="/admin/catalog">{plural(stats.sports, "sport")} registered under the program catalog.</FeatureCard>
-          <FeatureCard eyebrow="Measurements" title="Performance metrics" href="/admin/metrics">Configure the quantifiable metrics that define each event.</FeatureCard>
-          <FeatureCard eyebrow="Records" title="Document types" href="/admin/document-types">Define the required and optional records tracked on each athlete&rsquo;s profile.</FeatureCard>
-          <FeatureCard eyebrow="Records" title="Audit trail" href="/admin/audit-logs">{plural(stats.logs, "meaningful action")} recorded in the database.</FeatureCard>
-          <FeatureCard eyebrow="Maintenance" title="Database backup" href="/admin/backup">Request backups and plan off-site snapshots.</FeatureCard>
-        </section>
-      )}
     </AppShell>
   </>;
 }

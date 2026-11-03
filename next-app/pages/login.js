@@ -54,7 +54,7 @@ export default function Login() {
       <p className="auth-subtitle">Tracking development progress from initial to current performance with analytics</p>
       <form onSubmit={submit} noValidate>
         <label htmlFor="identifier">
-          Username or email
+          Username, Coach ID, or Email
           <input
             id="identifier"
             name="identifier"
@@ -62,6 +62,7 @@ export default function Login() {
             required
             autoComplete="username"
             maxLength="191"
+            placeholder="Enter username, coach ID, or email"
           />
         </label>
         <label htmlFor="password">
@@ -120,6 +121,7 @@ export default function Login() {
         <button type="submit" disabled={busy}>{busy ? "Logging in..." : "Log in"}</button>
         {error && <p role="alert">{error}</p>}
       </form>
+      <p className="auth-register" style={{ marginTop: "var(--space-4)", fontSize: "13px", color: "var(--muted)" }}>Rate each statement based on your experience with the system.</p>
       <p className="auth-register"><Link href="/coach-register">Register as a coach</Link></p>
       <p className="auth-register"><Link href="/forgot-password">Forgot password?</Link></p>
     </main>
