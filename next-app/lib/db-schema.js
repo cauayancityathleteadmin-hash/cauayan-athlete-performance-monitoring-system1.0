@@ -7,6 +7,9 @@ import { prisma } from "./prisma";
 // All statements use IF NOT EXISTS, so re-runs and concurrent cold starts are safe.
 
 const STMTS = [
+  `CREATE TABLE IF NOT EXISTS "rate_limit_buckets" ("id" SERIAL PRIMARY KEY, "scope" TEXT NOT NULL, "bucket_key" TEXT NOT NULL, "hits" INTEGER NOT NULL DEFAULT 0, "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "expires_at" TIMESTAMP(3) NOT NULL)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "rate_limit_buckets_scope_bucket_key_key" ON "rate_limit_buckets"("scope", "bucket_key")`,
+  `CREATE INDEX IF NOT EXISTS "rate_limit_buckets_expires_at_idx" ON "rate_limit_buckets"("expires_at")`,
   `ALTER TABLE "coaches" ADD COLUMN IF NOT EXISTS "picture_url" TEXT`,
   `ALTER TABLE "athletes" ADD COLUMN IF NOT EXISTS "picture_url" TEXT`,
   `ALTER TABLE "training_plans" ADD COLUMN IF NOT EXISTS "duration_weeks" INTEGER`,
