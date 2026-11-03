@@ -24,7 +24,7 @@ const KPI = ({ label, value }) => (
 );
 
 const Donut = ({ segments, emptyMessage, label }) => {
-  if (!segments.length) return <p className={styles.empty}>{emptyMessage || "No data yet"}</p>;
+  if (!segments.length) return <p className={styles.empty}>{emptyMessage || "No results available yet."}</p>;
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHTS.pie}>
       <PieChart>
@@ -39,7 +39,7 @@ const Donut = ({ segments, emptyMessage, label }) => {
 };
 
 const HBars = ({ data, axisLabel, axisValue, colors, emptyMessage }) => {
-  if (!data.length) return <p className={styles.empty}>{emptyMessage || "No data yet"}</p>;
+  if (!data.length) return <p className={styles.empty}>{emptyMessage || "No results available yet."}</p>;
   const cells = colors ? data.map((d, i) => <Cell key={i} fill={colors[i % colors.length]} />) : null;
   return (
     <ResponsiveContainer width="100%" height={barChartHeight(data.length)}>
@@ -58,7 +58,7 @@ const HBars = ({ data, axisLabel, axisValue, colors, emptyMessage }) => {
 };
 
 const VStacked = ({ data, categories, colors, emptyMessage, xLabel, yLabel }) => {
-  if (!data.length) return <p className={styles.empty}>{emptyMessage || "No data yet"}</p>;
+  if (!data.length) return <p className={styles.empty}>{emptyMessage || "No results available yet."}</p>;
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHTS.barVertical}>
       <BarChart data={data} margin={CHART_MARGINS.barVertical}>
@@ -80,7 +80,7 @@ const VStacked = ({ data, categories, colors, emptyMessage, xLabel, yLabel }) =>
 };
 
 const TrendLine = ({ data, dataKey, name, emptyMessage, xLabel }) => {
-  if (!data.length) return <p className={styles.empty}>{emptyMessage || "No data yet"}</p>;
+  if (!data.length) return <p className={styles.empty}>{emptyMessage || "No results available yet."}</p>;
   return (
     <ResponsiveContainer width="100%" height={CHART_HEIGHTS.line}>
       <LineChart data={data} margin={CHART_MARGINS.line}>
@@ -101,7 +101,7 @@ const TrendLine = ({ data, dataKey, name, emptyMessage, xLabel }) => {
 // Range bar: shows each metric's low→high span, with a reference dot for the
 // average. Best read for "min–max–average" data (clearer than a table).
 const RangeBars = ({ data, emptyMessage, valueSuffix = "" }) => {
-  if (!data || !data.length) return <p className={styles.empty}>{emptyMessage || "No data yet"}</p>;
+  if (!data || !data.length) return <p className={styles.empty}>{emptyMessage || "No results available yet."}</p>;
   return (
     <ResponsiveContainer width="100%" height={barChartHeight(data.length)}>
       <BarChart data={data} layout="vertical" margin={CHART_MARGINS.barHorizontal} barCategoryGap="30%">
