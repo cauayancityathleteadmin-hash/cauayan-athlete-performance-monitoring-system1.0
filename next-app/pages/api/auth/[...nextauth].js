@@ -33,6 +33,8 @@ export const authOptions = {
     name: "Credentials",
     credentials: { identifier: { label: "Username, email, coach code, or ID", type: "text" }, password: { label: "Password", type: "password" } },
     async authorize(credentials, request) {
+      await ensureSchema();
+
       const identifier = String(credentials?.identifier ?? "").trim().toLowerCase();
       const password = String(credentials?.password ?? "");
       if (!identifier || !password || identifier.length > 191 || password.length > 200) return null;
@@ -40,7 +42,13 @@ export const authOptions = {
       const ip = String(forwarded).split(",")[0].trim();
       const rate = rateLimiters.login(`login:${ip}:${identifier}`);
       if (!rate.allowed) return null;
-      const dbRate = await checkRateLimitDb({ scope: "login", key: `login:${ip}`, limit: 30, windowMs: 15 * 60 * 1000, failClosed: true });
+      const dbRate = await checkRateLimitDb({
+        scope: "login",
+        key: `login:${ip}`,
+        limit: 30,
+        windowMs: 15 * 60 * 1000,
+        failClosed: false,
+      });
       if (!dbRate.allowed) return null;
       const lock = isLocked(identifier);
       if (lock.locked) return null;
@@ -86,22 +94,51 @@ export const authOptions = {
         auditLogin(user.id, true, "Signed in successfully."),
         prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }),
       ]);
-      return { id: String(user.id), role: user.role, email: user.email, name: user.coach ? `${user.coach.firstName} ${user.coach.lastName}` : user.username, mustChangePassword: user.mustChangePassword, canApproveCoaches: user.coach ? user.coach.canApproveCoaches : false };
+      return {
+        id: String(user.id),
+        role: user.role,
+        email: user.email,
+        name: user.coach ? `${user.coach.firstName} ${user.coach.lastName}` : user.username,
+        mustChangePassword: user.mustChangePassword,
+        canApproveCoaches: Boolean(user.coach?.canApproveCoaches),
+      };
     },
   })],
   session: { strategy: "jwt", maxAge: 8 * 60 * 60 },
   jwt: { maxAge: 8 * 60 * 60 },
   pages: { signIn: "/login" },
   callbacks: {
-    async jwt({ token, user, trigger, session }) { if (user) Object.assign(token, user); if (trigger === "update" && session?.mustChangePassword !== undefined) token.mustChangePassword = session.mustChangePassword; return token; },
-    async session({ session, token }) { session.user = { id: token.id, name: token.name, email: token.email, role: token.role, mustChangePassword: token.mustChangePassword, canApproveCoaches: Boolean(token.canApproveCoaches) }; return session; },
+    async jwt({ token, user, trigger, session }) {
+      if (user) Object.assign(token, user);
+      if (trigger === "update" && session?.mustChangePassword !== undefined) {
+        token.mustChangePassword = session.mustChangePassword;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      session.user = {
+        id: token.id,
+        name: token.name,
+        email: token.email,
+        role: token.role,
+        mustChangePassword: token.mustChangePassword,
+        canApproveCoaches: Boolean(token.canApproveCoaches),
+      };
+      return session;
+    },
   },
   events: {
     async signOut({ token }) {
       if (!token?.id) return;
       try {
         await prisma.auditLog.create({
-          data: { userId: Number(token.id), action: "logout", entityType: "user", entityId: Number(token.id), description: "Signed out." },
+          data: {
+            userId: Number(token.id),
+            action: "logout",
+            entityType: "user",
+            entityId: Number(token.id),
+            description: "Signed out.",
+          },
         });
       } catch (error) {
         console.warn("Logout audit skipped:", error && error.message);
@@ -112,8 +149,6 @@ export const authOptions = {
 };
 
 export default async function handler(req, res) {
-  ensureSchema().catch((e) => {
-    console.warn("[nextauth] schema self-heal skipped:", e && e.message);
-  });
+  await ensureSchema();
   return NextAuth(authOptions)(req, res);
 }
