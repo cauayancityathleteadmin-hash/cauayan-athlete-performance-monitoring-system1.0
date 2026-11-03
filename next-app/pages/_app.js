@@ -1,5 +1,6 @@
 import "@/styles/globals.css";
 import "@/styles/report-print.css";
+import "@/styles/reports-screen.css";
 import { SessionProvider } from "next-auth/react";
 import RouteProgress from "@/components/RouteProgress";
 
