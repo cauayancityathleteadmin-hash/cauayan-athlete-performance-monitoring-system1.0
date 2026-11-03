@@ -8,11 +8,13 @@
   }
 
   html body .report-doc {
+    --report-gap: var(--space-5);
+    --report-section-gap: var(--space-6);
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    margin: 0 0 var(--space-5);
-    padding: clamp(var(--space-4), 2vw, var(--space-6));
+    margin: 0 0 var(--space-6);
+    padding: clamp(var(--space-5), 2.5vw, var(--space-7));
     overflow: hidden;
     background: linear-gradient(145deg, rgba(10, 50, 40, .97), rgba(4, 31, 24, .97));
     border: 1px solid var(--border);
@@ -30,8 +32,11 @@
     font-family: var(--font);
   }
 
-  html body .report-doc .rd-header {
+  /* Establish one consistent vertical rhythm across every report type. */
+  html body .report-doc > .rd-header {
     gap: var(--space-4);
+    margin: 0 0 var(--space-5);
+    padding: 0 0 var(--space-4);
     border-bottom: 2px solid var(--accent);
   }
 
@@ -42,23 +47,36 @@
     object-fit: contain;
   }
 
+  html body .report-doc .rd-header-text p {
+    margin: var(--space-1) 0;
+  }
+
   html body .report-doc .rd-title {
+    margin: var(--space-5) 0 var(--space-2);
     color: var(--accent);
     letter-spacing: .08em;
     text-wrap: balance;
   }
 
-  html body .report-doc .rd-ref,
-  html body .report-doc .rd-section-title span,
-  html body .report-doc .rd-empty,
-  html body .report-doc .rd-kpi-note,
-  html body .report-doc .rd-footer {
+  html body .report-doc .rd-ref {
+    margin: 0 0 var(--space-6);
     color: var(--muted);
   }
 
+  html body .report-doc > section + section {
+    margin-top: var(--report-section-gap);
+  }
+
   html body .report-doc .rd-section-title {
+    margin: 0 0 var(--space-4);
+    padding: 0 0 var(--space-2);
     color: var(--foreground);
     border-color: var(--border);
+    line-height: 1.4;
+  }
+
+  html body .report-doc .rd-section-title span {
+    color: var(--muted);
   }
 
   html body .report-doc .rd-sec-no,
@@ -67,6 +85,8 @@
   }
 
   html body .report-doc .rd-sub-section {
+    margin: var(--space-5) 0 var(--space-3);
+    padding-left: var(--space-3);
     border-color: var(--accent);
   }
 
@@ -75,6 +95,7 @@
     display: block;
     width: 100%;
     max-width: 100%;
+    margin: var(--space-3) 0 var(--space-4);
     overflow-x: auto;
     border-collapse: collapse;
     color: var(--foreground);
@@ -93,8 +114,10 @@
   html body .report-doc .rd-results th,
   html body .report-doc .rd-info td,
   html body .report-doc .rd-results td {
+    padding: var(--space-3) var(--space-4);
     color: var(--foreground);
     border: 1px solid var(--border);
+    line-height: 1.5;
     overflow-wrap: anywhere;
   }
 
@@ -109,31 +132,107 @@
     background: rgba(4, 31, 24, .35);
   }
 
-  html body .report-doc .rd-grid-item {
-    color: var(--foreground);
-    background: rgba(45, 212, 168, .07);
-    border-color: var(--border);
+  html body .report-doc .rd-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    margin: var(--space-4) 0;
   }
 
-  html body .report-doc .rd-kpi-label,
-  html body .report-doc .rd-kpi-note,
+  html body .report-doc .rd-grid-item {
+    min-width: 0;
+    padding: var(--space-4);
+    color: var(--foreground);
+    background: rgba(45, 212, 168, .07);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+  }
+
+  html body .report-doc .rd-kpi-label {
+    margin-bottom: var(--space-2);
+    color: var(--muted);
+  }
+
+  html body .report-doc .rd-kpi-note {
+    margin-top: var(--space-2);
+    color: var(--muted);
+  }
+
+  html body .report-doc .rd-assessment {
+    margin: var(--space-4) 0 var(--space-5);
+  }
+
+  html body .report-doc .rd-assessment-head {
+    margin-bottom: var(--space-3);
+    line-height: 1.5;
+  }
+
   html body .report-doc .rd-assessment-head small {
     color: var(--muted);
   }
 
+  html body .report-doc .rd-empty {
+    margin: var(--space-3) 0;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
   html body .report-doc .rd-cert {
+    margin: var(--space-6) 0;
+    padding: var(--space-4) var(--space-5);
     color: var(--foreground);
     background: rgba(45, 212, 168, .06);
-    border-color: var(--border);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    line-height: 1.65;
+  }
+
+  html body .report-doc .rd-cert strong {
+    margin-bottom: var(--space-2);
+  }
+
+  html body .report-doc .rd-signatures {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-5);
+    margin: var(--space-6) 0;
+  }
+
+  html body .report-doc .rd-sig {
+    min-width: 180px;
+    padding: var(--space-2);
+  }
+
+  html body .report-doc .rd-sig-label {
+    margin-bottom: var(--space-6);
+    line-height: 1.4;
   }
 
   html body .report-doc .rd-sig-name {
     border-color: var(--muted);
   }
 
+  html body .report-doc .rd-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-3) var(--space-5);
+    margin-top: var(--space-6);
+    padding-top: var(--space-3);
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
   @media (max-width: 640px) {
-    html body .report-doc .rd-header {
+    html body .report-doc {
+      --report-section-gap: var(--space-5);
+      padding: var(--space-4);
+    }
+
+    html body .report-doc > .rd-header {
       gap: var(--space-2);
+      margin-bottom: var(--space-4);
+      padding-bottom: var(--space-3);
     }
 
     html body .report-doc .rd-logo,
@@ -149,6 +248,19 @@
     html body .report-doc .rd-grid,
     html body .report-doc .rd-signatures {
       flex-direction: column;
+      gap: var(--space-3);
+    }
+
+    html body .report-doc .rd-info,
+    html body .report-doc .rd-results {
+      margin: var(--space-2) 0 var(--space-3);
+    }
+
+    html body .report-doc .rd-info th,
+    html body .report-doc .rd-results th,
+    html body .report-doc .rd-info td,
+    html body .report-doc .rd-results td {
+      padding: var(--space-2) var(--space-3);
     }
 
     html body .report-doc .rd-footer {
