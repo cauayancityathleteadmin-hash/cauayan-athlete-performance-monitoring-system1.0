@@ -906,27 +906,6 @@ async function seedTestData(ref) {
     trainingPlans[tp.key] = created;
   }
 
-  // --- Athlete plan comments ------------------------------------------------
-  const planCommentSeed = [
-    ["sprint", 0, "Focus on block starts this week; keep hips low through the first three steps."],
-    ["sprint", 9, "Your tempo recovery is slow after the last 200m - shorten the walk-back interval."],
-    ["mileage", 0, "Keep the long run at conversational pace; do not chase the group."],
-    ["basket", 3, "Land softly on the box jumps - absorb with the knees, not the back."],
-    ["volley", 4, "Great block form in review. Add a pause at the top of the jump."],
-    ["sprint6", 36, "Focus on block starts this week; keep hips low through the first three steps."],
-    ["sprint6", 37, "Your tempo recovery is slow after the last 200m - shorten the walk-back interval."],
-    ["mileage6", 36, "Keep the long run at conversational pace; do not chase the group."],
-  ];
-  for (const [planKey, aidx, body] of planCommentSeed) {
-    const plan = trainingPlans[planKey];
-    const athlete = athletes[aidx].athlete;
-    await once(
-      prisma, "athletePlanComment",
-      { planId: plan.id, athleteId: athlete.id, body },
-      { planId: plan.id, athleteId: athlete.id, authorId: admin.id, body, createdAt: new Date("2026-09-06") }
-    );
-  }
-
   // --- Plan activities + logs ----------------------------------------------
   const activitySeed = [
     // [planKey, athleteIdx, name, fitness, qty, unit, sets, reps, dist, load, day, week]
@@ -976,13 +955,13 @@ async function seedTestData(ref) {
     ["test101", 36, "Freestyle drill set", "skill_technique", 20, "attempts", 5, null, null, null, 1, 1],
     ["test101", 36, "Endurance pull set 500m", "endurance", 500, "meters", null, null, 500, null, 1, 1],
     ["test101", 36, "Kick set 8x50m", "endurance", 8, "reps", null, null, 50, null, 2, 1],
-    ["test101", 36, "Vertical jump test", "power", 10, "reps", 3, null, null, null, 8, 1],
+    ["test101", 36, "Vertical jump test", "power", 10, "reps", 3, null, null, null, 7, 1],
     ["test101", 36, "Treading water sprints", "speed_agility", 6, "reps", null, null, null, null, 1, 1],
     ["test101", 36, "Mobility circuit", "mobility", 15, "min", null, null, null, null, 3, 1],
     ["test101", 37, "Freestyle drill set", "skill_technique", 20, "attempts", 5, null, null, null, 1, 1],
     ["test101", 37, "Endurance pull set 500m", "endurance", 500, "meters", null, null, 500, null, 1, 1],
     ["test101", 37, "Kick set 8x50m", "endurance", 8, "reps", null, null, 50, null, 2, 1],
-    ["test101", 37, "Vertical jump test", "power", 10, "reps", 3, null, null, null, 8, 1],
+    ["test101", 37, "Vertical jump test", "power", 10, "reps", 3, null, null, null, 7, 1],
     ["test101", 37, "Treading water sprints", "speed_agility", 6, "reps", null, null, null, null, 1, 1],
     ["test101", 37, "Mobility circuit", "mobility", 15, "min", null, null, null, null, 3, 1],
     // Test 101 plan - Swimming activities - Week 2
@@ -990,13 +969,13 @@ async function seedTestData(ref) {
     ["test101", 36, "Endurance pull set 600m", "endurance", 600, "meters", null, null, 600, null, 1, 2],
     ["test101", 36, "Kick set 10x50m", "endurance", 10, "reps", null, null, 50, null, 2, 2],
     ["test101", 36, "Interval sprints 4x50m", "speed_agility", 4, "reps", null, null, null, null, 1, 2],
-    ["test101", 36, "Core strength circuit", "power", 12, "reps", 3, null, null, null, 8, 2],
+    ["test101", 36, "Core strength circuit", "power", 12, "reps", 3, null, null, null, 7, 2],
     ["test101", 36, "Flexibility stretch", "mobility", 20, "min", null, null, null, null, 3, 2],
     ["test101", 37, "Freestyle drill set", "skill_technique", 25, "attempts", 5, null, null, null, 1, 2],
     ["test101", 37, "Endurance pull set 600m", "endurance", 600, "meters", null, null, 600, null, 1, 2],
     ["test101", 37, "Kick set 10x50m", "endurance", 10, "reps", null, null, 50, null, 2, 2],
     ["test101", 37, "Interval sprints 4x50m", "speed_agility", 4, "reps", null, null, null, null, 1, 2],
-    ["test101", 37, "Core strength circuit", "power", 12, "reps", 3, null, null, null, 8, 2],
+    ["test101", 37, "Core strength circuit", "power", 12, "reps", 3, null, null, null, 7, 2],
     ["test101", 37, "Flexibility stretch", "mobility", 20, "min", null, null, null, null, 3, 2],
   ];
   for (const [planKey, aidx, name, fitness, qty, unit, sets, reps, dist, load, day, week] of activitySeed) {
@@ -1018,6 +997,36 @@ async function seedTestData(ref) {
         dayIndex: day || null, weekNumber: week || null,
       },
     });
+  }
+
+  // --- Activity plan comments (audit-local fix: model is ActivityPlanComment
+  // and requires activityId, so this must run after activities are created) ---
+  const planCommentSeed = [
+    ["sprint", 0, "Focus on block starts this week; keep hips low through the first three steps."],
+    ["sprint", 9, "Your tempo recovery is slow after the last 200m - shorten the walk-back interval."],
+    ["mileage", 0, "Keep the long run at conversational pace; do not chase the group."],
+    ["basket", 3, "Land softly on the box jumps - absorb with the knees, not the back."],
+    ["volley", 4, "Great block form in review. Add a pause at the top of the jump."],
+    ["sprint6", 36, "Focus on block starts this week; keep hips low through the first three steps."],
+    ["sprint6", 37, "Your tempo recovery is slow after the last 200m - shorten the walk-back interval."],
+    ["mileage6", 36, "Keep the long run at conversational pace; do not chase the group."],
+  ];
+  for (const [planKey, aidx, body] of planCommentSeed) {
+    const plan = trainingPlans[planKey];
+    const athlete = athletes[aidx].athlete;
+    const activity = await prisma.planActivity.findFirst({
+      where: { planId: plan.id, athleteId: athlete.id },
+      orderBy: { id: "asc" },
+    });
+    if (!activity) continue;
+    await once(
+      prisma, "activityPlanComment",
+      { planId: plan.id, activityId: activity.id, athleteId: athlete.id, body },
+      {
+        planId: plan.id, activityId: activity.id, athleteId: athlete.id,
+        authorId: admin.id, body, createdAt: new Date("2026-09-06"),
+      }
+    );
   }
 
   // Logs: several done/partial/missed entries across days.
@@ -1215,11 +1224,15 @@ async function seedTestData(ref) {
     ["basket", 5, 6, "speed_agility", "Defensive footwork improving slowly."],
     ["volley", 4, 9, "skill_technique", "Spike approach near flawless."],
   ];
+  const seenTrainingAssessments = new Set();
   for (const [planKey, aidx, rating, fitness, comments] of trainingAssessSeed) {
     const plan = trainingPlans[planKey];
     const athlete = athletes[aidx].athlete;
+    const assessmentKey = `${plan.id}:${athlete.id}`;
+    if (seenTrainingAssessments.has(assessmentKey)) continue;
+    seenTrainingAssessments.add(assessmentKey);
     const existing = await prisma.trainingAssessment.findFirst({
-      where: { planId: plan.id, athleteId: athlete.id, rating, comments },
+      where: { planId: plan.id, athleteId: athlete.id },
     });
     if (existing) continue;
     await prisma.trainingAssessment.create({

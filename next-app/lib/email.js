@@ -2,6 +2,17 @@ import nodemailer from "nodemailer";
 
 let transporter = null;
 
+// Every value interpolated into an HTML template must be escaped: names,
+// rejection reasons, and event-plan titles are user/admin controlled.
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function getTransporter() {
   if (transporter) return transporter;
 
@@ -35,9 +46,9 @@ export async function sendCoachRegistrationNotice({ email, name, coachCode }) {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #041f18;">Cauayan City Athlete Performance Monitoring System</h2>
-          <p>Hello <strong>${name}</strong>,</p>
+          <p>Hello <strong>${escapeHtml(name)}</strong>,</p>
           <p>Your coach registration was received.</p>
-          <p><strong>Coach ID:</strong> ${coachCode}</p>
+          <p><strong>Coach ID:</strong> ${escapeHtml(coachCode)}</p>
           <p>An administrator must approve your account before you can sign in.</p>
           <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;" />
           <p style="color: #666; font-size: 12px;">Cauayan City Athlete Performance Monitoring System</p>
@@ -64,10 +75,10 @@ export async function sendCoachApprovalEmail({ email, name, coachCode }) {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #041f18;">Cauayan City Athlete Performance Monitoring System</h2>
-          <p>Hello <strong>${name}</strong>,</p>
+          <p>Hello <strong>${escapeHtml(name)}</strong>,</p>
           <p>Your coach account has been <strong style="color: #2dd4a8;">approved</strong>!</p>
           <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Coach ID:</strong> ${coachCode}</p>
+            <p><strong>Coach ID:</strong> ${escapeHtml(coachCode)}</p>
           </div>
           <p>You can now sign in at the system URL using the <strong>username and password</strong> you registered with.</p>
           <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;" />
@@ -95,9 +106,9 @@ export async function sendCoachRejectionEmail({ email, name, coachCode, reason }
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #041f18;">Cauayan City Athlete Performance Monitoring System</h2>
-          <p>Hello <strong>${name}</strong>,</p>
-          <p>Your coach registration (<strong>${coachCode}</strong>) was not approved.</p>
-          ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ""}
+          <p>Hello <strong>${escapeHtml(name)}</strong>,</p>
+          <p>Your coach registration (<strong>${escapeHtml(coachCode)}</strong>) was not approved.</p>
+          ${reason ? `<p><strong>Reason:</strong> ${escapeHtml(reason)}</p>` : ""}
           <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;" />
           <p style="color: #666; font-size: 12px;">Cauayan City Athlete Performance Monitoring System</p>
         </div>
@@ -122,10 +133,10 @@ export async function sendPasswordResetLink({ email, name, resetUrl }) {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #041f18;">Cauayan City Athlete Performance Monitoring System</h2>
-          <p>Hello <strong>${name}</strong>,</p>
+          <p>Hello <strong>${escapeHtml(name)}</strong>,</p>
           <p>Someone requested to reset the password for your account. If this was you, click the button below. The link expires in 30 minutes.</p>
-          <p><a href="${resetUrl}" style="display:inline-block; background:#2dd4a8; color:#041f18; padding:12px 24px; border-radius:8px; text-decoration:none; font-weight:bold;">Choose a new password</a></p>
-          <p style="color:#666; font-size:13px;">If the button does not work, copy this link into your browser:<br/>${resetUrl}</p>
+          <p><a href="${escapeHtml(resetUrl)}" style="display:inline-block; background:#2dd4a8; color:#041f18; padding:12px 24px; border-radius:8px; text-decoration:none; font-weight:bold;">Choose a new password</a></p>
+          <p style="color:#666; font-size:13px;">If the button does not work, copy this link into your browser:<br/>${escapeHtml(resetUrl)}</p>
           <p style="color:#666; font-size:12px;">If you did not request this, you can safely ignore this email.</p>
           <hr style="border:none; border-top:1px solid #e0e0e0; margin:20px 0;" />
           <p style="color:#666; font-size:12px;">Cauayan City Athlete Performance Monitoring System</p>
@@ -151,7 +162,7 @@ export async function sendNotificationEmail({ email, name, subject, message }) {
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #041f18;">Cauayan City Athlete Performance Monitoring System</h2>
-          <p>Hello<strong>${name ? ` ${name}` : ""}</strong>,</p>
+          <p>Hello<strong>${name ? ` ${escapeHtml(name)}` : ""}</strong>,</p>
           <p style="white-space: pre-line;">${String(message || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
           <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;" />
           <p style="color: #666; font-size: 12px;">Cauayan City Athlete Performance Monitoring System</p>
@@ -178,9 +189,9 @@ export async function sendEventApplicationDecisionEmail({ email, name, eventPlan
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #041f18;">Cauayan City Athlete Performance Monitoring System</h2>
-          <p>Hello <strong>${name}</strong>,</p>
-          <p>Your application to the event plan <strong>"${eventPlanName}"</strong> was ${ok ? '<strong style="color: #2dd4a8;">approved</strong>' : '<strong style="color: #f56565;">not approved</strong>'} by an administrator.</p>
-          ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ""}
+          <p>Hello <strong>${escapeHtml(name)}</strong>,</p>
+          <p>Your application to the event plan <strong>"${escapeHtml(eventPlanName)}"</strong> was ${ok ? '<strong style="color: #2dd4a8;">approved</strong>' : '<strong style="color: #f56565;">not approved</strong>'} by an administrator.</p>
+          ${reason ? `<p><strong>Reason:</strong> ${escapeHtml(reason)}</p>` : ""}
           ${ok ? "<p>You can now add your athletes to this event plan.</p>" : ""}
           <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;" />
           <p style="color: #666; font-size: 12px;">Cauayan City Athlete Performance Monitoring System</p>

@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../pages/api/auth/[...nextauth]";
+import { prisma } from "./prisma";
 
 export function setSecurityHeaders(res) {
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -26,6 +27,43 @@ export async function requireSession(req, res) {
     res.status(401).json({ error: "Authentication required." });
     return null;
   }
+
+  // Sessions are stateless JWTs. Never trust the role/status baked into the
+  // token: re-read the user on every request so a deleted, deactivated,
+  // rejected, or demoted account cannot keep using an old cookie.
+  const userId = Number(session.user.id);
+  if (!Number.isSafeInteger(userId) || userId <= 0) {
+    res.status(401).json({ error: "Authentication required." });
+    return null;
+  }
+
+  let user;
+  try {
+    user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        role: true,
+        status: true,
+        mustChangePassword: true,
+        coach: { select: { canApproveCoaches: true } },
+      },
+    });
+  } catch (error) {
+    console.error("Session revalidation failed:", error);
+    res.status(503).json({ error: "Authentication could not be verified. Please try again." });
+    return null;
+  }
+
+  if (!user || user.status !== "active") {
+    res.status(401).json({ error: "Your session is no longer valid. Please sign in again." });
+    return null;
+  }
+
+  session.user.id = String(user.id);
+  session.user.role = user.role;
+  session.user.mustChangePassword = user.mustChangePassword;
+  session.user.canApproveCoaches = Boolean(user.coach?.canApproveCoaches);
   return session;
 }
 

@@ -1,10 +1,18 @@
 const APP_NAME = "cauayan-athlete-performance";
 const SNAPSHOT_VERSION = 1;
 
+// Restores truncate and re-insert every table inside one transaction. On a
+// populated database that can exceed Prisma's 5s interactive-transaction
+// default, which would abort an otherwise valid restore.
+const RESTORE_TX_OPTIONS = { maxWait: 20000, timeout: 120000 };
+
 function quoteIdent(name) {
   return `"${String(name).replace(/"/g, '""')}"`;
 }
 
+// Dependency-safe order: parents before children. Keep this list exhaustive;
+// buildSystemSnapshot also appends any table not listed here so a future
+// migration can never silently drop data from a backup.
 export const SYSTEM_ORDER = [
   "rate_limit_buckets",
   "points_config",
@@ -13,33 +21,41 @@ export const SYSTEM_ORDER = [
   "sports",
   "events",
   "performance_metrics",
+  "document_types",
+  "fitness_norms",
   "users",
+  "signatories",
   "coaches",
   "coach_sports",
   "athletes",
   "athlete_coach_history",
   "athlete_status_history",
   "coaching_notes",
+  "athlete_documents",
+  "athlete_transfers",
   "assessments",
   "assessment_results",
-  "achievements",
   "event_plans",
   "event_plan_sports",
   "event_applications",
   "event_participants",
+  "event_photos",
+  "achievements",
   "health_logs",
   "password_reset_tokens",
   "training_plans",
   "training_plan_athletes",
   "plan_activities",
   "plan_activity_logs",
-  "training_notes",
+  "plan_evidence",
+  "activity_plan_comments",
   "training_sessions",
   "training_exercises",
   "training_attendances",
   "exercise_performances",
   "training_assessments",
   "coach_performances",
+  "report_documents",
   "audit_logs",
 ];
 
@@ -50,6 +66,8 @@ export const COACH_ORDER = [
   "athlete_coach_history",
   "athlete_status_history",
   "coaching_notes",
+  "athlete_documents",
+  "athlete_transfers",
   "assessments",
   "assessment_results",
   "achievements",
@@ -58,12 +76,14 @@ export const COACH_ORDER = [
   "training_plan_athletes",
   "plan_activities",
   "plan_activity_logs",
-  "training_notes",
+  "plan_evidence",
+  "activity_plan_comments",
   "training_sessions",
   "training_exercises",
   "training_attendances",
   "exercise_performances",
   "training_assessments",
+  "coach_performances",
 ];
 
 const COACH_SELECT = {
@@ -73,6 +93,8 @@ const COACH_SELECT = {
   athlete_coach_history: "athlete_id IN (SELECT id FROM athletes WHERE coach_id = $1)",
   athlete_status_history: "athlete_id IN (SELECT id FROM athletes WHERE coach_id = $1)",
   coaching_notes: "athlete_id IN (SELECT id FROM athletes WHERE coach_id = $1)",
+  athlete_documents: "athlete_id IN (SELECT id FROM athletes WHERE coach_id = $1)",
+  athlete_transfers: "athlete_id IN (SELECT id FROM athletes WHERE coach_id = $1)",
   assessments: "athlete_id IN (SELECT id FROM athletes WHERE coach_id = $1)",
   assessment_results: "assessment_id IN (SELECT id FROM assessments WHERE athlete_id IN (SELECT id FROM athletes WHERE coach_id = $1))",
   achievements: "athlete_id IN (SELECT id FROM athletes WHERE coach_id = $1)",
@@ -81,12 +103,14 @@ const COACH_SELECT = {
   training_plan_athletes: "plan_id IN (SELECT id FROM training_plans WHERE coach_id = $1)",
   plan_activities: "plan_id IN (SELECT id FROM training_plans WHERE coach_id = $1)",
   plan_activity_logs: "activity_id IN (SELECT id FROM plan_activities WHERE plan_id IN (SELECT id FROM training_plans WHERE coach_id = $1))",
-  training_notes: "plan_id IN (SELECT id FROM training_plans WHERE coach_id = $1)",
+  plan_evidence: "plan_id IN (SELECT id FROM training_plans WHERE coach_id = $1)",
+  activity_plan_comments: "plan_id IN (SELECT id FROM training_plans WHERE coach_id = $1)",
   training_sessions: "coach_id = $1",
   training_exercises: "session_id IN (SELECT id FROM training_sessions WHERE coach_id = $1)",
   training_attendances: "session_id IN (SELECT id FROM training_sessions WHERE coach_id = $1)",
   exercise_performances: "exercise_id IN (SELECT e.id FROM training_exercises e JOIN training_sessions s ON s.id = e.session_id WHERE s.coach_id = $1) AND athlete_id IN (SELECT id FROM athletes WHERE coach_id = $1)",
   training_assessments: "plan_id IN (SELECT id FROM training_plans WHERE coach_id = $1) OR athlete_id IN (SELECT id FROM athletes WHERE coach_id = $1)",
+  coach_performances: "coach_id = $1",
 };
 
 const CAST_BY_TYPE = {
@@ -102,6 +126,7 @@ const CAST_BY_TYPE = {
   date: { name: "date" },
   jsonb: { name: "jsonb" },
   json: { name: "jsonb" },
+  bytea: { name: "bytea" },
 };
 
 async function getTables(prisma) {
@@ -185,7 +210,12 @@ function validateSnapshot(snapshot) {
 
 export async function buildSystemSnapshot(prisma) {
   const tables = await getTables(prisma);
-  const present = SYSTEM_ORDER.filter((t) => tables.includes(t));
+  // Known tables first (dependency-safe), then anything a newer migration
+  // added. This makes the backup exhaustive even if SYSTEM_ORDER drifts.
+  const present = [
+    ...SYSTEM_ORDER.filter((t) => tables.includes(t)),
+    ...tables.filter((t) => !SYSTEM_ORDER.includes(t)),
+  ];
   const data = await snapshotTables(prisma, present, null, null);
   const counts = {};
   for (const table of present) counts[table] = data[table].length;
@@ -254,7 +284,7 @@ export async function restoreSystem(prisma, rawSnapshot) {
       await insertRows(tx, typeMap, table, decoded[table]);
     }
     await syncSequences(tx, order, typeMap);
-  });
+  }, RESTORE_TX_OPTIONS);
   return summarize(snapshot);
 }
 
@@ -334,6 +364,8 @@ export async function restoreCoach(prisma, rawSnapshot, coachId) {
     athlete_coach_history: (r) => myAthletes.has(Number(r.athlete_id)),
     athlete_status_history: (r) => myAthletes.has(Number(r.athlete_id)),
     coaching_notes: (r) => myAthletes.has(Number(r.athlete_id)),
+    athlete_documents: (r) => myAthletes.has(Number(r.athlete_id)),
+    athlete_transfers: (r) => myAthletes.has(Number(r.athlete_id)),
     assessments: (r) => myAthletes.has(Number(r.athlete_id)),
     assessment_results: (r) => myAssessments.has(Number(r.assessment_id)),
     achievements: (r) => myAthletes.has(Number(r.athlete_id)),
@@ -342,7 +374,8 @@ export async function restoreCoach(prisma, rawSnapshot, coachId) {
     training_plan_athletes: (r) => myPlans.has(Number(r.plan_id)),
     plan_activities: (r) => myPlans.has(Number(r.plan_id)),
     plan_activity_logs: (r) => myActivities.has(Number(r.activity_id)) && myAthletes.has(Number(r.athlete_id)),
-    training_notes: (r) => myPlans.has(Number(r.plan_id)),
+    plan_evidence: (r) => myPlans.has(Number(r.plan_id)) && myAthletes.has(Number(r.athlete_id)),
+    activity_plan_comments: (r) => myPlans.has(Number(r.plan_id)) && myActivities.has(Number(r.activity_id)) && myAthletes.has(Number(r.athlete_id)),
     training_sessions: (r) => Number(r.coach_id) === Number(coachId) || myPlans.has(Number(r.plan_id)),
     training_exercises: (r) => mySessions.has(Number(r.session_id)),
     training_attendances: (r) => mySessions.has(Number(r.session_id)) && myAthletes.has(Number(r.athlete_id)),
@@ -353,9 +386,10 @@ export async function restoreCoach(prisma, rawSnapshot, coachId) {
 
   const tables = await getTables(prisma);
   const typeMap = await getColumnTypes(prisma);
-  // Coach evaluations are admin-authored. Older coach backups may contain
-  // them, but restoring must never overwrite the official record.
-  const order = snapshot.order.filter((t) => t !== "coach_performances" && tables.includes(t) && snapshot.tables[t]);
+  // Restore every captured table, including admin-authored evaluations and
+  // transfers. Excluding a table here while deleting its parent row would let
+  // the cascade destroy data that the backup never puts back.
+  const order = snapshot.order.filter((t) => tables.includes(t) && snapshot.tables[t]);
 
   await prisma.$transaction(async (tx) => {
     for (const table of order.slice().reverse()) {
@@ -375,14 +409,9 @@ export async function restoreCoach(prisma, rawSnapshot, coachId) {
       await insertRows(tx, typeMap, table, rows);
     }
     await syncSequences(tx, order, typeMap);
-  });
+  }, RESTORE_TX_OPTIONS);
 
-  const summary = summarize(snapshot);
-  if (summary.tables && summary.tables.coach_performances) {
-    summary.total -= summary.tables.coach_performances;
-    delete summary.tables.coach_performances;
-  }
-  return summary;
+  return summarize(snapshot);
 }
 
 function summarize(snapshot) {

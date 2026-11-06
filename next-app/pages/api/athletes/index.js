@@ -23,7 +23,9 @@ export default async function handler(req, res) {
       let whereClause = undefined;
       if (session.user.role === "coach") {
         const coach = await prisma.coach.findUnique({ where: { userId: Number(session.user.id) }, select: { id: true } });
-        if (coach) whereClause = { coachId: coach.id };
+        // Fail closed: a coach user without a coach profile must never fall
+        // through to an unfiltered query (which would return every athlete).
+        whereClause = coach ? { coachId: coach.id } : { coachId: -1 };
         if (coachParam) {
           if (/^\d+$/.test(coachParam)) {
             return res.status(403).json({ error: "Coaches may only view their own athletes." });
@@ -70,6 +72,14 @@ export default async function handler(req, res) {
   const eventId = body.eventId ? Number(body.eventId) : null;
   const schoolName = text(body.school, 191);
   const pictureUrl = text(body.pictureUrl, 2000);
+
+  // Email is optional. Normalise a missing key to null (never pass the boolean
+  // `false` returned by validateEmail into Prisma) and reject a malformed one.
+  const rawEmail = body.email === undefined || body.email === null ? "" : String(body.email).trim();
+  const email = rawEmail === "" ? null : validateEmail(rawEmail);
+  if (rawEmail !== "" && !email) {
+    return res.status(400).json({ error: "Provide a valid email address." });
+  }
 
   if (!firstName || !lastName || !birthdate || !["male", "female", "other", "prefer_not_to_say"].includes(gender) || !Number.isInteger(sportId) || (eventId !== null && !Number.isInteger(eventId))) {
     return res.status(400).json({ error: "Complete the required athlete fields with valid values." });
@@ -121,7 +131,7 @@ export default async function handler(req, res) {
           birthdate: new Date(birthdate),
           gender,
           contactNumber: text(body.contactNumber, 30) || null,
-          email: validateEmail(body.email),
+          email,
           address: text(body.address, 2000) || null,
           height: body.height !== undefined && body.height !== "" ? Number(body.height) : null,
           weight: body.weight !== undefined && body.weight !== "" ? Number(body.weight) : null,
@@ -144,6 +154,7 @@ export default async function handler(req, res) {
     return res.status(201).json(athlete);
   } catch (error) {
     if (error.code === "P2002") return res.status(409).json({ error: "That athlete code is already registered." });
-    throw error;
+    console.error("Athlete create error:", error);
+    return res.status(500).json({ error: "Could not create athlete." });
   }
 }
