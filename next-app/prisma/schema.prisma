@@ -28,6 +28,7 @@ enum ActiveStatus {
 enum SignatoryRole {
   prepared_by
   reviewed_by
+  approved_by
   certified_by
   noted_by
 }
@@ -1050,6 +1051,7 @@ model Signatory {
   printedName   String            @map("printed_name")
   position      String
   office        String?
+  signatureImageUrl String?       @map("signature_image_url")
   displayMode   SignatoryDisplay  @default(name_position_line) @map("display_mode")
   displayOrder  Int               @default(0) @map("display_order")
   effectiveFrom DateTime?         @map("effective_from")

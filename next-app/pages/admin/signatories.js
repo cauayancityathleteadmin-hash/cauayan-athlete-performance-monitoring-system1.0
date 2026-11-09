@@ -24,6 +24,7 @@ const EMPTY = {
   printedName: "",
   position: "",
   office: "",
+  signatureImageUrl: "",
   displayMode: "name_position_line",
   displayOrder: 0,
   effectiveFrom: "",
@@ -38,6 +39,7 @@ function toForm(row) {
     printedName: row.printedName || "",
     position: row.position || "",
     office: row.office || "",
+    signatureImageUrl: row.signatureImageUrl || "",
     displayMode: row.displayMode || "name_position_line",
     displayOrder: row.displayOrder ?? 0,
     effectiveFrom: row.effectiveFrom ? String(row.effectiveFrom).slice(0, 10) : "",
@@ -54,6 +56,8 @@ export default function SignatoriesAdmin({ session, signatories: initial = [] })
   const [editForm, setEditForm] = React.useState(EMPTY);
   const [saving, setSaving] = React.useState(false);
   const [message, setMessage] = React.useState({ kind: "", text: "" });
+  const [uploadingSignature, setUploadingSignature] = React.useState(false);
+  const [signatureError, setSignatureError] = React.useState("");
 
   async function api(method, body) {
     const csrf = await fetch("/api/csrf").then((r) => r.json());
@@ -64,6 +68,44 @@ export default function SignatoriesAdmin({ session, signatories: initial = [] })
     }).catch(() => null);
     const result = response ? await response.json().catch(() => ({})) : {};
     return { ok: !!(response && response.ok && !result.error), body: result };
+  }
+
+  async function uploadSignature(file, setForm) {
+    setSignatureError("");
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type)) {
+      setSignatureError("Choose a PNG, JPG, or WEBP image.");
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      setSignatureError("The signature image must be 1 MB or smaller.");
+      return;
+    }
+    setUploadingSignature(true);
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("The image could not be read."));
+        reader.readAsDataURL(file);
+      });
+      const comma = dataUrl.indexOf(",");
+      const meta = dataUrl.slice(0, comma);
+      const base64 = dataUrl.slice(comma + 1);
+      const mime = (meta.match(/data:([^;]+)/) || [])[1] || file.type;
+      const csrf = await fetch("/api/csrf").then((r) => r.json());
+      const response = await fetch("/api/admin/signatory-signature", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf.token },
+        body: JSON.stringify({ base64, mime }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body.url) throw new Error(body.error || "The signature image could not be uploaded.");
+      setForm((f) => ({ ...f, signatureImageUrl: body.url }));
+    } catch (error) {
+      setSignatureError(error.message || "The signature image could not be uploaded.");
+    } finally {
+      setUploadingSignature(false);
+    }
   }
 
   function upsertLocal(row) {
@@ -136,6 +178,7 @@ export default function SignatoriesAdmin({ session, signatories: initial = [] })
 
   function formFields(form, setForm) {
     return (
+      <>
       <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", alignItems: "flex-end" }}>
         <label style={{ flex: "1 1 220px", minWidth: 0 }}>Report type *
           <select className={styles.fieldControl} value={form.reportType} onChange={(e) => setForm((f) => ({ ...f, reportType: e.target.value }))}>
@@ -172,6 +215,21 @@ export default function SignatoriesAdmin({ session, signatories: initial = [] })
         </label>
         <label style={{ flex: "0 0 auto", display: "inline-flex", alignItems: "center", gap: "var(--space-2)", alignSelf: "flex-end", fontSize: 13 }}><input type="checkbox" checked={form.status === "active"} onChange={(e) => setForm((f) => ({ ...f, status: e.target.checked ? "active" : "inactive" }))} /> Active</label>
       </div>
+      <div style={{ display: "flex", gap: "var(--space-3)", flexWrap: "wrap", alignItems: "flex-end", marginTop: "var(--space-3)" }}>
+        <label style={{ flex: "1 1 260px", minWidth: 0 }}>Signature image / e-signature
+          <input className={styles.fieldControl} type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadSignature(file, setForm); e.target.value = ""; }} disabled={uploadingSignature} />
+        </label>
+        {form.signatureImageUrl ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+            <img src={form.signatureImageUrl} alt="Signature preview" style={{ height: 44, maxWidth: 180, objectFit: "contain", background: "#fff", borderRadius: "var(--radius-sm)", padding: 2 }} />
+            <button type="button" className={styles.btnSm} disabled={uploadingSignature} onClick={() => setForm((f) => ({ ...f, signatureImageUrl: "" }))}>Remove</button>
+          </div>
+        ) : (
+          <span className={styles.formHint} style={{ flex: "1 1 220px", margin: 0 }}>{uploadingSignature ? "Uploading…" : "PNG, JPG, or WEBP up to 1 MB. Optional."}</span>
+        )}
+      </div>
+      {signatureError && <p role="alert" className={`${styles.fullField} ${styles.formError}`} style={{ marginTop: "var(--space-2)" }}>{signatureError}</p>}
+    </>
     );
   }
 
@@ -217,12 +275,12 @@ export default function SignatoriesAdmin({ session, signatories: initial = [] })
 
           <div className={styles.tableWrap}>
             <table>
-              <thead><tr><th scope="col">Report type</th><th scope="col">Role</th><th scope="col">Printed name</th><th scope="col">Position</th><th scope="col">Office</th><th scope="col">Display</th><th scope="col">Order</th><th scope="col">Effective</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+              <thead><tr><th scope="col">Report type</th><th scope="col">Role</th><th scope="col">Printed name</th><th scope="col">Position</th><th scope="col">Office</th><th scope="col">Signature</th><th scope="col">Display</th><th scope="col">Order</th><th scope="col">Effective</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
               <tbody>
                 {rows.map((row) => (
                   editingId === row.id ? (
                     <tr key={row.id}>
-                      <td colSpan={10}>
+                      <td colSpan={11}>
                         <form onSubmit={submitEdit} className={styles.formStack}>
                           {formFields(editForm, setEditForm)}
                           <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-3)" }}>
@@ -239,6 +297,7 @@ export default function SignatoriesAdmin({ session, signatories: initial = [] })
                       <td data-label="Printed name">{row.printedName || "—"}</td>
                       <td data-label="Position">{row.position || "—"}</td>
                       <td data-label="Office">{row.office || "—"}</td>
+                      <td data-label="Signature">{row.signatureImageUrl ? <img src={row.signatureImageUrl} alt={`Signature of ${row.printedName || row.position}`} style={{ height: 28, maxWidth: 90, objectFit: "contain", background: "#fff", borderRadius: "var(--radius-sm)", padding: 2 }} /> : "—"}</td>
                       <td data-label="Display">{DISPLAY_MODES.find((mode) => mode.key === row.displayMode)?.label || row.displayMode}</td>
                       <td data-label="Order">{row.displayOrder}</td>
                       <td data-label="Effective">{(row.effectiveFrom ? String(row.effectiveFrom).slice(0, 10) : "—")} to {(row.effectiveTo ? String(row.effectiveTo).slice(0, 10) : "—")}</td>
@@ -252,7 +311,7 @@ export default function SignatoriesAdmin({ session, signatories: initial = [] })
                     </tr>
                   )
                 ))}
-                {!rows.length && <tr><td colSpan={10} className={styles.empty}>No signatories configured yet. All reports use the built-in default chain.</td></tr>}
+                {!rows.length && <tr><td colSpan={11} className={styles.empty}>No signatories configured yet. All reports use the built-in default chain.</td></tr>}
               </tbody>
             </table>
           </div>

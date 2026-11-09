@@ -6,6 +6,7 @@ import { DISPLAY_MODE_KEYS, REPORT_TYPE_KEYS, ROLE_KEYS } from "../../../lib/sig
 const MAX_NAME = 150;
 const MAX_POSITION = 150;
 const MAX_OFFICE = 150;
+const MAX_URL = 1000;
 
 function parseDate(value) {
   if (value === "" || value === null || value === undefined) return null;
@@ -26,6 +27,7 @@ function normalize(body, existing) {
     printedName: "",
     position: "",
     office: null,
+    signatureImageUrl: null,
     displayMode: "name_position_line",
     displayOrder: 0,
     effectiveFrom: null,
@@ -38,6 +40,7 @@ function normalize(body, existing) {
   const printedName = pick("printedName", body?.printedName === undefined ? undefined : trimmed(body.printedName));
   const position = pick("position", body?.position === undefined ? undefined : trimmed(body.position));
   const office = pick("office", body?.office === undefined ? undefined : trimmed(body.office) || null);
+  const signatureImageUrl = pick("signatureImageUrl", body?.signatureImageUrl === undefined ? undefined : trimmed(body.signatureImageUrl) || null);
 
   return {
     reportType: pick("reportType", body?.reportType),
@@ -45,6 +48,7 @@ function normalize(body, existing) {
     printedName: typeof printedName === "string" ? printedName : "",
     position: typeof position === "string" ? position : "",
     office,
+    signatureImageUrl: typeof signatureImageUrl === "string" ? signatureImageUrl : null,
     displayMode: pick("displayMode", body?.displayMode),
     displayOrder: body?.displayOrder === undefined ? base.displayOrder : Number(body.displayOrder),
     effectiveFrom: body?.effectiveFrom === undefined ? base.effectiveFrom : parseDate(body.effectiveFrom),
@@ -65,6 +69,10 @@ function validate(row) {
   if (row.printedName.length > MAX_NAME) return `Printed name must be ${MAX_NAME} characters or fewer.`;
   if (row.position.length > MAX_POSITION) return `Position must be ${MAX_POSITION} characters or fewer.`;
   if ((row.office || "").length > MAX_OFFICE) return `Office must be ${MAX_OFFICE} characters or fewer.`;
+  if (row.signatureImageUrl && row.signatureImageUrl.length > MAX_URL) return `Signature image URL must be ${MAX_URL} characters or fewer.`;
+  if (row.signatureImageUrl && !/^https:\/\/[^\s]+$/i.test(row.signatureImageUrl)) {
+    return "The signature image must be an uploaded HTTPS image.";
+  }
   if (row.effectiveFrom === undefined || row.effectiveTo === undefined) return "Effective dates must be valid dates.";
   if (row.effectiveFrom && row.effectiveTo && row.effectiveFrom > row.effectiveTo) {
     return "The effective-from date cannot be after the effective-to date.";

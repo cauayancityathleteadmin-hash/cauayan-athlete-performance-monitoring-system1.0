@@ -122,9 +122,13 @@ export async function finalizeReport({ session, subjectType, subjectId, from, to
   const reference = await uniqueReference(referenceFor({ subjectType, subjectCode, from, to }));
 
   const signatoriesByType = await loadSignatoriesByType();
+  // A coach's personnel record may be configured either as "Coach record" or as
+  // "Trainer's record"; the specific coach configuration wins when both exist.
+  const configuredSignatories = signatoriesByType[reportType]
+    || (reportType === "coach_record" ? signatoriesByType.trainer_record : null);
   const signatureRows = resolveSignatureRows({
     session,
-    signatories: signatoriesByType[reportType] || null,
+    signatories: configuredSignatories || null,
   });
 
   const generatedBy = session.user.name || session.user.email || "system";

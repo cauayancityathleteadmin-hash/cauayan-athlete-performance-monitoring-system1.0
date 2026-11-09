@@ -297,6 +297,24 @@
   text-align: center;
 }
 
+.rd-sig-with-image .rd-sig-label {
+  margin-bottom: 8px;
+}
+
+.rd-sig-image-wrap {
+  height: 66px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.rd-sig-image {
+  max-height: 66px;
+  max-width: 80%;
+  object-fit: contain;
+}
+
 .rd-sig-label {
   font-size: 12px;
   font-weight: 700;

@@ -4,6 +4,7 @@
 export const REPORT_TYPES = [
   { key: "athlete_record", label: "Athlete record" },
   { key: "coach_record", label: "Coach record" },
+  { key: "trainer_record", label: "Trainer's record" },
   { key: "compliance", label: "Document compliance" },
   { key: "accomplishments", label: "Accomplishments" },
   { key: "event_winners", label: "Event winners" },
@@ -12,6 +13,7 @@ export const REPORT_TYPES = [
 export const SIGNATORY_ROLES = [
   { key: "prepared_by", label: "Prepared by" },
   { key: "reviewed_by", label: "Reviewed by" },
+  { key: "approved_by", label: "Approved by" },
   { key: "certified_by", label: "Certified Correct" },
   { key: "noted_by", label: "Noted by" },
 ];

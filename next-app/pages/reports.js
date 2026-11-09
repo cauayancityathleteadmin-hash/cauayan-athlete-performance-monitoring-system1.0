@@ -702,7 +702,7 @@ const REPORTS_SECTIONS = [
                     <AthleteReportCard athlete={athlete} session={session} from={from} to={to} prefix={prefix} signatories={signatoriesByType?.athlete_record} />
                   </React.Fragment>
                 ))
-              : filtered.map((coach) => <CoachReportCard key={coach.id} coach={coach} session={session} from={from} to={to} prefix={prefix} signatories={signatoriesByType?.coach_record} />)}
+              : filtered.map((coach) => <CoachReportCard key={coach.id} coach={coach} session={session} from={from} to={to} prefix={prefix} signatories={signatoriesByType?.coach_record || signatoriesByType?.trainer_record} />)}
           </div>
           {filtered.length > 0 && (
             <div className={styles.stackedActions}>

@@ -36,6 +36,7 @@ export async function loadSignatoriesByType(at = new Date()) {
       printedName: true,
       position: true,
       office: true,
+      signatureImageUrl: true,
       displayMode: true,
       displayOrder: true,
       effectiveFrom: true,

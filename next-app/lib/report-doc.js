@@ -43,6 +43,7 @@ export function ReportHeader({ title, reference }) {
 const ROLE_LABEL = {
   prepared_by: "Prepared by:",
   reviewed_by: "Reviewed by:",
+  approved_by: "Approved by:",
   certified_by: "Certified Correct:",
   noted_by: "Noted by:",
 };
@@ -72,6 +73,7 @@ export function resolveSignatureRows({ session, signatories }) {
     key: `${configured ? "sig" : "default"}-${sig.id ?? index}`,
     role: sig.role,
     label: ROLE_LABEL[sig.role] || "Signed by:",
+    signatureImageUrl: sig.signatureImageUrl || null,
     ...signatoryLines(sig, session),
   }));
 }
@@ -83,8 +85,17 @@ export function ReportSignatureRows({ rows, certification }) {
       {certification ? <div className="rd-cert"><strong>Certification</strong>{certification}</div> : null}
       <div className="rd-signatures">
         {list.map((row) => (
-          <div className="rd-sig" key={row.key}>
+          <div className={`rd-sig${row.signatureImageUrl ? " rd-sig-with-image" : ""}`} key={row.key}>
             <div className="rd-sig-label">{row.label || ROLE_LABEL[row.role] || "Signed by:"}</div>
+            {row.signatureImageUrl ? (
+              <div className="rd-sig-image-wrap">
+                <img
+                  className="rd-sig-image"
+                  src={row.signatureImageUrl}
+                  alt={`Signature of ${row.name || row.position || row.label || "signatory"}`}
+                />
+              </div>
+            ) : null}
             <div className="rd-sig-name">{row.name}</div>
             <div className="rd-sig-pos">{row.position}</div>
             {row.note ? <div className="rd-sig-note">{row.note}</div> : null}
